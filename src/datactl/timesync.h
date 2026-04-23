@@ -19,15 +19,14 @@
 
 #pragma once
 
-#include <QUuid>
 #include <fstream>
 #include <memory>
+#include <type_traits>
 
+#include "datactl/uuid.h"
 #include "datactl/eigenaux.h"
 #include "datactl/syclock.h"
 #include "datactl/tsyncfile.h"
-
-class QFile;
 
 namespace Syntalos
 {
@@ -63,15 +62,74 @@ enum class TimeSyncStrategy {
     WRITE_TSYNCFILE =
         1 << 3 /// Do not directly adjust timestamps, but write a time-sync file to correct for errors in postprocessing
 };
-Q_DECLARE_FLAGS(TimeSyncStrategies, TimeSyncStrategy)
-Q_DECLARE_OPERATORS_FOR_FLAGS(TimeSyncStrategies)
+
+class TimeSyncStrategies
+{
+    using Int = std::underlying_type_t<TimeSyncStrategy>;
+
+public:
+    constexpr TimeSyncStrategies() noexcept
+        : m_value(0)
+    {
+    }
+    constexpr TimeSyncStrategies(TimeSyncStrategy strategy) noexcept
+        : m_value(static_cast<Int>(strategy))
+    {
+    }
+    explicit constexpr TimeSyncStrategies(Int raw) noexcept
+        : m_value(raw)
+    {
+    }
+
+    constexpr TimeSyncStrategies operator|(TimeSyncStrategies rhs) const noexcept
+    {
+        return TimeSyncStrategies(m_value | rhs.m_value);
+    }
+    constexpr TimeSyncStrategies operator&(TimeSyncStrategies rhs) const noexcept
+    {
+        return TimeSyncStrategies(m_value & rhs.m_value);
+    }
+
+    constexpr TimeSyncStrategies &operator|=(TimeSyncStrategies rhs) noexcept
+    {
+        m_value |= rhs.m_value;
+        return *this;
+    }
+
+    constexpr bool testFlag(TimeSyncStrategy strategy) const noexcept
+    {
+        const auto bit = static_cast<Int>(strategy);
+        return bit != 0 && (m_value & bit) == bit;
+    }
+
+    constexpr TimeSyncStrategies &setFlag(TimeSyncStrategy strategy, bool enabled = true) noexcept
+    {
+        const auto bit = static_cast<Int>(strategy);
+        if (enabled)
+            m_value |= bit;
+        else
+            m_value &= ~bit;
+        return *this;
+    }
+
+    constexpr Int toInt() const noexcept
+    {
+        return m_value;
+    }
+
+private:
+    Int m_value;
+};
+
+constexpr TimeSyncStrategies operator|(TimeSyncStrategy lhs, TimeSyncStrategy rhs) noexcept
+{
+    return TimeSyncStrategies(lhs) | TimeSyncStrategies(rhs);
+}
 
 const std::string timeSyncStrategyToHString(const TimeSyncStrategy &strategy);
 const std::string timeSyncStrategiesToHString(const TimeSyncStrategies &strategies);
 
 } // namespace Syntalos
-
-Q_DECLARE_METATYPE(Syntalos::TimeSyncStrategies);
 
 namespace Syntalos
 {
@@ -117,7 +175,7 @@ public:
     void setCalibrationBlocksCount(int count);
     void setStrategies(const TimeSyncStrategies &strategies);
     void setTolerance(const std::chrono::microseconds &tolerance);
-    void setTimeSyncBasename(const std::string &fname, const QUuid &collectionId);
+    void setTimeSyncBasename(const std::string &fname, const Uuid &collectionId);
     void setLastValidMasterTimestamp(microseconds_t masterTimestamp);
 
     microseconds_t lastMasterAssumedAcqTS() const;
@@ -133,11 +191,12 @@ public:
         int blockCount,
         VectorXul &idxTimestamps);
 
-private:
-    Q_DISABLE_COPY(FreqCounterSynchronizer)
+    FreqCounterSynchronizer(const FreqCounterSynchronizer &) = delete;
+    FreqCounterSynchronizer &operator=(const FreqCounterSynchronizer &) = delete;
 
+private:
     std::string m_modName;
-    QUuid m_collectionId;
+    Uuid m_collectionId;
     std::string m_id;
     TimeSyncStrategies m_strategies;
     microseconds_t m_lastOffsetEmission;
@@ -217,7 +276,7 @@ public:
 
     void setStrategies(const TimeSyncStrategies &strategies);
     void setTolerance(const microseconds_t &tolerance);
-    void setTimeSyncBasename(const std::string &fname, const QUuid &collectionId);
+    void setTimeSyncBasename(const std::string &fname, const Uuid &collectionId);
 
     bool isCalibrated() const;
     microseconds_t expectedOffsetToMaster() const;
@@ -226,13 +285,14 @@ public:
     void stop();
     void processTimestamp(microseconds_t &masterTimestamp, const microseconds_t &secondaryAcqTimestamp);
 
-private:
-    Q_DISABLE_COPY(SecondaryClockSynchronizer)
+    SecondaryClockSynchronizer(const SecondaryClockSynchronizer &) = delete;
+    SecondaryClockSynchronizer &operator=(const SecondaryClockSynchronizer &) = delete;
 
+private:
     void emitSyncDetailsChanged();
 
     std::string m_modName;
-    QUuid m_collectionId;
+    Uuid m_collectionId;
     std::string m_id;
     TimeSyncStrategies m_strategies;
     microseconds_t m_lastOffsetEmission;

@@ -22,8 +22,8 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
-#include <QUuid>
 #include <filesystem>
+#include <optional>
 
 #include "../videowriter.h"
 #include "videoreader.h"
@@ -94,6 +94,12 @@ void EncodeTask::run()
         return;
     }
 
+    auto collectionId = Uuid::fromHex(md["collection-id"].toString().toStdString());
+    if (!collectionId.has_value()) {
+        m_item->setError(QStringLiteral("Invalid collection ID in metadata; unable to continue safely."));
+        return;
+    }
+
     // open source video file
     VideoReader vsrc;
     if (!vsrc.open(m_srcFname)) {
@@ -128,7 +134,11 @@ void EncodeTask::run()
 
         tsyncTimes = tfr.times();
         tsyncTimeUnit = tfr.timeUnits().second;
-        vwriter.setTsyncFileCreationTimeOverride(QDateTime::fromSecsSinceEpoch(tfr.creationTime()));
+        const auto creationTime = std::chrono::system_clock::from_time_t(tfr.creationTime());
+        vwriter.setTsyncFileCreationTimeOverride(EdlDateTime{std::chrono::current_zone(), creationTime});
+
+        // Prefer the UUID encoded in the tsync file when available.
+        collectionId = tfr.collectionId();
     }
 
     // start encoding
@@ -163,7 +173,7 @@ void EncodeTask::run()
                     m_destFname,
                     md["mod-name"].toString(),
                     md["src-mod-name"].toString(),
-                    QUuid::fromString(md["collection-id"].toString()),
+                    collectionId.value(),
                     md["subject-name"].toString(),
                     frameWidth,
                     frameHeight,

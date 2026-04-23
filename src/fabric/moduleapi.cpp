@@ -960,6 +960,13 @@ QString AbstractModule::dataBasenameFromSubMetadata(const MetaStringMap &subMeta
     return dataName;
 }
 
+std::string AbstractModule::dataBasenameFromSubMetadata(
+    const MetaStringMap &subMetadata,
+    const std::string &defaultName)
+{
+    return dataBasenameFromSubMetadata(subMetadata, QString::fromStdString(defaultName)).toStdString();
+}
+
 QString AbstractModule::datasetNameFromParameters(const QString &preferredName, const MetaStringMap &subMetadata) const
 {
     QString datasetName;
@@ -1014,7 +1021,7 @@ std::shared_ptr<EDLDataset> AbstractModule::createDatasetInGroup(
     const auto datasetName = datasetNameFromParameters(preferredName, subMetadata);
 
     // check if the dataset already exists
-    auto dset = group->datasetByName(datasetName, EDLCreateFlag::MUST_CREATE);
+    auto dset = group->datasetByName(datasetName.toStdString(), EDLCreateFlag::MUST_CREATE).value_or(nullptr);
     if (dset == nullptr || (dset != nullptr && !dset->isEmpty())) {
         const auto dsetInfo = group == d->rootDataGroup
                                   ? QStringLiteral("'%1'").arg(datasetName)
@@ -1030,6 +1037,21 @@ std::shared_ptr<EDLDataset> AbstractModule::createDatasetInGroup(
     return dset;
 }
 
+std::shared_ptr<EDLDataset> AbstractModule::createDefaultDataset(
+    const std::string &preferredName,
+    const MetaStringMap &subMetadata)
+{
+    return createDefaultDataset(QString::fromStdString(preferredName), subMetadata);
+}
+
+std::shared_ptr<EDLDataset> AbstractModule::createDatasetInGroup(
+    std::shared_ptr<EDLGroup> group,
+    const std::string &preferredName,
+    const MetaStringMap &subMetadata)
+{
+    return createDatasetInGroup(group, QString::fromStdString(preferredName), subMetadata);
+}
+
 std::shared_ptr<EDLDataset> AbstractModule::getDefaultDataset()
 {
     return d->defaultDataset;
@@ -1043,7 +1065,7 @@ std::shared_ptr<EDLGroup> AbstractModule::createStorageGroup(const QString &grou
         return nullptr;
     }
 
-    return d->rootDataGroup->groupByName(groupName, EDLCreateFlag::CREATE_OR_OPEN);
+    return d->rootDataGroup->groupByName(groupName.toStdString(), EDLCreateFlag::CREATE_OR_OPEN).value_or(nullptr);
 }
 
 QWidget *AbstractModule::addDisplayWindow(QWidget *window, bool owned)

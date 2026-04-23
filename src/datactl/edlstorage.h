@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -19,18 +19,27 @@
 
 #pragma once
 
-#include <QDateTime>
-#include <QFileInfo>
-#include <QHash>
-#include <QObject>
-#include <QUuid>
+#include <chrono>
+#include <expected>
+#include <filesystem>
+#include <map>
 #include <memory>
 #include <optional>
+#include <string>
+#include <vector>
 
-#include <datactl/dcutils.h>
+#include <datactl/uuid.h>
+#include <datactl/streammeta.h>
 
 namespace Syntalos
 {
+
+namespace fs = std::filesystem;
+
+using EdlDateTime = std::chrono::zoned_time<std::chrono::system_clock::duration>;
+
+EdlDateTime edlCurrentDateTime();
+
 /**
  * Type of an EDL unit.
  */
@@ -47,52 +56,61 @@ enum class EDLUnitKind {
 class EDLAuthor
 {
 public:
-    explicit EDLAuthor(const QString &aName, const QString &aEmail)
+    explicit EDLAuthor(const std::string &aName, const std::string &aEmail)
         : name(aName),
           email(aEmail)
     {
     }
     explicit EDLAuthor()
-        : name(QString()),
-          email(QString())
+        : name({}),
+          email({})
     {
     }
 
     bool isValid() const
     {
-        return !name.isEmpty();
+        return !name.empty();
     }
 
-    QString name;
-    QString email;
-    QHash<QString, QString> values;
+    std::string name;
+    std::string email;
+    std::map<std::string, std::string> values;
 };
 
 class EDLDataPart
 {
 public:
     explicit EDLDataPart()
+        : index(-1),
+          filename({})
+    {
+    }
+    explicit EDLDataPart(const std::string &fname)
         : index(-1)
     {
+        const auto path = fs::path(fname);
+        filename = path.has_filename() ? path.filename().string() : fname;
     }
-    explicit EDLDataPart(const QString &filename)
-        : index(-1),
-          fname(QFileInfo(filename).fileName())
+    explicit EDLDataPart(const fs::path &path)
+        : index(-1)
     {
+        filename = path.has_filename() ? path.filename().string() : path.string();
     }
+
     int index;
-    QString fname;
+    std::string filename;
 };
 
 class EDLDataFile
 {
 public:
     explicit EDLDataFile() {}
-    QString className;
-    QString fileType;
-    QString mediaType;
-    QString summary;
-    QList<EDLDataPart> parts;
+
+    std::string className;
+    std::string fileType;
+    std::string mediaType;
+    std::string summary;
+    std::vector<EDLDataPart> parts;
 };
 
 class EDLGroup;
@@ -109,60 +127,62 @@ public:
     explicit EDLUnit(EDLUnitKind kind, EDLUnit *parent = nullptr);
     virtual ~EDLUnit();
 
+    EDLUnit(const EDLUnit &) = delete;
+    EDLUnit &operator=(const EDLUnit &) = delete;
+
     EDLUnitKind objectKind() const;
-    QString objectKindString() const;
+    std::string objectKindString() const;
     EDLUnit *parent() const;
 
-    QString name() const;
-    virtual bool setName(const QString &name);
+    std::string name() const;
+    virtual std::expected<void, std::string> setName(const std::string &name);
 
-    QDateTime timeCreated() const;
-    void setTimeCreated(const QDateTime &time);
+    EdlDateTime timeCreated() const;
+    void setTimeCreated(const EdlDateTime &time);
 
-    QUuid collectionId() const;
-    virtual void setCollectionId(const QUuid &uuid);
-    QString collectionShortTag() const;
+    Uuid collectionId() const;
+    virtual void setCollectionId(const Uuid &uuid);
+
+    /**
+     * @brief Get part of the long collection-id as a short tag in e.g. filenames
+     * @return Collection ID fragment string for use as short tag
+     */
+    std::string collectionShortTag() const;
 
     void addAuthor(const EDLAuthor &author);
-    QList<EDLAuthor> authors() const;
+    std::vector<EDLAuthor> authors() const;
 
-    QString path() const;
-    void setPath(const QString &path);
+    fs::path path() const;
+    void setPath(const fs::path &path);
 
-    QString rootPath() const;
+    fs::path rootPath() const;
 
-    QHash<QString, QVariant> attributes() const;
-    void setAttributes(const QHash<QString, QVariant> &attributes);
-    void insertAttribute(const QString &key, const QVariant &value);
+    std::map<std::string, MetaValue> attributes() const;
+    void setAttributes(const std::map<std::string, MetaValue> &attributes);
+    void insertAttribute(const std::string &key, const MetaValue &value);
 
-    virtual bool save();
-    virtual bool validate(bool recursive = true);
+    virtual std::expected<void, std::string> save();
+    virtual std::expected<void, std::string> validate(bool recursive = true);
 
-    QString lastError() const;
-
-    QString serializeManifest();
-    QString serializeAttributes();
+    std::string serializeManifest();
+    std::string serializeAttributes();
 
 protected:
     void setObjectKind(const EDLUnitKind &kind);
     void setParent(EDLUnit *parent);
-    void setLastError(const QString &message);
 
-    virtual void setRootPath(const QString &root);
+    virtual void setRootPath(const fs::path &root);
 
-    void setDataObjects(
-        std::optional<EDLDataFile> dataFile,
-        const QList<EDLDataFile> &auxDataFiles = QList<EDLDataFile>());
+    void setDataObjects(std::optional<EDLDataFile> dataFile, const std::vector<EDLDataFile> &auxDataFiles = {});
 
-    bool saveManifest();
-    bool saveAttributes();
+    std::expected<void, std::string> saveManifest();
+    std::expected<void, std::string> saveAttributes();
 
-    QString generatorId() const;
-    void setGeneratorId(const QString &idString);
+    std::string generatorId() const;
+    void setGeneratorId(const std::string &idString);
 
 private:
     class Private;
-    Q_DISABLE_COPY(EDLUnit)
     std::unique_ptr<Private> d;
 };
 
@@ -176,18 +196,28 @@ class EDLDataset : public EDLUnit
 {
 public:
     explicit EDLDataset(EDLGroup *parent = nullptr);
+    EDLDataset(const std::string &name, EDLGroup *parent = nullptr);
     ~EDLDataset();
 
-    bool save() override;
+    EDLDataset(const EDLDataset &) = delete;
+    EDLDataset &operator=(const EDLDataset &) = delete;
+
+    std::expected<void, std::string> save() override;
 
     bool isEmpty() const;
 
-    QString setDataFile(const QString &fname, const QString &summary = QString());
-    QString addDataFilePart(const QString &fname, int index = -1);
+    fs::path setDataFile(const std::string &fname, const std::string &summary = {});
+    fs::path addDataFilePart(const std::string &fname, int index = -1);
     EDLDataFile dataFile() const;
 
-    QString addAuxDataFile(const QString &fname, const QString &key = QString(), const QString &summary = QString());
-    QString addAuxDataFilePart(const QString &fname, const QString &key = QString(), int index = -1);
+    std::expected<fs::path, std::string> addAuxDataFile(
+        const std::string &fname,
+        const std::string &key = {},
+        const std::string &summary = {});
+    std::expected<fs::path, std::string> addAuxDataFilePart(
+        const std::string &fname,
+        const std::string &key = {},
+        int index = -1);
 
     /**
      * @brief Set a pattern to find data files
@@ -197,8 +227,8 @@ public:
      * is saved, if the data was generated externally and could not
      * be registered properly with addDataPartFilename().
      */
-    void setDataScanPattern(const QString &wildcard, const QString &summary = QString());
-    void addAuxDataScanPattern(const QString &wildcard, const QString &summary = QString());
+    void setDataScanPattern(const std::string &wildcard, const std::string &summary = {});
+    void addAuxDataScanPattern(const std::string &wildcard, const std::string &summary = {});
 
     /**
      * @brief Get absolute path for data with a given basename
@@ -210,9 +240,9 @@ public:
      *
      * This function ensures the path to the selected data exists, but the data
      * file itself may not be present on disk.
-     * An empty string may be returned in case no path could be created.
+     * An empty path may be returned in case no path could be created.
      */
-    QString pathForDataBasename(const QString &baseName);
+    fs::path pathForDataBasename(const std::string &baseName);
 
     /**
      * @brief Return absolute path to data file on disk.
@@ -224,14 +254,13 @@ public:
      * @param dpart The data part to resolve
      * @return Absolute filepath
      */
-    QString pathForDataPart(const EDLDataPart &dpart);
+    fs::path pathForDataPart(const EDLDataPart &dpart);
 
 private:
     class Private;
-    Q_DISABLE_COPY(EDLDataset)
     std::unique_ptr<Private> d;
 
-    QStringList findFilesByPattern(const QString &wildcard) const;
+    std::vector<std::string> findFilesByPattern(const std::string &wildcard) const;
 };
 
 /**
@@ -250,25 +279,34 @@ class EDLGroup : public EDLUnit
 {
 public:
     explicit EDLGroup(EDLGroup *parent = nullptr);
+    EDLGroup(const std::string &name, EDLGroup *parent = nullptr);
     ~EDLGroup();
 
-    bool setName(const QString &name) override;
-    void setRootPath(const QString &root) override;
-    void setCollectionId(const QUuid &uuid) override;
+    EDLGroup(const EDLGroup &) = delete;
+    EDLGroup &operator=(const EDLGroup &) = delete;
 
-    QList<std::shared_ptr<EDLUnit>> children() const;
+    std::expected<void, std::string> setName(const std::string &name) override;
+    void setRootPath(const fs::path &root) override;
+    void setCollectionId(const Uuid &uuid) override;
+
+    std::vector<std::shared_ptr<EDLUnit>> children() const;
     void addChild(const std::shared_ptr<EDLUnit> &edlObj);
 
-    std::shared_ptr<EDLGroup> groupByName(const QString &name, EDLCreateFlag flag = EDLCreateFlag::OPEN_ONLY);
-    std::shared_ptr<EDLDataset> datasetByName(const QString &name, EDLCreateFlag flag = EDLCreateFlag::OPEN_ONLY);
+    std::expected<std::shared_ptr<EDLGroup>, std::string> groupByName(
+        const std::string &name,
+        EDLCreateFlag flag = EDLCreateFlag::OPEN_ONLY);
+    std::expected<std::shared_ptr<EDLDataset>, std::string> datasetByName(
+        const std::string &name,
+        EDLCreateFlag flag = EDLCreateFlag::OPEN_ONLY);
 
-    bool save() override;
-    bool validate(bool recursive = true) override;
+    std::expected<void, std::string> save() override;
+    std::expected<void, std::string> validate(bool recursive = true) override;
 
 private:
     class Private;
-    Q_DISABLE_COPY(EDLGroup)
     std::unique_ptr<Private> d;
+
+    void _locked_addChild(const std::shared_ptr<EDLUnit> &edlObj);
 };
 
 /**
@@ -277,15 +315,18 @@ private:
 class EDLCollection : public EDLGroup
 {
 public:
-    explicit EDLCollection(const QString &name = QString());
+    explicit EDLCollection(const std::string &name = {});
     ~EDLCollection();
 
-    QString generatorId() const;
-    void setGeneratorId(const QString &idString);
+    EDLCollection(const EDLCollection &) = delete;
+    EDLCollection &operator=(const EDLCollection &) = delete;
+
+    std::string generatorId() const;
+    void setGeneratorId(const std::string &idString);
 
 private:
     class Private;
-    Q_DISABLE_COPY(EDLCollection)
     std::unique_ptr<Private> d;
 };
+
 } // namespace Syntalos

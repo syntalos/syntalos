@@ -134,7 +134,7 @@ private:
     int64_t m_chunkCount;
 
     std::shared_ptr<EDLDataset> m_currentDSet;
-    QString m_storePath;
+    std::string m_storePath;
 
     QStringList m_signalNames;
     QString m_timeUnit;
@@ -257,7 +257,7 @@ public:
 
         // register the Zarr store directory as the dataset's primary file
         auto storeName = dataBasenameFromSubMetadata(mdata, m_currentDSet->name());
-        storeName += QStringLiteral(".zarr");
+        storeName += ".zarr";
         m_storePath = m_currentDSet->setDataFile(storeName);
 
         // Write Zarr v3 root group metadata
@@ -343,7 +343,7 @@ private:
 
         // 1-D timestamps array: shape = [total_samples], dtype = uint64
         m_tsArray = std::make_unique<ZarrV3Array>(
-            m_storePath,
+            QString::fromStdString(m_storePath),
             QStringLiteral("timestamps"),
             ZarrV3Array::DType::UInt64,
             m_chunkCount,
@@ -366,7 +366,7 @@ private:
         // 2-D data array: shape = [total_samples, n_channels]
         const QStringList dataDimNames = {QStringLiteral("time"), QStringLiteral("channel")};
         m_dataArray = std::make_unique<ZarrV3Array>(
-            m_storePath, QStringLiteral("data"), dataDtype, m_chunkCount, nCols, dataDimNames);
+            QString::fromStdString(m_storePath), QStringLiteral("data"), dataDtype, m_chunkCount, nCols, dataDimNames);
 
         // embed signal metadata as Zarr array attributes
         QJsonObject dataAttrs;
@@ -381,7 +381,7 @@ private:
         if (!m_dataUnit.isEmpty())
             dataAttrs["data_unit"] = m_dataUnit;
         if (m_currentDSet)
-            dataAttrs["collection_id"] = m_currentDSet->collectionId().toString(QUuid::WithoutBraces);
+            dataAttrs["collection_id"] = QString::fromStdString(m_currentDSet->collectionId().toHex());
         if (!dataAttrs.isEmpty())
             m_dataArray->setAttributes(dataAttrs);
 

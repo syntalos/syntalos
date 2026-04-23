@@ -46,37 +46,28 @@ std::string Uuid::toHex() const
     return out;
 }
 
-std::optional<Uuid> Uuid::fromHex(const std::string &str)
+std::optional<Uuid> Uuid::fromHex(const std::string &s)
 {
     Uuid uuid{};
-    int nibble = -1;
     size_t byteIdx = 0;
-    for (const auto c : str) {
+    for (size_t i = 0; i < s.size() && byteIdx < 16; ++i) {
+        const char c = s[i];
         if (c == '-')
             continue;
-
-        int v = -1;
-        if (c >= '0' && c <= '9')
-            v = c - '0';
-        else if (c >= 'a' && c <= 'f')
-            v = c - 'a' + 10;
-        else if (c >= 'A' && c <= 'F')
-            v = c - 'A' + 10;
-        else
-            return std::nullopt;
-
-        if (nibble < 0) {
-            nibble = v;
-        } else {
-            if (byteIdx >= uuid.bytes.size())
-                return std::nullopt;
-            uuid.bytes[byteIdx++] = static_cast<uint8_t>((nibble << 4) | v);
-            nibble = -1;
+        auto hexVal = [](char ch) -> uint8_t {
+            if (ch >= '0' && ch <= '9')
+                return static_cast<uint8_t>(ch - '0');
+            if (ch >= 'a' && ch <= 'f')
+                return static_cast<uint8_t>(ch - 'a' + 10);
+            if (ch >= 'A' && ch <= 'F')
+                return static_cast<uint8_t>(ch - 'A' + 10);
+            return 0;
+        };
+        if (i + 1 < s.size() && s[i + 1] != '-') {
+            uuid.bytes[byteIdx++] = static_cast<uint8_t>((hexVal(c) << 4) | hexVal(s[i + 1]));
+            ++i;
         }
     }
-
-    if (byteIdx != uuid.bytes.size() || nibble >= 0)
-        return std::nullopt;
 
     return uuid;
 }

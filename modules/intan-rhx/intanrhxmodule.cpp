@@ -160,15 +160,15 @@ bool IntanRhxModule::prepare(const TestSubject &)
         return false;
 
     // we use the ugly scanning method -for now
-    dstore->setDataScanPattern(QStringLiteral("*.rhd"), QStringLiteral("Electrophysiology data"));
-    dstore->addAuxDataScanPattern(QStringLiteral("*.tsync"), QStringLiteral("Timestamp synchronization information"));
-    dstore->addAuxDataScanPattern(QStringLiteral("settings.xml"), QStringLiteral("Intan DAQ configuration used for this recording"));
+    dstore->setDataScanPattern("*.rhd", "Electrophysiology data");
+    dstore->addAuxDataScanPattern("*.tsync", "Timestamp synchronization information");
+    dstore->addAuxDataScanPattern("settings.xml", "Intan DAQ configuration used for this recording");
 
-    const auto intanBasePart = QStringLiteral("%1-data").arg(dstore->collectionShortTag());
+    const auto intanBasePart = std::format("{}-data", dstore->collectionShortTag());
     const auto intanBaseFilename = dstore->pathForDataBasename(intanBasePart);
-    if (intanBaseFilename.isEmpty())
+    if (intanBaseFilename.empty())
         return false;
-    m_ctlWindow->setSaveFilenameTemplate(intanBaseFilename + QStringLiteral(".rhd"));
+    m_ctlWindow->setSaveFilenameTemplate(QString::fromStdString(intanBaseFilename.string() + ".rhd"));
 
     m_controllerIntf->setDefaultRealtimePriority(defaultRealtimePriority());
 
@@ -204,7 +204,7 @@ bool IntanRhxModule::prepare(const TestSubject &)
     // set up slave-clock synchronizer
     clockSync = initCounterSynchronizer(sampleRate);
     clockSync->setStrategies(TimeSyncStrategy::WRITE_TSYNCFILE);
-    clockSync->setTimeSyncBasename(intanBaseFilename.toStdString(), dstore->collectionId());
+    clockSync->setTimeSyncBasename(intanBaseFilename, dstore->collectionId());
 
     // permit 1.4ms tolerance - this was a very realistic tolerance to achieve in tests,
     // while lower values resulted in constant adjustment attempts

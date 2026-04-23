@@ -208,10 +208,10 @@ public:
         m_recordingFinished = false;
 
         // base path to save our video to
-        QString vidSavePathBase;
+        std::string vidSavePathBase;
 
         // section suffix, in case a controller wants to slice the video manually
-        QString currentSecSuffix;
+        std::string currentSecSuffix;
         int secCount = 0;
 
         // state of the recording - we are supposed to be running, unless explicitly
@@ -259,7 +259,7 @@ public:
                         // we were stopped before, so we will now have to create a new
                         // section to store the new data in
                         secCount++;
-                        currentSecSuffix = QStringLiteral("_sec%1").arg(secCount);
+                        currentSecSuffix = std::format("_sec{}", secCount);
 
                         // we can only start a new section if we were already initialized
                         // if we weren't for some reason, the section initialization will simply
@@ -347,22 +347,20 @@ public:
 
                 const auto inSubSrcModName = m_inSub->metadataValue<std::string>(CommonMetadataKey::SrcModName, {});
                 const auto dataBasename = dataBasenameFromSubMetadata(
-                    m_inSub->metadata(), QStringLiteral("%1-video").arg(m_vidDataset->collectionShortTag()));
+                    m_inSub->metadata(), std::format("{}-video", m_vidDataset->collectionShortTag()));
                 vidSavePathBase = m_vidDataset->pathForDataBasename(dataBasename);
                 m_vidDataset->setDataScanPattern(
-                    QStringLiteral("%1*").arg(dataBasename),
-                    inSubSrcModName.empty() ? QString()
-                                            : QStringLiteral("Video recording from %1").arg(inSubSrcModName.c_str()));
-                m_vidDataset->addAuxDataScanPattern(
-                    QStringLiteral("%1*.tsync").arg(dataBasename), QStringLiteral("Video timestamps"));
+                    dataBasename + "*",
+                    inSubSrcModName.empty() ? std::string() : std::format("Video recording from {}", inSubSrcModName));
+                m_vidDataset->addAuxDataScanPattern(std::format("{}*.tsync", dataBasename), "Video timestamps");
 
                 auto vidSecFnameBase = vidSavePathBase;
-                if (!currentSecSuffix.isEmpty())
-                    vidSecFnameBase = QStringLiteral("%1%2").arg(vidSecFnameBase, currentSecSuffix);
+                if (!currentSecSuffix.empty())
+                    vidSecFnameBase = vidSecFnameBase + currentSecSuffix;
 
                 try {
                     m_videoWriter->initialize(
-                        vidSecFnameBase,
+                        QString::fromStdString(vidSecFnameBase),
                         name(),
                         QString::fromStdString(inSubSrcModName),
                         m_vidDataset->collectionId(),
@@ -381,24 +379,24 @@ public:
 
                 // write info video info file with auxiliary information about the video we encoded
                 // (this is useful to gather intel about the video without opening the video file)
-                QVariantHash vInfo;
-                vInfo.insert("frame_width", frameSize.width);
-                vInfo.insert("frame_height", frameSize.height);
-                vInfo.insert("framerate", framerate);
-                vInfo.insert("colored", useColor);
+                MetaStringMap vInfo;
+                vInfo["frame_width"] = frameSize.width;
+                vInfo["frame_height"] = frameSize.height;
+                vInfo["framerate"] = framerate;
+                vInfo["colored"] = useColor;
 
-                QVariantHash encInfo;
-                encInfo.insert("name", m_videoWriter->selectedEncoderName());
-                encInfo.insert("lossless", m_activeCodecProps.isLossless());
-                encInfo.insert("thread_count", m_activeCodecProps.threadCount());
+                MetaStringMap encInfo;
+                encInfo["name"] = m_videoWriter->selectedEncoderName().toStdString();
+                encInfo["lossless"] = m_activeCodecProps.isLossless();
+                encInfo["thread_count"] = m_activeCodecProps.threadCount();
                 if (m_activeCodecProps.useVaapi())
-                    encInfo.insert("vaapi_enabled", true);
+                    encInfo["vaapi_enabled"] = true;
                 if (m_activeCodecProps.mode() == CodecProperties::ConstantBitrate)
-                    encInfo.insert("target_bitrate_kbps", m_activeCodecProps.bitrateKbps());
+                    encInfo["target_bitrate_kbps"] = m_activeCodecProps.bitrateKbps();
                 else
-                    encInfo.insert("target_quality", m_activeCodecProps.quality());
-                m_vidDataset->insertAttribute(QStringLiteral("video"), vInfo);
-                m_vidDataset->insertAttribute(QStringLiteral("encoder"), encInfo);
+                    encInfo["target_quality"] = m_activeCodecProps.quality();
+                m_vidDataset->insertAttribute("video", vInfo);
+                m_vidDataset->insertAttribute("encoder", encInfo);
 
                 // signal that we are actually recording this session
                 m_initDone = true;
@@ -500,7 +498,7 @@ public:
             mdata["mod-name"] = QVariant::fromValue(name());
             mdata["src-mod-name"] = QString::fromStdString(
                 m_inSub->metadataValue(CommonMetadataKey::SrcModName, std::string{}));
-            mdata["collection-id"] = m_vidDataset->collectionId().toString(QUuid::WithoutBraces);
+            mdata["collection-id"] = QString::fromStdString(m_vidDataset->collectionId().toHex());
             mdata["subject-name"] = m_subjectName;
             mdata["save-timestamps"] = m_settingsDialog->saveTimestamps();
             mdata["video-container"] = static_cast<int>(m_settingsDialog->videoContainer());
@@ -508,7 +506,7 @@ public:
             QDBusReply<bool> reply = iface->call(
                 "enqueueVideo",
                 projectName,
-                m_vidDataset->pathForDataPart(dataPart),
+                QString::fromStdString(m_vidDataset->pathForDataPart(dataPart)),
                 m_settingsDialog->codecProps().toVariant(),
                 mdata);
             if (!reply.isValid() || !reply.value())

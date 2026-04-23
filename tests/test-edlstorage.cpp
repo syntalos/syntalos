@@ -1,12 +1,12 @@
 
 #include <QDebug>
-#include <QRegularExpression>
 #include <QtTest>
 #include <chrono>
 #include <cstdint>
 #include <iostream>
 
 #include "datactl/edlstorage.h"
+#include "datactl/edlutils.h"
 #include "utils/tomlutils.h"
 
 using namespace Syntalos;
@@ -86,65 +86,117 @@ private slots:
 
     void runEDLWrite()
     {
+        const QRegularExpression uuidRe(
+            QStringLiteral("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"));
+
         std::unique_ptr<EDLCollection> collection(new EDLCollection("test-experiment"));
         collection->addAuthor(EDLAuthor("Rick Sanchez", "rick@c137.local"));
         collection->addAuthor(EDLAuthor("Morty Smith", "morty@c137.local"));
 
-        collection->setGeneratorId(QCoreApplication::applicationName());
+        collection->setGeneratorId(QCoreApplication::applicationName().toStdString());
 
-        auto dset = collection->datasetByName("mydata", EDLCreateFlag::MUST_CREATE);
+        auto dset = collection->datasetByName("mydata", EDLCreateFlag::MUST_CREATE).value_or(nullptr);
         dset->addDataFilePart("/usr/local/share/blah.test");
 
-        QVariantHash attrs;
-        attrs.insert(
-            "alpha",
-            QStringList() << "aaa"
-                          << "bbbb"
-                          << "cccc");
-        QVariantHash subMap;
-        subMap.insert("world", 123);
-        subMap.insert("nnn", QVariantList() << "spam" << 1.23 << "eggs");
-        QVariantHash subSubMap;
-        subSubMap.insert("works", true);
-        subMap.insert("values", subSubMap);
-        attrs.insert("hello", subMap);
+        MetaStringMap attrs;
+        attrs["alpha"] = MetaArray({"aaa", "bbbb", "cccc"});
+        MetaStringMap subMap;
+        subMap["world"] = 123;
+        subMap["nnn"] = MetaArray({"spam", 1.23, "eggs"});
+        MetaStringMap subSubMap;
+        subSubMap["works"] = true;
+        subMap["values"] = subSubMap;
+        attrs["hello"] = subMap;
         dset->setAttributes(attrs);
 
-        auto vidGroup = collection->groupByName("videos", EDLCreateFlag::CREATE_OR_OPEN);
-        auto dsCam = vidGroup->datasetByName("Top Camera", EDLCreateFlag::MUST_CREATE);
+        auto vidGroup = collection->groupByName("videos", EDLCreateFlag::CREATE_OR_OPEN).value_or(nullptr);
+        auto dsCam = vidGroup->datasetByName("Top Camera", EDLCreateFlag::MUST_CREATE).value_or(nullptr);
         dsCam->addDataFilePart("camera-video.mkv");
         vidGroup->groupByName("cats", EDLCreateFlag::CREATE_OR_OPEN);
 
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
 
-        collection->setRootPath(dir.path());
+        collection->setRootPath(dir.path().toStdString());
         qDebug() << collection->name();
         qDebug() << collection->path();
         qDebug() << collection->rootPath();
 
-        QCOMPARE(collection->rootPath(), dir.path());
-        QCOMPARE(collection->path(), QStringLiteral("%1/%2").arg(dir.path()).arg(collection->name()));
+        QCOMPARE(collection->rootPath(), dir.path().toStdString());
+        QCOMPARE(collection->path(), QStringLiteral("%1/%2").arg(dir.path(), collection->name()).toStdString());
 
-        QVERIFY2(collection->save(), qPrintable(collection->lastError()));
+        auto res = collection->save();
+        if (!res.has_value())
+            QFAIL(res.error().c_str());
+
+        const auto collectionPath = dir.path() + QStringLiteral("/") + QString::fromStdString(collection->name());
+        const auto myDataPath = collectionPath + QStringLiteral("/mydata");
+        const auto videosPath = collectionPath + QStringLiteral("/videos");
+        const auto topCameraPath = videosPath + QStringLiteral("/Top Camera");
+        const auto catsPath = videosPath + QStringLiteral("/cats");
+
+        QVERIFY(QFileInfo::exists(collectionPath + QStringLiteral("/manifest.toml")));
+        QVERIFY(QFileInfo::exists(collectionPath + QStringLiteral("/attributes.toml")));
+        QVERIFY(QFileInfo::exists(myDataPath + QStringLiteral("/manifest.toml")));
+        QVERIFY(QFileInfo::exists(myDataPath + QStringLiteral("/attributes.toml")));
+        QVERIFY(QFileInfo::exists(videosPath + QStringLiteral("/manifest.toml")));
+        QVERIFY(QFileInfo::exists(topCameraPath + QStringLiteral("/manifest.toml")));
+        QVERIFY(QFileInfo::exists(catsPath + QStringLiteral("/manifest.toml")));
+
+        // Units without explicit attributes should not emit attributes.toml.
+        QVERIFY(!QFileInfo::exists(videosPath + QStringLiteral("/attributes.toml")));
+        QVERIFY(!QFileInfo::exists(topCameraPath + QStringLiteral("/attributes.toml")));
+        QVERIFY(!QFileInfo::exists(catsPath + QStringLiteral("/attributes.toml")));
+
+        QString err;
+        const auto collectionManifest = parseTomlFile(collectionPath + QStringLiteral("/manifest.toml"), err);
+        QVERIFY2(err.isEmpty(), qPrintable(err));
+        QCOMPARE(collectionManifest.value("type").toString(), QStringLiteral("collection"));
+        QCOMPARE(collectionManifest.value("format_version").toString(), QStringLiteral("1"));
+        QCOMPARE(
+            collectionManifest.value("generator").toString(),
+            QString::fromStdString(QCoreApplication::applicationName().toStdString()));
+        const auto collectionId = collectionManifest.value("collection_id").toString();
+        QVERIFY2(uuidRe.match(collectionId).hasMatch(), qPrintable(collectionId));
+        const auto authors = collectionManifest.value("authors").toList();
+        QCOMPARE(authors.size(), 2);
+        QCOMPARE(authors[0].toHash().value("name").toString(), QStringLiteral("Rick Sanchez"));
+        QCOMPARE(authors[1].toHash().value("name").toString(), QStringLiteral("Morty Smith"));
+
+        const auto myDataManifest = parseTomlFile(myDataPath + QStringLiteral("/manifest.toml"), err);
+        QVERIFY2(err.isEmpty(), qPrintable(err));
+        QCOMPARE(myDataManifest.value("type").toString(), QStringLiteral("dataset"));
+        const auto myDataParts = myDataManifest.value("data").toHash().value("parts").toList();
+        QCOMPARE(myDataParts.size(), 1);
+        QCOMPARE(myDataParts[0].toHash().value("fname").toString(), QStringLiteral("blah.test"));
+
+        const auto myDataAttrs = parseTomlFile(myDataPath + QStringLiteral("/attributes.toml"), err);
+        QVERIFY2(err.isEmpty(), qPrintable(err));
+        QCOMPARE(myDataAttrs.value("alpha").toList().size(), 3);
+        const auto helloTab = myDataAttrs.value("hello").toHash();
+        QCOMPARE(helloTab.value("world").toInt(), 123);
+        QCOMPARE(helloTab.value("nnn").toList().size(), 3);
+        QCOMPARE(helloTab.value("values").toHash().value("works").toBool(), true);
+
+        const auto topCameraManifest = parseTomlFile(topCameraPath + QStringLiteral("/manifest.toml"), err);
+        QVERIFY2(err.isEmpty(), qPrintable(err));
+        const auto topCameraParts = topCameraManifest.value("data").toHash().value("parts").toList();
+        QCOMPARE(topCameraParts.size(), 1);
+        QCOMPARE(topCameraParts[0].toHash().value("fname").toString(), QStringLiteral("camera-video.mkv"));
     }
 
     void runUtilsSortTest()
     {
-        QStringList files;
-        files << "test_1.mkv"
-              << "test_2.mkv"
-              << "test_9.mkv"
-              << "test_10.mkv"
-              << "test_11.mkv"
-              << "test_8.mkv";
-        stringListNaturalSort(files);
-        QCOMPARE(files[0], "test_1.mkv");
-        QCOMPARE(files[1], "test_2.mkv");
-        QCOMPARE(files[2], "test_8.mkv");
-        QCOMPARE(files[3], "test_9.mkv");
-        QCOMPARE(files[4], "test_10.mkv");
-        QCOMPARE(files[5], "test_11.mkv");
+        std::vector<std::string> files{
+            "test_1.mkv", "test_2.mkv", "test_9.mkv", "test_07.mkv", "test_10.mkv", "test_11.mkv", "test_8.mkv"};
+        edl::naturalNumListSort(files);
+        QCOMPARE(files[0], "test_07.mkv");
+        QCOMPARE(files[1], "test_1.mkv");
+        QCOMPARE(files[2], "test_2.mkv");
+        QCOMPARE(files[3], "test_8.mkv");
+        QCOMPARE(files[4], "test_9.mkv");
+        QCOMPARE(files[5], "test_10.mkv");
+        QCOMPARE(files[6], "test_11.mkv");
     }
 
     void runUuidTest()
@@ -160,7 +212,7 @@ private slots:
             std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
                 .count());
 
-        const auto uuidStr = QString::fromStdString(toHex(uuid));
+        const auto uuidStr = QString::fromStdString(uuid.toHex());
         qDebug() << "Generated sample UUIDv7:" << uuidStr;
         QVERIFY2(uuidRe.match(uuidStr).hasMatch(), qPrintable(uuidStr));
         QCOMPARE(uuidStr.size(), 36);
@@ -177,6 +229,8 @@ private slots:
                           | (static_cast<uint64_t>(uuid[4]) << 8) | static_cast<uint64_t>(uuid[5]);
         QVERIFY(tsMs >= beforeMs);
         QVERIFY(tsMs <= (afterMs + 1));
+
+        QCOMPARE(Uuid::fromHex(uuidStr.toStdString()).value(), uuid);
     }
 };
 

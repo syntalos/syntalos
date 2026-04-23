@@ -23,7 +23,7 @@ private slots:
         tswriter->setFileName(tsFilename);
         tswriter->setTimeDataTypes(dt1, dt2);
         auto ret = tswriter->open(
-            "UnittestDummyModule", QUuid("a12975f1-84b7-4350-8683-7a5fe9ed968f"), microseconds_t(1500));
+            "UnittestDummyModule", Uuid::fromHex("a12975f1-84b7-4350-8683-7a5fe9ed968f").value(), microseconds_t(1500));
         QVERIFY2(ret, tswriter->lastError().c_str());
 
         QElapsedTimer timer;
@@ -43,7 +43,7 @@ private slots:
         qDebug().noquote() << "TSync read operation took" << timer.elapsed() << "milliseconds";
 
         QCOMPARE(tsreader->moduleName(), QStringLiteral("UnittestDummyModule"));
-        QCOMPARE(tsreader->collectionId(), QUuid("a12975f1-84b7-4350-8683-7a5fe9ed968f"));
+        QCOMPARE(tsreader->collectionId(), Uuid::fromHex("a12975f1-84b7-4350-8683-7a5fe9ed968f").value());
         QCOMPARE(tsreader->tolerance().count(), 1500);
         QCOMPARE(tsreader->timeDTypes(), qMakePair(dt1, dt2));
         QCOMPARE(tsreader->syncMode(), TSyncFileMode::CONTINUOUS);

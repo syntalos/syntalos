@@ -26,10 +26,13 @@
 #include <QJsonObject>
 #include <QString>
 #include <QStringList>
+#include <filesystem>
 
 #include <zstd.h>
 
 #include "datactl/binarystream.h"
+
+namespace fs = std::filesystem;
 
 /**
  * @brief Incrementally write a single Zarr v3 array to a filesystem store.
@@ -115,4 +118,4 @@ private:
  *
  * Creates the store directory if it does not exist.
  */
-bool zarrWriteRootGroupMetadata(const QString &storePath);
+bool zarrWriteRootGroupMetadata(const fs::path &storePath);

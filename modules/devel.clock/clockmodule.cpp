@@ -108,9 +108,9 @@ public:
         auto dstore = createDefaultDataset(name());
         if (dstore.get() == nullptr)
             return false;
-        m_tsWriter.setFileName(dstore->setDataFile("time-pulses.tsync").toStdString());
-        QVariantHash userData;
-        userData["interval_us"] = QVariant::fromValue(m_settingsDlg->pulseIntervalUs());
+        m_tsWriter.setFileName(dstore->setDataFile("time-pulses.tsync"));
+        MetaStringMap userData;
+        userData["interval_us"] = m_settingsDlg->pulseIntervalUs();
 
         // open writer
         if (!m_tsWriter.open(name().toStdString(), dstore->collectionId(), userData)) {

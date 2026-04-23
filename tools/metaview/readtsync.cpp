@@ -37,7 +37,7 @@ int displayTSyncMetadata(const QString &fname)
               << "TimeSync"
               << "\n"
               << "Module: " << tsr->moduleName() << "\n"
-              << "CollectionID: " << tsr->collectionId().toString(QUuid::WithoutBraces).toStdString() << "\n"
+              << "CollectionID: " << tsr->collectionId().toHex() << "\n"
               << "CreationTimestampUnix: " << tsr->creationTime() << "\n"
               << "Mode: " << tsyncFileModeToString(tsr->syncMode()) << "\n"
               << "TimeDTypes: " << tsyncFileDataTypeToString(tsr->timeDTypes().first) << "; "
@@ -46,12 +46,12 @@ int displayTSyncMetadata(const QString &fname)
               << tsyncFileTimeUnitToString(tsr->timeUnits().second) << "\n";
     if (tsr->tolerance().count() != 0)
         std::cout << "Tolerance: " << tsr->tolerance().count() << " µs\n";
-    if (!tsr->userData().isEmpty()) {
+    if (!tsr->userData().empty()) {
         const auto userData = tsr->userData();
 
         std::cout << "User Metadata:\n";
-        for (const auto &key : userData.keys())
-            std::cout << "    " << key.toStdString() << ": " << userData[key].toString().toStdString() << "\n";
+        for (const auto &[key, value] : userData)
+            std::cout << "    " << key << ": " << value << "\n";
     }
     std::cout << std::endl;
 

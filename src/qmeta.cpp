@@ -31,6 +31,7 @@ void registerSyMetaTypes()
     qRegisterMetaType<std::chrono::nanoseconds>();
 
     qRegisterMetaType<Syntalos::Uuid>();
+    qRegisterMetaType<Syntalos::TimeSyncStrategies>();
 }
 
 } // namespace Syntalos

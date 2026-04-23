@@ -24,12 +24,15 @@
 #include <chrono>
 #include <memory>
 
+#include "datactl/edlstorage.h"
 #include "datactl/frametype.h"
 
 namespace Syntalos
 {
 Q_DECLARE_LOGGING_CATEGORY(logVRecorder)
 }
+
+using namespace Syntalos;
 
 /**
  * @brief The VideoContainer enum
@@ -161,7 +164,7 @@ public:
         const QString &fname,
         const QString &modName,
         const QString &sourceModName,
-        const QUuid &collectionId,
+        const Uuid &collectionId,
         const QString &subjectName,
         int width,
         int height,
@@ -175,7 +178,7 @@ public:
 
     std::chrono::microseconds captureStartTimestamp() const;
     void setCaptureStartTimestamp(const std::chrono::microseconds &startTimestamp);
-    void setTsyncFileCreationTimeOverride(const QDateTime &dt);
+    void setTsyncFileCreationTimeOverride(const EdlDateTime &dt);
 
     bool encodeFrame(const cv::Mat &frame, const std::chrono::microseconds &timestamp);
 

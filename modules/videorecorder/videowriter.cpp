@@ -455,7 +455,7 @@ public:
     std::string lastError;
 
     QString modName;
-    QUuid collectionId;
+    Uuid collectionId;
     QString videoTitle;
     QString recordingDate;
     QString fnameBase;
@@ -953,7 +953,7 @@ void VideoWriter::initializeInternal()
     // set file metadata
     AVDictionary *metadataDict = nullptr;
     av_dict_set(&metadataDict, "title", qPrintable(d->videoTitle), 0);
-    av_dict_set(&metadataDict, "collection_id", qPrintable(d->collectionId.toString(QUuid::WithoutBraces)), 0);
+    av_dict_set(&metadataDict, "collection_id", d->collectionId.toHex().c_str(), 0);
     av_dict_set(&metadataDict, "date_recorded", qPrintable(d->recordingDate), 0);
     d->octx->metadata = metadataDict;
 
@@ -1074,7 +1074,7 @@ void VideoWriter::initialize(
     const QString &fname,
     const QString &modName,
     const QString &sourceModName,
-    const QUuid &collectionId,
+    const Uuid &collectionId,
     const QString &subjectName,
     int width,
     int height,
@@ -1184,7 +1184,7 @@ void VideoWriter::setCaptureStartTimestamp(const std::chrono::microseconds &star
     d->captureStartTimestamp = startTimestamp;
 }
 
-void VideoWriter::setTsyncFileCreationTimeOverride(const QDateTime &dt)
+void VideoWriter::setTsyncFileCreationTimeOverride(const EdlDateTime &dt)
 {
     d->tsfWriter.setCreationTimeOverride(dt);
 }

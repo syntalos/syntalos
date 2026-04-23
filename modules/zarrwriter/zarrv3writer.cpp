@@ -311,10 +311,11 @@ bool ZarrV3Array::writeMetadata()
     return true;
 }
 
-bool zarrWriteRootGroupMetadata(const QString &storePath)
+bool zarrWriteRootGroupMetadata(const fs::path &storePath)
 {
-    QDir dir;
-    if (!dir.mkpath(storePath))
+    std::error_code ec;
+    fs::create_directory(storePath, ec);
+    if (ec)
         return false;
 
     QJsonObject meta;
@@ -322,7 +323,7 @@ bool zarrWriteRootGroupMetadata(const QString &storePath)
     meta["node_type"] = QStringLiteral("group");
     meta["attributes"] = QJsonObject();
 
-    QFile f(storePath + "/zarr.json");
+    QFile f(QString::fromStdString(storePath.string() + "/zarr.json"));
     if (!f.open(QIODevice::WriteOnly))
         return false;
     f.write(QJsonDocument(meta).toJson());

@@ -15,12 +15,14 @@ sy_datactl_pub_hdr = [
 ]
 
 sy_datactl_priv_hdr = [
+    'edlutils.h',
     'loginternal.h',
 ]
 
 sy_datactl_src = [
     'datatypes.cpp',
     'edlstorage.cpp',
+    'edlutils.cpp',
     'logging.cpp',
     'streammeta.cpp',
     'syclock.cpp',
@@ -29,24 +31,18 @@ sy_datactl_src = [
     'uuid.cpp',
 ]
 
-sy_datactl_moc = qt.compile_moc(
-    headers: sy_datactl_pub_hdr,
-    extra_args: ['--no-notes']
-)
-
 syntalos_datactl_lib = shared_library('syntalos-datactl',
     [sy_datactl_pub_hdr,
      sy_datactl_priv_hdr,
-     sy_datactl_src,
-     sy_datactl_moc],
+     sy_datactl_src],
     soversion: sy_mlink_abi_level,
     version: sy_version,
     dependencies: [
-        qt_core_dep,
+        gio_dep,
         eigen_dep,
         xxhash_dep,
         opencv_dep,
-        syntalos_utils_dep,
+        toml_dep,
     ],
     include_directories: [
         root_include_dir,
@@ -59,7 +55,6 @@ syntalos_datactl_lib = shared_library('syntalos-datactl',
 syntalos_datactl_dep = declare_dependency(
     link_with: syntalos_datactl_lib,
     dependencies: [
-        qt_core_dep,
         eigen_dep,
     ],
     include_directories: [
@@ -78,7 +73,6 @@ pkgc.generate(
     filebase: 'syntalos-datactl',
     subdirs: 'syntalos',
     requires: [
-        'Qt6Core',
         'eigen3',
     ],
 )

@@ -62,11 +62,11 @@ struct Uuid {
 
     /**
      * Create new UUID from a hex string.
-     * @param str The UUID string.
+     * @param s The UUID string.
      *
      * @return A new UUID, or std::nullopt if conversion failed.
      */
-    static std::optional<Uuid> fromHex(const std::string &str);
+    static std::optional<Uuid> fromHex(const std::string &s);
 };
 
 /**

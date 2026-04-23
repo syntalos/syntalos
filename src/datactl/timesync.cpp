@@ -23,8 +23,8 @@
 #include <cstdlib>
 #include <ranges>
 
+#include "edlutils.h"
 #include "loginternal.h"
-#include "utils/misc.h"
 
 using namespace Syntalos;
 using namespace Eigen;
@@ -91,7 +91,7 @@ FreqCounterSynchronizer::FreqCounterSynchronizer(
       m_tswriter(new TimeSyncFileWriter)
 {
     if (m_id.empty())
-        m_id = createRandomString(4).toStdString();
+        m_id = edl::createRandomString(4);
 
     // time one datapoint takes to acquire, if the frequency in Hz is accurate, in microseconds
     m_timePerPointUs = (1.0 / m_freq) * US_PER_S;
@@ -126,7 +126,7 @@ void FreqCounterSynchronizer::setCalibrationBlocksCount(int count)
     m_calibrationMaxBlockN = count;
 }
 
-void FreqCounterSynchronizer::setTimeSyncBasename(const std::string &fname, const QUuid &collectionId)
+void FreqCounterSynchronizer::setTimeSyncBasename(const std::string &fname, const Uuid &collectionId)
 {
     m_collectionId = collectionId;
     m_tswriter->setFileName(fname);
@@ -470,7 +470,7 @@ SecondaryClockSynchronizer::SecondaryClockSynchronizer(
       m_tswriter(new TimeSyncFileWriter)
 {
     if (m_id.empty())
-        m_id = createRandomString(4).toStdString();
+        m_id = edl::createRandomString(4);
 
     // make our existence known to the system
     emitSyncDetailsChanged();
@@ -536,7 +536,7 @@ void SecondaryClockSynchronizer::setExpectedClockFrequencyHz(double frequency)
     emitSyncDetailsChanged();
 }
 
-void SecondaryClockSynchronizer::setTimeSyncBasename(const std::string &fname, const QUuid &collectionId)
+void SecondaryClockSynchronizer::setTimeSyncBasename(const std::string &fname, const Uuid &collectionId)
 {
     m_collectionId = collectionId;
     m_tswriter->setFileName(fname);

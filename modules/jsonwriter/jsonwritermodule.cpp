@@ -193,7 +193,7 @@ public:
         fname = QStringLiteral("%1.json.zst").arg(fname);
 
         // retrieve an absolute path from our file basename that we can open
-        fname = m_currentDSet->setDataFile(fname);
+        fname = QString::fromStdString(m_currentDSet->setDataFile(fname.toStdString()));
 
         m_compDev = std::make_unique<KCompressionDevice>(fname, KCompressionDevice::Zstd);
         if (!m_compDev->open(QIODevice::WriteOnly)) {
@@ -316,8 +316,7 @@ public:
 
         stream << "{";
         if (m_settingsDlg->jsonFormat() == "extended-pandas") {
-            stream << "\"collection_id\": "
-                   << toJsonValue(m_currentDSet->collectionId().toString(QUuid::WithoutBraces));
+            stream << "\"collection_id\": " << toJsonValue(m_currentDSet->collectionId().toHex());
             if (!timeUnit.isEmpty())
                 stream << ",\n\"time_unit\": " << toJsonValue(timeUnit);
             if (!dataUnit.isEmpty())
@@ -339,11 +338,11 @@ public:
         stream << columnsLine << "],\n\"data\": [\n";
 
         // add some metadata
-        m_currentDSet->insertAttribute("json_schema", m_settingsDlg->jsonFormat());
+        m_currentDSet->insertAttribute("json_schema", m_settingsDlg->jsonFormat().toStdString());
         if (!timeUnit.isEmpty())
-            m_currentDSet->insertAttribute("json_time_unit", timeUnit);
+            m_currentDSet->insertAttribute("json_time_unit", timeUnit.toStdString());
         if (!dataUnit.isEmpty())
-            m_currentDSet->insertAttribute("json_data_unit", dataUnit);
+            m_currentDSet->insertAttribute("json_data_unit", dataUnit.toStdString());
 
         // try to write the header to disk as soon as we can
         stream.flush();

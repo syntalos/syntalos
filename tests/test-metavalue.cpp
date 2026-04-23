@@ -2,6 +2,11 @@
 #include <QtTest>
 #include <cstring>
 
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonParseError>
+
 #include "datactl/binarystream.h"
 #include "datactl/streammeta.h"
 
@@ -197,6 +202,64 @@ private slots:
         QCOMPARE(m.valueOr<int64_t>("n", 0), int64_t(42));
         QVERIFY(!m.value<double>("missing").has_value());
         QVERIFY(m.value<double>("pi").has_value());
+    }
+
+    void testJsonSerializePrimitives()
+    {
+        QCOMPARE(QString::fromStdString(toJsonString(MetaValue{nullptr})), QStringLiteral("null"));
+        QCOMPARE(QString::fromStdString(toJsonString(MetaValue{true})), QStringLiteral("true"));
+        QCOMPARE(QString::fromStdString(toJsonString(MetaValue{int64_t(-42)})), QStringLiteral("-42"));
+        QCOMPARE(QString::fromStdString(toJsonString(MetaValue{2.5})), QStringLiteral("2.5"));
+        QCOMPARE(
+            QString::fromStdString(toJsonString(MetaValue{MetaSize(640, 480)})),
+            QStringLiteral("{\"width\":640,\"height\":480}"));
+
+        const auto escaped = QString::fromStdString(toJsonString(MetaValue{std::string("line1\n\"q\"\\")}));
+        QCOMPARE(escaped, QStringLiteral("\"line1\\n\\\"q\\\"\\\\\""));
+    }
+
+    void testJsonSerializeNested()
+    {
+        MetaStringMap root;
+        root["name"] = std::string("cam0");
+        root["enabled"] = true;
+        root["size"] = MetaSize(320, 240);
+        root["samples"] = MetaArray{int64_t(1), std::string("two"), false};
+
+        MetaStringMap nested;
+        nested["x"] = int64_t(1);
+        nested["y"] = int64_t(2);
+        root["coord"] = nested;
+
+        const auto jsonStr = toJsonObjectString(root);
+        QJsonParseError err;
+        const auto doc = QJsonDocument::fromJson(QByteArray::fromStdString(jsonStr), &err);
+        QCOMPARE(err.error, QJsonParseError::NoError);
+        QVERIFY(doc.isObject());
+
+        const auto obj = doc.object();
+        QCOMPARE(obj.value("name").toString(), QStringLiteral("cam0"));
+        QCOMPARE(obj.value("enabled").toBool(), true);
+        QCOMPARE(obj.value("size").toObject().value("width").toInt(), 320);
+        QCOMPARE(obj.value("size").toObject().value("height").toInt(), 240);
+
+        const auto samples = obj.value("samples").toArray();
+        QCOMPARE(samples.size(), 3);
+        QCOMPARE(samples.at(0).toInt(), 1);
+        QCOMPARE(samples.at(1).toString(), QStringLiteral("two"));
+        QCOMPARE(samples.at(2).toBool(), false);
+
+        const auto coord = obj.value("coord").toObject();
+        QCOMPARE(coord.value("x").toInt(), 1);
+        QCOMPARE(coord.value("y").toInt(), 2);
+    }
+
+    void testJsonSerializeMapOrder()
+    {
+        MetaStringMap m;
+        m["b"] = int64_t(2);
+        m["a"] = int64_t(1);
+        QCOMPARE(QString::fromStdString(toJsonObjectString(m)), QStringLiteral("{\"a\":1,\"b\":2}"));
     }
 };
 

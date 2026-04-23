@@ -1509,40 +1509,38 @@ bool Engine::finalizeExperimentMetadata(
     emitStatusMessage(QStringLiteral("Writing experiment metadata..."));
 
     // write collection metadata with information about this experiment
-    storageCollection->setTimeCreated(QDateTime::currentDateTime());
+    storageCollection->setTimeCreated(edlCurrentDateTime());
 
     storageCollection->setGeneratorId(
-        QStringLiteral("%1 %2").arg(QCoreApplication::applicationName()).arg(syntalosVersionFull()));
+        QStringLiteral("%1 %2").arg(QCoreApplication::applicationName(), syntalosVersionFull()).toStdString());
     if (d->experimenter.isValid())
         storageCollection->addAuthor(d->experimenter);
 
-    QVariantHash extraData;
-    extraData.insert("collection_name", d->exportName);
-    extraData.insert("subject_id", d->testSubject.id.isEmpty() ? QVariant() : d->testSubject.id);
-    extraData.insert("subject_group", d->testSubject.group.isEmpty() ? QVariant() : d->testSubject.group);
-    extraData.insert("subject_comment", d->testSubject.comment.isEmpty() ? QVariant() : d->testSubject.comment);
-    extraData.insert("recording_length_msec", finishTimestamp);
+    MetaStringMap extraData;
+    extraData["collection_name"] = d->exportName.toStdString();
+    extraData["subject_id"] = d->testSubject.id.isEmpty() ? std::string() : d->testSubject.id.toStdString();
+    extraData["subject_group"] = d->testSubject.group.isEmpty() ? std::string() : d->testSubject.group.toStdString();
+    extraData["subject_comment"] = d->testSubject.comment.isEmpty() ? std::string()
+                                                                    : d->testSubject.comment.toStdString();
+    extraData["recording_length_msec"] = finishTimestamp;
 
-    extraData.insert("success", !d->failed);
+    extraData["success"] = !d->failed;
     if (d->failed && !d->runFailedReason.isEmpty())
-        extraData.insert("failure_reason", d->runFailedReason);
+        extraData["failure_reason"] = d->runFailedReason.toStdString();
     if (!d->failed && !d->pendingErrors.isEmpty()) {
         QString errorsText = QStringLiteral("Run succeeded, but the following errors have been reported:\n");
         for (const auto &errorDetail : d->pendingErrors)
             errorsText.append(QStringLiteral("* %1: %2\n").arg(errorDetail.first->name(), errorDetail.second));
-        extraData.insert("error_messages", errorsText);
+        extraData["error_messages"] = errorsText.toStdString();
     }
 
-    extraData.insert(
-        "machine_node",
-        QStringLiteral("%1 [%2 %3]")
-            .arg(d->sysInfo->machineHostName())
-            .arg(d->sysInfo->osId())
-            .arg(d->sysInfo->osVersion()));
+    extraData["machine_node"] = QStringLiteral("%1 [%2 %3]")
+                                    .arg(d->sysInfo->machineHostName(), d->sysInfo->osId(), d->sysInfo->osVersion())
+                                    .toStdString();
 
     if (!d->nextRunComment.isEmpty() && !d->runIsEphemeral) {
         // add user comment
-        extraData.insert("user_comment", d->nextRunComment);
+        extraData["user_comment"] = d->nextRunComment.toStdString();
 
         // we only remove the comment if the run was a success, as it is very likely
         // the the user will remove the comment and will try again
@@ -1551,25 +1549,26 @@ bool Engine::finalizeExperimentMetadata(
     }
     // update last run directory
     if (!d->runIsEphemeral)
-        d->lastRunExportDir = storageCollection->path();
+        d->lastRunExportDir = qstr(storageCollection->path());
 
-    QVariantList attrModList;
+    MetaArray attrModList;
     for (auto &mod : activeModules) {
-        QVariantHash info;
-        info.insert(QStringLiteral("id"), mod->id());
-        info.insert(QStringLiteral("name"), mod->name());
-        attrModList.append(info);
+        MetaStringMap info;
+        info["id"] = mod->id().toStdString();
+        info["name"] = mod->name().toStdString();
+        attrModList.push_back(info);
     }
-    extraData.insert("modules", attrModList);
+    extraData["modules"] = attrModList;
     storageCollection->setAttributes(extraData);
 
-    qCDebug(logEngine) << "Saving experiment metadata in:" << storageCollection->path();
+    qCDebug(logEngine) << "Saving experiment metadata in:" << storageCollection->path().string();
 
-    if (!storageCollection->save()) {
+    auto res = storageCollection->save();
+    if (!res.has_value()) {
         QMessageBox::critical(
             d->parentWidget,
             QStringLiteral("Unable to finish recording"),
-            QStringLiteral("Unable to save experiment metadata: %1").arg(storageCollection->lastError()));
+            QStringLiteral("Unable to save experiment metadata: %1").arg(res.error()));
         d->failed = true;
     }
 
@@ -1747,8 +1746,8 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     // create new experiment directory layout (EDL) collection to store
     // all data modules generate in
-    auto storageCollection = std::make_shared<EDLCollection>(d->exportName);
-    storageCollection->setPath(exportDirPath);
+    auto storageCollection = std::make_shared<EDLCollection>(d->exportName.toStdString());
+    storageCollection->setPath(exportDirPath.toStdString());
 
     // if we should save internal diagnostic data, create a group for it!
     if (d->saveInternal) {
@@ -1854,8 +1853,10 @@ bool Engine::runInternal(const QString &exportDirPath)
 
         mod->setSimpleStorageNames(d->simpleStorageNames);
         if ((modInfo != nullptr) && (!modInfo->storageGroupName().isEmpty())) {
-            auto storageGroup = storageCollection->groupByName(
-                modInfo->storageGroupName(), EDLCreateFlag::CREATE_OR_OPEN);
+            auto storageGroup = storageCollection
+                                    ->groupByName(
+                                        modInfo->storageGroupName().toStdString(), EDLCreateFlag::CREATE_OR_OPEN)
+                                    .value_or(nullptr);
             if (storageGroup == nullptr) {
                 qCCritical(logEngine) << "Unable to create data storage group with name" << modInfo->storageGroupName();
                 mod->setStorageGroup(storageCollection);
@@ -2489,11 +2490,11 @@ void Engine::onSynchronizerDetailsChanged(const std::string &id, const TimeSyncS
         modId = mod->id();
 
     auto ds = std::make_shared<EDLDataset>();
-    ds->setName(QStringLiteral("%1-%2").arg(modId, qstr(id)));
+    ds->setName(std::format("{}-{}", modId.toStdString(), id));
     d->edlInternalData->addChild(ds);
 
     auto tsw = std::make_shared<TimeSyncFileWriter>();
-    tsw->setFileName(ds->setDataFile("offsets.tsync").toStdString());
+    tsw->setFileName(ds->setDataFile("offsets.tsync"));
     tsw->setTimeUnits(TSyncFileTimeUnit::MICROSECONDS, TSyncFileTimeUnit::MICROSECONDS);
     tsw->setTimeDataTypes(TSyncFileDataType::INT64, TSyncFileDataType::INT64);
     tsw->setTimeNames("approx-master-time", "sync-offset");

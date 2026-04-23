@@ -247,8 +247,9 @@ MainWindow::MainWindow(QWidget *parent)
                              this,
                              QStringLiteral("Add new experimenter"),
                              QStringLiteral("Full name of the new experimenter:"))
-                             .trimmed();
-        if (newPerson.name.isEmpty()) {
+                             .trimmed()
+                             .toStdString();
+        if (newPerson.name.empty()) {
             QMessageBox::warning(
                 this,
                 QStringLiteral("Could not add experimenter"),
@@ -262,10 +263,11 @@ MainWindow::MainWindow(QWidget *parent)
                                   QStringLiteral("Add new experimenter"),
                                   QStringLiteral("E-Mail address of the new experimenter (can be left blank):"),
                                   QLineEdit::Normal,
-                                  newPerson.email)
-                                  .trimmed();
+                                  qstr(newPerson.email))
+                                  .trimmed()
+                                  .toStdString();
             // very rudimental check whether the entered stuff somewhat resembles an email address
-            if (!newPerson.email.isEmpty() && (!newPerson.email.contains('@') || !newPerson.email.contains('.'))) {
+            if (!newPerson.email.empty() && (!newPerson.email.contains('@') || !newPerson.email.contains('.'))) {
                 QMessageBox::information(
                     this,
                     QStringLiteral("E-Mail Invalid"),
@@ -1055,7 +1057,7 @@ void MainWindow::showExperimenterSelector(const QString &message)
 void MainWindow::changeExperimenter(const EDLAuthor &person)
 {
     m_engine->setExperimenter(person);
-    ui->currentExperimenterLabel->setText(person.isValid() ? person.name : QStringLiteral("[Person not set]"));
+    ui->currentExperimenterLabel->setText(person.isValid() ? qstr(person.name) : QStringLiteral("[Person not set]"));
 }
 
 void MainWindow::changeTestSubject(const TestSubject &subject)

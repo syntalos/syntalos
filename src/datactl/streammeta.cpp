@@ -19,6 +19,8 @@
 
 #include "streammeta.h"
 
+#include <sstream>
+
 namespace Syntalos
 {
 
@@ -106,6 +108,81 @@ void writeJsonObject(std::ostream &os, const std::map<std::string, MetaValue> &o
         writeJson(os, v);
     }
     os << '}';
+}
+
+std::string toJsonString(const MetaValue &v)
+{
+    std::ostringstream os;
+    writeJson(os, v);
+    return os.str();
+}
+
+std::string toJsonObjectString(const MetaStringMap &m)
+{
+    std::ostringstream os;
+    writeJsonObject(os, m);
+    return os.str();
+}
+
+std::expected<MetaStringMap, std::string> stringMapFromJson(const std::string &json)
+{
+    size_t i = 0;
+    auto skip = [&]() {
+        while (i < json.size() && (json[i] == ' ' || json[i] == '\t' || json[i] == '\n' || json[i] == '\r'))
+            ++i;
+    };
+    auto readStr = [&]() -> std::string {
+        if (i >= json.size() || json[i] != '"')
+            return {};
+        ++i;
+        std::string s;
+        while (i < json.size() && json[i] != '"') {
+            if (json[i] == '\\') {
+                ++i;
+            }
+            s += json[i++];
+        }
+        ++i; // closing quote
+        return s;
+    };
+
+    MetaStringMap result;
+    skip();
+    if (i < json.size() && json[i] == '{') {
+        ++i;
+        while (i < json.size() && json[i] != '}') {
+            skip();
+            if (json[i] == '"') {
+                const auto key = readStr();
+                skip();
+                if (i < json.size() && json[i] == ':')
+                    ++i;
+                skip();
+                if (i < json.size() && json[i] == '"') {
+                    result[key] = MetaValue{readStr()};
+                } else {
+                    // number or boolean
+                    size_t start = i;
+                    while (i < json.size() && json[i] != ',' && json[i] != '}' && json[i] != ' ')
+                        ++i;
+                    const auto numStr = json.substr(start, i - start);
+                    try {
+                        result[key] = MetaValue{static_cast<int64_t>(std::stoll(numStr))};
+                    } catch (...) {
+                        try {
+                            result[key] = MetaValue{std::stod(numStr)};
+                        } catch (...) {
+                        }
+                    }
+                }
+            }
+            skip();
+            if (i < json.size() && json[i] == ',')
+                ++i;
+        }
+    }
+
+    return result;
 }
 
 } // namespace Syntalos

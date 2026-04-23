@@ -126,24 +126,24 @@ void Tracker::analyzeFrame(const cv::Mat &frame, const milliseconds_t time, cv::
     m_dataStream->push(posInfo);
 }
 
-QVariantHash Tracker::finalize()
+MetaStringMap Tracker::finalize()
 {
     if (!m_initialized)
-        return QVariantHash();
+        return {};
 
-    QVariantHash mazeInfo;
+    MetaStringMap mazeInfo;
     if (m_mazeRect.size() == 4) {
-        mazeInfo.insert("top_left_x", m_mazeRect[0].x);
-        mazeInfo.insert("top_left_y", m_mazeRect[0].y);
+        mazeInfo["top_left_x"] = m_mazeRect[0].x;
+        mazeInfo["top_left_y"] = m_mazeRect[0].y;
 
-        mazeInfo.insert("top_right_x", m_mazeRect[1].x);
-        mazeInfo.insert("top_right_y", m_mazeRect[1].y);
+        mazeInfo["top_right_x"] = m_mazeRect[1].x;
+        mazeInfo["top_right_y"] = m_mazeRect[1].y;
 
-        mazeInfo.insert("bottom_left_x", m_mazeRect[2].x);
-        mazeInfo.insert("bottom_left_y", m_mazeRect[2].y);
+        mazeInfo["bottom_left_x"] = m_mazeRect[2].x;
+        mazeInfo["bottom_left_y"] = m_mazeRect[2].y;
 
-        mazeInfo.insert("bottom_right_x", m_mazeRect[3].x);
-        mazeInfo.insert("bottom_right_y", m_mazeRect[3].y);
+        mazeInfo["bottom_right_x"] = m_mazeRect[3].x;
+        mazeInfo["bottom_right_y"] = m_mazeRect[3].y;
     }
 
     return mazeInfo;

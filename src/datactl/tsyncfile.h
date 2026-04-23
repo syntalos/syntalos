@@ -19,14 +19,19 @@
 
 #pragma once
 
-#include <QDateTime>
-#include <QUuid>
+#include <cstdint>
+#include <fstream>
+#include <map>
 #include <memory>
+#include <optional>
+#include <string>
+#include <utility>
+#include <vector>
 #include <xxhash.h>
 
-#include "syclock.h"
-
-class QFile;
+#include "datactl/syclock.h"
+#include "datactl/streammeta.h"
+#include "datactl/uuid.h"
 
 namespace Syntalos
 {
@@ -35,7 +40,7 @@ namespace Syntalos
  * @brief Timepoint storage of a TSync file
  */
 enum class TSyncFileMode {
-    CONTINUOUS = 0, /// Continous time-point mapping with no gaps
+    CONTINUOUS = 0, /// Continuous time-point mapping with no gaps
     SYNCPOINTS = 1  /// Only synchronization points are saved
 };
 
@@ -83,6 +88,9 @@ public:
     explicit TimeSyncFileWriter();
     ~TimeSyncFileWriter();
 
+    TimeSyncFileWriter(const TimeSyncFileWriter &) = delete;
+    TimeSyncFileWriter &operator=(const TimeSyncFileWriter &) = delete;
+
     [[nodiscard]] std::string lastError() const;
 
     void setTimeNames(const std::string &time1Name, const std::string &time2Name);
@@ -95,14 +103,14 @@ public:
     void setSyncMode(TSyncFileMode mode);
     void setChunkSize(int size);
 
-    void setCreationTimeOverride(const QDateTime &dt);
+    void setCreationTimeOverride(const std::chrono::system_clock::time_point &tp);
 
-    bool open(const std::string &modName, const QUuid &collectionId, const QVariantHash &userData = QVariantHash());
+    bool open(const std::string &modName, const Uuid &collectionId, const MetaStringMap &userData = {});
     bool open(
         const std::string &modName,
-        const QUuid &collectionId,
+        const Uuid &collectionId,
         const microseconds_t &tolerance,
-        const QVariantHash &userData = QVariantHash());
+        const MetaStringMap &userData = {});
     void flush();
     void close();
 
@@ -112,21 +120,23 @@ public:
     void writeTimes(const uint64_t &time1, const uint64_t &time2);
 
 private:
-    QFile *m_file;
-    QDataStream m_stream;
+    std::ofstream m_file;
     TSyncFileMode m_tsMode;
     int m_blockSize;
     int m_bIndex;
     XXH3_state_t *m_xxh3State;
     std::string m_lastError;
-    QDateTime m_creationTimeOverride;
+    std::string m_fname;
+    std::optional<std::chrono::system_clock::time_point> m_creationTimeOverride;
 
-    QPair<std::string, std::string> m_timeNames;
-    QPair<TSyncFileTimeUnit, TSyncFileTimeUnit> m_timeUnits;
+    std::pair<std::string, std::string> m_timeNames;
+    std::pair<TSyncFileTimeUnit, TSyncFileTimeUnit> m_timeUnits;
     TSyncFileDataType m_time1DType;
     TSyncFileDataType m_time2DType;
 
     void writeBlockTerminator(bool check = true);
+    template<class T>
+    void writeRawLE(T val);
     template<class T>
     void csWriteValue(const T &data);
     template<class T1, class T2>
@@ -149,34 +159,34 @@ public:
     [[nodiscard]] std::string lastError() const;
 
     [[nodiscard]] std::string moduleName() const;
-    QUuid collectionId() const;
+    Uuid collectionId() const;
     time_t creationTime() const;
     TSyncFileMode syncMode() const;
 
-    QVariantHash userData() const;
+    MetaStringMap userData() const;
     microseconds_t tolerance() const;
 
-    QPair<std::string, std::string> timeNames() const;
-    QPair<TSyncFileTimeUnit, TSyncFileTimeUnit> timeUnits() const;
-    QPair<TSyncFileDataType, TSyncFileDataType> timeDTypes() const;
+    std::pair<std::string, std::string> timeNames() const;
+    std::pair<TSyncFileTimeUnit, TSyncFileTimeUnit> timeUnits() const;
+    std::pair<TSyncFileDataType, TSyncFileDataType> timeDTypes() const;
 
     std::vector<std::pair<long long, long long>> times() const;
 
 private:
     std::string m_lastError;
     std::string m_moduleName;
-    qint64 m_creationTime;
-    QUuid m_collectionId;
-    QVariantHash m_userData;
+    int64_t m_creationTime;
+    Uuid m_collectionId;
+    MetaStringMap m_userData;
 
     TSyncFileMode m_tsMode;
     int m_blockSize;
 
     microseconds_t m_tolerance;
     std::vector<std::pair<long long, long long>> m_times;
-    QPair<std::string, std::string> m_timeNames;
-    QPair<TSyncFileTimeUnit, TSyncFileTimeUnit> m_timeUnits;
-    QPair<TSyncFileDataType, TSyncFileDataType> m_timeDTypes;
+    std::pair<std::string, std::string> m_timeNames;
+    std::pair<TSyncFileTimeUnit, TSyncFileTimeUnit> m_timeUnits;
+    std::pair<TSyncFileDataType, TSyncFileDataType> m_timeDTypes;
 };
 
 } // namespace Syntalos

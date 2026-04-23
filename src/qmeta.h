@@ -28,6 +28,7 @@ Q_DECLARE_METATYPE(std::chrono::microseconds);
 Q_DECLARE_METATYPE(std::chrono::nanoseconds);
 
 Q_DECLARE_METATYPE(Syntalos::Uuid);
+Q_DECLARE_METATYPE(Syntalos::TimeSyncStrategies);
 
 namespace Syntalos
 {

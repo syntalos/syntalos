@@ -21,6 +21,7 @@
 
 #include <QDebug>
 #include <QTimer>
+#include <QFile>
 #include <miniscope.h>
 
 #include "miniscopesettingsdialog.h"

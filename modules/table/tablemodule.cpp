@@ -112,12 +112,12 @@ public:
                 return;
 
             // get our file basename
-            auto fname = dataBasenameFromSubMetadata(mdata, QStringLiteral("table"));
-            fname = QStringLiteral("%1.csv").arg(fname);
+            auto fname = dataBasenameFromSubMetadata(mdata, std::string("table"));
+            fname = fname + ".csv";
 
             // this turns it into an absolute path we can open for data storage
             fname = dstore->setDataFile(fname);
-            if (!m_recTable->open(fname)) {
+            if (!m_recTable->open(QString::fromStdString(fname))) {
                 raiseError(QStringLiteral("Unable to open file %1").arg(fname));
                 return;
             }

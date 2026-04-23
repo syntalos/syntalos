@@ -19,32 +19,117 @@
 
 #include "edlstorage.h"
 
-#include <QDir>
-#include <QFileInfo>
-#include <QMimeDatabase>
-#include <QUuid>
+#include <fnmatch.h>
+#include <algorithm>
 #include <chrono>
+#include <format>
 #include <fstream>
-#include <iostream>
-#include <memory>
 #include <mutex>
+#include <optional>
+#include <set>
+#include <sstream>
 #include <utility>
 #include <toml++/toml.h>
 
-#include "utils/misc.h"
-#include "utils/tomlutils.h"
+#include "edlutils.h"
+#include "loginternal.h"
+
+SY_DEFINE_LOG_CATEGORY(logEdl, "edl");
 
 using namespace Syntalos;
 
-static const QString EDL_FORMAT_VERSION = QStringLiteral("1");
+static const std::string EDL_FORMAT_VERSION = "1";
 
-static QString edlSanitizeFilename(const QString &name)
+/**
+ * Make filenames multiplatform-safe and simpler.
+ */
+static std::string edlSanitizeFilename(const std::string &name)
 {
-    const auto tmp = name.simplified().replace("/", "_").replace("\\", "_").replace(":", "");
+    if (name.empty())
+        return {};
+    std::string tmp;
+    tmp.reserve(name.size());
+    // strip leading/trailing whitespace
+    size_t start = 0, end = name.size();
+    while (start < end && (name[start] == ' ' || name[start] == '\t'))
+        ++start;
+    while (end > start && (name[end - 1] == ' ' || name[end - 1] == '\t'))
+        --end;
+    for (size_t i = start; i < end; ++i) {
+        const char c = name[i];
+        if (c == '/' || c == '\\')
+            tmp += '_';
+        else if (c == ':')
+            ; // strip colons
+        else
+            tmp += c;
+    }
     if (tmp == "AUX")
-        return QStringLiteral("_AUX");
+        return "_AUX";
     return tmp;
 }
+
+static toml::table createManifestFileSection(EDLDataFile &df)
+{
+    toml::table dataTab;
+
+    // determine file type from extension if not already set
+    if (df.fileType.empty() && !df.parts.empty()) {
+        const fs::path p(df.parts.front().filename);
+        const auto ext = p.extension().string();
+        if (!ext.empty() && ext.front() == '.')
+            df.fileType = ext.substr(1);
+        // handle double extensions for compressed files
+        const auto stem = p.stem();
+        const auto stemExt = stem.extension().string();
+
+        if (!stemExt.empty() && !ext.empty()) {
+            const auto compressedExt = stemExt.substr(1) + "." + df.fileType;
+            if (ext == ".zst" || ext == ".gz" || ext == ".xz")
+                df.fileType = compressedExt;
+        }
+    }
+
+    // guess MIME type, if we can
+    if (df.mediaType.empty() && !df.parts.empty())
+        df.mediaType = edl::guessContentType(df.parts.front().filename);
+
+    if (!df.fileType.empty())
+        dataTab.insert("file_type", df.fileType);
+    if (!df.mediaType.empty())
+        dataTab.insert("media_type", df.mediaType);
+    if (!df.className.empty())
+        dataTab.insert("class", df.className);
+    if (!df.summary.empty())
+        dataTab.insert("summary", df.summary);
+
+    toml::array filePartsArr;
+    for (size_t i = 0; i < df.parts.size(); ++i) {
+        auto fpart = df.parts[i];
+        if (fpart.index < 0)
+            fpart.index = static_cast<int>(i);
+        toml::table fpartTab;
+
+        if (df.parts.size() > 1)
+            fpartTab.insert("index", fpart.index);
+        fpartTab.insert("fname", fpart.filename);
+
+        filePartsArr.push_back(std::move(fpartTab));
+    }
+
+    dataTab.insert("parts", std::move(filePartsArr));
+    return dataTab;
+}
+
+EdlDateTime Syntalos::edlCurrentDateTime()
+{
+    const auto now = std::chrono::floor<std::chrono::seconds>(std::chrono::system_clock::now());
+    return EdlDateTime{std::chrono::current_zone(), now};
+}
+
+// ============================================================
+// EDLUnit
+// ============================================================
 
 class EDLUnit::Private
 {
@@ -52,25 +137,24 @@ public:
     Private() = default;
     ~Private() = default;
 
-    EDLUnitKind objectKind;
-    QString formatVersion;
-    EDLUnit *parent;
+    EDLUnitKind objectKind = EDLUnitKind::UNKNOWN;
+    std::string formatVersion;
+    EDLUnit *parent = nullptr;
 
-    QUuid collectionId;
-    QDateTime timeCreated;
-    QString generatorId;
-    QList<EDLAuthor> authors;
+    Uuid collectionId{};
+    bool collectionIdSet = false;
+    std::optional<EdlDateTime> timeCreated;
+    std::string generatorId;
+    std::vector<EDLAuthor> authors;
 
-    QString name;
-    QString rootPath;
+    std::string name;
+    fs::path rootPath;
 
     std::optional<EDLDataFile> dataFile;
-    QList<EDLDataFile> auxDataFiles;
-    QHash<QString, QVariant> attrs;
+    std::vector<EDLDataFile> auxDataFiles;
+    std::map<std::string, MetaValue> attrs;
 
-    QString lastError;
-
-    std::mutex mutex;
+    mutable std::mutex mutex;
 };
 
 EDLUnit::EDLUnit(EDLUnitKind kind, EDLUnit *parent)
@@ -88,17 +172,17 @@ EDLUnitKind EDLUnit::objectKind() const
     return d->objectKind;
 }
 
-QString EDLUnit::objectKindString() const
+std::string EDLUnit::objectKindString() const
 {
     switch (d->objectKind) {
     case EDLUnitKind::COLLECTION:
-        return QStringLiteral("collection");
+        return "collection";
     case EDLUnitKind::GROUP:
-        return QStringLiteral("group");
+        return "group";
     case EDLUnitKind::DATASET:
-        return QStringLiteral("dataset");
+        return "dataset";
     default:
-        return QString();
+        return {};
     }
 }
 
@@ -107,139 +191,156 @@ EDLUnit *EDLUnit::parent() const
     return d->parent;
 }
 
-QString EDLUnit::name() const
+std::string EDLUnit::name() const
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     return d->name;
 }
 
-bool EDLUnit::setName(const QString &name)
+std::expected<void, std::string> EDLUnit::setName(const std::string &name)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
-    const auto oldDirPath = path();
+    const auto oldPath = d->rootPath.empty() ? fs::path{} : (d->rootPath / d->name);
     const auto oldName = d->name;
+
     // we put some restrictions on how people can name objects,
     // as to not mess with the directory layout and to keep names
     // portable between operating systems
     d->name = edlSanitizeFilename(name);
-    if (d->name.isEmpty())
-        d->name = createRandomString(4);
+    if (d->name.empty())
+        d->name = edl::createRandomString(4);
 
-    if (!oldDirPath.isEmpty()) {
-        QDir dir;
-        if (dir.exists(oldDirPath) && !dir.rename(oldDirPath, path())) {
-            qWarning().noquote() << "EDL:"
-                                 << "Unable to rename directory" << oldDirPath << "to" << path();
-            d->name = oldName;
-            return false;
+    if (!oldPath.empty()) {
+        const auto newPath = d->rootPath / d->name;
+        if (fs::exists(oldPath) && oldPath != newPath) {
+            std::error_code ec;
+            fs::rename(oldPath, newPath, ec);
+            if (ec) {
+                d->name = oldName;
+                return std::unexpected(
+                    std::format(
+                        "Unable to rename directory '{}' to '{}': {}",
+                        oldPath.string(),
+                        newPath.string(),
+                        ec.message()));
+            }
         }
     }
 
-    return true;
+    return {};
 }
 
-QDateTime EDLUnit::timeCreated() const
+EdlDateTime EDLUnit::timeCreated() const
 {
-    return d->timeCreated;
+    const std::lock_guard<std::mutex> lock(d->mutex);
+
+    // return current time as default
+    if (!d->timeCreated.has_value())
+        return edlCurrentDateTime();
+    return *d->timeCreated;
 }
 
-void EDLUnit::setTimeCreated(const QDateTime &time)
+void EDLUnit::setTimeCreated(const EdlDateTime &time)
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     d->timeCreated = time;
 }
 
-QUuid EDLUnit::collectionId() const
+Uuid EDLUnit::collectionId() const
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     return d->collectionId;
 }
 
-void EDLUnit::setCollectionId(const QUuid &uuid)
+void EDLUnit::setCollectionId(const Uuid &uuid)
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     d->collectionId = uuid;
+    d->collectionIdSet = true;
 }
 
-/**
- * @brief Get part of the long collection-id as a short tag in e.g. filenames
- * @return Collection ID fragment string for use as short tag
- */
-QString EDLUnit::collectionShortTag() const
+std::string EDLUnit::collectionShortTag() const
 {
-    // we need to take from the right, because we use UUID7 and to get a varying tag
+    const std::lock_guard<std::mutex> lock(d->mutex);
+    if (!d->collectionIdSet)
+        return {};
+
+    // we need to take from the right, because we use UUIDv7 and to get a varying tag
     // from the timestamp component, we would need the first 12+ chars
-    return d->collectionId.toString(QUuid::WithoutBraces).right(8);
+    const auto hex = d->collectionId.toHex();
+    return hex.substr(hex.size() > 8 ? hex.size() - 8 : 0);
 }
 
 void EDLUnit::addAuthor(const EDLAuthor &author)
 {
-    d->authors.append(author);
+    const std::lock_guard<std::mutex> lock(d->mutex);
+    d->authors.push_back(author);
 }
 
-QList<EDLAuthor> EDLUnit::authors() const
+std::vector<EDLAuthor> EDLUnit::authors() const
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     return d->authors;
 }
 
-void EDLUnit::setPath(const QString &path)
+void EDLUnit::setPath(const fs::path &path)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
-    QDir dir(path);
-    d->name = dir.dirName();
-    d->rootPath = QDir::cleanPath(QStringLiteral("%1/..").arg(path));
+    d->name = path.filename().string();
+    d->rootPath = path.parent_path();
 }
 
-QString EDLUnit::path() const
+fs::path EDLUnit::path() const
 {
-    if (d->rootPath.isEmpty())
+    const std::lock_guard<std::mutex> lock(d->mutex);
+    if (d->rootPath.empty())
         return {};
-    return QDir::cleanPath(d->rootPath + QStringLiteral("/") + name());
+    return d->rootPath / d->name;
 }
 
-QString EDLUnit::rootPath() const
+fs::path EDLUnit::rootPath() const
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     return d->rootPath;
 }
 
-void EDLUnit::setRootPath(const QString &root)
+void EDLUnit::setRootPath(const fs::path &root)
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     d->rootPath = root;
 }
 
-QHash<QString, QVariant> EDLUnit::attributes() const
+std::map<std::string, MetaValue> EDLUnit::attributes() const
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     return d->attrs;
 }
 
-void EDLUnit::setAttributes(const QHash<QString, QVariant> &attributes)
+void EDLUnit::setAttributes(const std::map<std::string, MetaValue> &attributes)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     d->attrs = attributes;
 }
 
-void EDLUnit::insertAttribute(const QString &key, const QVariant &value)
+void EDLUnit::insertAttribute(const std::string &key, const MetaValue &value)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
-    d->attrs.insert(key, value);
+    d->attrs.insert_or_assign(key, value);
 }
 
-bool EDLUnit::save()
+std::expected<void, std::string> EDLUnit::save()
 {
-    if (d->rootPath.isEmpty()) {
-        d->lastError = QStringLiteral("Unable to save experiment data: No root directory is set.");
-        return false;
-    }
-    if (!saveManifest())
-        return false;
+    if (rootPath().empty())
+        return std::unexpected("Unable to save experiment data: No root directory is set.");
+    auto r = saveManifest();
+    if (!r)
+        return r;
     return saveAttributes();
 }
 
-bool EDLUnit::validate(bool recursive)
+std::expected<void, std::string> EDLUnit::validate(bool recursive)
 {
-    return true;
-}
-
-QString EDLUnit::lastError() const
-{
-    return d->lastError;
+    return {};
 }
 
 void EDLUnit::setObjectKind(const EDLUnitKind &kind)
@@ -252,120 +353,55 @@ void EDLUnit::setParent(EDLUnit *parent)
     d->parent = parent;
 }
 
-void EDLUnit::setLastError(const QString &message)
-{
-    d->lastError = message;
-}
-
-void EDLUnit::setDataObjects(std::optional<EDLDataFile> dataFile, const QList<EDLDataFile> &auxDataFiles)
+void EDLUnit::setDataObjects(std::optional<EDLDataFile> dataFile, const std::vector<EDLDataFile> &auxDataFiles)
 {
     d->dataFile = std::move(dataFile);
     d->auxDataFiles = auxDataFiles;
 }
 
-static toml::table createManifestFileSection(EDLDataFile &df)
-{
-    toml::table dataTab;
-
-    // try to guess a MIME type in case none is set
-    if (df.mediaType.isEmpty()) {
-        QMimeDatabase db;
-        const auto fname = df.parts.first().fname;
-        if (fname.endsWith(".zst") || fname.endsWith(".gz") || fname.endsWith(".xz")) {
-            // always add complete suffix for compressed data, in addition
-            // to the media type of the compression format
-            QFileInfo fi(fname);
-            df.fileType = fi.completeSuffix();
-        }
-
-        const auto mime = db.mimeTypeForFile(fname);
-        if (mime.isValid() && !mime.isDefault())
-            df.mediaType = mime.name();
-    }
-
-    // if the media type is still empty, we at least want to set a file type
-    if (df.mediaType.isEmpty()) {
-        if (df.fileType.isEmpty()) {
-            QFileInfo fi(df.parts.first().fname);
-            df.fileType = fi.completeSuffix();
-        }
-    }
-
-    if (!df.fileType.isEmpty())
-        dataTab.insert("file_type", df.fileType.toLower().toStdString());
-    if (!df.mediaType.isEmpty())
-        dataTab.insert("media_type", df.mediaType.toStdString());
-    if (!df.className.isEmpty())
-        dataTab.insert("class", df.className.toLower().toStdString());
-    if (!df.summary.isEmpty())
-        dataTab.insert("summary", df.summary.toStdString());
-
-    toml::array filePartsArr;
-    for (int i = 0; i < df.parts.length(); i++) {
-        auto fpart = df.parts[i];
-        if (fpart.index < 0)
-            fpart.index = i;
-        toml::table fpartTab;
-
-        if (df.parts.length() > 1)
-            fpartTab.insert("index", fpart.index);
-        fpartTab.insert("fname", fpart.fname.toStdString());
-
-        filePartsArr.push_back(std::move(fpartTab));
-    }
-
-    dataTab.insert("parts", std::move(filePartsArr));
-    return dataTab;
-}
-
-QString EDLUnit::serializeManifest()
+std::string EDLUnit::serializeManifest()
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     toml::table document;
 
-    if (d->timeCreated.isNull()) {
-        // set default creation time, with second-resolution (milliseconds are stripped)
-        auto cdt = QDateTime::currentDateTime();
-        cdt.setTime(QTime(cdt.time().hour(), cdt.time().minute(), cdt.time().second()));
-        d->timeCreated = cdt;
+    if (!d->timeCreated.has_value()) {
+        // set default creation time, with second-resolution
+        d->timeCreated = edlCurrentDateTime();
     }
 
-    document.insert("format_version", d->formatVersion.toStdString());
-    document.insert("type", objectKindString().toStdString());
-    document.insert("time_created", qDateTimeToToml(d->timeCreated));
+    document.insert("format_version", d->formatVersion);
+    document.insert("type", objectKindString());
+    document.insert("time_created", edl::toToml(*d->timeCreated));
 
-    if (!d->collectionId.isNull())
-        document.insert("collection_id", d->collectionId.toString(QUuid::WithoutBraces).toStdString());
-    if (!d->generatorId.isEmpty())
-        document.insert("generator", d->generatorId.toStdString());
+    if (d->collectionIdSet)
+        document.insert("collection_id", d->collectionId.toHex());
+    if (!d->generatorId.empty())
+        document.insert("generator", d->generatorId);
 
-    if (!d->authors.isEmpty()) {
+    if (!d->authors.empty()) {
         toml::array authorsArr;
         for (const auto &author : d->authors) {
             toml::table authorTab;
-            authorTab.insert("name", author.name.toStdString());
-            if (!author.email.isEmpty())
-                authorTab.insert("email", author.email.toStdString());
-            QHashIterator<QString, QString> iter(author.values);
-            while (iter.hasNext()) {
-                iter.next();
-                authorTab.insert(iter.key().toStdString(), iter.value().toStdString());
-            }
+            authorTab.insert("name", author.name);
+            if (!author.email.empty())
+                authorTab.insert("email", author.email);
+            for (const auto &[k, v] : author.values)
+                authorTab.insert(k, v);
             authorsArr.push_back(std::move(authorTab));
         }
         document.insert("authors", std::move(authorsArr));
     }
 
-    if (d->dataFile.has_value() && !d->dataFile->parts.isEmpty()) {
+    if (d->dataFile.has_value() && !d->dataFile->parts.empty()) {
         auto dataTab = createManifestFileSection(d->dataFile.value());
         document.insert("data", std::move(dataTab));
     }
 
     // register auxiliary data files (metadata or extra data accompanying the main data files)
-    if (!d->auxDataFiles.isEmpty()) {
+    if (!d->auxDataFiles.empty()) {
         toml::array auxDataArr;
         for (auto &adf : d->auxDataFiles) {
-            if (adf.parts.isEmpty())
+            if (adf.parts.empty())
                 continue;
             auto dataTab = createManifestFileSection(adf);
             auxDataArr.push_back(dataTab);
@@ -376,85 +412,75 @@ QString EDLUnit::serializeManifest()
     // serialize manifest data to TOML
     std::stringstream strData;
     strData << document << "\n";
-
-    return QString::fromStdString(strData.str());
+    return strData.str();
 }
 
-QString EDLUnit::serializeAttributes()
+std::string EDLUnit::serializeAttributes()
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     // no user-defined attributes means the document is empty
-    if (d->attrs.isEmpty())
+    if (d->attrs.empty())
         return {};
 
-    auto document = qVariantHashToTomlTable(d->attrs);
-
     // serialize user attributes to TOML
+    const auto document = edl::toTomlTable(d->attrs);
     std::stringstream strData;
     strData << document << "\n";
-
-    return QString::fromStdString(strData.str());
+    return strData.str();
 }
 
-bool EDLUnit::saveManifest()
+std::expected<void, std::string> EDLUnit::saveManifest()
 {
-    QDir dir;
-    if (!dir.mkpath(path())) {
-        d->lastError = QStringLiteral("Unable to create EDL directory: '%1'").arg(path());
-        return false;
-    }
+    const auto p = path();
+    std::error_code ec;
+    fs::create_directories(p, ec);
+    if (ec)
+        return std::unexpected(std::format("Unable to create EDL directory '{}': {}", p.string(), ec.message()));
 
-    // write the manifest file
-    QFile file(QStringLiteral("%1/manifest.toml").arg(path()));
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        d->lastError = QStringLiteral("Unable to open manifest file for writing (in '%1'): %2")
-                           .arg(path(), file.errorString());
-        return false;
-    }
-
-    QTextStream out(&file);
+    const auto manifestPath = p / "manifest.toml";
+    std::ofstream out(manifestPath);
+    if (!out)
+        return std::unexpected(std::format("Unable to open manifest file for writing in '{}'", p.string()));
     out << serializeManifest();
-
-    file.close();
-    return true;
+    return {};
 }
 
-bool EDLUnit::saveAttributes()
+std::expected<void, std::string> EDLUnit::saveAttributes()
 {
     // do nothing if we have no user-defined attributes to save
-    if (d->attrs.isEmpty())
-        return true;
+    if (d->attrs.empty())
+        return {};
+    const auto attrStr = serializeAttributes();
 
-    QDir dir;
-    if (!dir.mkpath(path())) {
-        d->lastError = QStringLiteral("Unable to create EDL directory: '%1'").arg(path());
-        return false;
-    }
+    const auto p = path();
+    std::error_code ec;
+    fs::create_directories(p, ec);
+    if (ec)
+        return std::unexpected(std::format("Unable to create EDL directory '{}': {}", p.string(), ec.message()));
 
-    // write the attributes file
-    QFile file(QStringLiteral("%1/attributes.toml").arg(path()));
-    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        d->lastError = QStringLiteral("Unable to open attributes file for writing (in '%1'): %2")
-                           .arg(path(), file.errorString());
-        return false;
-    }
-
-    QTextStream out(&file);
-    out << serializeAttributes();
-
-    file.close();
-    return true;
+    const auto attrPath = p / "attributes.toml";
+    std::ofstream out(attrPath);
+    if (!out)
+        return std::unexpected(std::format("Unable to open attributes file for writing in '{}'", p.string()));
+    out << attrStr;
+    return {};
 }
 
-QString EDLUnit::generatorId() const
+std::string EDLUnit::generatorId() const
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     return d->generatorId;
 }
 
-void EDLUnit::setGeneratorId(const QString &idString)
+void EDLUnit::setGeneratorId(const std::string &idString)
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     d->generatorId = idString;
 }
+
+// ============================================================
+// EDLDataset
+// ============================================================
 
 class EDLDataset::Private
 {
@@ -463,10 +489,12 @@ public:
     ~Private() = default;
 
     EDLDataFile dataFile;
-    QMap<QString, EDLDataFile> auxFiles;
+    std::map<std::string, EDLDataFile> auxFiles;
 
-    QPair<QString, EDLDataFile> dataScanPattern;
-    QMap<QString, EDLDataFile> auxDataScanPatterns;
+    std::pair<std::string, EDLDataFile> dataScanPattern;
+    std::map<std::string, EDLDataFile> auxDataScanPatterns;
+
+    mutable std::mutex mutex;
 };
 
 EDLDataset::EDLDataset(EDLGroup *parent)
@@ -475,14 +503,19 @@ EDLDataset::EDLDataset(EDLGroup *parent)
 {
 }
 
+EDLDataset::EDLDataset(const std::string &name, EDLGroup *parent)
+    : EDLUnit(EDLUnitKind::DATASET, parent),
+      d(new EDLDataset::Private)
+{
+    (void)EDLDataset::setName(name); // new object, no path set yet - cannot fail
+}
+
 EDLDataset::~EDLDataset() = default;
 
-bool EDLDataset::save()
+std::expected<void, std::string> EDLDataset::save()
 {
-    if (rootPath().isEmpty()) {
-        setLastError(QStringLiteral("Unable to save dataset: No root directory is set."));
-        return false;
-    }
+    if (rootPath().empty())
+        return std::unexpected("Unable to save dataset: No root directory is set.");
 
     // check if we have to scan for generated files
     // this is *really* ugly, so hopefully this is just a temporary aid
@@ -490,159 +523,234 @@ bool EDLDataset::save()
     // to use the EDL scheme.
     // we protect against badly written modules by not having them accidentally register
     // files as both primary data and aux data.
-    QSet<QString> auxFiles;
-    if (!d->auxDataScanPatterns.isEmpty()) {
-        QMapIterator<QString, EDLDataFile> adKV(d->auxDataScanPatterns);
-        while (adKV.hasNext()) {
-            adKV.next();
+    {
+        const std::lock_guard<std::mutex> lock(d->mutex);
 
-            const auto files = findFilesByPattern(adKV.key());
-            if (files.isEmpty()) {
-                qWarning().noquote().nospace()
-                    << "Dataset '" << name() << "' expected to find auxiliary data matching pattern `" << adKV.key()
-                    << "`, but no data was found.";
+        std::set<std::string> auxFileSet;
+        for (const auto &[pattern, adf] : d->auxDataScanPatterns) {
+            const auto files = findFilesByPattern(pattern);
+            if (files.empty()) {
+                SY_LOG_WARNING(
+                    logEdl,
+                    "Dataset '{}' expected aux data matching pattern `{}`, but nothing was found.",
+                    name(),
+                    pattern);
             } else {
-                for (int i = 0; i < files.size(); ++i) {
-                    auxFiles.insert(files[i]);
-                    if (i == 0)
-                        addAuxDataFile(files[0], adKV.key(), adKV.value().summary);
-                    else
-                        addAuxDataFilePart(files[i], adKV.key());
+                for (size_t i = 0; i < files.size(); ++i) {
+                    auxFileSet.insert(files[i]);
+                    EDLDataPart part(files[i]);
+                    part.index = static_cast<int>(i);
+                    if (i == 0) {
+                        EDLDataFile afile;
+                        afile.summary = adf.summary;
+                        afile.parts.push_back(part);
+                        d->auxFiles[pattern] = std::move(afile);
+                    } else {
+                        d->auxFiles[pattern].parts.push_back(part);
+                    }
                 }
             }
         }
-    }
 
-    // register actual data found via pattern scan
-    if (!d->dataScanPattern.first.isEmpty()) {
-        d->dataFile.parts.clear();
-        const auto files = findFilesByPattern(d->dataScanPattern.first);
-        if (files.isEmpty()) {
-            qWarning().noquote().nospace() << "Dataset '" << name() << "' expected to find data matching pattern `"
-                                           << d->dataScanPattern.first << "`, but no data was found.";
-        } else {
-            for (const auto &file : files) {
-                if (auxFiles.contains(file))
-                    continue;
-                if (d->dataFile.parts.isEmpty())
-                    setDataFile(file, d->dataScanPattern.second.summary);
-                else
-                    addDataFilePart(file);
+        if (!d->dataScanPattern.first.empty()) {
+            d->dataFile.parts.clear();
+            const auto files = findFilesByPattern(d->dataScanPattern.first);
+            if (files.empty()) {
+                SY_LOG_WARNING(
+                    logEdl,
+                    "Dataset '{}' expected data matching pattern `{}`, but nothing was found.",
+                    name(),
+                    d->dataScanPattern.first);
+            } else {
+                for (const auto &file : files) {
+                    if (auxFileSet.count(file))
+                        continue;
+                    EDLDataPart part(file);
+                    d->dataFile.parts.push_back(part);
+                }
+                d->dataFile.summary = d->dataScanPattern.second.summary;
             }
         }
+
+        // collect aux data values into a vector for setDataObjects
+        std::vector<EDLDataFile> auxVec;
+        auxVec.reserve(d->auxFiles.size());
+        for (const auto &[k, adf] : d->auxFiles)
+            auxVec.push_back(adf);
+        setDataObjects(d->dataFile, auxVec);
     }
 
-    setDataObjects(d->dataFile, d->auxFiles.values());
-    if (!saveManifest())
-        return false;
+    auto r = saveManifest();
+    if (!r)
+        return r;
     return saveAttributes();
 }
 
 bool EDLDataset::isEmpty() const
 {
-    return d->dataFile.parts.isEmpty() && d->auxFiles.isEmpty() && d->dataScanPattern.first.isEmpty()
-           && d->auxDataScanPatterns.isEmpty();
+    const std::lock_guard<std::mutex> lock(d->mutex);
+    return d->dataFile.parts.empty() && d->auxFiles.empty() && d->dataScanPattern.first.empty()
+           && d->auxDataScanPatterns.empty();
 }
 
-QString EDLDataset::setDataFile(const QString &fname, const QString &summary)
+fs::path EDLDataset::setDataFile(const std::string &fname, const std::string &summary)
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     d->dataFile.parts.clear();
     d->dataFile.summary = summary;
-    return addDataFilePart(fname);
+
+    const auto baseName = fs::path(fname).filename().string();
+    EDLDataPart part(baseName);
+    d->dataFile.parts.push_back(part);
+
+    // resolve absolute path
+    const auto p = path();
+    if (p.empty())
+        return fs::path{};
+    std::error_code ec;
+    fs::create_directories(p, ec);
+    if (ec)
+        SY_LOG_WARNING(logEdl, "Unable to create EDL directory '{}': {}", p.string(), ec.message());
+    return p / edlSanitizeFilename(baseName);
 }
 
-QString EDLDataset::addDataFilePart(const QString &fname, int index)
+fs::path EDLDataset::addDataFilePart(const std::string &fname, int index)
 {
-    QFileInfo fi(fname);
-    const auto baseName = fi.fileName();
-
+    const std::lock_guard<std::mutex> lock(d->mutex);
+    const auto baseName = fs::path(fname).filename().string();
     EDLDataPart part(baseName);
     part.index = index;
-    d->dataFile.parts.append(part);
+    d->dataFile.parts.push_back(part);
 
-    return pathForDataBasename(baseName);
+    const auto p = path();
+    if (p.empty())
+        return fs::path{};
+    std::error_code ec;
+    fs::create_directories(p, ec);
+    if (ec)
+        SY_LOG_WARNING(logEdl, "Unable to create EDL directory '{}': {}", p.string(), ec.message());
+    return p / edlSanitizeFilename(baseName);
 }
 
 EDLDataFile EDLDataset::dataFile() const
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     return d->dataFile;
 }
 
-QString EDLDataset::addAuxDataFile(const QString &fname, const QString &key, const QString &summary)
+std::expected<fs::path, std::string> EDLDataset::addAuxDataFile(
+    const std::string &fname,
+    const std::string &key,
+    const std::string &summary)
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     EDLDataFile adf;
     adf.summary = summary;
-    d->auxFiles[key] = adf;
-    return addAuxDataFilePart(fname, key);
+
+    const auto actualKey = key.empty() ? fs::path(fname).filename().string() : key;
+    d->auxFiles[actualKey] = adf;
+
+    const auto baseName = fs::path(fname).filename().string();
+    EDLDataPart part(baseName);
+    d->auxFiles[actualKey].parts.push_back(part);
+
+    const auto p = path();
+    if (p.empty())
+        return fs::path{};
+    std::error_code ec;
+    fs::create_directories(p, ec);
+    if (ec)
+        return std::unexpected(std::format("Unable to create EDL directory '{}': {}", p.string(), ec.message()));
+    return p / edlSanitizeFilename(baseName);
 }
 
-QString EDLDataset::addAuxDataFilePart(const QString &fname, const QString &key, int index)
+std::expected<fs::path, std::string> EDLDataset::addAuxDataFilePart(
+    const std::string &fname,
+    const std::string &key,
+    int index)
 {
-    QFileInfo fi(fname);
-    const auto baseName = fi.fileName();
+    const std::lock_guard<std::mutex> lock(d->mutex);
+    const auto baseName = fs::path(fname).filename().string();
+    const auto actualKey = key.empty() ? baseName : key;
 
-    if (!d->auxFiles.contains(key))
-        d->auxFiles[key] = EDLDataFile();
+    if (!d->auxFiles.count(actualKey))
+        d->auxFiles[actualKey] = EDLDataFile();
 
     EDLDataPart part(baseName);
     part.index = index;
-    d->auxFiles[key].parts.append(part);
+    d->auxFiles[actualKey].parts.push_back(part);
 
-    return pathForDataBasename(baseName);
+    const auto p = path();
+    if (p.empty())
+        return fs::path{};
+    std::error_code ec;
+    fs::create_directories(p, ec);
+    if (ec)
+        return std::unexpected(std::format("Unable to create EDL directory '{}': {}", p.string(), ec.message()));
+    return p / edlSanitizeFilename(baseName);
 }
 
-void EDLDataset::setDataScanPattern(const QString &wildcard, const QString &summary)
+void EDLDataset::setDataScanPattern(const std::string &wildcard, const std::string &summary)
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     EDLDataFile df;
     df.summary = summary;
-    d->dataScanPattern = qMakePair(wildcard, df);
+    d->dataScanPattern = {wildcard, df};
 }
 
-void EDLDataset::addAuxDataScanPattern(const QString &wildcard, const QString &summary)
+void EDLDataset::addAuxDataScanPattern(const std::string &wildcard, const std::string &summary)
 {
+    const std::lock_guard<std::mutex> lock(d->mutex);
     EDLDataFile adf;
     adf.summary = summary;
     d->auxDataScanPatterns[wildcard] = adf;
 }
 
-QString EDLDataset::pathForDataBasename(const QString &baseName)
+fs::path EDLDataset::pathForDataBasename(const std::string &baseName)
 {
-    // we don't trust this input and generate the basename again
-    QFileInfo fi(baseName);
+    const std::lock_guard<std::mutex> lock(d->mutex);
+    auto bname = edlSanitizeFilename(fs::path(baseName).filename().string());
+    if (bname.empty())
+        bname = "data";
 
-    auto bname = edlSanitizeFilename(fi.fileName());
-    if (bname.isEmpty())
-        bname = QStringLiteral("data");
-    QDir dir(path());
-    if (path().isEmpty() || !dir.mkpath(path())) {
-        setLastError(QStringLiteral("Unable to create EDL directory: '%1'").arg(path()));
+    const auto p = path();
+    if (p.empty())
+        return fs::path{};
+    std::error_code ec;
+    fs::create_directories(p, ec);
+    if (ec)
+        SY_LOG_WARNING(logEdl, "Unable to create EDL directory '{}': {}", p.string(), ec.message());
+    return p / bname;
+}
+
+fs::path EDLDataset::pathForDataPart(const EDLDataPart &dpart)
+{
+    return path() / dpart.filename;
+}
+
+std::vector<std::string> EDLDataset::findFilesByPattern(const std::string &wildcard) const
+{
+    // Called with d->mutex already held, or internally. Never acquires the dataset mutex itself here.
+    const auto p = path();
+    if (p.empty() || !fs::is_directory(p))
         return {};
+
+    std::vector<std::string> files;
+    std::error_code ec;
+    for (const auto &entry : fs::directory_iterator(p, ec)) {
+        if (!entry.is_regular_file())
+            continue;
+        const auto fname = entry.path().filename().string();
+        if (::fnmatch(wildcard.c_str(), fname.c_str(), 0) == 0)
+            files.push_back(fname);
     }
-    return dir.filePath(bname);
-}
-
-QString EDLDataset::pathForDataPart(const EDLDataPart &dpart)
-{
-    QDir dir(path());
-    return dir.filePath(dpart.fname);
-}
-
-QStringList EDLDataset::findFilesByPattern(const QString &wildcard) const
-{
-    QDir dir(path());
-    const auto filters = QStringList() << wildcard;
-
-    auto fileInfos = dir.entryInfoList(filters, QDir::NoDotAndDotDot | QDir::Files);
-    QStringList files;
-    for (const auto &fi : fileInfos) {
-        if (fi.isFile())
-            files << fi.fileName();
-    }
-
-    // do natural sorting of the found files
-    stringListNaturalSort(files);
+    edl::naturalNumListSort(files);
     return files;
 }
+
+// ============================================================
+// EDLGroup
+// ============================================================
 
 class EDLGroup::Private
 {
@@ -650,8 +758,8 @@ public:
     Private() = default;
     ~Private() = default;
 
-    QList<std::shared_ptr<EDLUnit>> children;
-    std::mutex mutex;
+    std::vector<std::shared_ptr<EDLUnit>> children;
+    mutable std::mutex mutex;
 };
 
 EDLGroup::EDLGroup(EDLGroup *parent)
@@ -660,38 +768,51 @@ EDLGroup::EDLGroup(EDLGroup *parent)
 {
 }
 
-EDLGroup::~EDLGroup() = default;
-
-bool EDLGroup::setName(const QString &name)
+EDLGroup::EDLGroup(const std::string &name, EDLGroup *parent)
+    : EDLUnit(EDLUnitKind::GROUP, parent),
+      d(new EDLGroup::Private)
 {
-    const std::lock_guard<std::mutex> lock(d->mutex);
-    if (!EDLUnit::setName(name))
-        return false;
-    // propagate path change through the hierarchy
-    for (auto &node : d->children)
-        node->setRootPath(path());
-    return true;
+    (void)EDLGroup::setName(name); // new object, no path yet - cannot fail
 }
 
-void EDLGroup::setRootPath(const QString &root)
+EDLGroup::~EDLGroup() = default;
+
+std::expected<void, std::string> EDLGroup::setName(const std::string &name)
+{
+    {
+        const std::lock_guard<std::mutex> lock(d->mutex);
+        auto r = EDLUnit::setName(name);
+        if (!r)
+            return r;
+        // propagate new path to all children
+        const auto p = path();
+        for (auto &node : d->children)
+            node->setRootPath(p);
+    }
+    return {};
+}
+
+void EDLGroup::setRootPath(const fs::path &root)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     EDLUnit::setRootPath(root);
     // propagate path change through the hierarchy
+    const auto p = path();
     for (auto &node : d->children)
-        node->setRootPath(path());
+        node->setRootPath(p);
 }
 
-void EDLGroup::setCollectionId(const QUuid &uuid)
+void EDLGroup::setCollectionId(const Uuid &uuid)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     EDLUnit::setCollectionId(uuid);
+
     // propagate collection UUID through the DAG
     for (auto &node : d->children)
         node->setCollectionId(uuid);
 }
 
-QList<std::shared_ptr<EDLUnit>> EDLGroup::children() const
+std::vector<std::shared_ptr<EDLUnit>> EDLGroup::children() const
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     return d->children;
@@ -700,119 +821,122 @@ QList<std::shared_ptr<EDLUnit>> EDLGroup::children() const
 void EDLGroup::addChild(const std::shared_ptr<EDLUnit> &edlObj)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
+    _locked_addChild(edlObj);
+}
+
+void EDLGroup::_locked_addChild(const std::shared_ptr<EDLUnit> &edlObj)
+{
+    // Caller must hold d->mutex
     edlObj->setParent(this);
     edlObj->setRootPath(path());
     edlObj->setCollectionId(collectionId());
-    d->children.append(edlObj);
+    d->children.push_back(edlObj);
 }
 
-std::shared_ptr<EDLGroup> EDLGroup::groupByName(const QString &name, EDLCreateFlag flag)
+std::expected<std::shared_ptr<EDLGroup>, std::string> EDLGroup::groupByName(const std::string &name, EDLCreateFlag flag)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     for (auto &node : d->children) {
         if (node->name() == name) {
-            if (flag == EDLCreateFlag::MUST_CREATE) {
-                setLastError(QStringLiteral("Group '%1' already exists in group '%2'.").arg(name, this->name()));
-                return nullptr;
-            }
+            if (flag == EDLCreateFlag::MUST_CREATE)
+                return std::unexpected(std::format("Group '{}' already exists in group '{}'.", name, this->name()));
             return std::dynamic_pointer_cast<EDLGroup>(node);
         }
     }
-    if (flag == EDLCreateFlag::OPEN_ONLY) {
-        setLastError(QStringLiteral("Group '%1' not found in group '%2'.").arg(name, this->name()));
-        return nullptr;
-    }
+    if (flag == EDLCreateFlag::OPEN_ONLY)
+        return std::unexpected(std::format("Group '{}' not found in group '{}'.", name, this->name()));
 
-    auto eg = std::make_shared<EDLGroup>();
-    eg->setName(name);
-
-    d->mutex.unlock();
-    addChild(eg);
+    auto eg = std::make_shared<EDLGroup>(name);
+    _locked_addChild(eg);
     return eg;
 }
 
-std::shared_ptr<EDLDataset> EDLGroup::datasetByName(const QString &name, EDLCreateFlag flag)
+std::expected<std::shared_ptr<EDLDataset>, std::string> EDLGroup::datasetByName(
+    const std::string &name,
+    EDLCreateFlag flag)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     for (auto &node : d->children) {
         if (node->name() == name) {
-            if (flag == EDLCreateFlag::MUST_CREATE) {
-                setLastError(QStringLiteral("Group '%1' already exists in group '%2'.").arg(name, this->name()));
-                return nullptr;
-            }
+            if (flag == EDLCreateFlag::MUST_CREATE)
+                return std::unexpected(std::format("Dataset '{}' already exists in group '{}'.", name, this->name()));
             return std::dynamic_pointer_cast<EDLDataset>(node);
         }
     }
-    if (flag == EDLCreateFlag::OPEN_ONLY) {
-        setLastError(QStringLiteral("Dataset '%1' not found in group '%2'.").arg(name, this->name()));
-        return nullptr;
-    }
+    if (flag == EDLCreateFlag::OPEN_ONLY)
+        return std::unexpected(std::format("Dataset '{}' not found in group '{}'.", name, this->name()));
 
-    auto ds = std::make_shared<EDLDataset>();
-    ds->setName(name);
-
-    d->mutex.unlock();
-    addChild(ds);
+    auto ds = std::make_shared<EDLDataset>(name);
+    _locked_addChild(ds);
     return ds;
 }
 
-bool EDLGroup::save()
+std::expected<void, std::string> EDLGroup::save()
 {
     // check if we even have a directory to save this data
-    if (rootPath().isEmpty()) {
-        setLastError(QStringLiteral("Unable to save experiment data: No root directory is set."));
-        return false;
-    }
-    if (!validate(false))
-        return false;
+    if (rootPath().empty())
+        return std::unexpected("Unable to save experiment data: No root directory is set.");
 
-    // save all our subnodes first
-    QMutableListIterator<std::shared_ptr<EDLUnit>> i(d->children);
-    while (i.hasNext()) {
-        auto obj = i.next();
+    if (auto r = validate(false); !r)
+        return r;
+
+    // copy children snapshot to avoid holding lock during child saves
+    std::vector<std::shared_ptr<EDLUnit>> snap;
+    {
+        const std::lock_guard<std::mutex> lock(d->mutex);
+        snap = d->children;
+    }
+
+    for (auto it = snap.begin(); it != snap.end();) {
+        auto &obj = *it;
         if (obj->parent() != this) {
-            qWarning().noquote() << QStringLiteral("Unlinking EDL child '%1' that doesn't believe '%2' is its parent.")
-                                        .arg(obj->name(), name());
-            i.remove();
+            SY_LOG_WARNING(
+                logEdl, "Unlinking EDL child '{}' that doesn't believe '{}' is its parent.", obj->name(), name());
+            const std::lock_guard<std::mutex> lock(d->mutex);
+            d->children.erase(std::find(d->children.begin(), d->children.end(), obj));
+            it = snap.erase(it);
             continue;
         }
-        if (!obj->save()) {
-            setLastError(QStringLiteral("Saving of '%1' failed: %2").arg(obj->name(), obj->lastError()));
-            return false;
-        }
+        auto r = obj->save();
+        if (!r)
+            return std::unexpected(std::format("Saving of '{}' failed: {}", obj->name(), r.error()));
+        ++it;
     }
 
     return EDLUnit::save();
 }
 
-bool EDLGroup::validate(bool recursive)
+std::expected<void, std::string> EDLGroup::validate(bool recursive)
 {
-    if (rootPath().isEmpty()) {
-        setLastError(QStringLiteral("Group %1 is missing a root path.").arg(name()));
-        return false;
+    if (rootPath().empty())
+        return std::unexpected(std::format("Group '{}' is missing a root path.", name()));
+
+    std::vector<std::shared_ptr<EDLUnit>> snap;
+    {
+        const std::lock_guard<std::mutex> lock(d->mutex);
+        snap = d->children;
     }
 
-    QSet<QString> seenNames;
-    QListIterator<std::shared_ptr<EDLUnit>> i(d->children);
-    while (i.hasNext()) {
-        auto obj = i.next();
-
+    std::set<std::string> seenNames;
+    for (const auto &obj : snap) {
         const auto childName = obj->name();
-        if (seenNames.contains(childName)) {
-            setLastError(QStringLiteral("Duplicate child name '%1' in group '%2'.").arg(childName, name()));
-            return false;
-        }
-        seenNames.insert(childName);
+        if (!seenNames.insert(childName).second)
+            return std::unexpected(std::format("Duplicate child name '{}' in group '{}'.", childName, name()));
 
         // recursively validate child nodes
-        if (recursive && !obj->validate(recursive)) {
-            setLastError(obj->lastError());
-            return false;
+        if (recursive) {
+            auto r = obj->validate(true);
+            if (!r)
+                return r;
         }
     }
 
-    return true;
+    return {};
 }
+
+// ============================================================
+// EDLCollection
+// ============================================================
 
 class EDLCollection::Private
 {
@@ -821,34 +945,29 @@ public:
     ~Private() = default;
 };
 
-EDLCollection::EDLCollection(const QString &name)
-    : d(new EDLCollection::Private)
+EDLCollection::EDLCollection(const std::string &name)
+    : EDLGroup(nullptr),
+      d(new EDLCollection::Private)
 {
     setObjectKind(EDLUnitKind::COLLECTION);
     setParent(nullptr);
-    if (!name.isEmpty()) {
-        EDLGroup::setName(name);
-        insertAttribute("collection_name", name);
+    if (!name.empty()) {
+        (void)EDLGroup::setName(name); // new collection, no path yet - cannot fail
+        insertAttribute("collection_name", MetaValue{name});
     }
 
     // A collection must have a unique ID to identify all nodes that belong to it.
-    // We do prefer a version 7 UUID (random, timestamp-based) but can also use
-    // a version 4 UUID if the Qt version is older.
-#if QT_VERSION >= QT_VERSION_CHECK(6, 9, 0)
-    EDLGroup::setCollectionId(QUuid::createUuidV7());
-#else
-    EDLGroup::setCollectionId(QUuid::createUuid());
-#endif
+    EDLGroup::setCollectionId(newUuid7());
 }
 
 EDLCollection::~EDLCollection() = default;
 
-QString EDLCollection::generatorId() const
+std::string EDLCollection::generatorId() const
 {
-    return EDLGroup::generatorId();
+    return EDLUnit::generatorId();
 }
 
-void EDLCollection::setGeneratorId(const QString &idString)
+void EDLCollection::setGeneratorId(const std::string &idString)
 {
-    EDLGroup::setGeneratorId(idString);
+    EDLUnit::setGeneratorId(idString);
 }

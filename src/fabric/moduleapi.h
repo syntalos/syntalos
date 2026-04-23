@@ -865,6 +865,7 @@ protected:
     QString dataBasenameFromSubMetadata(
         const MetaStringMap &subMetadata,
         const QString &defaultName = QStringLiteral("data"));
+    std::string dataBasenameFromSubMetadata(const MetaStringMap &subMetadata, const std::string &defaultName = "data");
 
     /**
      * @brief Create dataset for data storage in default storage group for this module
@@ -883,11 +884,18 @@ protected:
      * as well. This design exists to prevent two modules from trying to write to the same file.
      */
     std::shared_ptr<EDLDataset> createDefaultDataset(
-        const QString &preferredName = QString(),
+        const QString &preferredName = {},
         const MetaStringMap &subMetadata = {});
     std::shared_ptr<EDLDataset> createDatasetInGroup(
         std::shared_ptr<EDLGroup> group,
-        const QString &preferredName = QString(),
+        const QString &preferredName = {},
+        const MetaStringMap &subMetadata = {});
+    std::shared_ptr<EDLDataset> createDefaultDataset(
+        const std::string &preferredName,
+        const MetaStringMap &subMetadata = {});
+    std::shared_ptr<EDLDataset> createDatasetInGroup(
+        std::shared_ptr<EDLGroup> group,
+        const std::string &preferredName,
         const MetaStringMap &subMetadata = {});
 
     /**

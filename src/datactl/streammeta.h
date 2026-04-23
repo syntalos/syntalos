@@ -27,6 +27,7 @@
 #include <vector>
 #include <optional>
 #include <ostream>
+#include <expected>
 
 namespace Syntalos
 {
@@ -78,7 +79,18 @@ struct MetaArray : std::vector<MetaValue> {
  * @brief Mapping of values used for stream metadata.
  */
 struct MetaStringMap : std::map<std::string, MetaValue> {
+    using map::insert;
     using map::map;
+
+    void insert(const std::string &key, const MetaValue &value)
+    {
+        this->insert_or_assign(key, value);
+    }
+
+    void insert(std::string &&key, MetaValue &&value)
+    {
+        this->insert_or_assign(std::move(key), std::move(value));
+    }
 
     auto value(const std::string &key) const -> std::optional<const MetaValue>;
     const MetaValue &valueOr(const std::string &key, const MetaValue &fallback) const;
@@ -238,9 +250,21 @@ inline std::ostream &operator<<(std::ostream &os, const MetaValue &v)
 }
 
 /**
- * Write a MetaValue to an output as JSON.
+ * @brief Write a MetaValue as JSON to the given stream (RFC-8259, compact).
  */
 void writeJson(std::ostream &os, const MetaValue &val);
+
+/**
+ * @brief Write a MetaValue map as a JSON object to the given stream.
+ */
 void writeJsonObject(std::ostream &os, const std::map<std::string, MetaValue> &obj);
+
+std::string toJsonString(const MetaValue &v);
+std::string toJsonObjectString(const MetaStringMap &m);
+
+/**
+ * Rudimentary JSON object parser: handles {"key": "str"} and {"key": 123}
+ */
+std::expected<MetaStringMap, std::string> stringMapFromJson(const std::string &json);
 
 } // namespace Syntalos

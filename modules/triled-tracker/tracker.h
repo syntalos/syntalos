@@ -48,7 +48,7 @@ public:
 
     bool initialize();
     void analyzeFrame(const cv::Mat &frame, const milliseconds_t time, cv::Mat *trackingFrame, cv::Mat *infoFrame);
-    QVariantHash finalize();
+    MetaStringMap finalize();
 
 private:
     void setError(const QString &msg);

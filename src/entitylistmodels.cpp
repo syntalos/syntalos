@@ -177,10 +177,10 @@ bool ExperimenterListModel::isEmpty() const
 static QString personToDisplayString(const EDLAuthor &p)
 {
     if (p.isValid()) {
-        if (p.email.isEmpty())
-            return p.name;
+        if (p.email.empty())
+            return QString::fromStdString(p.name);
         else
-            return QStringLiteral("%1 <%2>").arg(p.name).arg(p.email);
+            return QStringLiteral("%1 <%2>").arg(QString::fromStdString(p.name), QString::fromStdString(p.email));
     } else {
         return QStringLiteral("[Person not set]");
     }
@@ -248,8 +248,8 @@ QVariantHash ExperimenterListModel::toVariantHash() const
     for (auto &person : m_people) {
         QVariantHash vp;
 
-        vp["name"] = person.name;
-        vp["email"] = person.email;
+        vp["name"] = QString::fromStdString(person.name);
+        vp["email"] = QString::fromStdString(person.email);
 
         list.append(vp);
     }
@@ -279,8 +279,8 @@ void ExperimenterListModel::fromVariantHash(const QVariantHash &var)
             continue;
         EDLAuthor person;
 
-        person.name = vp.value("name").toString();
-        person.email = vp.value("email").toString();
+        person.name = vp.value("name").toString().toStdString();
+        person.email = vp.value("email").toString().toStdString();
 
         m_people.append(person);
     }
