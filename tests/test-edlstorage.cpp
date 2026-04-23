@@ -123,7 +123,7 @@ private slots:
         qDebug() << collection->rootPath();
 
         QCOMPARE(collection->rootPath(), dir.path().toStdString());
-        QCOMPARE(collection->path(), QStringLiteral("%1/%2").arg(dir.path(), collection->name()).toStdString());
+        QCOMPARE(collection->path(), std::format("{}/{}", dir.path().toStdString(), collection->name()));
 
         auto res = collection->save();
         if (!res.has_value())
