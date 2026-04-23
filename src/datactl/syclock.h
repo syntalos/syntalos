@@ -125,6 +125,11 @@ inline auto timeDiffToNowMsec(const std::chrono::time_point<symaster_clock> &tim
     return std::chrono::duration_cast<milliseconds_t>(symaster_clock::now() - timePoint);
 }
 
+inline auto timeDiffToNowUsec(const std::chrono::time_point<symaster_clock> &timePoint) noexcept
+{
+    return std::chrono::duration_cast<microseconds_t>(symaster_clock::now() - timePoint);
+}
+
 inline symaster_timepoint currentTimePoint() noexcept
 {
     return symaster_clock::now();

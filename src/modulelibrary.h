@@ -29,8 +29,6 @@ namespace Syntalos
 {
 class ModuleInfo;
 class GlobalConfig;
-
-Q_DECLARE_LOGGING_CATEGORY(logModLibrary)
 } // namespace Syntalos
 using namespace Syntalos;
 

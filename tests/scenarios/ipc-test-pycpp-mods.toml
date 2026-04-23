@@ -3,7 +3,7 @@ name = "IPC Test - Python/C++ Modules"
 project_file = "projects/ipc-test-pycpp-mods.syct"
 run_duration_sec = 8
 expected_exit_code = 0
-expected_stderr_contains = ["Module start order: Devel: DataSource ⇢ LibMod Example ⇢ ExtMod Example ⇢ Raw Table ⇢ PyMod Example ⇢ Video Recorder 2 ⇢ LibMod Canvas ⇢ ExtMod Table ⇢ PyMod Canvas ⇢ PyMod Table ⇢ Video Recorder"]
+expected_stdout_contains = ["Module start order: Devel: DataSource ⇢ LibMod Example ⇢ ExtMod Example ⇢ Raw Table ⇢ PyMod Example ⇢ Video Recorder 2 ⇢ LibMod Canvas ⇢ ExtMod Table ⇢ PyMod Canvas ⇢ PyMod Table ⇢ Video Recorder"]
 
 [[test.expected_output_files]]
 path = "attributes.toml"

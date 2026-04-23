@@ -4,4 +4,4 @@ project_file = "projects/plotter-smoketest.syct"
 run_duration_sec = 10
 expected_exit_code = 0
 expected_datasets = []
-expected_stderr_contains = ["Module start order: Devel: DataSource ⇢ Plot Time Series"]
+expected_stdout_contains = ["Module start order: Devel: DataSource ⇢ Plot Time Series"]

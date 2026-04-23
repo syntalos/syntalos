@@ -4,7 +4,7 @@ project_file = "projects/inactive-subscriptions.syct"
 run_duration_sec = 2
 expected_exit_code = 0
 expected_datasets = []
-expected_stderr_contains = [
+expected_stdout_contains = [
     "engine: Module start order: Video Transformer ⇢ Table ⇢ Canvas ⇢ Video Recorder",
     "engine: Module 'Video Transformer' is marked dormant, it will not be started.",
     "engine: Module 'Table' is marked dormant, it will not be started.",

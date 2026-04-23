@@ -313,6 +313,7 @@ def run_test(syntalos_bin, manifest_path):
     with tempfile.TemporaryDirectory(dir="/var/tmp", prefix=sytmp_prefix) as export_dir:
         cmd = [
             syntalos_bin,
+            "--verbose",
             "--non-interactive",
             "--export-dir",
             export_dir,

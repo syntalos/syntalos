@@ -4,7 +4,7 @@ project_file = "projects/jsonwriter-test.syct"
 run_duration_sec = 16
 expected_exit_code = 0
 expected_datasets = ["table-json", "sines-json"]
-expected_stderr_contains = ["Module start order: Devel: DataSource ⇢ Table ⇢ JSON Writer ⇢ JSON Writer 2 ⇢ JSON Writer 3"]
+expected_stdout_contains = ["Module start order: Devel: DataSource ⇢ Table ⇢ JSON Writer ⇢ JSON Writer 2 ⇢ JSON Writer 3"]
 
 [[test.expected_output_files]]
 path = "attributes.toml"

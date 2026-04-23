@@ -3,7 +3,7 @@ name = "IPC Test - Python/C++ Scripting"
 project_file = "projects/ipc-test-pycpp-scripts.syct"
 run_duration_sec = 10
 expected_exit_code = 0
-expected_stderr_contains = ["Module start order: Devel: DataSource ⇢ Python Script ⇢ C++ Workbench ⇢ Input Tab ⇢ PyScript Canvas ⇢ Py Video Recorder ⇢ C++ Canvas ⇢ Output Tab ⇢ Cpp Video Recorder"]
+expected_stdout_contains = ["Module start order: Devel: DataSource ⇢ Python Script ⇢ C++ Workbench ⇢ Input Tab ⇢ PyScript Canvas ⇢ Py Video Recorder ⇢ C++ Canvas ⇢ Output Tab ⇢ Cpp Video Recorder"]
 
 [[test.expected_output_files]]
 path = "attributes.toml"

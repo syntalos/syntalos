@@ -4,7 +4,7 @@ project_file = "projects/zarr-writer-test.syct"
 run_duration_sec = 10
 expected_exit_code = 0
 expected_datasets = ["numbersource", "sinesource"]
-expected_stderr_contains = ["Module start order: NumberSource ⇢ SineSource ⇢ Zarr Writer ⇢ Zarr Writer 2"]
+expected_stdout_contains = ["Module start order: NumberSource ⇢ SineSource ⇢ Zarr Writer ⇢ Zarr Writer 2"]
 validator_script = "zarr_writer_validator.py"
 
 [[test.expected_output_files]]

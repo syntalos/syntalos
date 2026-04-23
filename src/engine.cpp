@@ -57,6 +57,7 @@
 #include <libusb.h>
 #include <pthread.h>
 
+#include "logging.h"
 #include "cpuaffinity.h"
 #include "globalconfig.h"
 #include "meminfo.h"
@@ -70,16 +71,14 @@
 #include "utils/misc.h"
 #include "utils/tomlutils.h"
 
-namespace Syntalos
-{
-Q_LOGGING_CATEGORY(logEngine, "engine")
-}
-
 static_assert(
     std::is_same<std::thread::native_handle_type, pthread_t>::value,
     "Native thread implementation for std::thread must be pthread");
 
 using namespace Syntalos;
+
+// Convenience macro for e.g. threads that want to access the engine logger
+#define getEngineLog getLogger("engine")
 
 static int engineUsbHotplugDispatchCB(
     struct libusb_context *ctx,
@@ -174,7 +173,7 @@ public:
             struct timespec ts = {0};
 
             if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
-                qCCritical(logEngine).noquote() << "Unable to obtain absolute time since epoch!";
+                LOG_CRITICAL(getEngineLog, "Unable to obtain absolute time since epoch!");
                 join();
                 return true;
             }
@@ -218,8 +217,7 @@ private:
 
         if (self->m_mod->features().testFlag(ModuleFeature::REALTIME)) {
             if (setCurrentThreadRealtime(self->m_td.allowedRTPriority))
-                qCDebug(logEngine).noquote().nospace()
-                    << "Module thread for '" << self->m_mod->name() << "' set to realtime mode.";
+                LOG_INFO(getEngineLog, "Module thread for '{}' set to realtime mode.", self->m_mod->name());
         }
 
         self->m_mod->runThread(self->m_waitCond);
@@ -267,6 +265,8 @@ public:
     {
     }
     ~Private() {}
+
+    QuillLogger *log;
 
     bool initialized;
     SysInfo *sysInfo;
@@ -322,6 +322,8 @@ Engine::Engine(QWidget *parentWidget)
     : QObject(parentWidget),
       d(new Engine::Private)
 {
+    d->log = getLogger("engine");
+
     d->gconf = new GlobalConfig(this);
     d->saveInternal = false;
     d->sysInfo = SysInfo::get();
@@ -348,13 +350,13 @@ Engine::Engine(QWidget *parentWidget)
 
 #if defined(LIBUSB_API_VERSION) && (LIBUSB_API_VERSION >= 0x0100010A)
     if (libusb_init_context(&d->usbCtx, nullptr, 0) != 0)
-        qCCritical(logEngine).noquote() << "Unable to initialize libusb context!";
+        LOG_CRITICAL(d->log, "Unable to initialize libusb context!");
 #else
     if (libusb_init(&d.usbCtx) != 0)
-        qCCritical(logEngine).noquote() << "Unable to initialize libusb context!";
+        LOG_CRITICAL(d->log, "Unable to initialize libusb context!");
 #endif
 
-    qCDebug(logEngine, "Application data directory: %s", qPrintable(d->gconf->appDataLocation()));
+    LOG_INFO(d->log, "Application data directory: {}", d->gconf->appDataLocation());
 
     // allow sending states via Qt queued connections,
     // and also register all other transmittable data types
@@ -380,8 +382,7 @@ Engine::Engine(QWidget *parentWidget)
         this,
         &d->usbHotplugCBHandle);
     if (rc != LIBUSB_SUCCESS) {
-        qCWarning(logEngine).noquote()
-            << "Unable to register USB hotplug callback: Can not notify modules of USB hotplug events.";
+        LOG_WARNING(d->log, "Unable to register USB hotplug callback: Can not notify modules of USB hotplug events.");
         d->usbHotplugCBHandle = -1;
     } else {
         connect(d->usbEventsTimer, &QTimer::timeout, [this]() {
@@ -418,7 +419,7 @@ static int engineUsbHotplugDispatchCB(
     } else if (event == LIBUSB_HOTPLUG_EVENT_DEVICE_LEFT) {
         kind = UsbHotplugEventKind::DEVICE_LEFT;
     } else {
-        qCDebug(logEngine).noquote() << "Unhandled USB hotplug event:" << event;
+        LOG_INFO(getEngineLog, "Unhandled USB hotplug event: {}", static_cast<int>(event));
         return 0;
     }
 
@@ -429,7 +430,7 @@ static int engineUsbHotplugDispatchCB(
 bool Engine::initialize()
 {
     if (d->initialized) {
-        qCCritical(logEngine).noquote() << "Tried to initialize engine twice! This is an error.";
+        LOG_CRITICAL(d->log, "Tried to initialize engine twice! This is an error.");
         return true;
     }
 
@@ -729,8 +730,7 @@ void Engine::removeAllModules()
     if (d->running)
         stop();
     if (d->active) {
-        qCInfo(logEngine).noquote()
-            << "Requested to remove all modules, but engine is still active. Waiting for it to shut down.";
+        LOG_INFO(d->log, "Requested to remove all modules, but engine is still active. Waiting for it to shut down.");
         for (int i = 0; i < 800; ++i) {
             if (!d->active)
                 break;
@@ -738,9 +738,11 @@ void Engine::removeAllModules()
             QThread::msleep(50);
         };
         if (d->active) {
-            qFatal(
+            LOG_CRITICAL(
+                d->log,
                 "Requested to remove all modules on an active engine that did not manage to shut down in time. This "
                 "must not happen.");
+            d->log->flush_log();
             assert(0);
         }
     }
@@ -834,7 +836,7 @@ int Engine::obtainSleepShutdownIdleInhibitor()
         QStringLiteral("org.freedesktop.login1.Manager"),
         QDBusConnection::systemBus());
     if (!iface.isValid()) {
-        qCDebug(logEngine).noquote() << "Unable to connect to logind DBus interface";
+        LOG_INFO(d->log, "Unable to connect to logind DBus interface");
         return -1;
     }
 
@@ -846,7 +848,7 @@ int Engine::obtainSleepShutdownIdleInhibitor()
         QStringLiteral("Experiment run in progress"),
         QStringLiteral("block"));
     if (!reply.isValid()) {
-        qCDebug(logEngine).noquote() << "Unable to request sleep/shutdown/idle inhibitor from logind.";
+        LOG_INFO(d->log, "Unable to request sleep/shutdown/idle inhibitor from logind.");
         return -1;
     }
 
@@ -893,7 +895,7 @@ void Engine::refreshExportDirPath()
 
 void Engine::emitStatusMessage(const QString &message)
 {
-    qCDebug(logEngine).noquote() << message;
+    LOG_INFO(d->log, "{}", message);
     emit statusMessage(message);
 }
 
@@ -987,10 +989,14 @@ static QList<AbstractModule *> computeModuleOrder(
                     bestOut = outDeg;
                 }
             }
-            qCDebug(logEngine).noquote().nospace()
-                << "Resolving module graph cycle for " << context << "-order by placing module '" << best->name()
-                << "' first (remaining unresolved upstream edges: " << bestIn << ", category priority: " << bestCatPri
-                << ")";
+            LOG_INFO(
+                getEngineLog,
+                "Resolving module graph cycle for {}-order by placing module '{}' first (remaining unresolved upstream "
+                "edges: {}, category priority: {})",
+                context,
+                best->name(),
+                bestIn,
+                bestCatPri);
             queue.append(best);
         }
 
@@ -1012,8 +1018,11 @@ static QList<AbstractModule *> computeModuleOrder(
         }
     }
 
-    if (result.size() != modCount)
-        qCCritical(logEngine).noquote() << "Invalid count of ordered modules:" << result.size() << "!=" << modCount;
+    if (result.size() != modCount) {
+        auto log = getEngineLog;
+        LOG_CRITICAL(log, "Invalid count of ordered modules: {} != {}", result.size(), modCount);
+        log->flush_log();
+    }
     assert(result.size() == modCount);
 
     return result;
@@ -1082,14 +1091,13 @@ Engine::ModuleRunOrder Engine::createModuleRunOrder() const
     startNames.reserve(order.start.size());
     for (auto mod : order.start)
         startNames.append(mod->name());
-    qCDebug(logEngine).noquote()
-        << QStringLiteral("Module start order: %1").arg(startNames.join(QStringLiteral(" ⇢ ")));
+    LOG_INFO(d->log, "Module start order: {}", startNames.join(QStringLiteral(" ⇢ ")));
 
     QStringList stopNames;
     stopNames.reserve(order.stop.size());
     for (auto mod : order.stop)
         stopNames.append(mod->name());
-    qCDebug(logEngine).noquote() << QStringLiteral("Module stop order:  %1").arg(stopNames.join(QStringLiteral(" ⇢ ")));
+    LOG_INFO(d->log, "Module stop order:  {}", stopNames.join(QStringLiteral(" ⇢ ")));
 
     return order;
 }
@@ -1143,13 +1151,13 @@ bool Engine::run()
     }
 
     // persistent data recording can be initialized!
-    qCDebug(logEngine, "Initializing new persistent recording run");
+    LOG_INFO(d->log, "Initializing new persistent recording run");
 
     // test for available disk space and readyness of device
     QStorageInfo storageInfo(d->exportBaseDir);
     if (storageInfo.isValid() && storageInfo.isReady()) {
         auto mbAvailable = storageInfo.bytesAvailable() / 1000 / 1000;
-        qCDebug(logEngine).noquote() << mbAvailable << "MB available in data export location";
+        LOG_INFO(d->log, "{} MB available in data export location", mbAvailable);
         // TODO: Make the warning level configurable in global settings
         if (mbAvailable < 8000) {
             auto reply = QMessageBox::question(
@@ -1221,7 +1229,7 @@ bool Engine::runEphemeral()
     }
 
     QTemporaryDir tempDir(QStringLiteral("%1/syntalos-tmprun-XXXXXX").arg(tempDirLargeRoot()));
-    qCDebug(logEngine).noquote() << "Storing temporary data in:" << tempDir.path();
+    LOG_INFO(d->log, "Storing temporary data in: {}", tempDir.path());
     if (!tempDir.isValid()) {
         QMessageBox::warning(
             d->parentWidget,
@@ -1231,7 +1239,7 @@ bool Engine::runEphemeral()
         return false;
     }
 
-    qCDebug(logEngine, "Initializing new ephemeral recording run");
+    LOG_INFO(d->log, "Initializing new ephemeral recording run");
 
     auto tempExportDir = tempDir.filePath("edl");
 
@@ -1245,14 +1253,14 @@ bool Engine::runEphemeral()
     // perform the actual run, in a temporary directory
     auto ret = runInternal(tempExportDir);
 
-    qCDebug(logEngine, "Removing temporary storage directory");
+    LOG_INFO(d->log, "Removing temporary storage directory");
     if (!tempDir.remove())
-        qCDebug(logEngine, "Unable to remove temporary directory: %s", qPrintable(tempDir.errorString()));
+        LOG_INFO(d->log, "Unable to remove temporary directory: %s", qPrintable(tempDir.errorString()));
 
     if (ret)
-        qCDebug(logEngine, "Ephemeral run completed (result: success)");
+        LOG_INFO(d->log, "Ephemeral run completed (result: success)");
     else
-        qCDebug(logEngine, "Ephemeral run completed (result: failure)");
+        LOG_INFO(d->log, "Ephemeral run completed (result: failure)");
     return ret;
 }
 
@@ -1322,7 +1330,7 @@ void Engine::onDiskspaceMonitorEvent()
     try {
         ssi = std::filesystem::space(d->monitoring->exportDirPath.toStdString());
     } catch (const std::filesystem::filesystem_error &e) {
-        qCWarning(logEngine).noquote() << "Could not determine remaining free disk space:" << e.what();
+        LOG_WARNING(d->log, "Could not determine remaining free disk space: {}", e.what());
         return;
     }
 
@@ -1351,8 +1359,7 @@ void Engine::onMemoryMonitorEvent()
 
     if (memInfo.memAvailablePercent < d->monitoring->prevMemAvailablePercent && memInfo.memAvailablePercent < 1.6
         && d->monitoring->emergencyOOMStop) {
-        qCInfo(logEngine).noquote()
-            << "Less than 2% of system memory available and shrinking, commencing emergency stop.";
+        LOG_WARNING(d->log, "Less than 2% of system memory available and shrinking, commencing emergency stop.");
         receiveModuleError(QStringLiteral(
             "Emergency stop: We are low on system memory, and it is continuing to shrink rapidly.\n"
             "To prevent Syntalos from being killed by the system and loosing data, this run has been stopped.\n"
@@ -1395,10 +1402,12 @@ void Engine::onBufferMonitorEvent()
             if (msd.heat != ConnectionHeatLevel::NONE) {
                 Q_EMIT connectionHeatChangedAtPort(msd.port, ConnectionHeatLevel::NONE);
                 msd.heat = ConnectionHeatLevel::NONE;
-                qCDebug(logEngine).noquote()
-                    << "Connection heat removed from"
-                    << QString("%1:%2[◁%3]")
-                           .arg(msd.port->owner()->name(), msd.port->title(), msd.port->dataTypeName());
+                LOG_INFO(
+                    d->log,
+                    "Connection heat removed from {}:{}[◁{}]",
+                    msd.port->owner()->name(),
+                    msd.port->title(),
+                    msd.port->dataTypeName());
             }
             continue;
         }
@@ -1414,10 +1423,14 @@ void Engine::onBufferMonitorEvent()
         if (heat != msd.heat) {
             msd.heat = heat;
             Q_EMIT connectionHeatChangedAtPort(msd.port, msd.heat);
-            qCDebug(logEngine).noquote().nospace()
-                << "Connection heat changed to \"" << connectionHeatToHumanString(msd.heat) << "\" for "
-                << QString("%1:%2[◁%3]").arg(msd.port->owner()->name(), msd.port->title(), msd.port->dataTypeName())
-                << " (level: " << approxPendingCount << ")";
+            LOG_INFO(
+                d->log,
+                "Connection heat changed to \"{}\" for {}:{}[◁{}] (level: {})",
+                connectionHeatToHumanString(msd.heat),
+                msd.port->owner()->name(),
+                msd.port->title(),
+                msd.port->dataTypeName(),
+                approxPendingCount);
         }
 
         if (heat > ConnectionHeatLevel::LOW) {
@@ -1481,7 +1494,7 @@ void Engine::startResourceMonitoring(QList<AbstractModule *> activeModules, cons
     d->monitoring->diskSpaceCheckTimer.start();
     d->monitoring->memCheckTimer.start();
     d->monitoring->subBufferCheckTimer.start();
-    qCDebug(logEngine).noquote().nospace() << "Started system resource monitoring.";
+    LOG_INFO(d->log, "Started system resource monitoring.");
 }
 
 void Engine::stopResourceMonitoring()
@@ -1498,7 +1511,7 @@ void Engine::stopResourceMonitoring()
     d->monitoring->monitoredSubscriptions.clear();
     d->monitoring->exportDirPath = QString();
 
-    qCDebug(logEngine).noquote().nospace() << "Stopped monitoring system resources.";
+    LOG_INFO(d->log, "Stopped monitoring system resources.");
 }
 
 bool Engine::finalizeExperimentMetadata(
@@ -1561,14 +1574,14 @@ bool Engine::finalizeExperimentMetadata(
     extraData["modules"] = attrModList;
     storageCollection->setAttributes(extraData);
 
-    qCDebug(logEngine) << "Saving experiment metadata in:" << storageCollection->path().string();
+    LOG_INFO(d->log, "Saving experiment metadata in: {}", storageCollection->path().string());
 
     auto res = storageCollection->save();
     if (!res.has_value()) {
         QMessageBox::critical(
             d->parentWidget,
             QStringLiteral("Unable to finish recording"),
-            QStringLiteral("Unable to save experiment metadata: %1").arg(res.error()));
+            QStringLiteral("Unable to save experiment metadata: %1").arg(qstr(res.error())));
         d->failed = true;
     }
 
@@ -1668,10 +1681,15 @@ void Engine::allocateNicenessBudget(const ModuleRunOrder &modOrder, uint maxRtTh
         return; // everything fits - elevated all eligible modules
     }
 
-    qCWarning(logEngine).noquote().nospace()
-        << "Concurrent RT thread limit is " << maxRtThreads << " (1 main + " << totalWanting << " total requested). "
-        << "Only the first " << slotsForModules << " module threads will be elevated to nice " << defaultThreadNice
-        << "; the remaining " << (totalWanting - slotsForModules) << " will run at default priority. ";
+    LOG_WARNING(
+        d->log,
+        "Concurrent RT thread limit is {} (1 main + {} total requested). Only the first {} module threads will be "
+        "elevated to niceness {}; the remaining {} will run at default priority.",
+        maxRtThreads,
+        totalWanting,
+        slotsForModules,
+        defaultThreadNice,
+        (totalWanting - slotsForModules));
 
     // Generally walk in topological order, but prioritize DEVICE modules first.
     auto remaining = slotsForModules;
@@ -1740,9 +1758,9 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     // set CPU core affinities base setting
     if (d->gconf->explicitCoreAffinities())
-        qCDebug(logEngine).noquote().nospace() << "Explicit CPU core affinity is enabled.";
+        LOG_INFO(d->log, "Explicit CPU core affinity is enabled.");
     else
-        qCDebug(logEngine).noquote().nospace() << "Explicit CPU core affinity is disabled.";
+        LOG_INFO(d->log, "Explicit CPU core affinity is disabled.");
 
     // create new experiment directory layout (EDL) collection to store
     // all data modules generate in
@@ -1754,7 +1772,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         d->edlInternalData = std::make_shared<EDLGroup>();
         d->edlInternalData->setName("syntalos_internal");
         storageCollection->addChild(d->edlInternalData);
-        qCDebug(logEngine).noquote().nospace() << "Writing some internal data to datasets for debugging and analysis";
+        LOG_INFO(d->log, "Writing some internal data to datasets for debugging and analysis");
     }
     d->internalTSyncWriters.clear();
 
@@ -1775,9 +1793,11 @@ bool Engine::runInternal(const QString &exportDirPath)
         for (auto &mod : modOrder.start) {
             const auto expectedName = simplifyStrForModuleName(mod->name());
             if (mod->name() != expectedName) {
-                qCWarning(logEngine).noquote()
-                    << "Module" << mod->name() << "has invalid name. Expected:" << expectedName
-                    << "(The module has been renamed)";
+                LOG_WARNING(
+                    d->log,
+                    "Module {} has invalid name. Expected: {} (The module has been renamed)",
+                    mod->name(),
+                    expectedName);
                 mod->setName(expectedName);
             }
 
@@ -1803,9 +1823,9 @@ bool Engine::runInternal(const QString &exportDirPath)
     // prevent the system from sleeping or shutdown
     const int sleepInhibitorLockFd = obtainSleepShutdownIdleInhibitor();
     if (sleepInhibitorLockFd < 0)
-        qCWarning(logEngine).noquote() << "Could not inhibit system sleep/idle/shutdown for this run.";
+        LOG_WARNING(d->log, "Could not inhibit system sleep/idle/shutdown for this run.");
     else
-        qCDebug(logEngine).noquote() << "Obtained system sleep/idle/shutdown inhibitor for this run.";
+        LOG_INFO(d->log, "Obtained system sleep/idle/shutdown inhibitor for this run.");
 
     // the dedicated threads our modules run in, references owned by the vector
     std::vector<std::unique_ptr<SyThread>> dThreads;
@@ -1827,8 +1847,8 @@ bool Engine::runInternal(const QString &exportDirPath)
     uint potentialNoaffinityCPUCount = 0;
     if (threadedModulesTotalN <= (cpuCoreCount - 1))
         potentialNoaffinityCPUCount = cpuCoreCount - threadedModulesTotalN - 1;
-    qCDebug(logEngine).noquote() << "Predicted amount of CPU cores with no (explicitly known) occupation:"
-                                 << potentialNoaffinityCPUCount;
+    LOG_INFO(
+        d->log, "Predicted amount of CPU cores with no (explicitly known) occupation: {}", potentialNoaffinityCPUCount);
     for (auto &mod : modOrder.start)
         mod->setPotentialNoaffinityCPUCount(potentialNoaffinityCPUCount);
 
@@ -1853,15 +1873,17 @@ bool Engine::runInternal(const QString &exportDirPath)
 
         mod->setSimpleStorageNames(d->simpleStorageNames);
         if ((modInfo != nullptr) && (!modInfo->storageGroupName().isEmpty())) {
-            auto storageGroup = storageCollection
-                                    ->groupByName(
-                                        modInfo->storageGroupName().toStdString(), EDLCreateFlag::CREATE_OR_OPEN)
-                                    .value_or(nullptr);
-            if (storageGroup == nullptr) {
-                qCCritical(logEngine) << "Unable to create data storage group with name" << modInfo->storageGroupName();
+            auto storageGroup = storageCollection->groupByName(
+                modInfo->storageGroupName().toStdString(), EDLCreateFlag::CREATE_OR_OPEN);
+            if (!storageGroup.has_value()) {
+                LOG_ERROR(
+                    d->log,
+                    "Unable to create data storage group with name '{}': {}",
+                    modInfo->storageGroupName(),
+                    storageGroup.error());
                 mod->setStorageGroup(storageCollection);
             } else {
-                mod->setStorageGroup(storageGroup);
+                mod->setStorageGroup(storageGroup.value());
             }
         } else {
             mod->setStorageGroup(storageCollection);
@@ -1888,8 +1910,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         else if (mod->state() != ModuleState::READY)
             mod->setState(ModuleState::DORMANT);
 
-        qCDebug(logEngine).noquote().nospace()
-            << "Module '" << mod->name() << "' prepared in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        LOG_INFO(d->log, "Module '{}' prepared in {} msec", mod->name(), timeDiffToNowMsec(lastPhaseTimepoint).count());
     }
 
     // mark all inactive modules as dormant
@@ -1898,8 +1919,7 @@ bool Engine::runInternal(const QString &exportDirPath)
     }
     for (auto &mod : modOrder.start) {
         if (mod->state() == ModuleState::DORMANT)
-            qCDebug(logEngine).noquote().nospace()
-                << "Module '" << mod->name() << "' is marked dormant, it will not be started.";
+            LOG_INFO(d->log, "Module '{}' is marked dormant, it will not be started.", mod->name());
     }
 
     // suspend input to all inactive modules
@@ -1963,9 +1983,7 @@ bool Engine::runInternal(const QString &exportDirPath)
                 std::copy(td.cpuAffinity.begin(), td.cpuAffinity.end() - 1, std::ostream_iterator<uint>(oss, ","));
                 oss << td.cpuAffinity.back();
 
-                qCDebug(logEngine).noquote().nospace()
-                    << "Module '" << mod->name() << "' thread will prefer CPU core(s) "
-                    << QString::fromStdString(oss.str());
+                LOG_INFO(d->log, "Module '{}' thread will prefer CPU core(s) {}", mod->name(), oss.str());
             }
 
             // the thread name shouldn't be longer than 16 chars (inlcuding NULL)
@@ -2031,12 +2049,14 @@ bool Engine::runInternal(const QString &exportDirPath)
             std::shared_ptr<ModuleEventThread> evThread(new ModuleEventThread(evThreadKey));
             evThread->run(eventModules[evThreadKey], startWaitCondition.get());
             evThreads[evThreadKey] = evThread;
-            qCDebug(logEngine).noquote().nospace() << "Started event thread '" << evThreadKey << "' with "
-                                                   << eventModules[evThreadKey].length() << " participating modules";
+            LOG_INFO(
+                d->log,
+                "Started event thread '{}' with {} participating modules",
+                evThreadKey,
+                eventModules[evThreadKey].length());
         }
 
-        qCDebug(logEngine).noquote().nospace()
-            << "Module and engine threads created in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        LOG_INFO(d->log, "Module and engine threads created in {} msec", timeDiffToNowMsec(lastPhaseTimepoint).count());
         lastPhaseTimepoint = currentTimePoint();
 
         // ensure all modules are in the READY state
@@ -2067,8 +2087,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             }
         }
 
-        qCDebug(logEngine).noquote().nospace()
-            << "Waited for modules to get ready for " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        LOG_INFO(d->log, "Waited for modules to get ready for {} msec", timeDiffToNowMsec(lastPhaseTimepoint).count());
     }
 
     // Meanwhile, threaded modules may have failed, so let's check again if we are still
@@ -2121,8 +2140,8 @@ bool Engine::runInternal(const QString &exportDirPath)
         // may prepare stuff in start() that the threads need, like timestamp syncs)
         startWaitCondition->wakeAll();
 
-        qCDebug(logEngine).noquote().nospace()
-            << "Threaded/evented module startup completed, took " << d->timer->timeSinceStartMsec().count() << "msec";
+        LOG_DEBUG(
+            d->log, "Threaded/evented module startup completed, took {} msec", d->timer->timeSinceStartMsec().count());
         lastPhaseTimepoint = d->timer->currentTimePoint();
 
         // tell all non-threaded modules individually now that we started
@@ -2144,8 +2163,10 @@ bool Engine::runInternal(const QString &exportDirPath)
             }
         }
 
-        qCDebug(logEngine).noquote().nospace() << "Startup phase completed, all modules are running. Took additional "
-                                               << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        LOG_DEBUG(
+            d->log,
+            "Startup phase completed, all modules are running. Took additional {} msec",
+            timeDiffToNowMsec(lastPhaseTimepoint).count());
 
         // tell listeners that we are running now
         emit runStarted();
@@ -2208,8 +2229,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         emitStatusMessage(QStringLiteral("Waiting for event thread `%1`...").arg(evThread->threadName()));
         evThread->stop();
     }
-    qCDebug(logEngine).noquote().nospace()
-        << "Waited " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec for event threads to stop.";
+    LOG_INFO(d->log, "Waited {} msec for event threads to stop.", timeDiffToNowMsec(lastPhaseTimepoint).count());
 
     // send stop command to all active modules in their designated stop order
     for (auto &mod : modOrder.stop) {
@@ -2242,9 +2262,12 @@ bool Engine::runInternal(const QString &exportDirPath)
             } while ((d->timer->timeSinceStartMsec() - startPortWaitTS).count() <= 1600);
 
             if (remainingElements > 1)
-                qCDebug(logEngine).noquote().nospace() << "Module '" << mod->name() << "' "
-                                                       << "subscription `" << iport->id() << "` "
-                                                       << "possibly lost " << remainingElements << " element(s)";
+                LOG_INFO(
+                    d->log,
+                    "Module '{}' subscription `{}` possibly lost {} element(s)",
+                    mod->name(),
+                    iport->id(),
+                    remainingElements);
 
             // drop all remaining elements to save some memory when idle
             iport->subscriptionVar()->clearPending();
@@ -2267,8 +2290,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         if (mod->state() != ModuleState::IDLE && mod->state() != ModuleState::ERROR)
             mod->setState(ModuleState::IDLE);
 
-        qCDebug(logEngine).noquote().nospace()
-            << "Module '" << mod->name() << "' stopped in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        LOG_INFO(d->log, "Module '{}' stopped in {} msec", mod->name(), timeDiffToNowMsec(lastPhaseTimepoint).count());
     }
 
     // Wake up all threads again, just in case one is still stuck waiting
@@ -2311,8 +2333,7 @@ bool Engine::runInternal(const QString &exportDirPath)
             continue;
 
         // if we are here, we failed to join the thread
-        qCWarning(logEngine).noquote() << "Failed to join thread for" << mod->name()
-                                       << "in time, trying to break deadlock...";
+        LOG_WARNING(d->log, "Failed to join thread for '{}' in time, trying to break deadlock...", mod->name());
         emitStatusMessage(QStringLiteral("Waiting for '%1' (⚠️ possibly dead / unrecoverable)...").arg(mod->name()));
         qApp->processEvents();
 
@@ -2326,8 +2347,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         }
 
         if (!thread->joinTimeout(15)) {
-            qCCritical(logEngine).noquote().nospace()
-                << "Failed to join thread for " << mod->name() << ". Application may deadlock now.";
+            LOG_CRITICAL(d->log, "Failed to join thread for '{}'. Application may deadlock now.", mod->name());
 
             // perform emergency save of metadata
             const auto stallErrorMsg = QStringLiteral(
@@ -2365,8 +2385,7 @@ bool Engine::runInternal(const QString &exportDirPath)
         thread->join();
     }
 
-    qCDebug(logEngine).noquote().nospace()
-        << "All (non-event) engine threads joined in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+    LOG_INFO(d->log, "All (non-event) engine threads joined in {} msec", timeDiffToNowMsec(lastPhaseTimepoint).count());
     lastPhaseTimepoint = d->timer->currentTimePoint();
 
     // All module data must be written by this point, so we "steal" its storage group,
@@ -2390,8 +2409,8 @@ bool Engine::runInternal(const QString &exportDirPath)
         edlDir.removeRecursively();
     } else {
         finalizeExperimentMetadata(storageCollection, finishTimestamp, modOrder.start);
-        qCDebug(logEngine).noquote().nospace()
-            << "Manifest and additional data saved in " << timeDiffToNowMsec(lastPhaseTimepoint).count() << "msec";
+        LOG_INFO(
+            d->log, "Manifest and additional data saved in {} msec", timeDiffToNowMsec(lastPhaseTimepoint).count());
     }
 
     // unsuspend input ports on modules that were inactive this run

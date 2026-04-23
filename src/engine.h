@@ -19,7 +19,6 @@
 
 #pragma once
 
-#include <QLoggingCategory>
 #include <QObject>
 #include <memory>
 
@@ -32,8 +31,6 @@ class MLinkModule;
 
 namespace Syntalos
 {
-
-Q_DECLARE_LOGGING_CATEGORY(logEngine)
 
 class Engine : public QObject
 {
