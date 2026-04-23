@@ -34,8 +34,6 @@
 
 #include "encodetask.h"
 
-Q_LOGGING_CATEGORY(logEncodeMgr, "encoder.manager")
-
 TaskManager::TaskManager(QueueModel *queue, QObject *parent)
     : QDBusAbstractAdaptor(parent),
       m_queue(queue),
@@ -43,6 +41,8 @@ TaskManager::TaskManager(QueueModel *queue, QObject *parent)
       m_checkTimer(new QTimer(this)),
       m_idleInhibitFd(-1)
 {
+    m_log = getLogger("encoder.manager");
+
     auto maxThreads = QThread::idealThreadCount() - 2;
     if (maxThreads < 2)
         maxThreads = 2;
@@ -167,7 +167,7 @@ void TaskManager::obtainSleepShutdownIdleInhibitor()
         QStringLiteral("org.freedesktop.login1.Manager"),
         QDBusConnection::systemBus());
     if (!iface.isValid()) {
-        qCDebug(logEncodeMgr).noquote() << "Unable to connect to logind DBus interface";
+        LOG_INFO(m_log, "Unable to connect to logind DBus interface");
         m_idleInhibitFd = -1;
     }
 
@@ -179,7 +179,7 @@ void TaskManager::obtainSleepShutdownIdleInhibitor()
         QStringLiteral("Encoding video datasets"),
         QStringLiteral("block"));
     if (!reply.isValid()) {
-        qCDebug(logEncodeMgr).noquote() << "Unable to request sleep/shutdown/idle inhibitor from logind.";
+        LOG_INFO(m_log, "Unable to request sleep/shutdown/idle inhibitor from logind.");
         m_idleInhibitFd = -1;
     }
 

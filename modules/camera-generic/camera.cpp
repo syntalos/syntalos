@@ -29,11 +29,6 @@
 #include <sys/ioctl.h>
 #include "datactl/frametype.h"
 
-namespace Syntalos
-{
-Q_LOGGING_CATEGORY(logGenCamera, "mod.camera-generic")
-}
-
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
 class CameraData
@@ -47,36 +42,39 @@ public:
     {
     }
 
+    QuillLogger *log;
     std::chrono::time_point<symaster_clock> startTime;
-    cv::VideoCapture *cam;
+    cv::VideoCapture *cam{};
     int camId;
 
-    int fps;
+    int fps{};
     cv::Size frameSize;
     CameraPixelFormat captureFormat;
 
     bool connected;
     bool failed;
 
-    double exposure;
-    double brightness;
-    double contrast;
+    double exposure{};
+    double brightness{};
+    double contrast{};
 
-    double saturation;
-    double hue;
+    double saturation{};
+    double hue{};
 
-    double gain;
+    double gain{};
 
-    int autoExposureRaw;
+    int autoExposureRaw{};
 
     uint droppedFrameCount;
     QString lastError;
 };
 #pragma GCC diagnostic pop
 
-Camera::Camera()
+Camera::Camera(QuillLogger *logger)
     : d(new CameraData())
 {
+    d->log = logger;
+
     // set some default values
     d->frameSize = cv::Size(960, 720);
     d->fps = 30;
@@ -101,6 +99,11 @@ Camera::~Camera()
 {
     disconnect();
     delete d->cam;
+}
+
+void Camera::setLogger(QuillLogger *logger)
+{
+    d->log = logger;
 }
 
 void Camera::fail(const QString &msg)
@@ -256,10 +259,10 @@ bool Camera::connect()
 {
     if (d->connected) {
         if (d->failed) {
-            qDebug() << "Reconnecting camera" << d->camId << "to recover from previous failure.";
+            LOG_INFO(d->log, "Reconnecting camera {} to recover from previous failure.", d->camId);
             disconnect();
         } else {
-            qWarning() << "Tried to reconnect already connected camera.";
+            LOG_WARNING(d->log, "Tried to reconnect already connected camera.");
             return false;
         }
     }
@@ -276,7 +279,7 @@ bool Camera::connect()
     auto ret = d->cam->open(d->camId, apiPreference);
     if (!ret) {
         // we failed opening the camera - try again using OpenCV's backend autodetection
-        qDebug() << "Unable to use preferred camera backend for" << d->camId << "falling back to autodetection.";
+        LOG_INFO(d->log, "Unable to use preferred camera backend for {} falling back to autodetection.", d->camId);
         ret = d->cam->open(d->camId);
     }
 
@@ -302,7 +305,7 @@ bool Camera::connect()
     // time is set from an external source
     d->startTime = currentTimePoint();
 
-    qDebug() << "Initialized camera" << d->camId;
+    LOG_INFO(d->log, "Initialized camera {}", d->camId);
     return true;
 }
 
@@ -310,7 +313,7 @@ void Camera::disconnect()
 {
     d->cam->release();
     if (d->connected)
-        qDebug() << "Disconnected camera" << d->camId;
+        LOG_INFO(d->log, "Disconnected camera {}", d->camId);
     d->connected = false;
 }
 
@@ -345,7 +348,7 @@ void Camera::setPixelFormat(const CameraPixelFormat &pixFmt)
     if (pixFmt.fourcc == 0 || pixFmt.name.isEmpty())
         return;
 
-    qCDebug(logGenCamera).noquote() << "Setting pixel format to:" << pixFmt.fourcc;
+    LOG_INFO(d->log, "Setting pixel format to: {}", pixFmt.fourcc);
     d->cam->set(cv::CAP_PROP_FOURCC, pixFmt.fourcc);
     d->captureFormat = pixFmt;
 }
@@ -375,7 +378,7 @@ bool Camera::recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
         frame.mat = mat;
     } catch (const cv::Exception &e) {
         status = false;
-        std::cerr << "Caught OpenCV exception:" << e.what() << std::endl;
+        LOG_ERROR(d->log, "Caught OpenCV exception: {}", e.what());
     }
 
     if (!status) {

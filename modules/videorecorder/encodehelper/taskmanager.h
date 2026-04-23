@@ -25,8 +25,6 @@
 #include "../equeueshared.h"
 #include "queuemodel.h"
 
-Q_DECLARE_LOGGING_CATEGORY(logEncodeMgr)
-
 class QThreadPool;
 
 class TaskManager : public QDBusAbstractAdaptor
@@ -68,6 +66,7 @@ private:
     void releaseSleepShutdownIdleInhibitor();
 
 private:
+    QuillLogger *m_log;
     QueueModel *m_queue;
     QThreadPool *m_threadPool;
     QSet<QString> m_scheduledDSPaths;

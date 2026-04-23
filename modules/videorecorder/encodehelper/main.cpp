@@ -22,6 +22,7 @@
 
 #include <QApplication>
 
+#include "logging.h"
 #include "appstyle.h"
 
 int main(int argc, char *argv[])
@@ -30,6 +31,9 @@ int main(int argc, char *argv[])
     app.setApplicationName("Syntalos.EncodeHelper");
     app.setOrganizationName("Syntalos");
     app.setApplicationVersion(PROJECT_VERSION);
+
+    // set up logging for encodehelper
+    initializeSyLogSystem();
 
     EncodeWindow w;
 

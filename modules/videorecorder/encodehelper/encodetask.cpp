@@ -35,10 +35,9 @@
 
 using namespace Syntalos;
 
-Q_LOGGING_CATEGORY(logEncodeTask, "encoder.task")
-
 EncodeTask::EncodeTask(QueueItem *item, bool updateAttrs, int codecThreadN)
     : QRunnable(),
+      m_log(getLogger("encoder.task")),
       m_item(item),
       m_updateAttrsData(updateAttrs),
       m_codecThreadCount(codecThreadN),
@@ -257,18 +256,16 @@ void EncodeTask::run()
                     std::error_code error;
                     std::filesystem::rename(attrFnameTmp.toStdString(), attrFname.toStdString(), error);
                     if (error) {
-                        qCWarning(logEncodeTask).noquote()
-                            << "Unable to replace old attributes file: " << QString::fromStdString(error.message());
+                        LOG_WARNING(m_log, "Unable to replace old attributes file: {}", error.message());
                         QFile::remove(attrFnameTmp);
                     }
                 } else {
-                    qCWarning(logEncodeTask).noquote()
-                        << "Unable to open temporary attributes file for writing: " << errorMsg;
+                    LOG_WARNING(m_log, "Unable to open temporary attributes file for writing: {}", errorMsg);
                     QFile::remove(attrFnameTmp);
                 }
             }
         } else {
-            qCWarning(logEncodeTask).noquote() << "Unable to read dataset attributes: " << errorMsg;
+            LOG_WARNING(m_log, "Unable to read dataset attributes: {}", errorMsg);
         }
     }
 

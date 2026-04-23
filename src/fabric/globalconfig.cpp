@@ -20,7 +20,6 @@
 #include "config.h"
 #include "globalconfig.h"
 
-#include <QDebug>
 #include <QDir>
 #include <QSettings>
 #include <QStandardPaths>
@@ -31,14 +30,11 @@
 
 using namespace Syntalos;
 
-namespace Syntalos
-{
-Q_LOGGING_CATEGORY(logGlobalConfig, "global.config")
-}
-
 GlobalConfig::GlobalConfig(QObject *parent)
     : QObject(parent)
 {
+    m_log = getLogger("gconf");
+    ;
     m_s = new QSettings("Syntalos", "Syntalos", this);
 
     m_userHome = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
@@ -48,9 +44,9 @@ GlobalConfig::GlobalConfig(QObject *parent)
         m_appDataRoot = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
 
     if (m_userHome.isEmpty())
-        qCCritical(logGlobalConfig, "Unable to determine user home directory!");
+        LOG_CRITICAL(m_log, "Unable to determine user home directory!");
     if (m_appDataRoot.isEmpty())
-        qCCritical(logGlobalConfig, "Unable to determine application data directory!");
+        LOG_CRITICAL(m_log, "Unable to determine application data directory!");
 }
 
 QString GlobalConfig::iconThemeName() const
@@ -271,8 +267,9 @@ void Syntalos::findSyntalosLibraryPaths(QString &pkgConfigPath, QString &ldLibra
     }
 
     if (!siFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qWarning().noquote()
-            << "Cannot open source-info file for reading. Syntalos library search paths will not be set.";
+        LOG_WARNING(
+            getLogger("gconf"),
+            "Cannot open source-info file for reading. Syntalos library search paths will not be set.");
         return;
     }
 
@@ -291,7 +288,7 @@ void Syntalos::findSyntalosLibraryPaths(QString &pkgConfigPath, QString &ldLibra
     siFile.close();
 
     if (srcRootPath.isEmpty()) {
-        qWarning().noquote() << "Syntalos source-root path was not found. Can not set include paths.";
+        LOG_WARNING(getLogger("gconf"), "Syntalos source-root path was not found. Can not set include paths.");
     } else {
         includePath = QStringLiteral("%1/src:%1/src/mlink/include:%1/src/datactl/include").arg(srcRootPath);
     }

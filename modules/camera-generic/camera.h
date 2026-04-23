@@ -20,20 +20,15 @@
 #ifndef GENERIC_CAMERA_H
 #define GENERIC_CAMERA_H
 
-#include <QLoggingCategory>
 #include <QSize>
 #include <opencv2/core.hpp>
 
+#include "logging.h"
 #include "datactl/frametype.h"
 #include "datactl/syclock.h"
 #include "datactl/timesync.h"
 
 using namespace Syntalos;
-
-namespace Syntalos
-{
-Q_DECLARE_LOGGING_CATEGORY(logGenCamera)
-}
 
 struct CameraPixelFormat {
     QString name;
@@ -57,8 +52,10 @@ class CameraData;
 class Camera
 {
 public:
-    Camera();
+    explicit Camera(QuillLogger *logger);
     ~Camera();
+
+    void setLogger(QuillLogger *logger);
 
     void setCamId(int id);
     int camId() const;
@@ -104,7 +101,7 @@ public:
     static QList<QPair<QString, int>> availableCameras();
 
 private:
-    QScopedPointer<CameraData> d;
+    std::unique_ptr<CameraData> d;
 
     void fail(const QString &msg);
 };

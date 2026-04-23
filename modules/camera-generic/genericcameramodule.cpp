@@ -43,7 +43,7 @@ private:
 public:
     explicit GenericCameraModule(QObject *parent = nullptr)
         : AbstractModule(parent),
-          m_camera(new Camera),
+          m_camera(new Camera(m_log)),
           m_camSettingsWindow(nullptr),
           m_stopped(true)
     {
@@ -56,9 +56,15 @@ public:
         setName(name());
     }
 
-    ~GenericCameraModule()
+    ~GenericCameraModule() override
     {
         delete m_camera;
+    }
+
+    bool initialize() override
+    {
+        m_camera->setLogger(m_log);
+        return AbstractModule::initialize();
     }
 
     void setName(const QString &name) override

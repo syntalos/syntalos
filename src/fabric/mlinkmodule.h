@@ -29,8 +29,6 @@
 namespace Syntalos
 {
 
-Q_DECLARE_LOGGING_CATEGORY(logMLinkMod)
-
 struct ErrorEvent;
 struct StateChangeEvent;
 

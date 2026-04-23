@@ -32,10 +32,7 @@
 using namespace Syntalos;
 using namespace Syntalos::ipc;
 
-namespace Syntalos
-{
-Q_LOGGING_CATEGORY(logSExporter, "stream-exporter")
-}
+static QuillLogger *g_logSExport = nullptr;
 
 struct StreamExportData {
     std::optional<SyPublisher> publisher;
@@ -58,6 +55,7 @@ public:
 
     std::optional<iox2::Node<iox2::ServiceType::Ipc>> node;
 
+    QuillLogger *log;
     QString threadName;
     std::atomic_bool running;
     std::atomic_bool failed;
@@ -75,6 +73,7 @@ StreamExporter::StreamExporter(const QString &threadName, QObject *parent)
     : QObject(parent),
       d(new StreamExporter::Private)
 {
+    d->log = getLogger("stream-exporter");
     d->activeLoop = nullptr;
     d->running = false;
     d->failed = false;
@@ -197,13 +196,13 @@ static gboolean recvStreamEventDispatch(gpointer udata)
                 // Higher efficiency code-path since the size is known in advance
                 auto slice = ed->publisher->loanSlice(static_cast<size_t>(memSize));
                 if (!data.writeToMemory(slice.payload_mut().data(), static_cast<ssize_t>(memSize))) {
-                    qCCritical(logSExporter) << "Failed to serialize data for export!";
+                    LOG_ERROR(g_logSExport, "Failed to serialize data for export!");
                     return;
                 }
                 ed->publisher->sendSlice(std::move(slice));
             }
         } catch (const std::exception &e) {
-            qCWarning(logSExporter) << "Failed to transmit sample to other process:" << e.what();
+            LOG_ERROR(g_logSExport, "Failed to transmit sample to other process: {}", e.what());
         }
     };
 
@@ -251,7 +250,7 @@ static gboolean efd_signal_source_dispatch(GSource *source, GSourceFunc callback
         // just read the buffer count for now to empty it
         // (maybe we can do something useful with the element count later?)
         if (G_UNLIKELY(read(efd_source->event_fd, &buffer, sizeof(buffer)) == -1 && errno != EAGAIN))
-            qCWarning(logSExporter).noquote() << "Failed to read from eventfd:" << g_strerror(errno);
+            LOG_WARNING(g_logSExport, "Failed to read from eventfd: {}", g_strerror(errno));
 
         result_continue = callback(user_data);
     }

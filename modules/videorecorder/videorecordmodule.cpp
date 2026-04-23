@@ -131,6 +131,7 @@ public:
         }
 
         m_videoWriter.reset(new VideoWriter);
+        m_videoWriter->setLogger(m_log);
         m_videoWriter->setContainer(m_settingsDialog->videoContainer());
 
         auto codecProps = m_settingsDialog->codecProps();

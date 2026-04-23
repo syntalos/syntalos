@@ -25,7 +25,6 @@
 #include <QCloseEvent>
 #include <QComboBox>
 #include <QDateTime>
-#include <QDebug>
 #include <QDesktopServices>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -410,8 +409,8 @@ void MainWindow::applySelectedAppStyle(bool updateIcons)
 
     // apply default color scheme
     if (m_gconf->appColorMode() != Syntalos::ColorMode::SYSTEM) {
-        qDebug().noquote() << "Changing application color scheme to:"
-                           << Syntalos::colorModeToString(m_gconf->appColorMode());
+        LOG_INFO(
+            m_log, "Changing application color scheme to: {}", Syntalos::colorModeToString(m_gconf->appColorMode()));
         if (m_gconf->appColorMode() == Syntalos::ColorMode::DARK && darkColorSchemeAvailable())
             changeColorsDarkmode(true);
         else
@@ -493,7 +492,7 @@ void MainWindow::runActionTriggered()
     // handle interval run setup
     m_isIntervalRun = m_intervalRunDialog->intervalRunEnabled();
     if (m_isIntervalRun) {
-        qDebug().noquote() << "Running experiment multiple times in intervals";
+        LOG_INFO(m_log, "Running experiment multiple times in intervals");
         updateIntervalRunMessage();
         ui->runWarnWidget->setVisible(true);
 
@@ -524,9 +523,7 @@ void MainWindow::runActionTriggered()
         // run multiple times at set intervals
         for (int i = 1; i <= m_intervalRunDialog->runsN(); i++) {
             // perform the experiment run
-            qDebug().noquote() << QStringLiteral("New run: %1/%2")
-                                      .arg(m_engine->successRunsCount() + 1)
-                                      .arg(m_intervalRunDialog->runsN());
+            LOG_INFO(m_log, "New run: {}/{}", m_engine->successRunsCount() + 1, m_intervalRunDialog->runsN());
             m_engine->run();
 
             // stop immediately if the interval mode was suspended or an error occurred
@@ -544,7 +541,7 @@ void MainWindow::runActionTriggered()
             // wait the requested delay time
             if (m_intervalRunDialog->delayMin() > 0) {
                 showBusyIndicatorWaiting();
-                qDebug().noquote() << "Delaying next run for" << m_intervalRunDialog->delayMin() << "min";
+                LOG_INFO(m_log, "Delaying next run for {} min", m_intervalRunDialog->delayMin());
                 auto continueTime = QTime::currentTime().addSecs(std::round(60 * m_intervalRunDialog->delayMin()));
                 ui->runWarningLabel->setText(
                     QStringLiteral("Running for %1 min every %2 min. Now waiting %3 min. Next run: %4/%5")
@@ -568,7 +565,7 @@ void MainWindow::runActionTriggered()
         }
 
         ui->runWarnWidget->setVisible(false);
-        qDebug().noquote() << "Finished interval run session";
+        LOG_INFO(m_log, "Finished interval run session");
     } else {
         m_engine->run();
     }
@@ -817,7 +814,7 @@ void MainWindow::updateIconStyles()
 void MainWindow::shutdown(int errorCode)
 {
     if (errorCode != 0)
-        qWarning().noquote() << "Shutting down with error code:" << errorCode;
+        LOG_WARNING(m_log, "Shutting down with error code: {}", errorCode);
 
     // The Spinnaker module crashes in an assertion in proprietary code if the application shuts down when
     // Spinnakers "System" singleton is also destroyed.
@@ -993,13 +990,13 @@ void MainWindow::setCurrentProjectFile(const QString &fileName)
     if (fileName.isEmpty()) {
         this->setWindowTitle(QStringLiteral("Syntalos"));
         if (!m_currentProjectFname.isEmpty())
-            qDebug().noquote() << "Current board settings file reset.";
+            LOG_INFO(m_log, "Current board settings file reset.");
         m_currentProjectFname = fileName;
     } else {
         m_currentProjectFname = fileName;
         QFileInfo fi(fileName);
-        this->setWindowTitle(QStringLiteral("Syntalos - %2").arg(fi.completeBaseName()));
-        qDebug().noquote() << "Current board settings file:" << m_currentProjectFname;
+        this->setWindowTitle(QStringLiteral("Syntalos – %2").arg(fi.completeBaseName()));
+        LOG_INFO(m_log, "Current board settings file: {}", m_currentProjectFname);
     }
 }
 
@@ -1148,7 +1145,7 @@ void MainWindow::scheduleProjectAutorun(
 
         // check if we can actually run
         if (!m_engine->exportDirIsValid() && noninteractive) {
-            qCritical().noquote() << "Export directory is not valid, cannot start run.";
+            LOG_ERROR(m_log, "Export directory is not valid, cannot start run.");
             shutdown(SY_EXIT_NOT_FOUND);
             return;
         }
@@ -1162,9 +1159,9 @@ void MainWindow::scheduleProjectAutorun(
                 this,
                 [this](AbstractModule *mod, const QString &message) {
                     if (mod != nullptr)
-                        qWarning().noquote().nospace() << "Run failed in '" << mod->name() << "': " << message;
+                        LOG_WARNING(m_log, "Run failed in '{}': {}", mod->name(), message);
                     else
-                        qWarning().noquote() << "Run failed: " << message;
+                        LOG_WARNING(m_log, "Run failed: {}", message);
 
                     connect(m_engine, &Engine::runFailed, this, &MainWindow::moduleErrorReceived);
                 },
@@ -1304,7 +1301,7 @@ QByteArray MainWindow::loadBusyAnimation(const QString &name) const
 
     QFile f(QStringLiteral(":/animations/") + name);
     if (!f.open(QFile::ReadOnly | QFile::Text)) {
-        qWarning().noquote() << "Failed to load busy animation" << name << ": " << f.errorString();
+        LOG_WARNING(m_log, "Failed to load busy animation {}: {}", name, f.errorString());
         return QByteArray();
     }
 

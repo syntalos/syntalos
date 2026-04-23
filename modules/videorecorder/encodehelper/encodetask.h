@@ -19,11 +19,9 @@
 
 #pragma once
 
-#include <QLoggingCategory>
-#include <QObject>
-#include <QRunnable>
+#include "logging.h"
 
-Q_DECLARE_LOGGING_CATEGORY(logEncodeTask)
+#include <QRunnable>
 
 class QueueItem;
 
@@ -38,6 +36,7 @@ private:
     bool prepareSourceFiles();
 
 private:
+    Syntalos::QuillLogger *m_log;
     QueueItem *m_item;
     bool m_updateAttrsData;
     int m_codecThreadCount;

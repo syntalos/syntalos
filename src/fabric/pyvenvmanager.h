@@ -21,12 +21,9 @@
 
 #include <expected>
 #include <QString>
-#include <QLoggingCategory>
 
 namespace Syntalos
 {
-
-Q_DECLARE_LOGGING_CATEGORY(logVEnv)
 
 enum class PyVirtualEnvStatus {
     VALID,

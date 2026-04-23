@@ -21,13 +21,13 @@
 #include "pyvenvmanager.h"
 
 #include <QCoreApplication>
-#include <QDebug>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
 #include <QStandardPaths>
 #include <QTextStream>
 
+#include "logging.h"
 #include "executils.h"
 #include "globalconfig.h"
 #include "utils/misc.h"
@@ -35,7 +35,7 @@
 namespace Syntalos
 {
 
-Q_LOGGING_CATEGORY(logVEnv, "pyvenv")
+#define logVEnv getLogger("pyvenv")
 
 QString pythonVEnvDirForName(const QString &venvName)
 {
@@ -63,7 +63,7 @@ static bool writeRequirementsHashMetadata(const QString &venvDir, const QByteArr
 
     QFile metadataFile(metadataPath);
     if (!metadataFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        qCWarning(logVEnv).noquote() << "Unable to write venv requirements metadata:" << metadataPath;
+        LOG_WARNING(logVEnv, "Unable to write venv requirements metadata: {}", metadataPath);
         return false;
     }
 
@@ -81,7 +81,7 @@ static bool readRequirementsHashMetadata(const QString &venvDir, QString &requir
         return false;
 
     if (!metadataFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qCWarning(logVEnv).noquote() << "Unable to read venv requirements metadata for:" << venvDir;
+        LOG_WARNING(logVEnv, "Unable to read venv requirements metadata for: {}", venvDir);
         return false;
     }
 
@@ -141,8 +141,8 @@ PyVirtualEnvStatus pythonVirtualEnvStatus(const QString &venvName, const QString
     const auto venvDir = pythonVEnvDirForName(venvName);
     const auto interpreterPath = interpreterPathFromCfg(venvDir);
     if (!interpreterPath.isEmpty() && QFileInfo(interpreterPath).isAbsolute() && !QFileInfo::exists(interpreterPath)) {
-        qCWarning(logVEnv).noquote() << "Base Python interpreter for virtual environment" << venvName
-                                     << "is missing:" << interpreterPath;
+        LOG_WARNING(
+            logVEnv, "Base Python interpreter for virtual environment {} is missing: {}", venvName, interpreterPath);
         return PyVirtualEnvStatus::INTERPRETER_MISSING;
     }
 
@@ -154,13 +154,18 @@ PyVirtualEnvStatus pythonVirtualEnvStatus(const QString &venvName, const QString
     if (hashResult.has_value())
         currentHashStr = QString::fromLatin1(hashResult->toHex());
     else
-        qCWarning(logVEnv).noquote() << "Unable to compute BLAKE3 hash for requirements file:" << requirementsFile
-                                     << "- treating as changed requirements.";
+        LOG_WARNING(
+            logVEnv,
+            "Unable to compute BLAKE3 hash for requirements file: {} - treating as changed requirements.",
+            requirementsFile);
 
     QString storedReqHash;
     if (!readRequirementsHashMetadata(venvDir, storedReqHash)) {
-        qCWarning(logVEnv).noquote() << "Unable to read stored requirements hash metadata for virtual environment"
-                                     << venvName << "- treating as changed requirements.";
+        LOG_WARNING(
+            logVEnv,
+            "Unable to read stored requirements hash metadata for virtual environment {} - treating as changed "
+            "requirements.",
+            venvName);
         return PyVirtualEnvStatus::REQUIREMENTS_CHANGED;
     }
 
@@ -186,7 +191,7 @@ static void injectSystemPyModule(const QString &venvDir, const QString &pyModNam
             continue;
 
         for (const auto &pyDir : vpDirs) {
-            qDebug().noquote() << "Adding system Python module to venv:" << systemPyQtPath;
+            LOG_INFO(logVEnv, "Adding system Python module to venv: {}", systemPyQtPath);
             QFile::link(systemPyQtPath, QStringLiteral("%1/lib/%2/site-packages/%3").arg(venvDir, pyDir, pyModName));
         }
     }
@@ -208,7 +213,7 @@ static void injectSyntalosMlinkIntoVenv(const QString &venvDir)
     }
 
     if (soDir.isEmpty()) {
-        qCWarning(logVEnv) << "Could not find syntalos_mlink extension to inject into venv";
+        LOG_WARNING(logVEnv, "Could not find syntalos_mlink extension to inject into venv");
         return;
     }
 
@@ -259,7 +264,7 @@ auto createPythonVirtualEnv(const QString &venvName, const QString &requirements
 
     if (QDir(venvDir).exists()) {
         if (recreate) {
-            qCDebug(logVEnv).noquote() << "Removing existing virtualenv before recreation:" << venvDir;
+            LOG_INFO(logVEnv, "Removing existing virtualenv before recreation: {}", venvDir);
             if (!QDir(venvDir).removeRecursively())
                 return std::unexpected(QStringLiteral("Unable to remove existing virtualenv: %1").arg(venvDir));
         } else {
@@ -273,7 +278,7 @@ auto createPythonVirtualEnv(const QString &venvName, const QString &requirements
     const auto tmpCommandFile = QStringLiteral("%1/sy-venv-%2.sh").arg(rtdDir, createRandomString(6));
     QFile shFile(tmpCommandFile);
     if (!shFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        qCWarning(logVEnv).noquote() << "Unable to open temporary file" << tmpCommandFile << "for writing.";
+        LOG_WARNING(logVEnv, "Unable to open temporary file {} for writing.", tmpCommandFile);
         return std::unexpected(
             QStringLiteral("Unable to open temporary file for virtualenv creation: %1").arg(shFile.errorString()));
     }
@@ -282,7 +287,7 @@ auto createPythonVirtualEnv(const QString &venvName, const QString &requirements
                                           .arg(rtdDir, venvName, createRandomString(4));
     QFile tmpReqFile(tmpRequirementsFname);
     if (!tmpReqFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        qCWarning(logVEnv).noquote() << "Unable to open temporary file" << tmpRequirementsFname << "for writing.";
+        LOG_WARNING(logVEnv, "Unable to open temporary file {} for writing.", tmpRequirementsFname);
         return std::unexpected(
             QStringLiteral("Unable to open temporary file for virtualenv creation: %1").arg(tmpReqFile.errorString()));
     }
@@ -292,11 +297,11 @@ auto createPythonVirtualEnv(const QString &venvName, const QString &requirements
         QTextStream rqfOut(&tmpReqFile);
         rqfOut << "\n";
         tmpReqFile.close();
-        qCDebug(logVEnv) << "Creating empty virtualenv" << venvName;
+        LOG_INFO(logVEnv, "Creating empty virtualenv {}", venvName);
     } else {
         QFile reqFile(requirementsFile);
         if (!reqFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
-            qCWarning(logVEnv).noquote() << "Unable to open file" << requirementsFile << "for reading.";
+            LOG_WARNING(logVEnv, "Unable to open file {} for reading.", requirementsFile);
             return std::unexpected(QStringLiteral("Unable to open requirements file \"%1\": %2")
                                        .arg(requirementsFile, reqFile.errorString()));
         }
@@ -310,11 +315,10 @@ auto createPythonVirtualEnv(const QString &venvName, const QString &requirements
         }
         tmpReqFile.close();
 
-        qCDebug(logVEnv).noquote().nospace()
-            << "Creating virtualenv \"" << venvName << "\" using requirements file: " << requirementsFile;
+        LOG_INFO(logVEnv, "Creating virtualenv \"{}\" using requirements file: {}", venvName, requirementsFile);
     }
 
-    qCDebug(logVEnv).noquote() << "Creating new Python virtualenv in:" << venvDir;
+    LOG_INFO(logVEnv, "Creating new Python virtualenv in: {}", venvDir);
     QTextStream out(&shFile);
     out << "#!/bin/bash\n\n"
         << "run_check() {\n"
@@ -360,7 +364,7 @@ auto createPythonVirtualEnv(const QString &venvName, const QString &requirements
                     QStringLiteral("Unable to compute requirements checksum: %1").arg(b3sumResult.error()));
 
             if (!writeRequirementsHashMetadata(venvDir, b3sumResult.value()))
-                qCWarning(logVEnv).noquote() << "Unable to persist requirements metadata for virtualenv:" << venvName;
+                LOG_WARNING(logVEnv, "Unable to persist requirements metadata for virtualenv: {}", venvName);
         }
 
         return venvDir;

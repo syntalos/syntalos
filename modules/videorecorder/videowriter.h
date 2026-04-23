@@ -20,17 +20,12 @@
 #ifndef VIDEOWRITER_H
 #define VIDEOWRITER_H
 
-#include <QLoggingCategory>
 #include <chrono>
 #include <memory>
 
+#include "logging.h"
 #include "datactl/edlstorage.h"
 #include "datactl/frametype.h"
-
-namespace Syntalos
-{
-Q_DECLARE_LOGGING_CATEGORY(logVRecorder)
-}
 
 using namespace Syntalos;
 
@@ -159,6 +154,8 @@ class VideoWriter
 public:
     explicit VideoWriter();
     ~VideoWriter();
+
+    void setLogger(QuillLogger *logger);
 
     void initialize(
         const QString &fname,

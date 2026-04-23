@@ -33,11 +33,6 @@
 #include "mlink/ipc-iox-private.h"
 #include "utils/misc.h"
 
-namespace Syntalos
-{
-Q_LOGGING_CATEGORY(logMLinkMod, "mlink-master")
-}
-
 using namespace Syntalos::ipc;
 
 /**
@@ -50,7 +45,7 @@ static auto safeReceive(Sub &sub) -> std::remove_cvref_t<decltype(sub.receive().
 {
     auto result = sub.receive();
     if (!result.has_value()) {
-        qCWarning(logMLinkMod) << "IPC receive failed:" << iox2::bb::into<const char *>(result.error());
+        LOG_WARNING(getLogger("mlink"), "IPC receive failed: {}", iox2::bb::into<const char *>(result.error()));
         return {};
     }
     return std::move(result).value();
@@ -59,9 +54,11 @@ static auto safeReceive(Sub &sub) -> std::remove_cvref_t<decltype(sub.receive().
 class MLinkModule::Private
 {
 public:
-    Private() = default;
+    Private(QuillLogger *logger)
+        : log(logger) {};
     ~Private() = default;
 
+    QuillLogger *log = nullptr;
     QProcess *proc = nullptr;
     ModuleWorkerMode workerMode;
     bool outputCaptured = false;
@@ -117,14 +114,13 @@ public:
     void notifyClient() const
     {
         if (!ctlEventNotifier.has_value()) [[unlikely]] {
-            qCCritical(logMLinkMod) << "notifyWorker: Notifier was not initialized, can not notify client!";
+            LOG_CRITICAL(log, "notifyWorker: Notifier was not initialized, can not notify client!");
             return;
         }
 
         auto r = ctlEventNotifier->notify();
         if (!r.has_value())
-            qCWarning(logMLinkMod) << "Failed to notify worker of control event:"
-                                   << iox2::bb::into<const char *>(r.error());
+            LOG_WARNING(log, "Failed to notify worker of control event: {}", iox2::bb::into<const char *>(r.error()));
     }
 
     void checkClientError(MLinkModule *self)
@@ -149,12 +145,14 @@ public:
         }
     }
 
-    static void replyDoneSlice(SliceActiveRequest &req, bool success)
+    void replyDoneSlice(SliceActiveRequest &req, bool success) const
     {
         auto maybeResponse = req.loan_uninit();
         if (!maybeResponse.has_value()) {
-            qCWarning(logMLinkMod) << "Failed to loan response for port change reply:"
-                                   << iox2::bb::into<const char *>(maybeResponse.error());
+            LOG_WARNING(
+                log,
+                "Failed to loan response for port change reply: {}",
+                iox2::bb::into<const char *>(maybeResponse.error()));
             return;
         }
         iox2::send(std::move(maybeResponse).value().write_payload(DoneResponse{success})).value();
@@ -195,8 +193,7 @@ public:
         bool skipIfModuleError = true)
     {
         if (!node.has_value()) {
-            qCCritical(logMLinkMod).noquote()
-                << "callClientSimple: IOX node not initialized, failing call on channel:" << channel;
+            LOG_CRITICAL(log, "callClientSimple: IOX node not initialized, failing call on channel: {}", channel);
             return std::nullopt;
         }
 
@@ -279,8 +276,7 @@ public:
         int timeoutSec = 5)
     {
         if (!node.has_value()) {
-            qCCritical(logMLinkMod).noquote()
-                << "callClientSimple: IOX node not initialized, failing call on channel:" << channel;
+            LOG_CRITICAL(log, "callClientSimple: IOX node not initialized, failing call on channel: {}", channel);
             return false;
         }
 
@@ -336,8 +332,7 @@ public:
         int timeoutSec = 5)
     {
         if (!node.has_value()) {
-            qCCritical(logMLinkMod).noquote()
-                << "callClientSimple: IOX node not initialized, failing call on channel:" << channel;
+            LOG_CRITICAL(log, "callClientSimple: IOX node not initialized, failing call on channel: {}", channel);
             return std::nullopt;
         }
 
@@ -391,7 +386,7 @@ public:
 
 MLinkModule::MLinkModule(QObject *parent)
     : AbstractModule(parent),
-      d(new MLinkModule::Private)
+      d(new MLinkModule::Private(m_log))
 {
     d->proc = new QProcess(this);
     d->workerMode = ModuleWorkerMode::PERSISTENT;
@@ -424,6 +419,9 @@ MLinkModule::MLinkModule(QObject *parent)
 
 bool MLinkModule::initialize()
 {
+    // propagate the (potentially updated) logger
+    d->log = m_log;
+
     if (moduleBinary().isEmpty()) {
         raiseError("Unable to find module binary. Is the module installed correctly?");
         return false;
@@ -513,7 +511,7 @@ void MLinkModule::handleIncomingControl()
             const auto ipc = InputPortChangeRequest::fromMemory(pl.data(), pl.number_of_bytes());
             const auto action = ipc.action;
             if (!d->portChangesAllowed) {
-                qCDebug(logMLinkMod).noquote() << "Input port change request ignored: No changes are allowed.";
+                LOG_WARNING(m_log, "Input port change request ignored: No changes are allowed.");
             } else if (action == PortAction::ADD) {
                 const auto portId = QString::fromStdString(ipc.id);
                 const auto portTitle = QString::fromStdString(ipc.title);
@@ -531,7 +529,7 @@ void MLinkModule::handleIncomingControl()
             }
 
             // always acknowledge so the worker never waits too long
-            Private::replyDoneSlice(*req, true);
+            d->replyDoneSlice(*req, true);
         }
     }
 
@@ -548,7 +546,7 @@ void MLinkModule::handleIncomingControl()
             const auto action = opc.action;
             if (action == PortAction::ADD) {
                 if (!d->portChangesAllowed) {
-                    qCDebug(logMLinkMod).noquote() << "Output port addition ignored: No changes are allowed.";
+                    LOG_WARNING(m_log, "Output port addition ignored: No changes are allowed.");
                 } else {
                     // only register a new output port if we don't have one with that ID already
                     const auto portId = QString::fromStdString(opc.id);
@@ -570,7 +568,7 @@ void MLinkModule::handleIncomingControl()
                 }
             } else if (action == PortAction::REMOVE) {
                 if (!d->portChangesAllowed) {
-                    qCDebug(logMLinkMod).noquote() << "Output port removal ignored: No changes are allowed.";
+                    LOG_WARNING(m_log, "Output port removal ignored: No changes are allowed.");
                 } else {
                     removeOutPortById(QString::fromStdString(opc.id));
                     d->outPortIdMap.remove(opc.id);
@@ -588,7 +586,7 @@ void MLinkModule::handleIncomingControl()
             }
 
             // always acknowledge so the worker never blocks indefinitely
-            Private::replyDoneSlice(*req, true);
+            d->replyDoneSlice(*req, true);
         }
     }
 }
@@ -738,7 +736,7 @@ void MLinkModule::serializeSettings(const QString &confBaseDir, QVariantHash &se
 
     d->settingsReq.baseDir = confBaseDir.toStdString();
     if (!isProcessRunning()) {
-        qCWarning(logMLinkMod) << "Tried to save settings, but module process is dead. Reusing old settings.";
+        LOG_WARNING(m_log, "Tried to save settings, but module process is dead. Reusing old settings.");
         extraData = byteVectorToQByteArray(d->settingsReq.data);
         return;
     }
@@ -750,14 +748,13 @@ void MLinkModule::serializeSettings(const QString &confBaseDir, QVariantHash &se
     auto response = d->callSliceClient<SaveSettingsRequest, SaveSettingsResponse>(
         this, SAVE_SETTINGS_CALL_ID, ssReq, 15);
     if (!response.has_value()) {
-        qCWarning(logMLinkMod)
-            << "Failed to save settings (issue communicating with the module). Reusing old settings.";
+        LOG_WARNING(m_log, "Failed to save settings (issue communicating with the module). Reusing old settings.");
         extraData = byteVectorToQByteArray(d->settingsReq.data);
         return;
     }
     const auto &ssRes = response.value();
     if (!ssRes.success) {
-        qCWarning(logMLinkMod) << "Module failed to serialize settings. Reusing old settings.";
+        LOG_WARNING(m_log, "Module failed to serialize settings. Reusing old settings.");
         extraData = byteVectorToQByteArray(d->settingsReq.data);
         return;
     }
@@ -786,7 +783,7 @@ bool MLinkModule::loadSettings(const QString &confBaseDir, const QVariantHash &s
 void MLinkModule::showDisplayUi()
 {
     if (!d->callClientSimple<ShowDisplayRequest>(this, SHOW_DISPLAY_CALL_ID, [](auto &) {}))
-        qCWarning(logMLinkMod).noquote() << "Show display request failed!";
+        LOG_WARNING(m_log, "Show display request failed!");
 }
 
 void MLinkModule::showSettingsUi()
@@ -795,7 +792,7 @@ void MLinkModule::showSettingsUi()
     handleIncomingControl();
 
     if (!d->callClientSimple<ShowSettingsRequest>(this, SHOW_SETTINGS_CALL_ID, [](auto &) {}))
-        qCWarning(logMLinkMod).noquote() << "Request to show settings UI has failed!";
+        LOG_WARNING(m_log, "Request to show settings UI has failed!");
 
     // drain immediate updates emitted while handling the request
     handleIncomingControl();
@@ -824,8 +821,7 @@ void MLinkModule::terminateProcess()
 
     // ask nicely
     if (d->proc->state() == QProcess::Running) {
-        qCDebug(logMLinkMod).noquote() << "Module process" << d->proc->program()
-                                       << "did not terminate on request. Sending SIGTERM.";
+        LOG_INFO(m_log, "Module process {} did not terminate on request. Sending SIGTERM.", d->proc->program());
         d->proc->terminate();
         d->proc->waitForFinished(3000);
         d->proc->terminate();
@@ -834,7 +830,7 @@ void MLinkModule::terminateProcess()
 
     // no response? kill it!
     if (d->proc->state() == QProcess::Running) {
-        qCWarning(logMLinkMod).noquote() << "Module process" << d->proc->program() << "failed to quit. Killing it.";
+        LOG_WARNING(m_log, "Module process {} failed to quit. Killing it.", d->proc->program());
         d->proc->kill();
         d->proc->waitForFinished(5000);
     }
@@ -852,7 +848,7 @@ bool MLinkModule::runProcess()
     resetConnection();
 
     if (d->proc->program().isEmpty()) {
-        qCWarning(logMLinkMod).noquote() << "MLink module has not set a worker binary";
+        LOG_ERROR(m_log, "MLink module has not set a worker binary");
         return false;
     }
 
@@ -1030,7 +1026,7 @@ void MLinkModule::markIncomingForExport(StreamExporter *exporter)
             payload = req;
         });
         if (!ret)
-            qWarning().noquote() << "Failed to connect exported input port" << iport->title();
+            LOG_WARNING(m_log, "Failed to connect exported input port {}", iport->title());
     }
 }
 

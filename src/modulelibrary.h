@@ -20,10 +20,8 @@
 #pragma once
 
 #include <QList>
-#include <QLoggingCategory>
 #include <QObject>
 #include <QPixmap>
-#include <QScopedPointer>
 
 namespace Syntalos
 {
@@ -41,7 +39,7 @@ class ModuleLibrary : public QObject
     Q_OBJECT
 public:
     explicit ModuleLibrary(GlobalConfig *gconf = nullptr, QObject *parent = nullptr);
-    ~ModuleLibrary();
+    ~ModuleLibrary() override;
 
     bool load();
     void refreshIcons();
@@ -54,7 +52,7 @@ public:
 private:
     Q_DISABLE_COPY(ModuleLibrary)
     class Private;
-    QScopedPointer<Private> d;
+    std::unique_ptr<Private> d;
 
     bool loadLibraryModInfo(const QString &modId, const QString &modDir, const QString &libFname);
     bool loadPythonModInfo(const QString &modId, const QString &modDir, const QVariantHash &modData);

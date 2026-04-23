@@ -45,10 +45,6 @@ extern "C" {
 #include "ffmpeg-utils.h"
 
 using namespace Syntalos;
-namespace Syntalos
-{
-Q_LOGGING_CATEGORY(logVRecorder, "mod.videorecorder")
-}
 
 VideoCodec stringToVideoCodec(const std::string &str)
 {
@@ -452,6 +448,7 @@ public:
         selectedEncoderName = QStringLiteral("No encoder selected yet");
     }
 
+    QuillLogger *log;
     std::string lastError;
 
     QString modName;
@@ -498,6 +495,7 @@ public:
 VideoWriter::VideoWriter()
     : d(new VideoWriter::Private())
 {
+    d->log = getLogger("videowriter");
     d->initialized = false;
 
     // initialize codec properties
@@ -508,6 +506,11 @@ VideoWriter::VideoWriter()
 VideoWriter::~VideoWriter()
 {
     finalize();
+}
+
+void VideoWriter::setLogger(QuillLogger *logger)
+{
+    d->log = logger;
 }
 
 /**
@@ -738,8 +741,7 @@ void VideoWriter::initializeInternal()
     const enum AVPixelFormat *fmts = nullptr;
     ret = avcodec_get_supported_config(d->cctx, nullptr, AV_CODEC_CONFIG_PIX_FORMAT, 0, (const void **)&fmts, nullptr);
     if (ret < 0 || fmts == nullptr) {
-        qCWarning(logVRecorder).noquote().nospace()
-            << "Failed to get supported pixel formats for codec " << vcodec->name << ": " << ret;
+        LOG_WARNING(d->log, "Failed to get supported pixel formats for codec {}: {}", vcodec->name, ret);
         d->encPixFormat = AV_PIX_FMT_YUV420P;
     } else {
         d->encPixFormat = fmts[0];
@@ -988,7 +990,7 @@ void VideoWriter::finalizeInternal(bool writeTrailer)
     if (d->initialized) {
         AVPacket *pkt = av_packet_alloc();
         if (pkt == nullptr)
-            qCCritical(logVRecorder).noquote() << "Unable to allocate packet for flushing.";
+            LOG_CRITICAL(d->log, "Unable to allocate packet for flushing.");
 
         if (d->vstrm != nullptr && pkt != nullptr) {
             avcodec_send_frame(d->cctx, nullptr);
@@ -998,8 +1000,7 @@ void VideoWriter::finalizeInternal(bool writeTrailer)
                 if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
                     break;
                 } else if (ret < 0) {
-                    qCCritical(logVRecorder).noquote()
-                        << "Unable to receive packet during flush:" << averrorToString(ret);
+                    LOG_CRITICAL(d->log, "Unable to receive packet during flush: {}", averrorToString(ret));
                     break;
                 }
 
@@ -1010,7 +1011,7 @@ void VideoWriter::finalizeInternal(bool writeTrailer)
                 // write packet
                 ret = av_write_frame(d->octx, pkt);
                 if (ret < 0) {
-                    qCCritical(logVRecorder).noquote() << "Unable to write frame during flush:" << averrorToString(ret);
+                    LOG_CRITICAL(d->log, "Unable to write frame during flush: {}", averrorToString(ret));
                     break;
                 }
 
@@ -1481,27 +1482,29 @@ QMap<QString, QString> findVideoRenderNodes()
     __attribute__((cleanup(sd_device_enumerator_unrefp))) sd_device_enumerator *e = NULL;
     int r;
 
+    auto log = getLogger("videowriter");
+
     QMap<QString, QString> renderNodes;
     r = sd_device_enumerator_new(&e);
     if (r < 0) {
-        qCWarning(logVRecorder, "Unable to enumerate render devices: %s", strerror(r));
+        LOG_WARNING(log, "Unable to enumerate render devices: {}", strerror(r));
         return renderNodes;
     }
 
     r = sd_device_enumerator_allow_uninitialized(e);
     if (r < 0) {
-        qCWarning(logVRecorder, "Failed to allow search for uninitialized devices: %s", strerror(r));
+        LOG_WARNING(log, "Failed to allow search for uninitialized devices: {}", strerror(r));
         return renderNodes;
     }
 
     r = sd_device_enumerator_add_match_subsystem(e, "drm", true);
     if (r < 0) {
-        qCWarning(logVRecorder, "Failed to add DRM subsystem match: %s", strerror(r));
+        LOG_WARNING(log, "Failed to add DRM subsystem match: {}", strerror(r));
         return renderNodes;
     }
     r = sd_device_enumerator_add_match_property(e, "DEVTYPE", "drm_minor");
     if (r < 0) {
-        qCWarning(logVRecorder, "Failed to add property match to find render nodes: %s", strerror(r));
+        LOG_WARNING(log, "Failed to add property match to find render nodes: {}", strerror(r));
         return renderNodes;
     }
 
@@ -1515,7 +1518,7 @@ QMap<QString, QString> findVideoRenderNodes()
 
         r = sd_device_get_devname(dev, &devnode);
         if (r < 0) {
-            qCWarning(logVRecorder, "Failed to read DRM device node: %s", strerror(r));
+            LOG_WARNING(log, "Failed to read DRM device node: {}", strerror(r));
             continue;
         }
 

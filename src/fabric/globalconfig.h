@@ -19,15 +19,14 @@
 
 #pragma once
 
-#include <QLoggingCategory>
+#include "logging.h"
+
 #include <QObject>
 
 class QSettings;
 
 namespace Syntalos
 {
-
-Q_DECLARE_LOGGING_CATEGORY(logGlobalConfig)
 
 enum class ColorMode {
     SYSTEM,
@@ -96,6 +95,7 @@ public:
 
 private:
     QSettings *m_s;
+    QuillLogger *m_log;
     QString m_userHome;
     QString m_appDataRoot;
 };

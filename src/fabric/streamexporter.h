@@ -19,7 +19,6 @@
 
 #pragma once
 
-#include <QLoggingCategory>
 #include <expected>
 
 #include "moduleapi.h"
@@ -27,8 +26,6 @@
 
 namespace Syntalos
 {
-
-Q_DECLARE_LOGGING_CATEGORY(logSExporter)
 
 struct ExportedStreamInfo {
     QString instanceId;
