@@ -2281,9 +2281,6 @@ bool Engine::runInternal(const QString &exportDirPath)
                     mod->name(),
                     iport->id(),
                     remainingElements);
-
-            // drop all remaining elements to save some memory when idle
-            iport->subscriptionVar()->clearPending();
         }
 
         // send the stop command
@@ -2312,7 +2309,12 @@ bool Engine::runInternal(const QString &exportDirPath)
     // are about to stop next.
     startWaitCondition->wakeAll();
 
-    // stop exporting streams to external modules
+    // Stop the stream exporter: it shares subscription objects (and their SPSC
+    // queues) with module input ports. The exporter thread acts as the sole
+    // consumer of those queues, so shutdownThread() must complete (joining the
+    // exporter thread) before clearPending() is called on any subscription
+    // below (otherwise two threads would both dequeue from the same queue,
+    // causing an assertion failure or worse).
     emitStatusMessage(QStringLiteral("Stopping IPC stream exporter..."));
     streamExporter->stop();
     streamExporter.reset();
@@ -2400,6 +2402,17 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     LOG_INFO(d->log, "All (non-event) engine threads joined in {} msec", timeDiffToNowMsec(lastPhaseTimepoint).count());
     lastPhaseTimepoint = d->timer->currentTimePoint();
+
+    // All threads have joined and nothing should be using the SPSC queues in parallel
+    // anymore. So, let's clear them out to save memory while IDLE, just in case many
+    // elements are still stuck in the queues.
+    for (auto &mod : modOrder.stop) {
+        for (const auto &iport : mod->inPorts()) {
+            if (!iport->hasSubscription())
+                continue;
+            iport->subscriptionVar()->clearPending();
+        }
+    }
 
     // All module data must be written by this point, so we "steal" its storage group,
     // so the module will trigger an error message if is still tries to access the final
