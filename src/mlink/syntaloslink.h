@@ -161,6 +161,18 @@ public:
     const TestSubjectInfo &testSubject() const;
 
     /**
+     * On startup, Syntalos can request start() on all external modules in parallel.
+     * This is the async-start method, and it results in start times of modules
+     * being much closer aligned.
+     * However, some modules have circular dependencies on metadata from other modules
+     * and may modify it in start().
+     * Those may want to disable async-start for themselves, so they run exclusively
+     * and the engine waits for their start() call to complete.
+     */
+    [[nodiscard]] bool allowAsyncStart() const;
+    void setAllowAsyncStart(bool allow);
+
+    /**
      * Wait for incoming messages for the given amount of microseconds, then return.
      *
      * When messages arrive, the respective callbacks are called.

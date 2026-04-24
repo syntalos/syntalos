@@ -636,6 +636,16 @@ public:
 
         m_slink->awaitDataForever(evtFn, 25 * 1000); // 25ms interval keeps GLib sources responsive
     }
+
+    bool allowAsyncStart()
+    {
+        return m_slink->allowAsyncStart();
+    }
+
+    void setAllowAsyncStart(bool allow)
+    {
+        m_slink->setAllowAsyncStart(allow);
+    }
 };
 
 static SyntalosLink *getActiveLink()
@@ -1345,6 +1355,19 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "\n"
             ":return: ``True`` while the run is in progress, ``False`` once a stop has been requested.\n"
             ":rtype: bool")
+        .def_property(
+            "allow_async_start",
+            &PySyLinkManager::allowAsyncStart,
+            &PySyLinkManager::setAllowAsyncStart,
+            "Whether start() is run in parallel with other modules for this module.\n"
+            "\n"
+            "On startup, Syntalos can send START to all external modules in parallel,"
+            "not waiting for them to finish individual START actions.\n"
+            "This is the async-start method, and it results in much better aligned start times of modules."
+            "However, some modules may need to modify stream metadata in START and must ensure it is received"
+            "before their streams are started.\n"
+            "Those modules may want to disable async-start for themselves, so they run exclusively and the engine"
+            "waits for them to complete START actions.")
 
         .def(
             "await_data",

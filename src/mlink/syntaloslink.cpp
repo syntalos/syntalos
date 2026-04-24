@@ -339,6 +339,7 @@ public:
     std::vector<std::shared_ptr<OutputPortInfo>> outPortInfo;
     SyncTimer *syTimer;
     TestSubjectInfo testSubject;
+    bool allowAsyncStart = true;
 
     LoadScriptFn loadScriptCb;
     SaveSettingsFn saveSettingsCb;
@@ -537,6 +538,9 @@ SyntalosLink::SyntalosLink(const std::string &instanceId)
     : d(new SyntalosLink::Private(instanceId))
 {
     d->syTimer = new SyncTimer;
+
+    // we us the fast, async start() by default
+    d->allowAsyncStart = true;
 
     // Immediately upon creation, we send a message that we are initializing.
     // A client using this interface has to set this to IDLE once it has set up the basics.
@@ -867,14 +871,21 @@ void SyntalosLink::processPendingControl()
                 oport->d->ioxPub->handleEvents();
         }
 
-        // Run the start callback BEFORE sending Done so that any port metadata
-        // updates (e.g. forwarding framerate to output ports) are acknowledged
-        // by the master while it is still in the callClientSimple(START) wait loop.
-        // This guarantees that startStream() on the master side sees the final metadata.
-        // Any errors are reported via the error channel.
-        if (d->startCb)
-            d->startCb();
-        Private::replyDone(*req, true);
+        if (d->allowAsyncStart) {
+            // reply immediately, so the master can continue starting other modules
+            Private::replyDone(*req, true);
+            if (d->startCb)
+                d->startCb();
+        } else {
+            // Run the start callback BEFORE sending Done so that any port metadata
+            // updates (e.g. forwarding framerate to output ports) are acknowledged
+            // by the master while it is still in the callClientSimple(START) wait loop.
+            // This guarantees that startStream() on the master side sees the final metadata.
+            // Any errors are reported via the error channel.
+            if (d->startCb)
+                d->startCb();
+            Private::replyDone(*req, true);
+        }
     }
 
     // ---- Stop ----
@@ -1129,6 +1140,16 @@ SyncTimer *SyntalosLink::timer() const
 const TestSubjectInfo &SyntalosLink::testSubject() const
 {
     return d->testSubject;
+}
+
+bool SyntalosLink::allowAsyncStart() const
+{
+    return d->allowAsyncStart;
+}
+
+void SyntalosLink::setAllowAsyncStart(bool allow)
+{
+    d->allowAsyncStart = allow;
 }
 
 void SyntalosLink::setShowSettingsCallback(ShowSettingsFn callback)

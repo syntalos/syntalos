@@ -1914,6 +1914,13 @@ bool Engine::runInternal(const QString &exportDirPath)
         else if (mod->state() != ModuleState::READY)
             mod->setState(ModuleState::DORMANT);
 
+        // If the module is READY, ensure any stream metadata that may have been set in prepare() is committed,
+        // so modules lower in the chain can consume it in their PREPARE step.
+        if (mod->state() == ModuleState::READY) {
+            for (auto const &port : mod->outPorts())
+                port->streamVar()->commitMetadata();
+        }
+
         LOG_INFO(d->log, "Module '{}' prepared in {} msec", mod->name(), timeDiffToNowMsec(lastPhaseTimepoint).count());
     }
 
