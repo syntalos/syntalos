@@ -156,7 +156,7 @@ public:
 
         // connect UI events
         setOutputCaptured(true);
-        connect(this, &MLinkModule::processOutputReceived, this, [this](const QString &data) {
+        connect(this, &MLinkModule::processOutputReceived, this, [this](OutChannelType, const QString &data) {
             m_logWidget->append(data);
         });
 

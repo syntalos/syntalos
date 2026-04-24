@@ -277,8 +277,8 @@ auto createPythonVirtualEnv(const QString &venvName, const QString &requirements
         QTextStream rqfOut(&tmpReqFile);
         while (!rqfIn.atEnd()) {
             QString line = rqfIn.readLine();
-            if (!line.startsWith("PyQt6"))
-                rqfOut << line << "\n";
+            // We can filter requirements here, but currently don't need to do so
+            rqfOut << line << "\n";
         }
         tmpReqFile.close();
 

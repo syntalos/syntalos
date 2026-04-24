@@ -40,8 +40,11 @@ public:
         setWorkerMode(ModuleWorkerMode::PERSISTENT);
 
         setOutputCaptured(false); // don't capture stdout until we are running
-        connect(this, &MLinkModule::processOutputReceived, this, [&](const QString &data) {
-            std::cout << id().toStdString() << "(" << name().toStdString() << "): " << data.toStdString() << std::endl;
+        connect(this, &MLinkModule::processOutputReceived, this, [this](OutChannelType channel, const QString &data) {
+            if (channel == OutChannelType::ChannelStdout)
+                LOG_RUNTIME_METADATA(m_log, quill::LogLevel::Info, "stdout", 0, "", "{}", data);
+            else
+                LOG_RUNTIME_METADATA(m_log, quill::LogLevel::Warning, "stderr", 0, "", "{}", data);
         });
     }
 

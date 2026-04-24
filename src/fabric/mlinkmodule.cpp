@@ -397,7 +397,11 @@ MLinkModule::MLinkModule(QObject *parent)
 
     connect(d->proc, &QProcess::readyReadStandardOutput, this, [this]() {
         if (d->outputCaptured)
-            Q_EMIT processOutputReceived(readProcessOutput());
+            Q_EMIT processOutputReceived(ChannelStdout, readProcessOutput(ChannelStdout));
+    });
+    connect(d->proc, &QProcess::readyReadStandardError, this, [this]() {
+        if (d->outputCaptured)
+            Q_EMIT processOutputReceived(ChannelStderr, readProcessOutput(ChannelStderr));
     });
     connect(
         d->proc,
@@ -997,11 +1001,17 @@ bool MLinkModule::sendPortInformation()
     return true;
 }
 
-QString MLinkModule::readProcessOutput()
+QString MLinkModule::readProcessOutput(OutChannelType channel)
 {
     if (!d->outputCaptured)
         return {};
-    return d->proc->readAllStandardOutput();
+    if (channel == ChannelAll)
+        return d->proc->readAll();
+    if (channel == ChannelStdout)
+        return d->proc->readAllStandardOutput();
+    if (channel == ChannelStderr)
+        return d->proc->readAllStandardError();
+    return {};
 }
 
 void MLinkModule::markIncomingForExport(StreamExporter *exporter)

@@ -47,6 +47,13 @@ class MLinkModule : public AbstractModule
 {
     Q_OBJECT
 public:
+    enum OutChannelType {
+        ChannelAll,
+        ChannelStdout,
+        ChannelStderr
+    };
+    Q_ENUM(OutChannelType)
+
     explicit MLinkModule(QObject *parent = nullptr);
     ~MLinkModule() override;
     bool initialize() override;
@@ -85,7 +92,7 @@ public:
     bool loadCurrentScript(bool resetPorts = false);
     bool sendPortInformation();
 
-    QString readProcessOutput();
+    QString readProcessOutput(OutChannelType channel = ChannelAll);
 
     void markIncomingForExport(StreamExporter *exporter);
     bool prepare(const TestSubject &subject) override;
@@ -94,7 +101,7 @@ public:
     void runThread(OptionalWaitCondition *startWaitCondition) override;
 
 signals:
-    void processOutputReceived(const QString &text);
+    void processOutputReceived(OutChannelType channel, const QString &text);
 
 protected:
     bool testIpcApiVersion(bool emitErrors = true);

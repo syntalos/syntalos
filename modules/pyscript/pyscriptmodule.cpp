@@ -122,7 +122,7 @@ public:
 
         // connect UI events
         setOutputCaptured(true);
-        connect(this, &MLinkModule::processOutputReceived, this, [&](const QString &data) {
+        connect(this, &MLinkModule::processOutputReceived, this, [this](OutChannelType, const QString &data) {
             m_pyconsoleWidget->sendText(data);
         });
 
@@ -362,10 +362,14 @@ private:
         m_runInGdbAction->setChecked(true);
         m_runInGdbAction->blockSignals(false);
 
-        // we also forward output to stdout when running under gdb
-        m_outFwdConn = connect(this, &MLinkModule::processOutputReceived, this, [&](const QString &data) {
-            std::cerr << data.toStdString();
-        });
+        // we also always forward output to the log when running under gdb
+        m_outFwdConn = connect(
+            this, &MLinkModule::processOutputReceived, this, [this](OutChannelType channel, const QString &data) {
+                if (channel == OutChannelType::ChannelStdout)
+                    LOG_RUNTIME_METADATA(m_log, quill::LogLevel::Info, "stdout-gdb", 0, "", "{}", data);
+                else
+                    LOG_RUNTIME_METADATA(m_log, quill::LogLevel::Warning, "stderr-gdb", 0, "", "{}", data);
+            });
     }
 
     /**
