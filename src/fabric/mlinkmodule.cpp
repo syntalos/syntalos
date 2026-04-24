@@ -786,7 +786,7 @@ bool MLinkModule::loadSettings(const QString &confBaseDir, const QVariantHash &s
 
 void MLinkModule::showDisplayUi()
 {
-    if (!d->callClientSimple<ShowDisplayRequest>(this, SHOW_DISPLAY_CALL_ID, [](auto &) {}))
+    if (!d->callClientSimple<ShowDisplayRequest>(this, SHOW_DISPLAY_CALL_ID, [](auto &) {}, 5, true, false))
         LOG_WARNING(m_log, "Show display request failed!");
 }
 
@@ -795,7 +795,7 @@ void MLinkModule::showSettingsUi()
     // pick up any recently saved settings before we hand them back to the worker UI
     handleIncomingControl();
 
-    if (!d->callClientSimple<ShowSettingsRequest>(this, SHOW_SETTINGS_CALL_ID, [](auto &) {}))
+    if (!d->callClientSimple<ShowSettingsRequest>(this, SHOW_SETTINGS_CALL_ID, [](auto &) {}, 5, true, false))
         LOG_WARNING(m_log, "Request to show settings UI has failed!");
 
     // drain immediate updates emitted while handling the request
