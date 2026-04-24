@@ -685,7 +685,7 @@ void MLinkModule::setOutputCaptured(bool capture)
 {
     d->outputCaptured = capture;
     if (d->outputCaptured)
-        d->proc->setProcessChannelMode(QProcess::MergedChannels);
+        d->proc->setProcessChannelMode(QProcess::SeparateChannels);
     else
         d->proc->setProcessChannelMode(QProcess::ForwardedChannels);
 }
