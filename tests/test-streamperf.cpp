@@ -178,6 +178,9 @@ public:
     {
         // we want to use mimalloc for this (threaded) test
         configureMimallocDefaultAllocator();
+
+        // we also need the logging system initialized
+        initializeSyLogSystem(quill::LogLevel::Debug);
     }
 
 private slots:
