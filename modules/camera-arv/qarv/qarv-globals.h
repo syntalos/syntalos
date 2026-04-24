@@ -5,6 +5,7 @@
 #include <QDebug>
 #include <QStandardItemModel>
 #include <cmath>
+#include "fabric/logging.h"
 
 namespace QArv
 {
@@ -35,11 +36,12 @@ public:
     ~QArvDebug();
     static MessageSender messageSender;
 
-    QArvDebug(const QString &modId) :
-          QDebug(&m_message), m_modId(modId) {}
+    QArvDebug() : QDebug(&m_message), m_modLog(nullptr) {}
+    QArvDebug(Syntalos::QuillLogger *logger) :
+          QDebug(&m_message), m_modLog(logger) {}
 
 private:
-    QString m_modId;
+    Syntalos::QuillLogger *m_modLog;
     QString m_message;
 };
 

@@ -30,21 +30,33 @@ void MessageSender::sendMessage(const QString &scope, const QString& message) {
 }
 
 QArvDebug::~QArvDebug() {
-    auto now = QTime::currentTime().toString("[hh:mm:ss] ");
-    foreach (auto line, m_message.split('\n')) {
-        if (line.startsWith('"')) {
-            auto lineref = QStringView{line}.mid(1, line.length() - 3);
-            qDebug("%s: %s%s",
-                   m_modId.toLocal8Bit().constData(),
-                   now.toLocal8Bit().constData(),
-                   lineref.toLocal8Bit().constData());
-            messageSender.sendMessage(m_modId, now + lineref.toString());
-        } else {
-            qDebug("%s: %s%s",
-                   m_modId.toLocal8Bit().constData(),
-                   now.toLocal8Bit().constData(),
-                   line.toLocal8Bit().constData());
-            messageSender.sendMessage(m_modId, now + line);
+    if (m_modLog == nullptr) {
+        auto now = QTime::currentTime().toString("[hh:mm:ss] ");
+        foreach (auto line, m_message.split('\n')) {
+            if (line.startsWith('"')) {
+                auto lineref = QStringView{line}.mid(1, line.length() - 3);
+                qDebug("%s%s",
+                       now.toLocal8Bit().constData(),
+                       lineref.toLocal8Bit().constData());
+                messageSender.sendMessage("main", now + lineref.toString());
+            } else {
+                qDebug("%s%s",
+                       now.toLocal8Bit().constData(),
+                       line.toLocal8Bit().constData());
+                messageSender.sendMessage("main", now + line);
+            }
+        }
+    } else {
+        const auto scope = QString::fromStdString(m_modLog->get_logger_name());
+        foreach (auto line, m_message.split('\n')) {
+            if (line.startsWith('"')) {
+                auto lineref = QStringView{line}.mid(1, line.length() - 3);
+                LOG_INFO(m_modLog, "{}", lineref.toLocal8Bit().constData());
+                messageSender.sendMessage(scope, lineref.toString());
+            } else {
+                LOG_INFO(m_modLog, "{}", line.toLocal8Bit().constData());
+                messageSender.sendMessage(scope, line);
+            }
         }
     }
 }

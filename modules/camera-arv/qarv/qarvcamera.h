@@ -124,7 +124,7 @@ public:
     static void init();
 
     //! A camera with the given ID is opened.
-    QArvCamera(QArvCameraId id, const QString &modId = QString(), QObject* parent = NULL);
+    QArvCamera(QArvCameraId id, Syntalos::QuillLogger *logger = nullptr, QObject* parent = nullptr);
     ~QArvCamera() override;
 
     static QList<QArvCameraId> listCameras(); //!< Returns a list of all cameras found.
@@ -237,7 +237,7 @@ public:
     QArv::QArvDebug logMessage() const;
 
 private:
-    QString m_modId;
+    Syntalos::QuillLogger *m_log = nullptr;
     QArvCameraExtension* ext;
     static QList<QArvCameraId> cameraList;
     ArvCamera* camera;

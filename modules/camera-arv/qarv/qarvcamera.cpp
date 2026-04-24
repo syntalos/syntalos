@@ -108,8 +108,8 @@ bool QArvCameraId::operator==(const QArvCameraId& other) const
 /*!
  * Acquisition mode is set to CONTINUOUS when the camera is opened.
  */
-QArvCamera::QArvCamera(QArvCameraId id, const QString &modId, QObject* parent) :
-    QAbstractItemModel(parent), m_modId(modId), acquiring(false) {
+QArvCamera::QArvCamera(QArvCameraId id, Syntalos::QuillLogger *logger, QObject* parent) :
+    QAbstractItemModel(parent), m_log(logger), acquiring(false) {
     g_autoptr(GError) error = nullptr;
 
     ext = new QArvCameraExtension;
@@ -968,5 +968,5 @@ void QArvCamera::enableRegisterCache(bool enable, bool debug) {
 
 QArv::QArvDebug QArvCamera::logMessage() const
 {
-    return {m_modId};;
+    return {m_log};;
 }

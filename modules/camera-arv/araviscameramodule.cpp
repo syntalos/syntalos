@@ -65,7 +65,7 @@ public:
 
     bool initialize() final
     {
-        m_configWindow = new ArvConfigWindow(QStringLiteral("%1-%2").arg(id()).arg(index()));
+        m_configWindow = new ArvConfigWindow(m_log);
         m_configWindow->setWindowIcon(m_modIcon);
         addSettingsWindow(m_configWindow);
 

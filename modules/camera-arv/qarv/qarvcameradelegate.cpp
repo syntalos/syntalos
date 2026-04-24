@@ -22,8 +22,8 @@
 #include "qarv-globals.h"
 #include <QLayout>
 
-QArvCameraDelegate::QArvCameraDelegate(const QString &modId, QObject* parent) :
-    QStyledItemDelegate(parent), m_modId(modId) {}
+QArvCameraDelegate::QArvCameraDelegate(Syntalos::QuillLogger *logger, QObject* parent) :
+    QStyledItemDelegate(parent), m_log(logger) {}
 
 QWidget* QArvCameraDelegate::createEditor(QWidget* parent,
                                           const QStyleOptionViewItem& option,

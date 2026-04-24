@@ -42,9 +42,9 @@ Q_DECLARE_METATYPE(cv::Mat)
 
 using namespace QArv;
 
-ArvConfigWindow::ArvConfigWindow(const QString &modId, QWidget *parent)
+ArvConfigWindow::ArvConfigWindow(Syntalos::QuillLogger *logger, QWidget *parent)
     : QMainWindow(parent),
-      m_modId(modId),
+      m_log(logger),
       m_realFps(0),
       camera(nullptr),
       decoder(nullptr),
@@ -55,7 +55,7 @@ ArvConfigWindow::ArvConfigWindow(const QString &modId, QWidget *parent)
     on_statusTimeoutSpinbox_valueChanged(statusTimeoutSpinbox->value());
     m_debugConnection = connect(
         &QArvDebug::messageSender, &MessageSender::newDebugMessage, [this](const QString &scope, const QString &msg) {
-            if (scope == m_modId || scope.isEmpty())
+            if (scope == m_log->get_logger_name() || scope.isEmpty())
                 messageList->appendPlainText(msg);
         });
 
@@ -102,6 +102,11 @@ ArvConfigWindow::~ArvConfigWindow()
     toggleVideoPreview(false);
     camera.reset();
     disconnect(m_debugConnection);
+}
+
+void ArvConfigWindow::setLogger(Syntalos::QuillLogger *logger)
+{
+    m_log = logger;
 }
 
 void ArvConfigWindow::on_refreshCamerasButton_clicked(bool clicked)
@@ -273,7 +278,7 @@ void ArvConfigWindow::on_cameraSelector_currentIndexChanged(int index)
         camera.reset();
     }
     try {
-        camera = std::make_shared<QArvCamera>(camid, m_modId);
+        camera = std::make_shared<QArvCamera>(camid, m_log);
     } catch (const std::exception &e) {
         logMessage() << "Failed to reference camera:" << e.what();
         cameraSelector->setCurrentIndex(-1);

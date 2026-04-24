@@ -36,7 +36,7 @@ class QArvCameraDelegate : public QStyledItemDelegate {
     Q_OBJECT
 
 public:
-    explicit QArvCameraDelegate(const QString &modId = QString(), QObject* parent = nullptr);
+    explicit QArvCameraDelegate(Syntalos::QuillLogger *logger = nullptr, QObject* parent = nullptr);
     QWidget* createEditor(QWidget* parent,
                           const QStyleOptionViewItem& option,
                           const QModelIndex& index) const override;
@@ -55,10 +55,10 @@ private slots:
 
 private:
     inline QArv::QArvDebug logMessage() const {
-        return {m_modId};
+        return {m_log};
     }
 
-    QString m_modId;
+    Syntalos::QuillLogger *m_log = nullptr;
 };
 
 #pragma GCC visibility pop

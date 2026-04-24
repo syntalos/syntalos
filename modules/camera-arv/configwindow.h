@@ -60,8 +60,10 @@ class ArvConfigWindow : public QMainWindow, private Ui::ArvConfigWindowUI
     Q_OBJECT
 
 public:
-    explicit ArvConfigWindow(const QString &modId, QWidget *parent = nullptr);
+    explicit ArvConfigWindow(Syntalos::QuillLogger *logger, QWidget *parent = nullptr);
     ~ArvConfigWindow();
+
+    void setLogger(Syntalos::QuillLogger *logger);
 
     void setCameraInUseExternal(bool camInUse);
     TransformParams *currentTransformParams();
@@ -123,10 +125,10 @@ private:
 
     inline QArvDebug logMessage() const
     {
-        return {m_modId};
+        return {m_log};
     }
 
-    QString m_modId;
+    Syntalos::QuillLogger *m_log = nullptr;
     QMetaObject::Connection m_debugConnection;
     int m_realFps;
     std::shared_ptr<QArvCamera> camera;
