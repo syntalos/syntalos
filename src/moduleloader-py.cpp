@@ -123,10 +123,14 @@ public:
         if (!existingPythonPath.isEmpty())
             pythonPath << existingPythonPath.split(':', Qt::SkipEmptyParts);
         pythonPath.removeDuplicates();
-        if (!pythonPath.isEmpty()) {
+        if (!pythonPath.isEmpty())
             penv.insert(QStringLiteral("PYTHONPATH"), pythonPath.join(':'));
-            setModuleBinaryEnv(penv);
-        }
+
+        // Python stdout is block-buffered when connected to QProcess pipes, which
+        // makes ordinary print() output appear only when the worker exits. Keep
+        // module output interactive so print() behaves like syl.println().
+        penv.insert(QStringLiteral("PYTHONUNBUFFERED"), QStringLiteral("1"));
+        setModuleBinaryEnv(penv);
 
         // Resolve interpreter: use the venv's python when a venv is requested.
         // setPythonVirtualEnv() tells runProcess() to set VIRTUAL_ENV and prepend
