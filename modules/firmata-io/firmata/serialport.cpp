@@ -17,7 +17,6 @@
 
 #include "serialport.h"
 
-#include <QDebug>
 #include <QMetaEnum>
 #include <QScopedPointer>
 #include <QSerialPort>
@@ -93,7 +92,7 @@ bool SerialFirmata::setDevice(const QString &device)
             });
 
             if (!d->port->open(QIODevice::ReadWrite)) {
-                qWarning() << "Error opening" << device << d->port->error();
+                LOG_WARNING(logger(), "Error opening {}: {}", device, d->port->errorString());
 
                 auto metaEnum = QMetaEnum::fromType<QSerialPort::SerialPortError>();
                 setStatusText("Error opening " + device + " " + metaEnum.valueToKey(d->port->error()));
@@ -128,7 +127,7 @@ void SerialFirmata::setBaudRate(int baudRate)
         d->baudRate = baudRate;
         if (d->port) {
             if (!d->port->setBaudRate(baudRate)) {
-                qWarning() << "Error setting baud rate" << baudRate << d->port->error();
+                LOG_WARNING(logger(), "Error setting baud rate {}: {}", baudRate, d->port->errorString());
             }
         }
 
@@ -139,12 +138,12 @@ void SerialFirmata::setBaudRate(int baudRate)
 void SerialFirmata::writeBuffer(const uint8_t *buffer, int len)
 {
     if (!d->port) {
-        qWarning() << "Device" << d->device << "not open!";
+        LOG_WARNING(logger(), "Device {} not open!", d->device);
         return;
     }
     qint64 written = d->port->write((const char *)buffer, len);
     if (written != len) {
-        qWarning() << d->device << "error while writing buffer" << d->port->error();
+        LOG_WARNING(logger(), "Error while writing buffer on {}: {}", d->device, d->port->errorString());
     }
 
     d->port->flush();

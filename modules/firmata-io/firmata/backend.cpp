@@ -18,7 +18,6 @@
 #include "backend.h"
 #include "fmutils.h"
 
-#include <QDebug>
 #include <QtEndian>
 
 #include <QCoreApplication>
@@ -53,6 +52,8 @@ struct FirmataBackend::Private {
     bool available;
     bool ready;
 
+    Syntalos::QuillLogger *log;
+
     // Parser
     ParserState parserState;
     uint8_t currentCommand;
@@ -67,6 +68,7 @@ struct FirmataBackend::Private {
           ready(false),
           parserState(ParserState::ExpectNothing)
     {
+        log = Syntalos::getLogger("firmata");
     }
 
     void parse(uint8_t val)
@@ -123,7 +125,7 @@ struct FirmataBackend::Private {
             parserState = ParserState::ExpectNothing;
             break;
         default:
-            qWarning("Unknown command 0x%x", cmd);
+            LOG_WARNING(log, "Unknown command 0x{:x}", cmd);
             parserState = ParserState::ExpectNothing;
         }
     }
@@ -142,11 +144,11 @@ struct FirmataBackend::Private {
             break;
         case CMD_PROTOCOL_VERSION:
             emit b->protocolVersion(params[0], params[1]);
-            qDebug("Firmata v%i.%i", params[0], params[1]);
+            LOG_INFO(log, "Firmata v{}.{}", params[0], params[1]);
             ready = true;
             break;
         default:
-            qWarning("Unknown command 0x%x", currentCommand);
+            LOG_WARNING(log, "Unknown command 0x{:x}", currentCommand);
         }
     }
 };
@@ -204,6 +206,16 @@ QString FirmataBackend::statusText() const
     return d->statusText;
 }
 
+void FirmataBackend::setLogger(Syntalos::QuillLogger *logger)
+{
+    d->log = logger;
+}
+
+Syntalos::QuillLogger *FirmataBackend::logger() const
+{
+    return d->log;
+}
+
 void FirmataBackend::setStatusText(const QString &text)
 {
     if (d->statusText != text) {
@@ -214,7 +226,7 @@ void FirmataBackend::setStatusText(const QString &text)
 
 void FirmataBackend::writeAnalogPin(uint8_t pin, uint16_t value)
 {
-    qDebug("Write analog pin %d <- %d", pin, value);
+    LOG_DEBUG(d->log, "Write analog pin {} <- {}", pin, value);
     if (pin < 0x10) {
         const uint8_t buffer[]{cmdPin(CMD_ANALOG_IO, pin), lsb14(value), msb14(value)};
         writeBuffer(buffer, sizeof(buffer));
@@ -230,61 +242,61 @@ void FirmataBackend::writeAnalogPin(uint8_t pin, uint16_t value)
         writeBuffer(buffer, sizeof(buffer));
 
     } else {
-        qFatal("Analog pin %d not supported. Max is 127", pin);
+        LOG_CRITICAL(d->log, "Analog pin {} not supported. Max is 127", pin);
     }
 }
 
 void FirmataBackend::writeDigitalPin(uint8_t pin, bool value)
 {
-    qDebug("Write digital pin %d <- %d", pin, value);
+    LOG_DEBUG(d->log, "Write digital pin {} <- {}", pin, value);
     if (pin < 0x80) {
         const uint8_t buffer[]{CMD_SET_DIGITAL_PIN, pin, value};
         writeBuffer(buffer, sizeof(buffer));
 
     } else {
-        qFatal("Pin %d not supported (max is 127)", pin);
+        LOG_CRITICAL(d->log, "Pin %d not supported (max is 127)", pin);
     }
 }
 
 void FirmataBackend::reportAnalogPin(uint8_t pin, bool enable)
 {
-    qDebug("Report analog pin %d = %s", pin, enable ? "on" : "off");
+    LOG_DEBUG(d->log, "Report analog pin {} = {}", pin, enable ? "on" : "off");
     if (pin < 0x10) {
         const uint8_t buffer[]{cmdPin(CMD_ANALOG_REPORT, pin), enable};
         writeBuffer(buffer, sizeof(buffer));
 
     } else {
-        qFatal("Reporting analog channel %d is not supported (max is 15)", pin);
+        LOG_CRITICAL(d->log, "Reporting analog channel %d is not supported (max is 15)", pin);
     }
 }
 
 void FirmataBackend::reportDigitalPort(uint8_t port, bool enable)
 {
-    qDebug("Report digital port %d = %s", port, enable ? "on" : "off");
+    LOG_DEBUG(d->log, "Report digital port {} = {}", port, enable ? "on" : "off");
     if (port < 0x10) {
         const uint8_t buffer[]{cmdPin(CMD_DIGITAL_REPORT, port), enable};
         writeBuffer(buffer, sizeof(buffer));
 
     } else {
-        qFatal("Digital port %d not supported (max is 15)", port);
+        LOG_CRITICAL(d->log, "Digital port {} not supported (max is 15)", port);
     }
 }
 
 void FirmataBackend::reportProtocolVersion()
 {
-    qDebug("Requested protocol version");
+    LOG_DEBUG(d->log, "Requested protocol version");
     writeBuffer(&CMD_PROTOCOL_VERSION, 1);
 }
 
 void FirmataBackend::setPinMode(uint8_t pin, IoMode mode)
 {
-    qDebug("Set pin mode %d = %d", pin, int(mode));
+    LOG_DEBUG(d->log, "Set pin mode {} = {}", pin, int(mode));
     if (pin < 0x80) {
         const uint8_t buffer[]{CMD_SET_PINMODE, pin, uint8_t(mode)};
         writeBuffer(buffer, sizeof(buffer));
 
     } else {
-        qFatal("Pins over 127 (%d) not supported", pin);
+        LOG_CRITICAL(d->log, "Pins over 127 ({}) not supported", pin);
     }
 }
 
@@ -298,7 +310,7 @@ void FirmataBackend::writeSysex(const uint8_t *data, int len)
         }
     }
 #endif
-    qDebug("Writing sysex 0x%x (payload len=%d)", data[0], len - 1);
+    LOG_DEBUG(d->log, "Writing sysex 0x{:x} (payload len={})", data[0], len - 1);
     writeBuffer(&CMD_SYSEX_START, 1);
     writeBuffer(data, len);
     writeBuffer(&CMD_SYSEX_END, 1);

@@ -18,6 +18,8 @@
 #ifndef QFIRMATA_BACKEND_H
 #define QFIRMATA_BACKEND_H
 
+#include "logging.h"
+
 #include <QObject>
 
 //! Pin input/output mode
@@ -71,6 +73,8 @@ public:
     bool waitForReady(time_t timeoutMsec);
 
     QString statusText() const;
+    void setLogger(Syntalos::QuillLogger *logger);
+    Syntalos::QuillLogger *logger() const;
 
     // Low level Firmata messages.
 

@@ -19,15 +19,15 @@
 
 #include "firmataiomodule.h"
 
-#include "firmata/serialport.h"
-#include "firmatasettingsdialog.h"
-#include <QDebug>
 #include <QThread>
 #include <QTimer>
 #include <QEventLoop>
 
 #include "streams/subscriptionnotifier.h"
 #include "utils/misc.h"
+
+#include "firmata/serialport.h"
+#include "firmatasettingsdialog.h"
 
 SYNTALOS_MODULE(FirmataIOModule)
 
@@ -118,6 +118,7 @@ public:
 
         // setup Firmata serial connection to the device
         auto firmata = std::make_unique<SerialFirmata>(nullptr);
+        firmata->setLogger(m_log);
 
         auto serialDevice = m_settingsDialog->serialPort();
         if (serialDevice.isEmpty()) {
