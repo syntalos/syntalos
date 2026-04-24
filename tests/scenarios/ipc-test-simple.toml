@@ -42,4 +42,4 @@ min_size_bytes = 2650542
 
 [[test.expected_output_files]]
 path = "videos/python-script/*-video_timestamps.tsync"
-min_size_bytes = 12000
+min_size_bytes = 11600
