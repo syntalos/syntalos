@@ -383,7 +383,8 @@ bool setCurrentThreadRealtime(int priority)
 
     const auto maxRTPrio = rtkit.queryMaxRealtimePriority();
     if (priority > maxRTPrio) {
-        SY_LOG_INFO(logRtKit,"Unable to set thread realtime priority to {}, clamped to max value {}", priority, maxRTPrio);
+        SY_LOG_INFO(
+            logRtKit, "Unable to set thread realtime priority to {}, clamped to max value {}", priority, maxRTPrio);
         priority = maxRTPrio;
     }
 
