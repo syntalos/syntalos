@@ -20,7 +20,6 @@
 #include "config.h"
 #include "mlinkmodule.h"
 
-#include <QDebug>
 #include <QProcess>
 #include <QTimer>
 #include <QElapsedTimer>
@@ -720,7 +719,7 @@ bool MLinkModule::sendSettings()
         return true;
 
     if (!isProcessRunning()) {
-        qDebug() << "Tried to send settings data to dead module process.";
+        LOG_WARNING(m_log, "Tried to send settings data to dead module process.");
         return false;
     }
 

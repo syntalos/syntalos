@@ -26,7 +26,6 @@
 #include <blake3.h>
 
 #include <QCoreApplication>
-#include <QDebug>
 #include <QDir>
 #include <QRandomGenerator>
 #include <QStandardPaths>

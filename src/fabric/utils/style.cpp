@@ -20,7 +20,6 @@
 #include "style.h"
 
 #include <QApplication>
-#include <QDebug>
 #include <QPalette>
 #include <QStyleFactory>
 
@@ -52,7 +51,7 @@ void setDefaultStyle(bool preferBreeze)
         }
     }
 
-    // if we are here, we just use whatever Qt things should be default - usually this means the "Fusion" style
+    // if we are here, we just use whatever Qt thinks should be default - usually this means the "Fusion" style
 }
 
 bool currentThemeIsDark()

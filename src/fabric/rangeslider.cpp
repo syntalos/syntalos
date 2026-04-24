@@ -15,7 +15,6 @@
  */
 
 #include <QApplication>
-#include <QDebug>
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QStyle>

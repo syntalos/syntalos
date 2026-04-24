@@ -30,6 +30,7 @@ public:
     Private() {}
     ~Private() {}
 
+    QuillLogger *log;
     bool valid;
     int epollFD;
     std::vector<std::shared_ptr<VariantStreamSubscription>> subs;
@@ -73,13 +74,13 @@ SubscriptionWatcher::WaitResult SubscriptionWatcher::wait()
                 if (events[i].events & EPOLLHUP) {
                     return DONE;
                 } else if (events[i].events & EPOLLERR) {
-                    qWarning("Eventfd has epoll error");
+                    LOG_WARNING(d->log, "Eventfd has epoll error");
                     //  return ERROR;
                 } else if (events[i].events & EPOLLIN) {
                     auto efd = events[i].data.fd;
                     ret = read(efd, &count, sizeof(count));
                     if (ret < 0)
-                        qDebug("Eventfd read failed: %s", std::strerror(errno));
+                        LOG_WARNING(d->log, "Eventfd read failed: {}", std::strerror(errno));
 
                     newData = true;
                 }
@@ -97,7 +98,7 @@ SubscriptionWatcher::WaitResult SubscriptionWatcher::wait()
             // continue blocking indefinitely
             continue;
         } else {
-            qCritical("Error during epoll wait: %s", std::strerror(errno));
+            LOG_CRITICAL(d->log, "Error during epoll wait: {}", std::strerror(errno));
             return ERROR;
         }
     }
@@ -107,26 +108,27 @@ SubscriptionWatcher::SubscriptionWatcher(
     std::initializer_list<std::shared_ptr<VariantStreamSubscription>> subscriptions)
     : d(new SubscriptionWatcher::Private)
 {
+    d->log = getLogger("subwatcher");
     d->valid = false;
     d->epollFD = -1;
 
     d->epollFD = epoll_create1(EPOLL_CLOEXEC);
     if (d->epollFD < 0) {
-        qCritical("Unable to create epoll: %s", std::strerror(errno));
+        LOG_CRITICAL(d->log, "Unable to create epoll: {}", std::strerror(errno));
         return;
     }
 
     // add eventfds to the list of watched file descriptors
     for (const auto &sub : subscriptions) {
         const auto efd = sub->enableNotify();
-        qDebug() << "Enabled notify for" << sub->dataTypeName() << "subscription";
+        LOG_DEBUG(d->log, "Enabled notify for {} subscription", sub->dataTypeName());
 
         struct epoll_event revent;
         revent.events = EPOLLHUP | EPOLLERR | EPOLLIN;
         revent.data.fd = efd;
 
         if (epoll_ctl(d->epollFD, EPOLL_CTL_ADD, efd, &revent) < 0) {
-            qCritical("Unable to add eventfd epoll watch: %s", std::strerror(errno));
+            LOG_CRITICAL(d->log, "Unable to add eventfd epoll watch: {}", std::strerror(errno));
             close(d->epollFD);
             d->epollFD = -1;
             return;

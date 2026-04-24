@@ -19,7 +19,6 @@
 
 #include "executils.h"
 
-#include <QDebug>
 #include <QFile>
 #include <QApplication>
 #include <QFileInfo>
@@ -32,6 +31,7 @@
 #include <sys/syscall.h>
 #include <sys/wait.h>
 
+#include "fabric/logging.h"
 #include "simpleterminal.h"
 #include "sysinfo.h"
 #include "utils/misc.h"
@@ -125,7 +125,7 @@ int runInTerminal(const QString &cmd, const QStringList &args, const QString &wd
 
     QFile shFile(shHelperFname);
     if (!shFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
-        qWarning().noquote() << "Unable to open temporary file" << shHelperFname << "for writing.";
+        LOG_WARNING(logRoot, "Unable to open temporary file {} for writing.", shHelperFname);
         return -255;
     }
 

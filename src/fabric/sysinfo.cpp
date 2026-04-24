@@ -21,7 +21,6 @@
 #include "config.h"
 
 #include <Eigen/Core>
-#include <QDebug>
 #include <QFile>
 #include <QOffscreenSurface>
 #include <QOpenGLContext>

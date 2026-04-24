@@ -19,7 +19,8 @@
 
 #pragma once
 
-#include <QDebug>
+#include "logging.h"
+
 #include <QVariant>
 #include <algorithm>
 #include <functional>
@@ -146,13 +147,15 @@ public:
           m_active(true),
           m_suspended(false),
           m_throttle(0),
-          m_skippedElements(0)
+          m_skippedElements(0),
+          m_log(getLogger("subscription"))
     {
         m_lastItemTime = currentTimePoint();
         m_eventfd = eventfd(0, EFD_NONBLOCK);
         if (m_eventfd < 0) {
-            qFatal("Unable to obtain eventfd for new stream subscription: %s", std::strerror(errno));
-            assert(0);
+            LOG_CRITICAL(m_log, "Unable to obtain eventfd for new stream subscription: {}", std::strerror(errno));
+            m_log->flush_log();
+            std::abort();
         }
     }
 
@@ -399,6 +402,8 @@ private:
     MetaStringMap m_metadata;
     symaster_timepoint m_lastItemTime;
 
+    QuillLogger *m_log;
+
     void setMetadata(const MetaStringMap &metadata)
     {
         m_metadata = metadata;
@@ -432,8 +437,12 @@ private:
         if (m_notify) {
             const uint64_t buffer = 1;
             if (write(m_eventfd, &buffer, sizeof(buffer)) == -1)
-                qWarning().noquote() << "Unable to write to eventfd in" << dataTypeName()
-                                     << "data subscription. FD:" << m_eventfd << "Error:" << std::strerror(errno);
+                LOG_ERROR(
+                    m_log,
+                    "Unable to write to eventfd in {} data subscription. FD: {} Error: {}",
+                    dataTypeName(),
+                    m_eventfd,
+                    std::strerror(errno));
         }
     }
 
@@ -481,7 +490,8 @@ public:
     static_assert(supports_explicit_clone<T>, "DataStream<T> requires T to implement T clone() const.");
 
     DataStream()
-        : m_active(false),
+        : m_log(getLogger("datastream")),
+          m_active(false),
           m_explicitDormant(false)
     {
         m_ownerId = std::this_thread::get_id();
@@ -580,8 +590,10 @@ public:
     bool commitMetadata() override
     {
         if (m_active) {
-            qWarning().noquote() << "Attempted to commit metadata to an active stream. This is not permitted and may "
-                                    "lead to undefined behavior.";
+            LOG_ERROR(
+                m_log,
+                "Attempted to commit metadata to an active stream. This is not permitted and may lead to undefined "
+                "behavior.");
             return false;
         }
         for (auto const &sub : m_subs) {
@@ -601,9 +613,11 @@ public:
         // do not allow this action - this is a bug in the caller,
         // and needs to be fixed.
         if (m_explicitDormant) {
-            qWarning().noquote() << "Attempted to start a stream that is set to dormant. This is not permitted. "
-                                    "Offending stream is set to inactive:"
-                                 << streamDebugId();
+            LOG_ERROR(
+                m_log,
+                "Attempted to start a stream that is set to dormant. This is not permitted. Offending stream is set to "
+                "inactive: {}",
+                streamDebugId());
             m_active = false;
 
             // if this stream is dormant, then we suspend all subscribers
@@ -727,6 +741,7 @@ private:
     struct NoScratch {
     };
 
+    QuillLogger *m_log;
     std::thread::id m_ownerId{};
     std::atomic_bool m_active;
     std::atomic_bool m_explicitDormant;

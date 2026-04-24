@@ -37,8 +37,12 @@ static quill::LogLevel g_defaultLogLevel = quill::LogLevel::Info;
 
 quill::Logger *getLogger(const std::string &name)
 {
+    auto logger = quill::Frontend::get_logger(name);
+    if (logger != nullptr)
+        return logger;
+
     quill::PatternFormatterOptions fmtOpt{"%(time) %(thread_name):%(logger): %(message)", "%H:%M:%S.%Qus"};
-    auto logger = quill::Frontend::create_or_get_logger(name, g_consoleSink, fmtOpt);
+    logger = quill::Frontend::create_or_get_logger(name, g_consoleSink, fmtOpt);
     logger->set_log_level(g_defaultLogLevel);
 
     return logger;

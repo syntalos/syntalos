@@ -19,7 +19,6 @@
 
 #include "tomlutils.h"
 
-#include <QDebug>
 #include <QTimeZone>
 #include <fstream>
 #include <iostream>

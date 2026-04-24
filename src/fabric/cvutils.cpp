@@ -19,7 +19,6 @@
 
 #include "cvutils.h"
 
-#include <QDebug>
 #include <QPixmap>
 #include <opencv2/opencv.hpp>
 

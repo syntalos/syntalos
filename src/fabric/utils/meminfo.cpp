@@ -42,13 +42,14 @@
 
 #include "meminfo.h"
 
-#include <QDebug>
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
+#include "fabric/logging.h"
 
 /* Parse the contents of /proc/meminfo (in buf), return value of "name"
  * (example: MemTotal)
@@ -75,7 +76,10 @@ static long long get_entry_fatal(const char *name, const char *buf)
 {
     const long long val = get_entry(name, buf);
     if (val < 0) {
-        qFatal("could not find entry '%s' in /proc/meminfo: %s", name, strerror((int)-val));
+        auto log = Syntalos::getLogger("meminfo");
+        LOG_CRITICAL(log, "could not find entry '{}' in /proc/meminfo: {}", name, strerror((int)-val));
+        log->flush_log();
+        std::abort();
     }
     return val;
 }
@@ -97,6 +101,8 @@ static long long available_guesstimate(const char *buf)
  */
 MemInfo readMemInfo()
 {
+    auto log = Syntalos::getLogger("meminfo");
+
     // Note that we do not need to close static FDs that we ensure to
     // `fopen()` maximally once.
     static FILE *fd;
@@ -109,16 +115,19 @@ MemInfo readMemInfo()
     if (fd == NULL)
         fd = fopen("/proc/meminfo", "r");
     if (fd == NULL) {
-        qFatal("could not open /proc/meminfo: %s", strerror(errno));
+        LOG_CRITICAL(log, "could not open /proc/meminfo: {}", strerror(errno));
+        return m;
     }
     rewind(fd);
 
     size_t len = fread(buf, 1, sizeof(buf) - 1, fd);
     if (ferror(fd)) {
-        qFatal("could not read /proc/meminfo: %s", strerror(errno));
+        LOG_CRITICAL(log, "could not read /proc/meminfo: {}", strerror(errno));
+        return m;
     }
     if (len == 0) {
-        qFatal("could not read /proc/meminfo: 0 bytes returned");
+        LOG_CRITICAL(log, "could not read /proc/meminfo: 0 bytes returned");
+        return m;
     }
 
     m.memTotalKiB = get_entry_fatal("MemTotal:", buf);
