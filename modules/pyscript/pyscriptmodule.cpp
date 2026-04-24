@@ -322,8 +322,12 @@ private:
         pythonPath.removeDuplicates();
         if (!pythonPath.isEmpty()) {
             penv.insert(QStringLiteral("PYTHONPATH"), pythonPath.join(':'));
-            setModuleBinaryEnv(penv);
         }
+
+        // switch to unbuffered mode so our parent receives Python output
+        // (e.g. from print() & Co.) faster.
+        penv.insert(QStringLiteral("PYTHONUNBUFFERED"), "1");
+        setModuleBinaryEnv(penv);
 
         const auto pyWorkerBinary = findPyWorkerBinary();
         if (!runInDebugger) {

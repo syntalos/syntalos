@@ -70,10 +70,6 @@ PyWorker::PyWorker(SyntalosLink *slink, QObject *parent)
         m_link->awaitData(125 * 1000);
     });
     m_evTimer->start();
-
-    // switch to unbuffered mode so our parent receives Python output
-    // (e.g. from print() & Co.) faster.
-    setenv("PYTHONUNBUFFERED", "1", 1);
 }
 
 void PyWorker::resetPyCallbacks()
