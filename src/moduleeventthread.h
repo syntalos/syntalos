@@ -47,7 +47,7 @@ class ModuleEventThread : public QObject
     Q_OBJECT
 public:
     explicit ModuleEventThread(const QString &threadName = QString(), QObject *parent = nullptr);
-    ~ModuleEventThread();
+    ~ModuleEventThread() override;
 
     bool isRunning() const;
     bool isFailed() const;
@@ -58,13 +58,15 @@ public:
     void run(QList<AbstractModule *> mods, OptionalWaitCondition *waitCondition);
     void stop();
 
+    QuillLogger *logger() const;
+
 signals:
     void failed();
 
 private:
     class Private;
     Q_DISABLE_COPY(ModuleEventThread)
-    QScopedPointer<Private> d;
+    std::unique_ptr<Private> d;
 
     void shutdownThread();
     void moduleEventThreadFunc(QList<AbstractModule *> mods, OptionalWaitCondition *waitCondition);

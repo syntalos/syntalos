@@ -14,7 +14,6 @@ sy_crashreport_src = [
     'debugcollect.cpp',
     'utils.cpp',
     '../../src/appstyle.cpp',
-    '../../src/fabric/utils/style.cpp',
 ]
 sy_crashreport_moc_src = [
 ]
@@ -28,9 +27,11 @@ sy_crashreport_res = ['resources.qrc']
 sy_crashreport_moc = qt.compile_moc(
     headers: sy_crashreport_moc_hdr,
     sources: sy_crashreport_moc_src,
-    dependencies: [qt_core_dep,
-                   qt_gui_dep,
-                   qt_concurrent_dep],
+    dependencies: [
+        qt_core_dep,
+        qt_gui_dep,
+        qt_concurrent_dep,
+    ],
 )
 sy_crashreport_moc += qt.compile_ui(sources: sy_crashreport_ui)
 sy_crashreport_moc += qt.compile_resources(sources: sy_crashreport_res)
@@ -39,12 +40,15 @@ executable('syntalos-crashreport',
     [sy_crashreport_hdr, sy_crashreport_moc_hdr,
      sy_crashreport_src, sy_crashreport_moc_src,
      sy_crashreport_moc],
-    dependencies: [qt_core_dep,
-                   qt_gui_dep,
-                   qt_concurrent_dep,
-                   libsystemd_dep,
-                   kfarchive_dep,
-                   kfconfigwidgets_dep],
+    dependencies: [
+        qt_core_dep,
+        qt_gui_dep,
+        qt_concurrent_dep,
+        libsystemd_dep,
+        kfarchive_dep,
+        kfconfigwidgets_dep,
+        syntalos_fabric_dep,
+    ],
     include_directories: [root_include_dir,
                           include_directories('../../src')],
     install_dir: get_option('libexecdir'),

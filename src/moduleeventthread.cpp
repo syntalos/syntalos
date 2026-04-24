@@ -59,6 +59,7 @@ public:
     QString threadName;
     bool running;
     bool failed;
+    QuillLogger *log;
 
     bool threadActive;
     std::thread thread;
@@ -74,10 +75,14 @@ ModuleEventThread::ModuleEventThread(const QString &threadName, QObject *parent)
     d->running = false;
     d->failed = false;
     d->threadActive = false;
-    if (threadName.isEmpty())
-        d->threadName = QStringLiteral("ev:%1").arg(createRandomString(9));
-    else
+    if (threadName.isEmpty()) {
+        const auto rndId = createRandomString(9);
+        d->threadName = QStringLiteral("ev:%1").arg(rndId);
+        d->log = getLogger(QStringLiteral("ev.%1").arg(rndId));
+    } else {
         d->threadName = QStringLiteral("ev:%1").arg(threadName);
+        d->log = getLogger(QStringLiteral("ev.%1").arg(threadName));
+    }
 }
 
 ModuleEventThread::~ModuleEventThread()
@@ -114,7 +119,7 @@ static gboolean timerEventDispatch(gpointer udata)
     if (pl->module->state() == ModuleState::ERROR) {
         // ewww, this module failed. suspend execution
         pl->self->setFailed(true);
-        qDebug().noquote().nospace() << "Module '" << pl->module->name() << "' failed in event loop. Stopping.";
+        LOG_INFO(pl->self->logger(), "Module '{}' failed in event loop. Stopping.", pl->module->name());
         return FALSE;
     }
 
@@ -147,7 +152,7 @@ static gboolean recvDataEventDispatch(gpointer udata)
     if (pl->module->state() == ModuleState::ERROR) {
         // ewww, this module failed. suspend execution
         pl->self->setFailed(true);
-        qDebug().noquote().nospace() << "Module '" << pl->module->name() << "' failed in event loop. Stopping.";
+        LOG_INFO(pl->self->logger(), "Module '{}' failed in event loop. Stopping.", pl->module->name());
         return FALSE;
     }
 
@@ -181,7 +186,7 @@ static gboolean efd_signal_source_dispatch(GSource *source, GSourceFunc callback
         // just read the buffer count for now to empty it
         // (maybe we can do something useful with the element count later?)
         if (G_UNLIKELY(read(efd_source->event_fd, &buffer, sizeof(buffer)) == -1 && errno != EAGAIN))
-            qWarning().noquote() << "Failed to read from eventfd:" << g_strerror(errno);
+            LOG_ERROR(getDefaultLogger(), "Failed to read from eventfd: {}", g_strerror(errno));
 
         result_continue = callback(user_data);
     }
@@ -237,8 +242,8 @@ void ModuleEventThread::moduleEventThreadFunc(QList<AbstractModule *> mods, Opti
         for (const auto &ev : mod->recvDataEventCallbacks()) {
             auto sub = ev.second;
             if (sub == nullptr) {
-                qCritical().noquote().nospace()
-                    << "Bad event destination in module '" << mod->name() << "'. Was the event subscription valid?";
+                LOG_CRITICAL(
+                    d->log, "Bad event destination in module '{}'. Was the event subscription valid?", mod->name());
                 continue;
             }
             int eventfd = sub->enableNotify();
@@ -269,7 +274,7 @@ void ModuleEventThread::moduleEventThreadFunc(QList<AbstractModule *> mods, Opti
     symaster_timepoint tpWaitStart;
 
     if (mods.isEmpty()) {
-        qDebug().noquote() << "All evented modules are idle, shutting down their thread.";
+        LOG_INFO(d->log, "All evented modules are idle, shutting down their thread.");
         d->activeLoop = nullptr;
         goto out;
     }
@@ -332,4 +337,9 @@ void ModuleEventThread::shutdownThread()
         g_main_loop_quit(d->activeLoop);
     d->thread.join();
     d->threadActive = false;
+}
+
+QuillLogger *ModuleEventThread::logger() const
+{
+    return d->log;
 }

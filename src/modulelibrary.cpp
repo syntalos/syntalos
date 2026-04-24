@@ -22,7 +22,6 @@
 #include "modconfig.h"
 
 #include <QCoreApplication>
-#include <QDebug>
 #include <QDirIterator>
 #include <QLibrary>
 #include <QMessageBox>

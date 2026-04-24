@@ -24,6 +24,7 @@
 #include <QCommandLineParser>
 
 #include "appstyle.h"
+#include "fabric/logging.h"
 
 int main(int argc, char *argv[])
 {
@@ -42,6 +43,8 @@ int main(int argc, char *argv[])
     parser.addOption(freezeDebugOption);
 
     parser.process(app);
+
+    Syntalos::initializeSyLogSystem();
 
     // set our operating mode
     auto mode = ReportMode::COLLECT_CRASH_INFO;

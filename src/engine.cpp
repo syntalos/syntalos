@@ -43,7 +43,6 @@
 #include <QDBusReply>
 #include <QDBusUnixFileDescriptor>
 #include <QDateTime>
-#include <QDebug>
 #include <QMessageBox>
 #include <QStandardPaths>
 #include <QStorageInfo>
@@ -1205,8 +1204,11 @@ bool Engine::run()
             if (reply == QMessageBox::No)
                 return false;
         } else {
-            qWarning().noquote().nospace() << "Overriding existing export directory \"" << d->exportDir
-                                           << "\" without asking, because 'always override' setting is enabled.";
+            LOG_WARNING(
+                d->log,
+                "Overriding existing export directory \"{}\" without asking, because 'always override' setting is "
+                "enabled.",
+                d->exportDir);
         }
 
         emitStatusMessage(QStringLiteral("Removing data from an old run..."));

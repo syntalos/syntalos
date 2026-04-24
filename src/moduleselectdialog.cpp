@@ -21,7 +21,6 @@
 #include "ui_moduleselectdialog.h"
 
 #include <QAbstractTextDocumentLayout>
-#include <QDebug>
 #include <QPainter>
 #include <QStandardItem>
 #include <QStandardItemModel>

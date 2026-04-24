@@ -169,6 +169,8 @@ void GlobalConfigDialog::on_btnCreateDevDir_clicked()
     QDir homeDevDir(m_gc->homeDevelDir());
     QDir().mkdir(homeDevDir.absolutePath());
 
+    auto logger = getDefaultLogger();
+
     // create link to venvs directory
     auto venvLinkPath = homeDevDir.filePath("venv");
     QFileInfo fiVenvLink(venvLinkPath);
@@ -176,7 +178,7 @@ void GlobalConfigDialog::on_btnCreateDevDir_clicked()
         QFile::remove(venvLinkPath);
         QDir().mkpath(m_gc->virtualEnvDir());
         if (!QFile::link(m_gc->virtualEnvDir(), venvLinkPath))
-            qDebug().noquote() << "Failed to create symlink from" << m_gc->virtualEnvDir() << "to" << venvLinkPath;
+            LOG_WARNING(logger, "Failed to create symlink from {} to {}", m_gc->virtualEnvDir(), venvLinkPath);
     }
 
     // create link to user modules directory
@@ -186,7 +188,7 @@ void GlobalConfigDialog::on_btnCreateDevDir_clicked()
         QFile::remove(modsLinkPath);
         QDir().mkpath(m_gc->userModulesDir());
         if (!QFile::link(m_gc->userModulesDir(), modsLinkPath))
-            qDebug().noquote() << "Failed to create symlink from" << m_gc->userModulesDir() << "to" << modsLinkPath;
+            LOG_WARNING(logger, "Failed to create symlink from {} to {}", m_gc->userModulesDir(), modsLinkPath);
     }
 
     updateCreateDevDirButtonState();

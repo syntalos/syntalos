@@ -36,7 +36,6 @@
 #include <QGraphicsProxyWidget>
 #include <QLineEdit>
 
-#include <QDebug>
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QWheelEvent>

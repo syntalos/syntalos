@@ -19,8 +19,9 @@
 
 #include "appstyle.h"
 
+#include "fabric/logging.h"
+
 #include <QApplication>
-#include <QDebug>
 #include <QFile>
 #include <QFileInfo>
 #include <QIcon>
@@ -28,6 +29,8 @@
 
 #include <KColorScheme>
 #include <KSharedConfig>
+
+using namespace Syntalos;
 
 bool switchIconTheme(const QString &themeName)
 {
@@ -53,7 +56,7 @@ bool switchIconTheme(const QString &themeName)
     if (!found)
         return false;
     QIcon::setThemeName(realThemeName);
-    qDebug().noquote() << "Switched icon theme to" << realThemeName;
+    LOG_INFO(getDefaultLogger(), "Switched icon theme to {}", realThemeName);
 
     return true;
 }
@@ -63,7 +66,7 @@ bool darkColorSchemeAvailable()
     const auto fname = QStringLiteral("/usr/share/color-schemes/BreezeDark.colors");
     QFile file(fname);
     if (!file.exists()) {
-        qDebug().noquote() << "Could not find dark color scheme file";
+        LOG_WARNING(getDefaultLogger(), "Could not find dark color scheme file");
         return false;
     }
     return true;
@@ -73,7 +76,7 @@ static void changeColorScheme(const QString &filename, bool darkColors = false)
 {
     QFile file(filename);
     if (!file.exists()) {
-        qWarning().noquote() << "Could not find color scheme file" << filename << "Colors will not be changed.";
+        LOG_WARNING(getDefaultLogger(), "Could not find color scheme file '{}'. Colors will not be changed.", filename);
         return;
     }
 

@@ -20,7 +20,6 @@
 #include "modulegraphform.h"
 #include "ui_modulegraphform.h"
 
-#include <QDebug>
 #include <QMenu>
 #include <QMessageBox>
 #include <QObject>

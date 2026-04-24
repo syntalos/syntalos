@@ -48,7 +48,7 @@ quill::Logger *logModTmp(const char *name);
 
 inline quill::Logger *getDefaultLogger()
 {
-    return getLogger("root");
+    return getLogger("main");
 }
 
 /**
