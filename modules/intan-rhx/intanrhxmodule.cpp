@@ -71,11 +71,11 @@ bool IntanRhxModuleInfo::singleton() const
 
 AbstractModule *IntanRhxModuleInfo::createModule(QObject *parent)
 {
-    return new IntanRhxModule(id(), this, parent);
+    return new IntanRhxModule(this, parent);
 }
 
-IntanRhxModule::IntanRhxModule(const QString &id, IntanRhxModuleInfo *modInfo, QObject *parent)
-    : AbstractModule(id, parent),
+IntanRhxModule::IntanRhxModule(IntanRhxModuleInfo *modInfo, QObject *parent)
+    : AbstractModule(modInfo, parent),
       m_chanExportDlg(nullptr),
       m_sysState(nullptr)
 {

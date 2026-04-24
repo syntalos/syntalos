@@ -70,8 +70,7 @@ class IntanRhxModule : public AbstractModule
 {
     Q_OBJECT
 public:
-    explicit IntanRhxModule(const QString &id,
-                            IntanRhxModuleInfo *modInfo,
+    explicit IntanRhxModule(IntanRhxModuleInfo *modInfo,
                             QObject *parent = nullptr);
     ~IntanRhxModule();
 

@@ -460,7 +460,7 @@ class Q_DECL_EXPORT AbstractModule : public QObject
     friend class MLinkModule;
 
 public:
-    explicit AbstractModule(const QString &id = {}, QObject *parent = nullptr);
+    explicit AbstractModule(const ModuleInfo *info = nullptr, QObject *parent = nullptr);
     explicit AbstractModule(QObject *parent = nullptr);
     ~AbstractModule() override;
 
