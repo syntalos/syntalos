@@ -30,6 +30,7 @@
 #include "mlink/ipc-iox-private.h"
 #include "datactl/priv/rtkit.h"
 #include "datactl/priv/cpuaffinity.h"
+#include "datactl/loginternal.h"
 
 using namespace Syntalos;
 using namespace Syntalos::ipc;
@@ -73,17 +74,24 @@ static auto safeReceive(Sub &sub) -> std::remove_cvref_t<decltype(sub.receive().
     return std::move(result).value();
 }
 
+static std::string getenvSafe(const char *name)
+{
+    if (const char *value = std::getenv(name))
+        return value;
+    return {};
+}
+
 std::unique_ptr<SyntalosLink> initSyntalosModuleLink()
 {
-    auto syModuleId = qgetenv("SYNTALOS_MODULE_ID");
-    if (syModuleId.isEmpty() || syModuleId.length() < 2)
+    std::string syModuleId = getenvSafe("SYNTALOS_MODULE_ID");
+    if (syModuleId.empty() || syModuleId.length() < 2)
         throw std::runtime_error("This module was not run by Syntalos, can not continue!");
 
     // set up stream data type mapping, if it hasn't been initialized yet
     registerStreamMetaTypes();
 
     // set IOX log level
-    auto verboseLevel = qgetenv("SY_VERBOSE");
+    auto verboseLevel = getenvSafe("SY_VERBOSE");
     if (verboseLevel == "1")
         iox2::set_log_level(iox2::LogLevel::Debug);
     else
@@ -92,7 +100,7 @@ std::unique_ptr<SyntalosLink> initSyntalosModuleLink()
     // ensure we (try to) die if Syntalos, our parent, dies
     prctl(PR_SET_PDEATHSIG, SIGTERM);
 
-    return std::unique_ptr<SyntalosLink>(new SyntalosLink(syModuleId.toStdString()));
+    return std::unique_ptr<SyntalosLink>(new SyntalosLink(syModuleId));
 }
 
 /**
@@ -571,6 +579,14 @@ void SyntalosLink::raiseError(const std::string &message)
     setState(ModuleState::ERROR);
 }
 
+SY_DEFINE_LOG_CATEGORY(logIpc, "ipc");
+
+static void ipcLogMessageDispatch(datactl::LogSeverity severity, const std::string &msg)
+{
+    if (::Syntalos::datactl::shouldLog(logIpc, severity))
+        ::Syntalos::datactl::dispatchLog(logIpc, severity, __FILE__, __LINE__, __func__, msg);
+}
+
 void SyntalosLink::processPendingControl()
 {
     // Drain the master control listener to keep its socket buffer clear.
@@ -704,7 +720,8 @@ void SyntalosLink::processPendingControl()
             // Detach old publisher from WaitSet before replacement.
             oport->d->ioxGuard.reset();
             oport->d->ioxPub.reset(); // drop the old connection first, before trying to create a new one
-            oport->d->ioxPub.emplace(SyPublisher::create(*d->node, d->modId, oport->d->ipcChannelId(), opc.topology));
+            oport->d->ioxPub.emplace(
+                SyPublisher::create(*d->node, d->modId, oport->d->ipcChannelId(), opc.topology, ipcLogMessageDispatch));
             if (!update)
                 d->outPortInfo.push_back(oport);
 
@@ -1134,23 +1151,19 @@ std::vector<std::shared_ptr<OutputPortInfo>> SyntalosLink::outputPorts() const
     return d->outPortInfo;
 }
 
-std::shared_ptr<InputPortInfo> SyntalosLink::registerInputPort(
-    const std::string &id,
-    const std::string &title,
-    BaseDataType::TypeId typeId)
+auto SyntalosLink::registerInputPort(const std::string &id, const std::string &title, BaseDataType::TypeId typeId)
+    -> std::expected<std::shared_ptr<InputPortInfo>, std::string>
 {
     // passing an invalid data type is a hard error
     if (!BaseDataType::typeIdIsValid(typeId)) {
-        throw std::runtime_error(
+        return std::unexpected(
             std::format("Can not register input port. Data type with ID '{}' is unknown.", static_cast<int>(typeId)));
-        return nullptr;
     }
 
     // check for duplicates
     for (const auto &ip : d->inPortInfo) {
         if (ip->id() == id) {
-            throw std::runtime_error(
-                std::format("Can not register input port. A port with ID '{}' already exists.", id));
+            return std::unexpected(std::format("Can not register input port. A port with ID '{}' already exists.", id));
         }
     }
 
@@ -1173,23 +1186,22 @@ std::shared_ptr<InputPortInfo> SyntalosLink::registerInputPort(
     return iport;
 }
 
-std::shared_ptr<OutputPortInfo> SyntalosLink::registerOutputPort(
+auto SyntalosLink::registerOutputPort(
     const std::string &id,
     const std::string &title,
     BaseDataType::TypeId typeId,
-    const MetaStringMap &metadata)
+    const MetaStringMap &metadata) -> std::expected<std::shared_ptr<OutputPortInfo>, std::string>
 {
     // passing an invalid data type is a hard error
     if (!BaseDataType::typeIdIsValid(typeId)) {
-        throw std::runtime_error(
+        return std::unexpected(
             std::format("Can not register output port. Data type with ID '{}' is unknown.", static_cast<int>(typeId)));
-        return nullptr;
     }
 
     // check for duplicates
     for (const auto &op : d->outPortInfo) {
         if (op->id() == id) {
-            throw std::runtime_error(
+            return std::unexpected(
                 std::format("Can not register output port. A port with ID '{}' already exists.", id));
         }
     }
@@ -1211,7 +1223,8 @@ std::shared_ptr<OutputPortInfo> SyntalosLink::registerOutputPort(
     // construct proxy
     auto oport = std::shared_ptr<OutputPortInfo>(new OutputPortInfo(opc));
     oport->d->ioxPub.reset();
-    oport->d->ioxPub.emplace(SyPublisher::create(*d->node, d->modId, oport->d->ipcChannelId(), opc.topology));
+    oport->d->ioxPub.emplace(
+        SyPublisher::create(*d->node, d->modId, oport->d->ipcChannelId(), opc.topology, ipcLogMessageDispatch));
     d->outPortInfo.push_back(oport);
 
     return oport;

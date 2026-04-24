@@ -111,7 +111,12 @@ void StreamExporter::setFailed(bool failed)
     d->failed = failed;
 }
 
-auto StreamExporter::publishStreamByPort(std::shared_ptr<VarStreamInputPort> iport)
+static void ipcLogDispatch(datactl::LogSeverity severity, const std::string &msg)
+{
+    LOG_DYNAMIC(g_logSExport, static_cast<quill::LogLevel>(severity), "{}", msg);
+}
+
+auto StreamExporter::publishStreamByPort(const std::shared_ptr<VarStreamInputPort> &iport)
     -> std::expected<std::optional<ExportedStreamInfo>, QString>
 {
     // we don't export unsubscribed ports
@@ -159,7 +164,8 @@ auto StreamExporter::publishStreamByPort(std::shared_ptr<VarStreamInputPort> ipo
     const auto topology = makeIpcServiceTopology(1, iport->outPort()->streamVar()->subscriberCount());
 
     try {
-        edata.publisher.emplace(SyPublisher::create(*d->node, modId.toStdString(), channelId.toStdString(), topology));
+        edata.publisher.emplace(
+            SyPublisher::create(*d->node, modId.toStdString(), channelId.toStdString(), topology, ipcLogDispatch));
     } catch (const std::exception &ex) {
         return std::unexpected("Failed to set up IPC export for " + modId + "/" + channelId + ": " + ex.what());
     }

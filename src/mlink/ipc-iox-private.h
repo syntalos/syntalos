@@ -19,12 +19,12 @@
 
 #pragma once
 
-#include <QDebug>
 #include <string>
 #include <expected>
 #include <iox2/iceoryx2.hpp>
 
 #include "mlink/ipc-types-private.h"
+#include "datactl/logging.h"
 
 namespace Syntalos::ipc
 {
@@ -58,6 +58,8 @@ using IoxServiceNameString = iox2::bb::StaticString<IOX2_SERVICE_NAME_LENGTH>;
 
 using IoxWaitSet = iox2::WaitSet<iox2::ServiceType::Ipc>;
 using IoxWaitSetGuard = iox2::WaitSetGuard<iox2::ServiceType::Ipc>;
+
+using IpcLogFn = std::function<void(datactl::LogSeverity, const std::string &)>;
 
 /**
  * Test if a type is a iox2::bb::Slice specialization.
@@ -136,7 +138,8 @@ public:
           m_notifier{std::move(other.m_notifier)},
           m_listener{std::move(other.m_listener)},
           m_serviceName{std::move(other.m_serviceName)},
-          m_valid{other.m_valid}
+          m_valid{other.m_valid},
+          m_logFn(std::move(other.m_logFn))
     {
         other.m_valid = false;
     }
@@ -148,6 +151,7 @@ public:
             m_notifier = std::move(other.m_notifier);
             m_listener = std::move(other.m_listener);
             m_serviceName = std::move(other.m_serviceName);
+            m_logFn = std::move(other.m_logFn);
             m_valid = other.m_valid;
             other.m_valid = false;
         }
@@ -175,7 +179,8 @@ public:
         iox2::Node<iox2::ServiceType::Ipc> &node,
         const std::string &instanceId,
         const std::string &channelName,
-        const IpcServiceTopology &topology = IpcServiceTopology())
+        const IpcServiceTopology &topology,
+        IpcLogFn logFn)
     {
         // Main service name to emit samples & sample notifications
         const auto svcNameStr = makeModuleServiceName(instanceId, channelName);
@@ -253,7 +258,8 @@ public:
             std::move(svcName),
             std::move(maybePub).value(),
             std::move(maybeNotifier).value(),
-            std::move(maybeListener).value()};
+            std::move(maybeListener).value(),
+            std::move(logFn)};
 
         // Announce presence to any existing subscribers
         pub.m_notifier
@@ -292,9 +298,11 @@ public:
                 break;
             }
             default: {
-                qWarning().noquote().nospace()
-                    << "ipc: Received unexpected event ID on " << m_serviceName.to_string().unchecked_access().c_str()
-                    << ": " << static_cast<size_t>(eventId);
+                logMessage(
+                    datactl::LogSeverity::Warning,
+                    "ipc: Received unexpected event ID on {}: {}",
+                    m_serviceName.to_string().unchecked_access().c_str(),
+                    static_cast<size_t>(eventId));
                 break;
             }
             }
@@ -343,13 +351,27 @@ public:
     }
 
 private:
-    SyPublisher(iox2::ServiceName &&svcName, IoxSlicePublisher &&pub, IoxNotifier &&notifier, IoxListener &&listener)
+    SyPublisher(
+        iox2::ServiceName &&svcName,
+        IoxSlicePublisher &&pub,
+        IoxNotifier &&notifier,
+        IoxListener &&listener,
+        IpcLogFn &&logFn = {})
         : m_publisher{std::move(pub)},
           m_notifier{std::move(notifier)},
           m_listener{std::move(listener)},
           m_serviceName{std::move(svcName)},
-          m_valid{true}
+          m_valid{true},
+          m_logFn(std::move(logFn))
     {
+    }
+
+    template<typename... Args>
+    inline void logMessage(datactl::LogSeverity severity, std::format_string<Args...> fmt, Args &&...args)
+    {
+        if (!m_logFn)
+            return;
+        m_logFn(severity, std::format(fmt, std::forward<Args>(args)...));
     }
 
     IoxSlicePublisher m_publisher;
@@ -357,6 +379,7 @@ private:
     IoxListener m_listener;
     iox2::ServiceName m_serviceName;
     bool m_valid = false;
+    IpcLogFn m_logFn = {};
 };
 
 /**

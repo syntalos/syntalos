@@ -28,7 +28,6 @@ pysy_mlink_src = [
     'pysy-mlink.h',
     'pysy-mlink.cpp',
     'sydatatopy.h',
-    'qstringtopy.h',
 
     'cvnp/cvnp.cpp',
     'cvnp/cvnp.h',

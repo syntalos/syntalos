@@ -201,7 +201,7 @@ public:
      * Declare a new input port for this module.
      *
      * Must be called at initialization time to tell Syntalos the port topology
-     * for this module. Will throw a runtime error if an invalid type is passed
+     * for this module. Will return an error if an invalid type is passed
      * or communication with Syntalos failed.
      *
      * @param id     Unique port identifier string.
@@ -209,16 +209,14 @@ public:
      * @param typeId Data type ID (e.g. DataType.Frame, DataType.TableRow).
      * @returns InputPortInfo handle.
      */
-    std::shared_ptr<InputPortInfo> registerInputPort(
-        const std::string &id,
-        const std::string &title,
-        BaseDataType::TypeId typeId);
+    auto registerInputPort(const std::string &id, const std::string &title, BaseDataType::TypeId typeId)
+        -> std::expected<std::shared_ptr<InputPortInfo>, std::string>;
 
     /**
      * Declare a new output port for this module.
      *
      * Must be called at initialization time to tell Syntalos the port topology
-     * for this module. Will throw a runtime error if an invalid type is passed
+     * for this module. Will return an error if an invalid type is passed
      * or communication with Syntalos failed.
      *
      * @param id       Unique port identifier string.
@@ -227,11 +225,11 @@ public:
      * @param metadata Metadata associated with this port.
      * @returns OutputPortInfo handle.
      */
-    std::shared_ptr<OutputPortInfo> registerOutputPort(
+    auto registerOutputPort(
         const std::string &id,
         const std::string &title,
         BaseDataType::TypeId typeId,
-        const MetaStringMap &metadata = {});
+        const MetaStringMap &metadata = {}) -> std::expected<std::shared_ptr<OutputPortInfo>, std::string>;
 
     void updateInputPort(const std::shared_ptr<InputPortInfo> &iport);
     void updateOutputPort(const std::shared_ptr<OutputPortInfo> &oport);

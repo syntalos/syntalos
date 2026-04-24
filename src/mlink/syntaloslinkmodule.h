@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include <QDebug>
+#include <iostream>
 #include <syntalos-datactl>
 
 #include "syntaloslink.h"
@@ -64,9 +64,25 @@ public:
 
 protected:
     /**
+     * Convenience helper for std::expected
+     */
+    template<typename T>
+    T unwrapOrAbort(std::expected<T, std::string> result, std::string_view context = {})
+    {
+        if (!result) {
+            if (context.empty())
+                std::cerr << "Fatal: " << context << ": " << result.error() << std::endl;
+            else
+                std::cerr << "Fatal: " << result.error() << std::endl;
+            std::abort();
+        }
+        return std::move(*result);
+    }
+
+    /**
      * The global experiment timer.
      */
-    SyncTimer *timer() const;
+    [[nodiscard]] SyncTimer *timer() const;
 
     /**
      * Information about the current test subject. Refreshed
@@ -84,28 +100,32 @@ protected:
      */
     template<typename T>
         requires std::is_base_of_v<BaseDataType, T>
-    std::shared_ptr<OutputPortLink<T>> registerOutputPort(
-        const std::string &id,
-        const std::string &title = {},
-        const MetaStringMap &metadata = {})
+    auto registerOutputPort(const std::string &id, const std::string &title = {}, const MetaStringMap &metadata = {})
+        -> std::expected<std::shared_ptr<OutputPortLink<T>>, std::string>
     {
         // fetch existing output port first, if any exists
         for (auto &eop : m_slink->outputPorts()) {
-            if (eop->id() == id) {
+            if (eop->id() == id)
                 return std::shared_ptr<OutputPortLink<T>>(new OutputPortLink<T>(this, eop));
-            }
         }
 
         // register a new port if we found none
         auto opInfo = m_slink->registerOutputPort(
             id, title, static_cast<BaseDataType::TypeId>(syDataTypeId<T>()), metadata);
-        if (!opInfo) {
-            qWarning().noquote() << "Failed to register output port with ID:" << id;
-            return nullptr;
-        }
+        if (!opInfo.has_value())
+            return std::unexpected(std::format("Failed to register output port with ID {}: {}", id, opInfo.error()));
 
-        auto oport = std::shared_ptr<OutputPortLink<T>>(new OutputPortLink<T>(this, opInfo));
+        auto oport = std::shared_ptr<OutputPortLink<T>>(new OutputPortLink<T>(this, *opInfo));
         return oport;
+    }
+    template<typename T>
+        requires std::is_base_of_v<BaseDataType, T>
+    auto registerOutputPortOrAbort(
+        const std::string &id,
+        const std::string &title = {},
+        const MetaStringMap &metadata = {}) -> std::shared_ptr<OutputPortLink<T>>
+    {
+        return unwrapOrAbort(registerOutputPort<T>(id, title, metadata));
     }
 
     /**
@@ -120,11 +140,8 @@ protected:
      */
     template<typename T, typename U>
         requires std::is_base_of_v<BaseDataType, T>
-    std::shared_ptr<InputPortInfo> registerInputPort(
-        const std::string &id,
-        const std::string &title,
-        U *instance,
-        void (U::*fn)(const T &data))
+    auto registerInputPort(const std::string &id, const std::string &title, U *instance, void (U::*fn)(const T &data))
+        -> std::expected<std::shared_ptr<InputPortInfo>, std::string>
     {
         // fetch existing input port first, if any exists
         for (auto &eip : m_slink->inputPorts()) {
@@ -132,17 +149,26 @@ protected:
                 return eip;
         }
 
-        auto iport = m_slink->registerInputPort(id, title, static_cast<BaseDataType::TypeId>(syDataTypeId<T>()));
-        if (!iport) {
-            qWarning().noquote() << "Failed to register input port" << id;
-            return nullptr;
-        }
+        auto res = m_slink->registerInputPort(id, title, static_cast<BaseDataType::TypeId>(syDataTypeId<T>()));
+        if (!res.has_value())
+            return res;
 
+        auto iport = *res;
         iport->setNewDataRawCallback([instance, fn](const void *data, size_t size) {
             std::invoke(fn, instance, T::fromMemory(data, size));
         });
 
         return iport;
+    }
+    template<typename T, typename U>
+        requires std::is_base_of_v<BaseDataType, T>
+    auto registerInputPortOrAbort(
+        const std::string &id,
+        const std::string &title,
+        U *instance,
+        void (U::*fn)(const T &data)) -> std::shared_ptr<InputPortInfo>
+    {
+        return unwrapOrAbort(registerInputPort<T, U>(id, title, instance, fn));
     }
 
     /**
@@ -183,6 +209,9 @@ template<typename T>
 class OutputPortLink
 {
 public:
+    OutputPortLink(const OutputPortLink &) = delete;
+    OutputPortLink &operator=(const OutputPortLink &) = delete;
+
     std::string id() const
     {
         return m_info->id();
@@ -213,7 +242,6 @@ private:
     }
 
 private:
-    Q_DISABLE_COPY(OutputPortLink)
     std::shared_ptr<OutputPortInfo> m_info;
     SyntalosLinkModule *m_mod;
 };

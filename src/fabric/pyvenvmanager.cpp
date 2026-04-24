@@ -175,28 +175,6 @@ PyVirtualEnvStatus pythonVirtualEnvStatus(const QString &venvName, const QString
     return PyVirtualEnvStatus::VALID;
 }
 
-static void injectSystemPyModule(const QString &venvDir, const QString &pyModName)
-{
-    QDir dir(QStringLiteral("%1/lib/").arg(venvDir));
-    QStringList vpDirs = dir.entryList(QStringList() << QStringLiteral("python*"));
-
-    QStringList systemPyModPaths = QStringList()
-                                   << QStringLiteral("/usr/lib/python3/dist-packages/%1/").arg(pyModName)
-                                   << QStringLiteral("/usr/local/lib/python3/dist-packages/%1/").arg(pyModName)
-                                   << QStringLiteral("/app/lib/python/site-packages/%1/").arg(pyModName);
-
-    for (const auto &systemPyQtPath : systemPyModPaths) {
-        QDir sysPyQtDir(systemPyQtPath);
-        if (!sysPyQtDir.exists())
-            continue;
-
-        for (const auto &pyDir : vpDirs) {
-            LOG_INFO(logVEnv, "Adding system Python module to venv: {}", systemPyQtPath);
-            QFile::link(systemPyQtPath, QStringLiteral("%1/lib/%2/site-packages/%3").arg(venvDir, pyDir, pyModName));
-        }
-    }
-}
-
 static void injectSyntalosMlinkIntoVenv(const QString &venvDir)
 {
     // Locate the syntalos_mlink extension: prefer a dev-build next to the app binary,
@@ -241,17 +219,6 @@ static void injectSyntalosMlinkIntoVenv(const QString &venvDir)
             QFile::link(pyiSrc, dst);
         }
     }
-}
-
-static bool injectSystemPyQtBindings(const QString &venvDir)
-{
-    // the PyQt6/PySide modules must be for the same version as Syntalos was compiled for,
-    // as the pyworker binary is linked against Qt as well (and trying to load a different
-    // version will fail)
-    // therefore, we add this hack and inject just the system Qt Python bindings into the
-    // virtual environment.
-    injectSystemPyModule(venvDir, QStringLiteral("PyQt6"));
-    return true;
 }
 
 auto createPythonVirtualEnv(const QString &venvName, const QString &requirementsFile, bool recreate)
@@ -352,8 +319,6 @@ auto createPythonVirtualEnv(const QString &venvName, const QString &requirements
     shFile.remove();
     tmpReqFile.remove();
     if (ret == 0) {
-        if (!injectSystemPyQtBindings(venvDir))
-            return std::unexpected("Unable to inject system PyQt bindings into virtualenv");
         injectSyntalosMlinkIntoVenv(venvDir);
 
         if (!requirementsFile.isEmpty()) {

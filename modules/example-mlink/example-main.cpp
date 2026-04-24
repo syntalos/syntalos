@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: MIT
  */
 
+#include <iostream>
 #include <syntalos-mlink>
 
 using namespace Syntalos;
@@ -19,8 +20,9 @@ public:
         : SyntalosLinkModule(slink)
     {
         // Register some example ports
-        m_tabOut = registerOutputPort<TableRow>("table-out", "Example Out");
-        m_tabIn = registerInputPort<TableRow>("table-in", "Example In", this, &ExampleModule::onTableDataReceived);
+        m_tabOut = registerOutputPortOrAbort<TableRow>("table-out", "Example Out");
+        m_tabIn = registerInputPortOrAbort<TableRow>(
+            "table-in", "Example In", this, &ExampleModule::onTableDataReceived);
 
         // notify that initialization is done and the module is idle now
         setState(ModuleState::IDLE);

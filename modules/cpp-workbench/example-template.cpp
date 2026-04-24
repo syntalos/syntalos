@@ -1,4 +1,5 @@
 
+#include <QDebug>
 #include <QCoreApplication>
 #include <syntalos-mlink>
 
@@ -15,8 +16,8 @@ public:
         : SyntalosLinkModule(slink)
     {
         // Register some example ports
-        m_tabOut = registerOutputPort<TableRow>("table-out", "Example Out");
-        registerInputPort<TableRow>("table-in", "Example In", this, &MyCppModule::onTableDataReceived);
+        m_tabOut = registerOutputPortOrAbort<TableRow>("table-out", "Example Out");
+        registerInputPortOrAbort<TableRow>("table-in", "Example In", this, &MyCppModule::onTableDataReceived);
 
         // notify that initialization is done and the module is idle now
         setState(ModuleState::IDLE);

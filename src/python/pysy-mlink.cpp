@@ -38,8 +38,7 @@
 #include "cvnp/cvnp.h"
 #include "datactl/datatypes.h"
 #include "datactl/frametype.h"
-#include "qstringtopy.h" // needed for QString registration
-#include "sydatatopy.h"  // needed for stream data type conversion
+#include "sydatatopy.h" // needed for stream data type conversion
 
 namespace py = pybind11;
 
@@ -575,8 +574,10 @@ public:
      */
     InputPort registerInputPort(const std::string &id, const std::string &title, BaseDataType::TypeId data_type)
     {
-        auto res = m_slink->registerInputPort(id, title, data_type);
-        return {res};
+        if (auto res = m_slink->registerInputPort(id, title, data_type); res.has_value())
+            return {*res};
+        else
+            throw std::runtime_error(res.error());
     }
 
     /**
@@ -584,8 +585,10 @@ public:
      */
     OutputPort registerOutputPort(const std::string &id, const std::string &title, BaseDataType::TypeId data_type)
     {
-        auto res = m_slink->registerOutputPort(id, title, data_type);
-        return {res};
+        if (auto res = m_slink->registerOutputPort(id, title, data_type); res.has_value())
+            return {*res};
+        else
+            throw std::runtime_error(res.error());
     }
 
     /**

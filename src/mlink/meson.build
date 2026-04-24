@@ -20,16 +20,10 @@ sy_mlink_src = [
     'ipc-iox-private.cpp',
 ]
 
-sy_mlink_moc = qt.compile_moc(
-    headers: [sy_mlink_pub_hdr],
-    dependencies: [qt_core_dep],
-)
-
 syntalos_mlink_lib = library('syntalos-mlink',
     [sy_mlink_src,
      sy_mlink_pub_hdr,
-     sy_mlink_priv_hdr,
-     sy_mlink_moc],
+     sy_mlink_priv_hdr],
     soversion: sy_mlink_abi_level,
     version: sy_version,
     dependencies: [
@@ -37,7 +31,6 @@ syntalos_mlink_lib = library('syntalos-mlink',
         glib_dep,
         opencv_dep,
         syntalos_datactl_dep,
-        qt_core_dep,
     ],
     include_directories: [
         root_include_dir,
@@ -54,7 +47,6 @@ syntalos_mlink_dep = declare_dependency(
     ],
     dependencies: [
         syntalos_datactl_dep,
-        qt_core_dep,
     ],
     include_directories: [
         include_directories('./include'),
@@ -73,7 +65,7 @@ pkgc.generate(
     filebase: 'syntalos-mlink',
     subdirs: 'syntalos',
     requires: [
-        'syntalos-datactl'
+        'syntalos-datactl',
     ]
 )
 
