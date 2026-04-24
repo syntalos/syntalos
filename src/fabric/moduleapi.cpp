@@ -570,18 +570,16 @@ AbstractModule::AbstractModule(const QString &id, QObject *parent)
       m_running(false),
       d(new AbstractModule::Private)
 {
-    d->id = id.isEmpty() ? QStringLiteral("unknown") : id;
-
     // Make a dummy logger immediately available, even if we don't know the
     // ID of the module yet.
     if (id.isEmpty())
         m_log = getLogger(SY_ANON_MOD_LOGGER_NAME);
     else
-        m_log = getLogger(QStringLiteral("mod.%1").arg(d->id));
+        m_log = getLogger(QStringLiteral("mod.%1").arg(id));
 
+    d->id = id.isEmpty() ? QStringLiteral("unknown") : id;
     d->modifiers = ModuleModifier::ENABLED | ModuleModifier::STOP_ON_FAILURE;
-    d->id = QStringLiteral("unknown");
-    d->name = QStringLiteral("Unknown Module");
+    d->name = QStringLiteral("New Module");
     d->s_eventsMaxModulesPerThread = -1;
     d->runIsEmphemeral = false;
 }
