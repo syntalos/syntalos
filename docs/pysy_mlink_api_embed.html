@@ -1318,7 +1318,7 @@ or <code>list</code> of <code>int</code>/<code>str</code> values.</li>
 <div class="attr function">
 
 <span class="def">def</span>
-<span class="name">await_data_forever</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">event_fn</span><span class="p">:</span> <span class="n">Any</span> <span class="o">=</span> <span class="kc">None</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+<span class="name">await_data_forever</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">event_fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[],</span> <span class="kc">None</span><span class="p">]</span> <span class="o">=</span> <span class="kc">None</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
 
 
 </div>
@@ -1341,7 +1341,7 @@ or <code>list</code> of <code>int</code>/<code>str</code> values.</li>
 <div class="attr function">
 
 <span class="def">def</span>
-<span class="name">register_input_port</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="nb">id</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">title</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">data_type</span><span class="p">:</span> <span class="n"><a href="#DataType">DataType</a></span></span><span class="return-annotation">) -> <span class="n">Any</span>:</span></span>
+<span class="name">register_input_port</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	<span class="nb">id</span><span class="p">:</span> <span class="nb">str</span>,</span><span class="param">	<span class="n">title</span><span class="p">:</span> <span class="nb">str</span>,</span><span class="param">	<span class="n">data_type</span><span class="p">:</span> <span class="n"><a href="#DataType">DataType</a></span></span><span class="return-annotation">) -> <span class="n"><a href="#InputPort">InputPort</a></span>:</span></span>
 
 
 </div>
@@ -1363,7 +1363,7 @@ restore project connections before the first run is prepared.</p>
 <h6 id="returns">Returns</h6>
 
 <blockquote>
-<p>An <code><a href="#InputPort">InputPort</a></code> handle, or <code>None</code> if registration failed (e.g. duplicate ID).</p>
+<p>An <code><a href="#InputPort">InputPort</a></code> handle.</p>
 </blockquote>
 </div>
 
@@ -1373,7 +1373,7 @@ restore project connections before the first run is prepared.</p>
 <div class="attr function">
 
 <span class="def">def</span>
-<span class="name">register_output_port</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="nb">id</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">title</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">data_type</span><span class="p">:</span> <span class="n"><a href="#DataType">DataType</a></span></span><span class="return-annotation">) -> <span class="n">Any</span>:</span></span>
+<span class="name">register_output_port</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	<span class="nb">id</span><span class="p">:</span> <span class="nb">str</span>,</span><span class="param">	<span class="n">title</span><span class="p">:</span> <span class="nb">str</span>,</span><span class="param">	<span class="n">data_type</span><span class="p">:</span> <span class="n"><a href="#DataType">DataType</a></span></span><span class="return-annotation">) -> <span class="n"><a href="#OutputPort">OutputPort</a></span>:</span></span>
 
 
 </div>
@@ -1396,7 +1396,7 @@ before the first run is prepared.</p>
 <h6 id="returns">Returns</h6>
 
 <blockquote>
-<p>An <code><a href="#OutputPort">OutputPort</a></code> handle, or <code>None</code> if registration failed (e.g. duplicate ID).</p>
+<p>An <code><a href="#OutputPort">OutputPort</a></code> handle.</p>
 </blockquote>
 </div>
 
@@ -1415,6 +1415,23 @@ before the first run is prepared.</p>
 <div class="docstring"><p>Signal IDLE (initialization complete) without entering the built-in event loop.</p>
 
 <p>Call this before starting a custom loop with <code><a href="#SyntalosLink.await_data">await_data()</a></code>.</p>
+</div>
+
+
+</div>
+<div id="SyntalosLink.allow_async_start" class="classattr">
+<div class="attr variable">
+<span class="name">allow_async_start</span><span class="annotation">: bool</span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.allow_async_start"></a>
+
+<div class="docstring"><p>Whether start() is run in parallel with other modules for this module.</p>
+
+<p>On startup, Syntalos can send START to all external modules in parallel,not waiting for them to finish individual START actions.
+This is the async-start method, and it results in much better aligned start times of modules.However, some modules may need to modify stream metadata in START and must ensure it is receivedbefore their streams are started.
+Those modules may want to disable async-start for themselves, so they run exclusively and the enginewaits for them to complete START actions.</p>
 </div>
 
 
@@ -1440,7 +1457,7 @@ before the first run is prepared.</p>
 </div>
 <div id="SyntalosLink.on_load_settings" class="classattr">
 <div class="attr variable">
-<span class="name">on_load_settings</span><span class="annotation">: Callable[[bytearray, os.PathLike | str | bytes], bool]</span>
+<span class="name">on_load_settings</span><span class="annotation">: Callable[[bytes | bytearray, os.PathLike | str | bytes], bool]</span>
 
 
 </div>
@@ -1448,11 +1465,12 @@ before the first run is prepared.</p>
 
 <div class="docstring"><p>Register a callback invoked when Syntalos loads settings for this module.</p>
 
-<p>The callback receives the base project directory as a string and the loaded settings as a <code>bytes</code> object.
+<p>The callback receives the loaded settings payload first (<code>bytes</code> / <code>bytearray</code>), followed by
+the base project directory as <code>pathlib.Path</code>.
 The callback must return <code>True</code> to signal that the settings were loaded successfully, or <code>False</code> / use <code><a href="#raise_error">raise_error</a></code> to signal a loading failure.
 If not registered, incoming settings are ignored.</p>
 
-<p>Type: <code>Callable[[bytes, str], bool] | None</code>.</p>
+<p>Type: <code>Callable[[bytes | bytearray, pathlib.Path], bool] | None</code>.</p>
 </div>
 
 
@@ -1478,7 +1496,7 @@ If not registered the module automatically signals readiness.</p>
 </div>
 <div id="SyntalosLink.on_save_settings" class="classattr">
 <div class="attr variable">
-<span class="name">on_save_settings</span><span class="annotation">: Callable[[os.PathLike | str | bytes], bytearray]</span>
+<span class="name">on_save_settings</span><span class="annotation">: Callable[[os.PathLike | str | bytes], bytes]</span>
 
 
 </div>
@@ -1486,10 +1504,10 @@ If not registered the module automatically signals readiness.</p>
 
 <div class="docstring"><p>Register a callback invoked when Syntalos saves settings for this module.</p>
 
-<p>The callback receives the base project directory as a string and must return the
-settings to save as a <code>bytes</code> object. If not registered, no module settings are saved.</p>
+<p>The callback receives the base project directory as a <code>pathlib.Path</code> and must return a
+bytes-like payload (<code>bytes</code> or <code>bytearray</code>). If not registered, no module settings are saved.</p>
 
-<p>Type: <code>Callable[[str], bytes] | None</code>.</p>
+<p>Type: <code>Callable[[pathlib.Path], bytes | bytearray] | None</code>.</p>
 </div>
 
 
@@ -1599,7 +1617,7 @@ wait until the module is no longer in <code>RUNNING</code> state.</li>
 <div class="attr function">
 
 <span class="def">def</span>
-<span class="name">get_input_port</span><span class="signature pdoc-code condensed">(<span class="param"><span class="nb">id</span><span class="p">:</span> <span class="nb">str</span></span><span class="return-annotation">) -> <span class="n">Any</span>:</span></span>
+<span class="name">get_input_port</span><span class="signature pdoc-code condensed">(<span class="param"><span class="nb">id</span><span class="p">:</span> <span class="nb">str</span></span><span class="return-annotation">) -> <span class="n"><a href="#InputPort">InputPort</a></span> <span class="o">|</span> <span class="kc">None</span>:</span></span>
 
 
 </div>
@@ -1626,7 +1644,7 @@ wait until the module is no longer in <code>RUNNING</code> state.</li>
 <div class="attr function">
 
 <span class="def">def</span>
-<span class="name">get_output_port</span><span class="signature pdoc-code condensed">(<span class="param"><span class="nb">id</span><span class="p">:</span> <span class="nb">str</span></span><span class="return-annotation">) -> <span class="n">Any</span>:</span></span>
+<span class="name">get_output_port</span><span class="signature pdoc-code condensed">(<span class="param"><span class="nb">id</span><span class="p">:</span> <span class="nb">str</span></span><span class="return-annotation">) -> <span class="n"><a href="#OutputPort">OutputPort</a></span> <span class="o">|</span> <span class="kc">None</span>:</span></span>
 
 
 </div>
@@ -1653,7 +1671,7 @@ wait until the module is no longer in <code>RUNNING</code> state.</li>
 <div class="attr function">
 
 <span class="def">def</span>
-<span class="name">init_link</span><span class="signature pdoc-code condensed">(<span class="param"><span class="n">slink</span><span class="p">:</span> <span class="n">syntalos_mlink</span><span class="o">.</span><span class="n">_SyntalosLinkHandle</span> <span class="o">=</span> <span class="kc">None</span></span><span class="return-annotation">) -> <span class="n">Any</span>:</span></span>
+<span class="name">init_link</span><span class="signature pdoc-code condensed">(<span class="return-annotation">) -> <span class="n"><a href="#SyntalosLink">SyntalosLink</a></span>:</span></span>
 
 
 </div>
@@ -1698,7 +1716,7 @@ other methods on this module.</p>
 <div class="attr function">
 
 <span class="def">def</span>
-<span class="name">list_types_synonyms</span><span class="signature pdoc-code condensed">(<span class="return-annotation">) -> <span class="n">Any</span>:</span></span>
+<span class="name">list_types_synonyms</span><span class="signature pdoc-code condensed">(<span class="return-annotation">) -> <span class="nb">list</span>:</span></span>
 
 
 </div>
