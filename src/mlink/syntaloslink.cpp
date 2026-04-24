@@ -81,11 +81,22 @@ static std::string getenvSafe(const char *name)
     return {};
 }
 
-std::unique_ptr<SyntalosLink> initSyntalosModuleLink()
+std::unique_ptr<SyntalosLink> initSyntalosModuleLink(const ModuleInitOptions &optn)
 {
+    // we should obtain the PID of Syntalos here
+    pid_t parentPid = getppid();
+
     std::string syModuleId = getenvSafe("SYNTALOS_MODULE_ID");
     if (syModuleId.empty() || syModuleId.length() < 2)
         throw std::runtime_error("This module was not run by Syntalos, can not continue!");
+
+    // set the process name to the instance ID, to simplify identification in process trees
+    if (optn.renameThread) {
+        // PR_SET_NAME allows max 16 bytes including terminating NUL
+        const auto procName = syModuleId.substr(0, 15);
+        prctl(PR_SET_NAME, procName.c_str(), 0, 0, 0);
+        std::ofstream("/proc/self/comm") << procName;
+    }
 
     // set up stream data type mapping, if it hasn't been initialized yet
     registerStreamMetaTypes();
@@ -99,6 +110,11 @@ std::unique_ptr<SyntalosLink> initSyntalosModuleLink()
 
     // ensure we (try to) die if Syntalos, our parent, dies
     prctl(PR_SET_PDEATHSIG, SIGTERM);
+
+    // race check: parent may have died before prctl().
+    if (getppid() != parentPid) {
+        raise(SIGTERM);
+    }
 
     return std::unique_ptr<SyntalosLink>(new SyntalosLink(syModuleId));
 }

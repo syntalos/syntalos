@@ -35,14 +35,11 @@ int main(int argc, char *argv[])
     a.setQuitOnLastWindowClosed(false);
 
     // Initialize link to Syntalos. There can only be one.
-    auto slink = initSyntalosModuleLink();
+    auto slink = initSyntalosModuleLink({.renameThread = true});
     auto worker = std::make_unique<PyWorker>(slink.get(), &a);
 
     // ensure that this process dies with its parent
     prctl(PR_SET_PDEATHSIG, SIGKILL);
-
-    // set the process name to the instance ID, to simplify identification in process trees
-    prctl(PR_SET_NAME, slink->instanceId().c_str(), 0, 0, 0);
 
     return a.exec();
 }

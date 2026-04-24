@@ -28,6 +28,8 @@ namespace Syntalos
 class SyntalosLink;
 struct OutputPortChangeRequest;
 struct InputPortChangeRequest;
+struct ModuleInitOptions;
+
 namespace fs = std::filesystem;
 
 using LoadScriptFn = std::function<void(const std::string &script, const fs::path &wdir)>;
@@ -262,7 +264,7 @@ public:
 
 private:
     explicit SyntalosLink(const std::string &instanceId);
-    friend std::unique_ptr<SyntalosLink> initSyntalosModuleLink();
+    friend std::unique_ptr<SyntalosLink> initSyntalosModuleLink(const ModuleInitOptions &optn);
 
 private:
     class Private;
@@ -271,6 +273,10 @@ private:
     void processPendingControl();
 };
 
-std::unique_ptr<SyntalosLink> initSyntalosModuleLink();
+struct ModuleInitOptions {
+    bool renameThread{false}; // If set, adjust the thread name / process name to the Syntalos module name
+};
+
+std::unique_ptr<SyntalosLink> initSyntalosModuleLink(const ModuleInitOptions &optn = {});
 
 } // namespace Syntalos

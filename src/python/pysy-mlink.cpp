@@ -323,10 +323,29 @@ public:
     /**
      * Standalone mode: creates and owns a new SyntalosLink.
      */
-    PySyLinkManager()
+    PySyLinkManager(const ModuleInitOptions &optn = {})
     {
-        m_ownedSLink = initSyntalosModuleLink();
+        ModuleInitOptions newOptn = optn;
+        py::module_ sptMod;
+        if (newOptn.renameThread) {
+            // To fully rename the process, we would need access to the original
+            // argv[], which Python does not provide. Rather than doing the horrendous
+            // memory-scanning of setproctitle ourselves, we might as well call the real
+            // thing, if it is installed.
+            sptMod = py::module_::import("setproctitle");
+
+            // if we have setproctitle, we prefer it over Syntalos' simple thread-renaming
+            if (!sptMod.is_none())
+                newOptn.renameThread = false;
+        }
+
+        // connect
+        m_ownedSLink = initSyntalosModuleLink(optn);
         m_slink = m_ownedSLink.get();
+
+        // do the renaming, if the user wanted it
+        if (optn.renameThread && !sptMod.is_none())
+            sptMod.attr("setproctitle")(m_slink->instanceId());
     }
 
     /**
@@ -781,13 +800,13 @@ static FirmataControl new_firmatactl_with_name(FirmataCommandKind kind, const st
     return {kind, name};
 }
 
-static PySyLinkManager *init_link_impl(SyntalosLink *slink = nullptr)
+static PySyLinkManager *init_link_impl(const ModuleInitOptions &optn, SyntalosLink *slink = nullptr)
 {
     if (g_pslMgr != nullptr)
         throw SyntalosPyError(
             "Syntalos Module Link was already initialized. It is not allowed to run `init_link()` twice!");
 
-    g_pslMgr = (slink != nullptr) ? new PySyLinkManager(slink) : new PySyLinkManager();
+    g_pslMgr = (slink != nullptr) ? new PySyLinkManager(slink) : new PySyLinkManager(optn);
 
     if (slink == nullptr) {
         // Hold a Python-side reference so the wrapper survives until atexit.
@@ -807,16 +826,16 @@ static PySyLinkManager *init_link_impl(SyntalosLink *slink = nullptr)
     return g_pslMgr;
 }
 
-static PySyLinkManager *init_link()
+static PySyLinkManager *init_link(bool rename_process = false)
 {
-    return init_link_impl(nullptr);
+    return init_link_impl({.renameThread = rename_process}, nullptr);
 }
 
 static PySyLinkManager *_init_link_with_handle(SyntalosLink *slink)
 {
     if (slink == nullptr)
         throw SyntalosPyError("_init_link_with_handle() requires a valid Syntalos link handle.");
-    return init_link_impl(slink);
+    return init_link_impl({}, slink);
 }
 
 #pragma GCC visibility push(default)
@@ -1395,12 +1414,15 @@ PYBIND11_MODULE(syntalos_mlink, m)
     m.def(
         "init_link",
         &init_link,
+        py::kw_only(),
+        py::arg("rename_process") = false,
         py::return_value_policy::take_ownership,
         "Initialize a connection with Syntalos.\n"
         "\n"
         "This function must be called only once at program startup, before invoking any\n"
         "other methods on this module.\n"
         "\n"
+        ":param rename_process: Rename the current process to match the module identifier."
         ":return: The active :class:`SyntalosLink` registry object.\n"
         ":rtype: SyntalosLink");
 
