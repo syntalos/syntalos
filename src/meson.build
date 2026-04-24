@@ -1,8 +1,5 @@
 # Syntalos Framework
 
-syntalos_main_inc_dir = include_directories('.')
-
-subdir('utils')
 subdir('datactl')
 subdir('mlink')
 subdir('fabric')

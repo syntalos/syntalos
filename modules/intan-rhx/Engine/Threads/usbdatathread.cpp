@@ -32,7 +32,7 @@
 #include <iostream>
 #include "usbdatathread.h"
 
-#include "rtkit.h"
+#include "datactl/priv/rtkit.h"
 
 USBDataThread::USBDataThread(AbstractRHXController* controller_, DataStreamFifo* usbFifo_, IntanRhxModule *syModule, QObject *parent) :
     QThread(parent),

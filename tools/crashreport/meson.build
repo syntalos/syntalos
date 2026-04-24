@@ -14,7 +14,7 @@ sy_crashreport_src = [
     'debugcollect.cpp',
     'utils.cpp',
     '../../src/appstyle.cpp',
-    '../../src/utils/style.cpp',
+    '../../src/fabric/utils/style.cpp',
 ]
 sy_crashreport_moc_src = [
 ]

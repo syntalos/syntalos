@@ -37,7 +37,7 @@ extern "C" {
 #include <libavutil/avutil.h>
 }
 
-#include "rtkit.h"
+#include "datactl/priv/rtkit.h"
 #include "utils/misc.h"
 
 using namespace Syntalos;
@@ -47,8 +47,8 @@ using namespace Syntalos;
 class SysInfo::Private
 {
 public:
-    Private() {}
-    ~Private() {}
+    Private() = default;
+    ~Private() = default;
 
     QString osId;
     QString osName;

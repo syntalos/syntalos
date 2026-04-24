@@ -1,5 +1,11 @@
 # Syntalos Shared and Binding Code
 
+# This library is shared between the main application and all of
+# its plugins. Interfaces in fabric can be accessed by plugins
+# (which in most cases doesn't mean they should though).
+# Everything in fabric is internal API, this library must always
+# be updated in lockstep with the main application.
+
 syntalos_fabric_src = [
     'cvutils.h',
     'cvutils.cpp',
@@ -39,6 +45,15 @@ syntalos_fabric_src = [
     'streams/subscriptionnotifier.h',
     'streams/subscriptionnotifier.cpp',
 
+    'utils/meminfo.h',
+    'utils/meminfo.cpp',
+    'utils/misc.h',
+    'utils/misc.cpp',
+    'utils/style.h',
+    'utils/style.cpp',
+    'utils/tomlutils.h',
+    'utils/tomlutils.cpp',
+
     # we reuse some shared primitives from mlink, to avoid linking
     # the mlink library into fabric
     '../mlink/ipc-iox-private.h',
@@ -76,6 +91,7 @@ syntalos_fabric_lib = shared_library('syntalos-fabric',
     dependencies: [
         rt_lib,
         thread_dep,
+        blake3_dep,
         eigen_dep,
         glib_dep,
         quill_dep,
@@ -83,7 +99,6 @@ syntalos_fabric_lib = shared_library('syntalos-fabric',
         qt_gui_dep,
         qtermwidget_dep,
         syntalos_datactl_dep,
-        syntalos_utils_dep,
         iox2_dep,
         opengl_dep,
         avutil_dep,
@@ -106,7 +121,6 @@ syntalos_fabric_dep = declare_dependency(
         qt_gui_dep,
         quill_dep,
         syntalos_datactl_dep,
-        syntalos_utils_dep,
     ],
     include_directories: [
         root_include_dir,

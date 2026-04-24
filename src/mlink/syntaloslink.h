@@ -20,9 +20,7 @@
 #pragma once
 
 #include <filesystem>
-#include <datactl/syclock.h>
-#include <datactl/datatypes.h>
-#include <datactl/streammeta.h>
+#include <syntalos-datactl>
 
 namespace Syntalos
 {

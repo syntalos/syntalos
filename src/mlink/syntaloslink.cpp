@@ -28,9 +28,8 @@
 
 #include "mlink/ipc-types-private.h"
 #include "mlink/ipc-iox-private.h"
-#include "utils/misc.h"
-#include "utils/rtkit.h"
-#include "utils/cpuaffinity.h"
+#include "datactl/priv/rtkit.h"
+#include "datactl/priv/cpuaffinity.h"
 
 using namespace Syntalos;
 using namespace Syntalos::ipc;

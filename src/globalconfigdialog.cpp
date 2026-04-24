@@ -25,7 +25,7 @@
 #include <QDir>
 
 #include "appstyle.h"
-#include "rtkit.h"
+#include "datactl/priv/rtkit.h"
 
 using namespace Syntalos;
 

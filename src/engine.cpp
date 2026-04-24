@@ -58,18 +58,19 @@
 #include <pthread.h>
 
 #include "logging.h"
-#include "cpuaffinity.h"
+
 #include "globalconfig.h"
-#include "meminfo.h"
 #include "moduleeventthread.h"
 #include "modulelibrary.h"
 #include "mlinkmodule.h"
-#include "rtkit.h"
 #include "sysinfo.h"
 #include "datactl/syclock.h"
 #include "datactl/edlstorage.h"
+#include "datactl/priv/cpuaffinity.h"
+#include "datactl/priv/rtkit.h"
 #include "utils/misc.h"
 #include "utils/tomlutils.h"
+#include "utils/meminfo.h"
 
 static_assert(
     std::is_same<std::thread::native_handle_type, pthread_t>::value,

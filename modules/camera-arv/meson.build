@@ -101,6 +101,9 @@ module_args = [
     #'-fvisibility=hidden',
     '-DARAVIS_HAVE_REGISTER_CACHE',
     '-DARAVIS_HAVE_08_API',
+    # Qt's static plugin MOC output defines qt_static_plugin_XXX() without a prior declaration
+    # in the generated TU; the declaration lives at the Q_IMPORT_PLUGIN call site instead
+    '-Wno-missing-declarations',
 ]
 
 # Install udev rules to make GenICam cameras readable for normal users

@@ -21,10 +21,6 @@
 
 #include <string>
 
-#include <QLoggingCategory>
-
-Q_DECLARE_LOGGING_CATEGORY(logRtKit)
-
 typedef struct _GDBusProxy GDBusProxy;
 
 class RtKit

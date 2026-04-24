@@ -40,15 +40,16 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <QDebug>
 #include <pthread.h>
 #include <sched.h>
+
+#include "../loginternal.h"
 
 #ifndef RLIMIT_RTTIME
 #define RLIMIT_RTTIME 15
 #endif
 
-Q_LOGGING_CATEGORY(logRtKit, "rtkit")
+SY_DEFINE_LOG_CATEGORY(logRtKit, "rtkit");
 
 static const char RTPORTAL_SERVICE_NAME[] = "org.freedesktop.portal.Desktop";
 static const char RTPORTAL_OBJECT_PATH[] = "/org/freedesktop/portal/desktop";
@@ -215,7 +216,7 @@ bool RtKit::makeRealtime(pid_t thread, uint priority)
         sp.sched_priority = priority;
 
         if (pthread_setschedparam(pthread_self(), SCHED_RR | SCHED_RESET_ON_FORK, &sp) == 0) {
-            qCDebug(logRtKit).noquote() << "Realtime priority obtained via SCHED_RR | SCHED_RESET_ON_FORK directly";
+            SY_LOG_DEBUG(logRtKit, "Realtime priority obtained via SCHED_RR | SCHED_RESET_ON_FORK directly");
             return true;
         }
         thread = gettid();
@@ -337,7 +338,7 @@ int64_t RtKit::getIntProperty(const std::string &propName, bool *ok)
     }
 
     if (ok == nullptr)
-        qCWarning(logRtKit).noquote() << m_lastError;
+        SY_LOG_WARNING(logRtKit, "{}", m_lastError);
     else
         (*ok) = false;
 
@@ -350,14 +351,13 @@ bool setCurrentThreadNiceness(int nice)
     const auto minNice = rtkit.queryMinNiceLevel();
     if (minNice < 0) {
         if (nice < minNice) {
-            qCDebug(logRtKit).noquote().nospace()
-                << "Unable to set thread niceness to " << nice << ", clamped to min value " << minNice;
+            SY_LOG_INFO(logRtKit, "Unable to set thread niceness to {}, clamped to min value {}", nice, minNice);
             nice = minNice;
         }
     }
 
     if (!rtkit.makeHighPriority(0, nice)) {
-        qCWarning(logRtKit).noquote().nospace() << rtkit.lastError();
+        SY_LOG_WARNING(logRtKit, "{}", rtkit.lastError());
         return false;
     }
 
@@ -371,21 +371,19 @@ bool setCurrentThreadRealtime(int priority)
     RtKit rtkit;
     const auto maxRTTimeUsec = rtkit.queryRTTimeUSecMax();
     if (maxRTTimeUsec < (100 * 1000)) {
-        qCWarning(logRtKit).noquote()
-            << "Unable to set realtime priority: Permitted RLIMIT_RTTIME is too low (< 100ms)";
+        SY_LOG_WARNING(logRtKit, "Unable to set realtime priority: Permitted RLIMIT_RTTIME is too low (< 100ms)");
         return false;
     }
 
     rlim.rlim_cur = rlim.rlim_max = maxRTTimeUsec;
     if (setrlimit(RLIMIT_RTTIME, &rlim) < 0) {
-        qCWarning(logRtKit).noquote() << "Failed to set RLIMIT_RTTIME:" << strerror(errno);
+        SY_LOG_WARNING(logRtKit, "Failed to set RLIMIT_RTTIME: {}", strerror(errno));
         return false;
     }
 
     const auto maxRTPrio = rtkit.queryMaxRealtimePriority();
     if (priority > maxRTPrio) {
-        qCDebug(logRtKit).noquote().nospace()
-            << "Unable to set thread realtime priority to " << priority << ", clamped to max value " << maxRTPrio;
+        SY_LOG_INFO(logRtKit,"Unable to set thread realtime priority to {}, clamped to max value {}", priority, maxRTPrio);
         priority = maxRTPrio;
     }
 

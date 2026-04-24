@@ -26,8 +26,7 @@
 #include <iostream>
 #include <pybind11/embed.h>
 
-#include "cpuaffinity.h"
-#include "rtkit.h"
+#include "datactl/priv/rtkit.h"
 
 using namespace Syntalos;
 namespace Syntalos

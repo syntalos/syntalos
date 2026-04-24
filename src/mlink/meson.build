@@ -1,5 +1,9 @@
 # Syntalos IPC Module Link Interface
 
+# This library is public API and permits building out-of-process
+# Syntalos modules. It also contains some shared code for the
+# IPC layer.
+
 sy_mlink_pub_hdr = [
     'syntaloslink.h',
     'syntaloslinkmodule.h',
@@ -33,7 +37,7 @@ syntalos_mlink_lib = library('syntalos-mlink',
         glib_dep,
         opencv_dep,
         syntalos_datactl_dep,
-        syntalos_utils_dep,
+        qt_core_dep,
     ],
     include_directories: [
         root_include_dir,

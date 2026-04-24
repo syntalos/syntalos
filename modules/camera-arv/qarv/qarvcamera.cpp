@@ -20,7 +20,7 @@
 #include <arv.h>
 #include <gio/gio.h>
 
-#include "utils/rtkit.h"
+#include "datactl/priv/rtkit.h"
 
 extern "C" {
 #include <sys/socket.h>
@@ -73,6 +73,18 @@ QArvCameraId::QArvCameraId(const QArvCameraId& camid) {
     id = g_strdup(camid.id ? camid.id : "");
     vendor = g_strdup(camid.vendor ? camid.vendor : "");
     model = g_strdup(camid.model ? camid.model : "");
+}
+
+QArvCameraId& QArvCameraId::operator=(const QArvCameraId& camid) {
+    if (this != &camid) {
+        g_free((void*)id);
+        g_free((void*)vendor);
+        g_free((void*)model);
+        id = g_strdup(camid.id ? camid.id : "");
+        vendor = g_strdup(camid.vendor ? camid.vendor : "");
+        model = g_strdup(camid.model ? camid.model : "");
+    }
+    return *this;
 }
 
 QArvCameraId::~QArvCameraId() {
@@ -139,8 +151,7 @@ QList<QArvCameraId> QArvCamera::listCameras() {
         const char *vendor = arv_get_device_vendor(i);
         const char *model  = arv_get_device_model(i);
 
-        QArvCameraId id(camid, vendor, model);
-        cameraList << id;
+        cameraList.append(QArvCameraId(camid, vendor, model));
     }
 
     return cameraList;

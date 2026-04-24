@@ -19,7 +19,6 @@
 
 #include "araviscameramodule.h"
 
-#include <QDebug>
 #if defined(signals) && defined(Q_SIGNALS)
 #define _SYTMP_QT_SIGNALS_DEFINED
 #undef signals
@@ -91,7 +90,7 @@ public:
         return true;
     }
 
-    ~AravisCameraModule() {}
+    ~AravisCameraModule() override = default;
 
     void setName(const QString &name) final
     {
@@ -340,7 +339,7 @@ QString AravisCameraModuleInfo::authors() const
 {
     return QStringLiteral(
         "2012-2019 Jure Varlec and Andrej Lajovic, Vega Astronomical Society — Ljubljana<br/>"
-        "2023-2024 Matthias Klumpp");
+        "2023-2026 Matthias Klumpp");
 }
 
 QString AravisCameraModuleInfo::license() const

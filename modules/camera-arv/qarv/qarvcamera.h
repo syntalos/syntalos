@@ -68,6 +68,7 @@ public:
     QArvCameraId();
     QArvCameraId(const char* id, const char* vendor, const char* model);
     QArvCameraId(const QArvCameraId& camid);
+    QArvCameraId& operator=(const QArvCameraId& camid);
     ~QArvCameraId();
     QString toString() const;
     bool operator==(const QArvCameraId& other) const;
@@ -124,7 +125,7 @@ public:
 
     //! A camera with the given ID is opened.
     QArvCamera(QArvCameraId id, const QString &modId = QString(), QObject* parent = NULL);
-    ~QArvCamera();
+    ~QArvCamera() override;
 
     static QList<QArvCameraId> listCameras(); //!< Returns a list of all cameras found.
 

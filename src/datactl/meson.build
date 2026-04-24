@@ -1,5 +1,11 @@
 # Syntalos Data Types and Time Sync Library
 
+# This library contains common data types and data manipulation
+# code used by Syntalos and its modules. It is public API.
+#
+# It also contains some private interfaces that the public
+# (and private) Syntalos libraries may use internally.
+
 sy_datactl_pub_hdr = [
     'binarystream.h',
     'datatypes.h',
@@ -17,6 +23,9 @@ sy_datactl_pub_hdr = [
 sy_datactl_priv_hdr = [
     'edlutils.h',
     'loginternal.h',
+
+    'priv/rtkit.h',
+    'priv/cpuaffinity.h',
 ]
 
 sy_datactl_src = [
@@ -29,6 +38,9 @@ sy_datactl_src = [
     'timesync.cpp',
     'tsyncfile.cpp',
     'uuid.cpp',
+
+    'priv/cpuaffinity.cpp',
+    'priv/rtkit.cpp',
 ]
 
 syntalos_datactl_lib = shared_library('syntalos-datactl',
@@ -59,6 +71,7 @@ syntalos_datactl_dep = declare_dependency(
     ],
     include_directories: [
         include_directories('./include'),
+        include_directories('../'),
     ]
 )
 

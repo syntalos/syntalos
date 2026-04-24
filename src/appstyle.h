@@ -19,7 +19,7 @@
 
 #pragma once
 
-#include "utils/style.h"
+#include "fabric/utils/style.h"
 
 bool switchIconTheme(const QString &themeName);
 

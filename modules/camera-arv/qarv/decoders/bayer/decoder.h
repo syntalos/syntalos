@@ -2,7 +2,6 @@
 
 #include <arv.h>
 #include <opencv2/imgproc/imgproc.hpp>
-#include <QDataStream>
 
 #include "../../qarvdecoder.h"
 

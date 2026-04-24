@@ -25,7 +25,7 @@
 #include <QStandardPaths>
 #include <QCoreApplication>
 
-#include "rtkit.h"
+#include "datactl/priv/rtkit.h"
 #include "utils/misc.h"
 
 using namespace Syntalos;
