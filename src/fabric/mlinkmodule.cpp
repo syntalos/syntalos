@@ -856,10 +856,6 @@ bool MLinkModule::runProcess()
         return false;
     }
 
-    // If we (re)launch, we always go through another initialization phase
-    // This also clears previous state.
-    setState(ModuleState::INITIALIZING);
-
     auto penv = moduleBinaryEnv();
     penv.insert("SYNTALOS_VERSION", syntalosVersionFull());
     penv.insert("SYNTALOS_MODULE_ID", d->clientId.c_str());
@@ -869,8 +865,9 @@ bool MLinkModule::runProcess()
         penv.insert("PATH", QStringLiteral("%1/bin/:%2").arg(d->pyVenvDir, penv.value("PATH", "")));
     }
 
-    // when launching the external process, we are back at initialization
-    auto prevState = state();
+    // When launching the external process, we are back at initialization
+    // If we are in an error state, we clear it and return to IDLE after a restart.
+    auto prevState = (state() == ModuleState::ERROR) ? ModuleState::IDLE : state();
     setState(ModuleState::INITIALIZING);
 
     d->proc->setProcessEnvironment(penv);
