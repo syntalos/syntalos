@@ -786,7 +786,7 @@ bool MLinkModule::loadSettings(const QString &confBaseDir, const QVariantHash &s
 
 void MLinkModule::showDisplayUi()
 {
-    if (!d->callClientSimple<ShowDisplayRequest>(this, SHOW_DISPLAY_CALL_ID, [](auto &) {}))
+    if (!d->callClientSimple<ShowDisplayRequest>(this, SHOW_DISPLAY_CALL_ID, [](auto &) {}, 5, true, false))
         LOG_WARNING(m_log, "Show display request failed!");
 }
 
