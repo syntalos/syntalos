@@ -89,10 +89,9 @@ Scenario-based integration tests live in `tests/scenarios/` as TOML manifests.
 ```
 src/          Core application (engine, GUI, module library, loaders). Private API.
 src/fabric/   Module API for libraries, streams, shared (GUI) utilities. Private API.
-src/datactl/  EDL storage, data types, timestamp/sync primitives. Public API.
-src/mlink/    IPC layer for out-of-process (OOP) modules, utility code for OOP modules. Public API.
+src/datactl/  EDL storage, data types, timestamp/sync primitives. Public API. Qt-free.
+src/mlink/    IPC layer for out-of-process (OOP) modules, utility code for OOP modules. Public API. Qt-free.
 src/python/   pybind11 bindings for MLink API (pysy-mlink). Public API.
-src/utils/    Shared utilities (TOML parsing, misc helpers). Private API.
 modules/      One subdirectory per module.
 tests/        Unit tests (Qt Test) and integration test scenarios.
 tools/        Developer tools and useful utilities (crash reporter, metaview, etc.)
@@ -119,13 +118,14 @@ by iterating module directories and reading each `module.toml`. Dispatches to th
 - `moduleloader-ext` → compiled executable out-of-process modules (`type=executable`)
 
 **Data Control** (`src/datactl/`) - EDL storage format, timestamp synchronization
-(`syclock.h`, `timesync.h`), and stream data types (`datatypes.h`).
+(`syclock.h`, `timesync.h`), stream data types (`datatypes.h`), and UUID/system utilities.
+This library has no Qt dependency and is safe to link from both Qt and non-Qt components.
 
 **MLink / IPC** (`src/mlink/`) - Out-of-process module support using iceoryx2 (zero-copy shared-memory
 IPC). The `MLinkModule` base class in `src/fabric/mlinkmodule.h` is the master-side counterpart that
 manages the worker process and bridges IPC channels to the engine's module graph.
-The MLink library is public API and also contains convenience methods for building Syntalos out-of-process
-modules that may or may not live in-tree.
+The MLink library is public API, has no Qt dependency, and also contains convenience methods for
+building Syntalos out-of-process modules that may or may not live in-tree.
 
 **Python Bindings** (`src/python/`) - pybind11 bindings exposing the Syntalos-MLink API to Python
 modules (`pysy-mlink`). Uses `cvnp` for zero-copy OpenCV ↔ NumPy frame sharing.
@@ -171,6 +171,17 @@ Key overrideable lifecycle methods on `AbstractModule`:
 - `stop()` - tear down the run; always called even if the run failed
 - `showSettingsUi()` / `showDisplayUi()` - open settings or display windows
 
+**Logging** — Library modules get a per-module `QuillLogger *m_log` member (set up automatically).
+Use the Quill log macros with this logger:
+```cpp
+LOG_INFO(m_log, "Loaded device: {}", deviceName);
+LOG_WARNING(m_log, "Unexpected value: {}", val);
+LOG_ERROR(m_log, "Failed to open port: {}", portId);
+LOG_DEBUG(m_log, "Frame {} received", frameCount);
+```
+Do not use `qDebug()` / `qWarning()` / `qCritical()` in modules; those bypass the logging subsystem.
+For code outside a module class that still needs a logger, use `getLogger()` from `fabric/logging.h`.
+
 Expose capabilities by returning `ModuleFeature` flags from `features()`:
 `SHOW_SETTINGS`, `SHOW_DISPLAY`, `REALTIME`, `CALL_UI_EVENTS`, `REQUEST_CPU_AFFINITY`, `PROHIBIT_CPU_AFFINITY`.
 
@@ -215,8 +226,10 @@ categories  = 'category1;category2'
 features    = ['show-settings']    # optional
 ```
 
-In code, the module inherits `SyntalosLinkModule` and registers ports in its constructor.
-Ports are discovered dynamically by the master side via IPC - no port declaration in the TOML is needed.
+In code, the module inherits `SyntalosLinkModule` from `<syntalos-mlink>` and registers ports in its
+constructor. Ports are discovered dynamically by the master side via IPC.
+Prefer the `OrAbort` variants for port registration in constructors; they terminate
+immediately with an error message if registration fails.
 
 ---
 
@@ -246,8 +259,10 @@ categories  = 'category1'
 features    = ['show-settings', 'show-display']
 ```
 
-The script is a self-contained Python program with a `main()` entry point. Ports are registered
-via the `SyntalosLink` object returned by `syl.init_link()`, which must happen early:
+The script is a self-contained Python program with a `main()` entry point. Call `syl.init_link()`
+once early to obtain the `SyntalosLink` object, register all ports on it, attach callbacks, then
+enter the event loop:
+
 ```python
 import sys
 import syntalos_mlink as syl
@@ -263,15 +278,24 @@ def main() -> int:
     syLink.on_prepare = ...
     syLink.on_start   = ...
     syLink.on_stop    = ...
-    syLink.on_save_settings = ...   # serialize settings to bytes
-    syLink.on_load_settings = ...   # deserialize settings from bytes
+    syLink.on_save_settings = ...  # serialize settings to bytes
+    syLink.on_load_settings = ...  # deserialize settings from bytes
 
-    syLink.await_data_forever()     # signals IDLE and blocks until shutdown
+    syLink.await_data_forever()    # signals IDLE and blocks until shutdown
     return 0
 
 if __name__ == '__main__':
     sys.exit(main())
 ```
+
+Key points:
+- Port registration happens in `__init__` (or at module level) - the master side reads
+  the topology immediately after the script starts.
+- `iport.on_data` is the preferred way to receive data via a callback.
+- `on_save_settings` / `on_load_settings` both receive a `baseDir: pathlib.Path` argument with the
+   directory where the `.syct` file will be stored. Use this sparingly for external data.
+- If the module shows a Qt GUI, create the `QApplication` before calling `init_link()` and pass
+  `app.processEvents` to `await_data_forever()` so the GUI stays responsive.
 
 ---
 
@@ -304,6 +328,14 @@ m_inPort  = registerInputPort<Frame>("frames-in", "Frames");
 m_outPort = registerOutputPort<TableRow>("rows-out", "Results");
 ```
 
+**Dormant ports** — A port (or its connected stream) can be declared dormant for the current run.
+A dormant output port will not publish any data; a connected input port that reads from a dormant
+stream will also appear dormant. Dormancy propagates transitively across connections, so a module
+that outputs nothing can automatically silence downstream modules that depend solely on its data.
+Use `StreamOutputPort::setDormant(true)` in `prepare()` to mark a port inactive for the upcoming
+run, and `AbstractModule::setStateDormant()` to signal that the module itself is dormant.
+Check `VarStreamInputPort::isDormant()` in a module's `prepare()` to react to upstream dormancy.
+
 ### Data Flow
 
 1. The engine calls `prepare()` on all modules (allocate resources, validate connections).
@@ -328,6 +360,13 @@ Key control channels (defined in `src/mlink/ipc-types-private.h`):
 - `PREPARE_RUN_CALL_ID`, `START_CALL_ID`, `STOP_CALL_ID` - master → worker lifecycle RPC
 - `SHOW_SETTINGS_CALL_ID`, `SHOW_DISPLAY_CALL_ID` - master → worker UI RPC
 
+**Async start** - By default the engine calls `start()` on all OOP modules in parallel so that
+initial acquisition timestamps are as closely aligned as possible. Modules that have circular
+metadata dependencies and modify stream metadata in `start()` (rare!) must opt out by calling
+`slink->setAllowAsyncStart(false)` (C++) or setting `modLink.allow_async_start = False` (Python)
+before the first run. When async-start is disabled for a module, the engine waits for its `start()`
+to complete before proceeding to the next module.
+
 ## Important Conventions
 
 - Code lives in the `Syntalos` namespace.
@@ -344,4 +383,4 @@ Key control channels (defined in `src/mlink/ipc-types-private.h`):
 - Use `processUiEvents()` (not raw `QCoreApplication::processEvents()`) inside long-running
   `initialize()` paths that show dialogs.
 - Modules that may be run in a Flatpak sandbox must not assume `/usr/`-relative paths;
-  use helpers from `utils/misc.h` like `hostUdevRuleExists()` to check for required host files.
+  use helpers from `fabric/utils/misc.h` like `hostUdevRuleExists()` to check for required host files.
