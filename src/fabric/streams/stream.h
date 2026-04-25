@@ -671,7 +671,7 @@ public:
         if (!m_active)
             return;
         if (typeId != syDataTypeId<T>()) {
-            qCritical().noquote() << "Invalid data type ID" << typeId << "for stream " << streamDebugId();
+            LOG_CRITICAL(m_log, "Invalid data type ID {} for stream {}", typeId, streamDebugId());
             return;
         }
 

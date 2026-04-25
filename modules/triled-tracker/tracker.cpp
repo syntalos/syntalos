@@ -27,6 +27,8 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
+#include "fabric/logging.h"
+
 Tracker::Tracker(std::shared_ptr<DataStream<TableRow>> dataStream, const QString &subjectId)
     : QObject(nullptr),
       m_initialized(false),
@@ -41,7 +43,7 @@ Tracker::Tracker(std::shared_ptr<DataStream<TableRow>> dataStream, const QString
         file.read((char *)buf.data(), sz);
         m_mouseGraphicMat = cv::imdecode(buf, cv::IMREAD_COLOR);
     } else {
-        qCritical() << "Unable to load mouse image from internal resources.";
+        LOG_CRITICAL(logRoot, "Unable to load mouse image from internal resources.");
     }
 }
 

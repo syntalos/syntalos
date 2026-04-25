@@ -37,6 +37,7 @@ extern "C" {
 }
 
 #include "datactl/priv/rtkit.h"
+#include "logging.h"
 #include "utils/misc.h"
 
 using namespace Syntalos;
@@ -156,8 +157,9 @@ SysInfo::SysInfo()
     d->cpuCount = QThread::idealThreadCount();
     d->cpuPhysicalCoreCount = d->cpuCount;
 #ifndef Q_OS_LINUX
-    qCritical()
-        << "We are not building for Linux - please make sure to adjust the SysInfo code when porting to other systems!";
+    LOG_CRITICAL(
+        logRoot,
+        "We are not building for Linux - please make sure to adjust the SysInfo code when porting to other systems!");
     return;
 #endif
 
@@ -486,7 +488,7 @@ void SysInfo::readCPUInfo()
 {
     QFile file("/proc/cpuinfo");
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
-        qCritical() << "Unable to open /proc/cpuinfo for reading. This may be a system configuration issue.";
+        LOG_CRITICAL(logRoot, "Unable to open /proc/cpuinfo for reading. This may be a system configuration issue.");
         return;
     }
 
@@ -562,7 +564,7 @@ void SysInfo::readCPUInfo()
 
     // safeguard in case we failed to determine proper information for any reason
     if (d->cpuCount <= 0) {
-        qCritical() << "Unable to read CPU information. Is /proc/cpuinfo accessible?";
+        LOG_CRITICAL(logRoot, "Unable to read CPU information. Is /proc/cpuinfo accessible?");
         d->cpuCount = QThread::idealThreadCount();
         d->cpuPhysicalCoreCount = d->cpuCount;
     }

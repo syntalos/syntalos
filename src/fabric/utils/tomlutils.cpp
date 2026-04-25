@@ -23,6 +23,8 @@
 #include <fstream>
 #include <iostream>
 
+#include "fabric/logging.h"
+
 toml::time qTimeToToml(const QTime &qtime)
 {
     toml::time ttime;
@@ -130,8 +132,7 @@ toml::array qVariantListToTomlArray(const QVariantList &varList)
         if (CONVERT_SIMPLE_QTYPE_TO_TOMLTYPE(arr.push_back, var))
             continue;
 
-        qWarning().noquote()
-            << QStringLiteral("Unable to store type `%1` in TOML attributes (array).").arg(var.typeName());
+        LOG_WARNING(logRoot, "Unable to store type `{}` in TOML attributes (array).", var.typeName());
         arr.push_back("�");
     }
 
@@ -165,8 +166,7 @@ toml::table qVariantHashToTomlTable(const QVariantHash &varHash)
         if (CONVERT_SIMPLE_QTYPE_TO_TOMLTYPE(tabInsertFunc, var))
             continue;
 
-        qWarning().noquote()
-            << QStringLiteral("Unable to store type `%1` in TOML attributes (table).").arg(var.typeName());
+        LOG_WARNING(logRoot, "Unable to store type `{}` in TOML attributes (table).", var.typeName());
         tab.insert(key, "�");
     }
 
