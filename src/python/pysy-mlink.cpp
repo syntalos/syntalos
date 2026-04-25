@@ -332,19 +332,24 @@ public:
             // argv[], which Python does not provide. Rather than doing the horrendous
             // memory-scanning of setproctitle ourselves, we might as well call the real
             // thing, if it is installed.
-            sptMod = py::module_::import("setproctitle");
+            try {
+                sptMod = py::module_::import("setproctitle");
+            } catch (py::error_already_set &e) {
+                if (!e.matches(PyExc_ImportError))
+                    throw;
+            }
 
             // if we have setproctitle, we prefer it over Syntalos' simple thread-renaming
-            if (!sptMod.is_none())
+            if (sptMod)
                 newOptn.renameThread = false;
         }
 
         // connect
-        m_ownedSLink = initSyntalosModuleLink(optn);
+        m_ownedSLink = initSyntalosModuleLink(newOptn);
         m_slink = m_ownedSLink.get();
 
         // do the renaming, if the user wanted it
-        if (optn.renameThread && !sptMod.is_none())
+        if (optn.renameThread && sptMod)
             sptMod.attr("setproctitle")(m_slink->instanceId());
     }
 
