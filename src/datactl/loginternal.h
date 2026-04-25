@@ -84,4 +84,5 @@ void dispatchLog(
 #define SY_LOG_DEBUG(cat, ...)    SY_LOG((cat), ::Syntalos::datactl::LogSeverity::Debug, __VA_ARGS__)
 #define SY_LOG_INFO(cat, ...)     SY_LOG((cat), ::Syntalos::datactl::LogSeverity::Info, __VA_ARGS__)
 #define SY_LOG_WARNING(cat, ...)  SY_LOG((cat), ::Syntalos::datactl::LogSeverity::Warning, __VA_ARGS__)
+#define SY_LOG_ERROR(cat, ...)    SY_LOG((cat), ::Syntalos::datactl::LogSeverity::Warning, __VA_ARGS__)
 #define SY_LOG_CRITICAL(cat, ...) SY_LOG((cat), ::Syntalos::datactl::LogSeverity::Critical, __VA_ARGS__)

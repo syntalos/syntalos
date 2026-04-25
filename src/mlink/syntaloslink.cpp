@@ -70,7 +70,7 @@ static auto safeReceive(Sub &sub) -> std::remove_cvref_t<decltype(sub.receive().
 {
     auto result = sub.receive();
     if (!result.has_value()) {
-        std::cerr << "Client IPC receive failed:" << iox2::bb::into<const char *>(result.error());
+        SY_LOG_ERROR(logSyLink, "Client IPC receive failed: {}", iox2::bb::into<const char *>(result.error()));
         return {};
     }
     return std::move(result).value();
@@ -383,14 +383,14 @@ public:
     void notifyMaster() const
     {
         if (!ctlEventNotifier.has_value()) [[unlikely]] {
-            std::cerr << "notifyMaster: Notifier was not initialized, can not notify master!" << std::endl;
+            SY_LOG_ERROR(logSyLink, "notifyMaster: Notifier was not initialized, can not notify master!");
             return;
         }
 
         auto r = ctlEventNotifier->notify();
         if (!r.has_value())
-            std::cerr << "Failed to notify master of control event:" << iox2::bb::into<const char *>(r.error())
-                      << std::endl;
+            SY_LOG_ERROR(
+                logSyLink, "Failed to notify master of control event: {}", iox2::bb::into<const char *>(r.error()));
     }
 
     /**
@@ -400,8 +400,10 @@ public:
     {
         auto maybeSlice = clt.loan_slice_uninit(static_cast<uint64_t>(data.size()));
         if (!maybeSlice.has_value()) {
-            std::cerr << "Failed to loan memory for port change request: "
-                      << iox2::bb::into<const char *>(maybeSlice.error()) << '\n';
+            SY_LOG_ERROR(
+                logSyLink,
+                "Failed to loan memory for port change request: {}",
+                iox2::bb::into<const char *>(maybeSlice.error()));
             return;
         }
         auto rawSlice = std::move(maybeSlice).value();
@@ -415,8 +417,8 @@ public:
             if (response.has_value())
                 return;
             if (std::chrono::steady_clock::now() >= deadline) {
-                std::cerr << "Port change acknowledgment from master timed out after 60s - aborting worker."
-                          << std::endl;
+                SY_LOG_ERROR(
+                    logSyLink, "Port change acknowledgment from master timed out after 60s - aborting worker.");
                 std::abort();
             }
             std::this_thread::sleep_for(std::chrono::microseconds(25));
@@ -431,8 +433,10 @@ public:
     {
         auto maybeResponse = req.loan_uninit();
         if (!maybeResponse.has_value()) {
-            std::cerr << "Failed to loan response for 'done' reply: "
-                      << iox2::bb::into<const char *>(maybeResponse.error()) << '\n';
+            SY_LOG_ERROR(
+                logSyLink,
+                "Failed to loan response for 'done' reply: {}",
+                iox2::bb::into<const char *>(maybeResponse.error()));
             return;
         }
         iox2::send(std::move(maybeResponse).value().write_payload(DoneResponse{success})).value();
@@ -445,8 +449,10 @@ public:
     {
         auto maybeResponse = req.loan_uninit();
         if (!maybeResponse.has_value()) {
-            std::cerr << "Failed to loan response for 'done' reply: "
-                      << iox2::bb::into<const char *>(maybeResponse.error()) << '\n';
+            SY_LOG_ERROR(
+                logSyLink,
+                "Failed to loan response for 'done' reply: {}",
+                iox2::bb::into<const char *>(maybeResponse.error()));
             return;
         }
         iox2::send(std::move(maybeResponse).value().write_payload(DoneResponse{success})).value();
@@ -627,8 +633,10 @@ void SyntalosLink::processPendingControl()
 
         auto maybeResponse = req->loan_uninit();
         if (!maybeResponse.has_value()) {
-            std::cerr << "Failed to loan response for API version request: "
-                      << iox2::bb::into<const char *>(maybeResponse.error()) << '\n';
+            SY_LOG_ERROR(
+                logSyLink,
+                "Failed to loan response for API version request: {}",
+                iox2::bb::into<const char *>(maybeResponse.error()));
             continue;
         }
 
@@ -649,8 +657,10 @@ void SyntalosLink::processPendingControl()
         if (!ok)
             // Rtkit may have hit its per-user concurrent-thread limit.
             // The module will continue at default priority rather than failing to start entirely.
-            std::cerr << "Worker thread niceness could not be set to " << req->payload().nice
-                      << " - module will run at default priority." << std::endl;
+            SY_LOG_WARNING(
+                logSyLink,
+                "Worker thread niceness could not be set to {} - module will run at default priority.",
+                req->payload().nice);
         Private::replyDone(*req, true);
     }
 
@@ -826,9 +836,11 @@ void SyntalosLink::processPendingControl()
         auto ssRespData = ssResp.toBytes();
         auto maybeResponse = req->loan_slice_uninit(ssRespData.size());
         if (!maybeResponse.has_value()) {
-            std::cerr << "Failed to loan response (" << ssRespData.size()
-                      << " bytes) for reply to SaveSettings: " << iox2::bb::into<const char *>(maybeResponse.error())
-                      << '\n';
+            SY_LOG_ERROR(
+                logSyLink,
+                "Failed to loan response ({} bytes) for reply to SaveSettings: {}",
+                ssRespData.size(),
+                iox2::bb::into<const char *>(maybeResponse.error()));
             break;
         }
 
