@@ -58,6 +58,8 @@ void iterateDefaultMainContextNonBlocking()
 namespace Syntalos
 {
 
+SY_DEFINE_LOG_CATEGORY(logSyLink, "sylink");
+
 /**
  * Safely receive from a subscriber on the client.
  * Returns the inner optional (empty = no data available) and logs a warning
@@ -1058,7 +1060,8 @@ void SyntalosLink::awaitDataForever(const std::function<void()> &eventFn, int in
         const auto res = d->waitSet->wait_and_process_once_with_timeout(
             onEvent, iox2::bb::Duration::from_micros(intervalUsec));
         if (!res.has_value()) {
-            g_warning("Event loop terminated unexpectedly: %s", iox2::bb::into<const char *>(res.error()));
+            SY_LOG_WARNING(
+                logSyLink, "Event loop terminated unexpectedly: {}", iox2::bb::into<const char *>(res.error()));
             return;
         }
         // Treat SIGTERM/SIGINT as a shutdown request

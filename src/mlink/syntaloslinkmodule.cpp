@@ -19,12 +19,14 @@
 
 #include "syntaloslinkmodule.h"
 
-#include <glib.h>
+#include <datactl/loginternal.h>
 
 using namespace Syntalos;
 
 namespace Syntalos
 {
+
+SY_DEFINE_LOG_CATEGORY(logLinkMod, "sylm");
 
 class SyntalosLinkModule::Private
 {
@@ -139,7 +141,7 @@ void SyntalosLinkModule::stop()
 
 void SyntalosLinkModule::shutdown()
 {
-    g_debug("Shutting down.");
+    SY_LOG_INFO(logLinkMod, "Shutting down.");
     awaitData(1000);
 }
 
