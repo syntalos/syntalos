@@ -80,6 +80,8 @@ enum class ModuleState : uint8_t {
     ERROR         /// Module failed to run / is in an error state
 };
 
+std::string toString(ModuleState state);
+
 /**
  * @brief Base interface for all data types
  *

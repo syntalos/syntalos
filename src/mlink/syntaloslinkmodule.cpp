@@ -136,7 +136,8 @@ void SyntalosLinkModule::start()
 void SyntalosLinkModule::stop()
 {
     // Implemented by derived classes
-    setState(ModuleState::IDLE);
+    if (state() != ModuleState::ERROR)
+        setState(ModuleState::IDLE);
 }
 
 void SyntalosLinkModule::shutdown()

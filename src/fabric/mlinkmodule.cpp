@@ -50,6 +50,14 @@ static auto safeReceive(Sub &sub) -> std::remove_cvref_t<decltype(sub.receive().
     return std::move(result).value();
 }
 
+enum class IpcCallFlag {
+    None = 0x0,
+    TimeoutIsError = 0x1, /// Treat timeouts as an error
+    SkipWaitOnError = 0x2 /// Do not wait for a response if the module is in an error state
+};
+Q_DECLARE_FLAGS(IpcCallFlags, IpcCallFlag)
+Q_DECLARE_OPERATORS_FOR_FLAGS(IpcCallFlags)
+
 class MLinkModule::Private
 {
 public:
@@ -172,10 +180,16 @@ public:
             if (newState == ModuleState::ERROR)
                 continue;
 
+            // only the engine / user interaction is allowed to clear a module error state
+            if (self->state() == ModuleState::ERROR)
+                continue;
+
             // only some states are allowed to be set by the module
             if (newState == ModuleState::DORMANT || newState == ModuleState::READY
-                || newState == ModuleState::INITIALIZING || newState == ModuleState::IDLE)
+                || newState == ModuleState::INITIALIZING || newState == ModuleState::IDLE) {
+                LOG_DEBUG(self->m_log, "Client state change request granted: {} → {}", toString(self->state()), toString(newState));
                 self->setState(newState);
+            }
         }
     }
 
@@ -188,8 +202,7 @@ public:
         const std::string &channel,
         Func fillReqFn,
         int timeoutSec = 5,
-        bool timeoutIsError = true,
-        bool skipIfModuleError = true)
+        IpcCallFlags flags = IpcCallFlag::TimeoutIsError | IpcCallFlag::SkipWaitOnError)
     {
         if (!node.has_value()) {
             LOG_CRITICAL(log, "callClientSimple: IOX node not initialized, failing call on channel: {}", channel);
@@ -221,7 +234,7 @@ public:
                 return response->payload();
 
             // quit immediately if an error was already emitted
-            if (skipIfModuleError && self->state() == ModuleState::ERROR)
+            if (flags.testFlag(IpcCallFlag::SkipWaitOnError) && self->state() == ModuleState::ERROR)
                 return std::nullopt;
 
             // if we stopped running (crashed or existed) we no longer need to wait
@@ -229,7 +242,7 @@ public:
                 return std::nullopt;
 
             if (timer.elapsed() > timeoutSec * 1000) {
-                if (timeoutIsError)
+                if (flags.testFlag(IpcCallFlag::TimeoutIsError))
                     self->raiseError(QStringLiteral("Timeout while waiting for response on: %1").arg(qstr(channel)));
                 return std::nullopt;
             }
@@ -257,11 +270,9 @@ public:
         const std::string &channel,
         Func fillReqFn,
         int timeoutSec = 5,
-        bool timeoutIsError = true,
-        bool skipIfModuleError = true)
+        IpcCallFlags flags = IpcCallFlag::TimeoutIsError | IpcCallFlag::SkipWaitOnError)
     {
-        auto res = callClientSimple<Req, DoneResponse>(
-            self, channel, fillReqFn, timeoutSec, timeoutIsError, skipIfModuleError);
+        auto res = callClientSimple<Req, DoneResponse>(self, channel, fillReqFn, timeoutSec, flags);
         if (!res.has_value())
             return false;
         return res->success;
@@ -785,8 +796,15 @@ bool MLinkModule::loadSettings(const QString &confBaseDir, const QVariantHash &s
 
 void MLinkModule::showDisplayUi()
 {
-    if (!d->callClientSimple<ShowDisplayRequest>(this, SHOW_DISPLAY_CALL_ID, [](auto &) {}, 5, true, false))
+    if (!d->callClientSimple<ShowDisplayRequest>(
+            this, SHOW_DISPLAY_CALL_ID, [](auto &) {}, 5, IpcCallFlag::TimeoutIsError)) {
         LOG_WARNING(m_log, "Show display request failed!");
+        return;
+    }
+
+    // if a show-display request worked, we are allowed to clear the error state
+    if (state() == ModuleState::ERROR)
+        setState(ModuleState::IDLE);
 }
 
 void MLinkModule::showSettingsUi()
@@ -794,8 +812,16 @@ void MLinkModule::showSettingsUi()
     // pick up any recently saved settings before we hand them back to the worker UI
     handleIncomingControl();
 
-    if (!d->callClientSimple<ShowSettingsRequest>(this, SHOW_SETTINGS_CALL_ID, [](auto &) {}, 5, true, false))
+    if (!d->callClientSimple<ShowSettingsRequest>(
+            this, SHOW_SETTINGS_CALL_ID, [](auto &) {}, 5, IpcCallFlag::TimeoutIsError)) {
         LOG_WARNING(m_log, "Request to show settings UI has failed!");
+        handleIncomingControl();
+        return;
+    }
+
+    // if a show-settings request worked, we are allowed to clear the error state
+    if (state() == ModuleState::ERROR)
+        setState(ModuleState::IDLE);
 
     // drain immediate updates emitted while handling the request
     handleIncomingControl();
@@ -814,9 +840,8 @@ void MLinkModule::terminateProcess()
         this,
         SHUTDOWN_CALL_ID,
         [](auto &) {},
-        5,     // timeout seconds
-        false, // timeout is not an error
-        false  // we do not fast-exit if the module is in an error-state
+        5,                // timeout seconds
+        IpcCallFlag::None // timeout is not an error and we do not fast-exit if the module is in an error-state
     );
 
     // give the process some time to terminate
@@ -1310,7 +1335,7 @@ void MLinkModule::runThread(OptionalWaitCondition *startWaitCondition)
 void MLinkModule::stop()
 {
     if (isProcessRunning())
-        d->callClientSimple<StopRequest>(this, STOP_CALL_ID, [](auto &) {}, 15, true, false);
+        d->callClientSimple<StopRequest>(this, STOP_CALL_ID, [](auto &) {}, 15, IpcCallFlag::TimeoutIsError);
 
     // stop the module thread first
     AbstractModule::stop();

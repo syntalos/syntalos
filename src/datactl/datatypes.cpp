@@ -22,6 +22,30 @@
 
 static std::vector<std::pair<std::string, int>> g_streamTypeIdIndex;
 
+std::string Syntalos::toString(ModuleState state)
+{
+    switch (state) {
+    case ModuleState::UNKNOWN:
+        return "unknown";
+    case ModuleState::INITIALIZING:
+        return "initializing";
+    case ModuleState::IDLE:
+        return "idle";
+    case ModuleState::PREPARING:
+        return "preparing";
+    case ModuleState::DORMANT:
+        return "dormant";
+    case ModuleState::READY:
+        return "ready";
+    case ModuleState::RUNNING:
+        return "running";
+    case ModuleState::ERROR:
+        return "error";
+    default:
+        return "invalid-state";
+    }
+}
+
 void Syntalos::registerStreamMetaTypes()
 {
     // only register the types if we have not created the global registry yet
