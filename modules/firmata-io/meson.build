@@ -30,6 +30,9 @@ module_ui = ['firmatasettingsdialog.ui']
 qt_serialport_dep = dependency('qt6', modules: ['SerialPort'])
 module_deps = [qt_serialport_dep]
 
+# no debug for QFirmata
+module_args = ['-DNDEBUG']
+
 module_data = [
     'firmata-io.svg',
 ]
