@@ -217,6 +217,9 @@ public:
      * Must be called at initialization time to tell Syntalos the port topology
      * for this module. Will return an error if an invalid type is passed
      * or communication with Syntalos failed.
+     * If called for an existing port with the same ID and data type, it will
+     * be updated and returned instead. Trying to change the data type on an
+     * existing port is an error.
      *
      * @param id     Unique port identifier string.
      * @param title  Human-readable port title shown in the flow graph.
@@ -232,6 +235,9 @@ public:
      * Must be called at initialization time to tell Syntalos the port topology
      * for this module. Will return an error if an invalid type is passed
      * or communication with Syntalos failed.
+     * If called for an existing port with the same ID and data type, it will
+     * be updated and returned instead. Trying to change the data type on an
+     * existing port is an error.
      *
      * @param id       Unique port identifier string.
      * @param title    Human-readable port title shown in the flow graph.

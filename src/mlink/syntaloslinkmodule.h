@@ -103,17 +103,10 @@ protected:
     auto registerOutputPort(const std::string &id, const std::string &title = {}, const MetaStringMap &metadata = {})
         -> std::expected<std::shared_ptr<OutputPortLink<T>>, std::string>
     {
-        // fetch existing output port first, if any exists
-        for (auto &eop : m_slink->outputPorts()) {
-            if (eop->id() == id)
-                return std::shared_ptr<OutputPortLink<T>>(new OutputPortLink<T>(this, eop));
-        }
-
-        // register a new port if we found none
         auto opInfo = m_slink->registerOutputPort(
             id, title, static_cast<BaseDataType::TypeId>(syDataTypeId<T>()), metadata);
         if (!opInfo.has_value())
-            return std::unexpected(std::format("Failed to register output port with ID {}: {}", id, opInfo.error()));
+            return std::unexpected(opInfo.error());
 
         auto oport = std::shared_ptr<OutputPortLink<T>>(new OutputPortLink<T>(this, *opInfo));
         return oport;
@@ -143,12 +136,6 @@ protected:
     auto registerInputPort(const std::string &id, const std::string &title, U *instance, void (U::*fn)(const T &data))
         -> std::expected<std::shared_ptr<InputPortInfo>, std::string>
     {
-        // fetch existing input port first, if any exists
-        for (auto &eip : m_slink->inputPorts()) {
-            if (eip->id() == id)
-                return eip;
-        }
-
         auto res = m_slink->registerInputPort(id, title, static_cast<BaseDataType::TypeId>(syDataTypeId<T>()));
         if (!res.has_value())
             return res;

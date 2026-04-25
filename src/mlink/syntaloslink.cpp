@@ -1199,9 +1199,18 @@ auto SyntalosLink::registerInputPort(const std::string &id, const std::string &t
 
     // check for duplicates
     for (const auto &ip : d->inPortInfo) {
-        if (ip->id() == id) {
-            return std::unexpected(std::format("Can not register input port. A port with ID '{}' already exists.", id));
+        if (ip->id() != id)
+            continue;
+
+        if (ip->dataTypeId() != typeId)
+            return std::unexpected(
+                std::format(
+                    "Can not register input port. A port with ID '{}', but different data type, already exists.", id));
+        if (ip->title() != title) {
+            ip->d->title = title;
+            updateInputPort(ip);
         }
+        return ip;
     }
 
     // construct our reference for this port
@@ -1237,10 +1246,17 @@ auto SyntalosLink::registerOutputPort(
 
     // check for duplicates
     for (const auto &op : d->outPortInfo) {
-        if (op->id() == id) {
+        if (op->id() != id)
+            continue;
+
+        if (op->dataTypeId() != typeId)
             return std::unexpected(
-                std::format("Can not register output port. A port with ID '{}' already exists.", id));
-        }
+                std::format(
+                    "Can not register output port. A port with ID '{}', but different data type, already exists.", id));
+        op->d->title = title;
+        op->d->metadata = metadata;
+        updateOutputPort(op);
+        return op;
     }
 
     // construct our reference for this port
