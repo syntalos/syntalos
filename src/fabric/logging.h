@@ -28,7 +28,7 @@ namespace Syntalos
 
 using QuillLogger = quill::Logger;
 
-#define logRoot getDefaultLogger()
+#define logRoot ::Syntalos::getDefaultLogger()
 
 quill::Logger *getLogger(const std::string &name);
 quill::Logger *getLogger(const QString &name);

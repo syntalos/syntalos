@@ -28,7 +28,6 @@
 #pragma GCC diagnostic pop
 #include <QCoreApplication>
 #include <QDesktopServices>
-#include <QDebug>
 #include <QFileInfo>
 #include <QVBoxLayout>
 #include <QShortcut>

@@ -19,7 +19,6 @@
 
 #include "miniscopemodule.h"
 
-#include <QDebug>
 #include <QTimer>
 #include <QFile>
 #include <miniscope.h>

@@ -19,7 +19,6 @@
 
 #include "sp210module.h"
 
-#include <QDebug>
 #include <QThread>
 #include <QSerialPort>
 

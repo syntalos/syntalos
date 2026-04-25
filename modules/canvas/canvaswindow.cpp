@@ -19,7 +19,6 @@
 
 #include "canvaswindow.h"
 
-#include <QDebug>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QIcon>
@@ -166,8 +165,9 @@ private:
     QCheckBox *m_cbShowHistogram;
 };
 
-CanvasWindow::CanvasWindow(QWidget *parent)
-    : QWidget(parent)
+CanvasWindow::CanvasWindow(QuillLogger *logger, QWidget *parent)
+    : QWidget(parent),
+      m_log(logger)
 {
     setWindowTitle("Canvas");
 
@@ -243,6 +243,11 @@ CanvasWindow::CanvasWindow(QWidget *parent)
             m_histogramWidget->setIdle();
         }
     });
+}
+
+void CanvasWindow::setLogger(QuillLogger *logger)
+{
+    m_log = logger;
 }
 
 void CanvasWindow::showImage(const cv::Mat &mat)
@@ -382,7 +387,7 @@ void CanvasWindow::updateHistogram()
         computeHistogram<false, swapRedBlue>(image, hists, grayscale, logarithmic);
     } else {
         m_histTimer->stop();
-        qWarning().noquote() << "Unsupported image format for histogram computation, disabling rendering.";
+        LOG_WARNING(m_log, "Unsupported image format for histogram computation, disabling rendering.");
     }
 
     m_histogramWidget->swapHistograms(grayscale);

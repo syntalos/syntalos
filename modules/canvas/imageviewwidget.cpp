@@ -19,7 +19,6 @@
 
 #include "imageviewwidget.h"
 
-#include <QDebug>
 #include <QMessageBox>
 #include <QOpenGLShaderProgram>
 #include <QOpenGLBuffer>
@@ -28,6 +27,8 @@
 #include <opencv2/opencv.hpp>
 #include <cmath>
 #include <cstring>
+
+#include "fabric/logging.h"
 
 #if defined(QT_OPENGL_ES)
 #define USE_GLES 1
@@ -240,7 +241,7 @@ void ImageViewWidget::initializeGL()
 
     if (!d->shaderProgram.link()) {
         glOkay = false;
-        qWarning().noquote() << "Unable to link shader program:" << d->shaderProgram.log();
+        LOG_ERROR(logRoot, "Unable to link shader program: {}", d->shaderProgram.log());
     }
 
     // Initialize VAO & VBO

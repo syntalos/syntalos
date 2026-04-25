@@ -20,7 +20,6 @@
 #include "audiosrcmodule.h"
 #include "QtSvg/qsvgrenderer.h"
 
-#include <QDebug>
 #include <QDir>
 #include <QMessageBox>
 #include <QPainter>
@@ -288,7 +287,7 @@ void AudioSourceModuleInfo::refreshIcon()
     // on a dark background
     QFile f(audioSrcIconFname);
     if (!f.open(QFile::ReadOnly | QFile::Text)) {
-        qWarning().noquote() << "Failed to find audiosrc module icon: " << f.errorString();
+        LOG_WARNING(logRoot, "Failed to find audiosrc module icon: {}", f.errorString());
         setIcon(QIcon(audioSrcIconFname));
         return;
     }

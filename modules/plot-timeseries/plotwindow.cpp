@@ -20,7 +20,6 @@
 #include "plotwindow.h"
 #include "ui_plotwindow.h"
 
-#include <QDebug>
 #include <QScrollBar>
 #include <QInputDialog>
 

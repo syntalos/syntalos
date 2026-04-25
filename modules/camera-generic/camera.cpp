@@ -19,7 +19,6 @@
 
 #include "camera.h"
 
-#include <QDebug>
 #include <QFileInfo>
 #include <fcntl.h>
 #include <libv4l2.h>

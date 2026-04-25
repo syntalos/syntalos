@@ -20,7 +20,6 @@
 #include "miniscopesettingsdialog.h"
 #include "ui_miniscopesettingsdialog.h"
 
-#include <QDebug>
 #include <QMessageBox>
 #include <QVariant>
 #include <miniscope.h>

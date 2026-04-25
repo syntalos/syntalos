@@ -20,7 +20,6 @@
 #include "firmatactldialog.h"
 #include "ui_firmatactldialog.h"
 
-#include <QDebug>
 #include <QInputDialog>
 #include <QLabel>
 #include <QPushButton>
@@ -145,8 +144,6 @@ void FirmataOutputWidget::submitNewPinCommand()
     newPinCtl.isOutput = true;
     newPinCtl.command = m_isAnalog ? FirmataCommandKind::NEW_ANA_PIN : FirmataCommandKind::NEW_DIG_PIN;
     m_fmCtlStream->push(newPinCtl);
-
-    qDebug() << "New pin change pushed" << newPinCtl.pinId;
 }
 
 int FirmataOutputWidget::value() const

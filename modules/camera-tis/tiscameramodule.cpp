@@ -19,7 +19,6 @@
 
 #include "tiscameramodule.h"
 
-#include <QDebug>
 #include <QMessageBox>
 #include <gst/app/gstappsink.h>
 #include <tcam-property-1.0.h>

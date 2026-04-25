@@ -26,7 +26,6 @@
 #include <QDBusMetaType>
 #include <QDBusReply>
 #include <QDBusServiceWatcher>
-#include <QDebug>
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QProcess>
@@ -426,14 +425,13 @@ public:
     void enqueueVideosForDeferredEncoding()
     {
         if (isEphemeralRun()) {
-            qDebug().noquote().nospace() << name() << ": "
-                                         << "Not performing deferred encoding, run was ephemeral.";
+            LOG_INFO(m_log, "Not performing deferred encoding, run was ephemeral.");
             return;
         }
         if (m_vidDataset == nullptr) {
-            qDebug().noquote().nospace()
-                << name() << ": "
-                << "Not performing deferred encoding, video dataset was not set (we probably failed the run early).";
+            LOG_INFO(
+                m_log,
+                "Not performing deferred encoding, video dataset was not set (we probably failed the run early).");
             return;
         }
 
@@ -520,7 +518,7 @@ public:
         if (m_settingsDialog->deferredEncodingInstantStart()) {
             QDBusReply<bool> reply = iface->call("processVideos");
             if (!reply.isValid() || !reply.value())
-                qWarning().noquote() << "Unable to request immediate video encoding:" << reply.error().message();
+                LOG_WARNING(m_log, "Unable to request immediate video encoding: {}", reply.error().message());
         }
     }
 

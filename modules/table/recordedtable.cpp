@@ -19,7 +19,6 @@
 
 #include "recordedtable.h"
 
-#include <QDebug>
 #include <QFile>
 #include <QHeaderView>
 #include <QMessageBox>

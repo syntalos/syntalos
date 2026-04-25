@@ -30,7 +30,6 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QDesktopServices>
-#include <QDebug>
 #include <QFileInfo>
 #include <QProcessEnvironment>
 #include <QHBoxLayout>
@@ -343,7 +342,7 @@ private:
         const auto gdbExe = QStandardPaths::findExecutable(QStringLiteral("gdb"));
         if (gdbExe.isEmpty()) {
             // text warning, to we at least know what happened if this times out on noninteractive CI
-            qWarning().noquote() << "The `gdb` debugger binary was not found!";
+            LOG_WARNING(m_log, "The `gdb` debugger binary was not found!");
 
             // user warning
             QMessageBox::warning(

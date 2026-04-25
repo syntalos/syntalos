@@ -30,7 +30,6 @@
 #include <QTabWidget>
 #include <QCoreApplication>
 #include <QDesktopServices>
-#include <QDebug>
 #include <QFileInfo>
 #include <QHBoxLayout>
 #include <QMenuBar>

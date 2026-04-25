@@ -22,7 +22,6 @@
 #include <QSerialPort>
 #include <QCoreApplication>
 #include <QThread>
-#include <QDebug>
 
 LabrstimClient::LabrstimClient(QObject *parent)
     : QObject(parent),

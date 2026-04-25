@@ -25,7 +25,6 @@
 #include <QDBusInterface>
 #include <QDBusReply>
 #include <QDBusUnixFileDescriptor>
-#include <QDebug>
 #include <QDir>
 #include <QFileInfo>
 #include <QMessageBox>

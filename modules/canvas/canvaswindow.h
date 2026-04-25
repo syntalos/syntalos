@@ -22,6 +22,8 @@
 #include <QWidget>
 #include <opencv2/core.hpp>
 
+#include "fabric/logging.h"
+
 class ImageViewWidget;
 class ToolsOverlayWidget;
 class HistogramWidget;
@@ -29,11 +31,15 @@ class QLabel;
 class QTimer;
 class QCheckBox;
 
+using namespace Syntalos;
+
 class CanvasWindow : public QWidget
 {
     Q_OBJECT
 public:
-    explicit CanvasWindow(QWidget *parent = nullptr);
+    explicit CanvasWindow(QuillLogger *logger, QWidget *parent = nullptr);
+
+    void setLogger(QuillLogger *logger);
 
     void showImage(const cv::Mat &mat);
     void setStatusText(const QString &text);
@@ -58,6 +64,7 @@ private:
     ImageViewWidget *m_imgView;
     QLabel *m_statusLabel;
     ToolsOverlayWidget *m_toolsOverlay;
+    QuillLogger *m_log;
 
     QTimer *m_histTimer;
     QCheckBox *m_histLogarithmicCb;

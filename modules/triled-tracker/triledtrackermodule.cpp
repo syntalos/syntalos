@@ -19,8 +19,6 @@
 
 #include "triledtrackermodule.h"
 
-#include <QDebug>
-
 #include "datactl/frametype.h"
 #include "tracker.h"
 

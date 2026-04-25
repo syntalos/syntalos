@@ -20,7 +20,6 @@
 #include "vtransformctldialog.h"
 #include "ui_vtransformctldialog.h"
 
-#include <QDebug>
 #include <QInputDialog>
 
 VTransformCtlDialog::VTransformCtlDialog(QWidget *parent)

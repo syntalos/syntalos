@@ -44,16 +44,16 @@ private:
     static constexpr double STREAM_EMA_ALPHA = 0.5;   // EMA smoothing factor for FPS updates for streamed frames
 
     // Framerate tracking for display
-    double m_expectedDisplayFps;
-    double m_currentDisplayFps;
+    double m_expectedDisplayFps{};
+    double m_currentDisplayFps{};
     symaster_timepoint m_lastDisplayTime;
-    double m_avgDisplayTimeMs; // Moving average of display intervals in ms
+    double m_avgDisplayTimeMs{}; // Moving average of display intervals in ms
 
     // Stream FPS tracking
     symaster_timepoint m_lastStreamCalcTime;
-    uint32_t m_streamedFramesSinceLastCalc;
-    double m_expectedFps;
-    double m_currentFpsEma; // Exponential moving average of stream FPS
+    uint32_t m_streamedFramesSinceLastCalc{};
+    double m_expectedFps{};
+    double m_currentFpsEma{}; // Exponential moving average of stream FPS
 
     // Status text update optimization
     QString m_cachedStatusText;
@@ -61,11 +61,11 @@ private:
     static constexpr double STATUS_UPDATE_INTERVAL_MS = 125.0; // Update status text only every 125ms
 
     // Stream speed throttling
-    uint m_throttleCount;
-    uint m_blackOutCount;
+    uint m_throttleCount{};
+    uint m_blackOutCount{};
 
-    bool m_active;
-    bool m_paused;
+    bool m_active{};
+    bool m_paused{};
 
 public:
     explicit CanvasModule(CanvasModuleInfo *modInfo, QObject *parent = nullptr)
@@ -74,9 +74,15 @@ public:
         m_framesIn = registerInputPort<Frame>(QStringLiteral("frames-in"), QStringLiteral("Frames"));
         m_ctlIn = registerInputPort<ControlCommand>(QStringLiteral("control"), QStringLiteral("Control"));
 
-        m_cvView = new CanvasWindow;
+        m_cvView = new CanvasWindow(m_log);
         addDisplayWindow(m_cvView);
         m_cvView->setWindowIcon(modInfo->icon());
+    }
+
+    bool initialize() override
+    {
+        m_cvView->setLogger(m_log);
+        return AbstractModule::initialize();
     }
 
     ModuleFeatures features() const override
