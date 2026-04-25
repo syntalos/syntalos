@@ -254,7 +254,7 @@ void FirmataBackend::writeDigitalPin(uint8_t pin, bool value)
         writeBuffer(buffer, sizeof(buffer));
 
     } else {
-        LOG_CRITICAL(d->log, "Pin %d not supported (max is 127)", pin);
+        LOG_CRITICAL(d->log, "Pin {} not supported (max is 127)", pin);
     }
 }
 
@@ -266,7 +266,7 @@ void FirmataBackend::reportAnalogPin(uint8_t pin, bool enable)
         writeBuffer(buffer, sizeof(buffer));
 
     } else {
-        LOG_CRITICAL(d->log, "Reporting analog channel %d is not supported (max is 15)", pin);
+        LOG_CRITICAL(d->log, "Reporting analog channel {} is not supported (max is 15)", pin);
     }
 }
 
