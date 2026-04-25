@@ -203,6 +203,7 @@ public:
      * Callers with their own spin loops should check this flag and exit promptly.
      */
     [[nodiscard]] bool isShutdownPending() const;
+    void setShutdownPending(bool pending);
 
     void setStatusMessage(const std::string &message);
 

@@ -187,7 +187,11 @@ public:
             // only some states are allowed to be set by the module
             if (newState == ModuleState::DORMANT || newState == ModuleState::READY
                 || newState == ModuleState::INITIALIZING || newState == ModuleState::IDLE) {
-                LOG_DEBUG(self->m_log, "Client state change request granted: {} → {}", toString(self->state()), toString(newState));
+                LOG_DEBUG(
+                    self->m_log,
+                    "Client state change request granted: {} → {}",
+                    toString(self->state()),
+                    toString(newState));
                 self->setState(newState);
             }
         }
@@ -905,18 +909,17 @@ bool MLinkModule::runProcess()
     QElapsedTimer timer;
     timer.start();
     do {
-        qApp->processEvents();
         handleIncomingControl();
 
         if (!workerFound && state() != prevState)
             workerFound = true;
-        if (state() != ModuleState::INITIALIZING && state() != prevState)
+        if (state() == ModuleState::IDLE)
             moduleInitDone = true;
 
         if (!workerFound || !moduleInitDone)
             std::this_thread::sleep_for(microseconds_t(1500));
 
-        if (timer.elapsed() > 15 * 1000)
+        if (timer.elapsed() > 10 * 1000)
             break;
     } while (!workerFound || !moduleInitDone);
 

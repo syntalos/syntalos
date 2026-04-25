@@ -1092,6 +1092,11 @@ bool SyntalosLink::isShutdownPending() const
     return d->shutdownPending;
 }
 
+void SyntalosLink::setShutdownPending(bool pending)
+{
+    d->shutdownPending = pending;
+}
+
 void SyntalosLink::setState(ModuleState state)
 {
     auto uninit = d->pubState->loan_uninit().value();

@@ -56,6 +56,30 @@ SyntalosPyError::SyntalosPyError(const std::string &what_arg)
     : std::runtime_error(what_arg) {};
 
 /**
+ * Handle interpreter errors properly, and forward them to the frontend if sensible.
+ *
+ * This helper function should be called in a catch() scope.
+ * @returns True if the error was handled, False if it should be rethrown.
+ */
+static bool handlePyError(SyntalosLink *m_slink, const py::error_already_set &e)
+{
+    // always gracefully handle errors by sending them to the frontend, if we can
+    if (m_slink == nullptr)
+        return false;
+    if (m_slink->state() != ModuleState::ERROR)
+        m_slink->raiseError(e.what());
+
+    // let Python/interpreter shutdown semantics propagate (we also treat any assertion failure as fatal)
+    if (e.matches(PyExc_SystemExit) || e.matches(PyExc_KeyboardInterrupt) || e.matches(PyExc_GeneratorExit)
+        || e.matches(PyExc_AssertionError)) {
+        m_slink->setShutdownPending(true);
+        return false;
+    }
+
+    return true;
+}
+
+/**
  * Python binding for a Syntalos input port.
  */
 struct InputPort {
@@ -102,7 +126,8 @@ struct InputPort {
                     throw SyntalosPyError(std::format("Received data of unknown type on input port: {}", _id));
                 }
             } catch (py::error_already_set &e) {
-                getActiveLink()->raiseError(e.what());
+                if (!handlePyError(getActiveLink(), e))
+                    throw;
             }
         });
     }
@@ -429,9 +454,7 @@ public:
                 if (m_slink->state() != ModuleState::ERROR)
                     m_slink->raiseError("Module preparation failed (prepare() returned False).");
             } catch (py::error_already_set &e) {
-                if (m_slink->state() != ModuleState::ERROR)
-                    m_slink->raiseError(e.what());
-                else
+                if (!handlePyError(m_slink, e))
                     throw;
             }
 
@@ -457,9 +480,7 @@ public:
             try {
                 m_startFn();
             } catch (py::error_already_set &e) {
-                if (m_slink->state() != ModuleState::ERROR)
-                    m_slink->raiseError(e.what());
-                else
+                if (!handlePyError(m_slink, e))
                     throw;
             }
         });
@@ -482,9 +503,7 @@ public:
             try {
                 m_stopFn();
             } catch (py::error_already_set &e) {
-                if (m_slink->state() != ModuleState::ERROR)
-                    m_slink->raiseError(e.what());
-                else
+                if (!handlePyError(m_slink, e))
                     throw;
             }
             m_slink->setState(ModuleState::IDLE);
@@ -508,7 +527,8 @@ public:
             try {
                 m_showSettingsFn();
             } catch (py::error_already_set &e) {
-                m_slink->raiseError(e.what());
+                if (!handlePyError(m_slink, e))
+                    throw;
             }
         });
     }
@@ -530,7 +550,8 @@ public:
             try {
                 m_showDisplayFn();
             } catch (py::error_already_set &e) {
-                m_slink->raiseError(e.what());
+                if (!handlePyError(m_slink, e))
+                    throw;
             }
         });
     }
@@ -553,9 +574,7 @@ public:
                 settings = m_saveSettingsFn(baseDir);
                 return true;
             } catch (py::error_already_set &e) {
-                if (m_slink->state() != ModuleState::ERROR)
-                    m_slink->raiseError(e.what());
-                else
+                if (!handlePyError(m_slink, e))
                     throw;
                 return false;
             }
@@ -579,9 +598,7 @@ public:
             try {
                 return m_loadSettingsFn(settings, baseDir);
             } catch (py::error_already_set &e) {
-                if (m_slink->state() != ModuleState::ERROR)
-                    m_slink->raiseError(e.what());
-                else
+                if (!handlePyError(m_slink, e))
                     throw;
                 return false;
             }
@@ -652,8 +669,8 @@ public:
                 try {
                     eventFn();
                 } catch (py::error_already_set &e) {
-                    if (m_slink)
-                        m_slink->raiseError(e.what());
+                    if (!handlePyError(m_slink, e))
+                        throw;
                 }
             };
         }
@@ -742,7 +759,8 @@ static gboolean dispatch_delayed_call(gpointer userData)
     try {
         payload->fn();
     } catch (py::error_already_set &e) {
-        getActiveLink()->raiseError(e.what());
+        if (!handlePyError(getActiveLink(), e))
+            throw;
     }
     return G_SOURCE_REMOVE;
 }
