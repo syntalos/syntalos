@@ -18,6 +18,8 @@
 #include "backend.h"
 #include "fmutils.h"
 
+#include <cstdlib>
+
 #include <QtEndian>
 
 #include <QCoreApplication>
@@ -243,6 +245,8 @@ void FirmataBackend::writeAnalogPin(uint8_t pin, uint16_t value)
 
     } else {
         LOG_CRITICAL(d->log, "Analog pin {} not supported. Max is 127", pin);
+        d->log->flush_log();
+        std::abort();
     }
 }
 
@@ -255,6 +259,8 @@ void FirmataBackend::writeDigitalPin(uint8_t pin, bool value)
 
     } else {
         LOG_CRITICAL(d->log, "Pin {} not supported (max is 127)", pin);
+        d->log->flush_log();
+        std::abort();
     }
 }
 
@@ -267,6 +273,8 @@ void FirmataBackend::reportAnalogPin(uint8_t pin, bool enable)
 
     } else {
         LOG_CRITICAL(d->log, "Reporting analog channel {} is not supported (max is 15)", pin);
+        d->log->flush_log();
+        std::abort();
     }
 }
 
@@ -279,6 +287,8 @@ void FirmataBackend::reportDigitalPort(uint8_t port, bool enable)
 
     } else {
         LOG_CRITICAL(d->log, "Digital port {} not supported (max is 15)", port);
+        d->log->flush_log();
+        std::abort();
     }
 }
 
@@ -297,6 +307,8 @@ void FirmataBackend::setPinMode(uint8_t pin, IoMode mode)
 
     } else {
         LOG_CRITICAL(d->log, "Pins over 127 ({}) not supported", pin);
+        d->log->flush_log();
+        std::abort();
     }
 }
 
