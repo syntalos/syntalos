@@ -56,7 +56,7 @@ bool switchIconTheme(const QString &themeName)
     if (!found)
         return false;
     QIcon::setThemeName(realThemeName);
-    LOG_INFO(getDefaultLogger(), "Switched icon theme to {}", realThemeName);
+    LOG_INFO(getLogger("main"), "Switched icon theme to {}", realThemeName);
 
     return true;
 }
@@ -66,7 +66,7 @@ bool darkColorSchemeAvailable()
     const auto fname = QStringLiteral("/usr/share/color-schemes/BreezeDark.colors");
     QFile file(fname);
     if (!file.exists()) {
-        LOG_WARNING(getDefaultLogger(), "Could not find dark color scheme file");
+        LOG_WARNING(getLogger("main"), "Could not find dark color scheme file");
         return false;
     }
     return true;
@@ -76,7 +76,7 @@ static void changeColorScheme(const QString &filename, bool darkColors = false)
 {
     QFile file(filename);
     if (!file.exists()) {
-        LOG_WARNING(getDefaultLogger(), "Could not find color scheme file '{}'. Colors will not be changed.", filename);
+        LOG_WARNING(getLogger("main"), "Could not find color scheme file '{}'. Colors will not be changed.", filename);
         return;
     }
 

@@ -35,6 +35,8 @@ namespace Syntalos
 static std::shared_ptr<quill::Sink> g_consoleSink = nullptr;
 static quill::LogLevel g_defaultLogLevel = quill::LogLevel::Info;
 
+static QtMessageHandler g_prevQtHandler = nullptr;
+
 quill::Logger *getLogger(const std::string &name)
 {
     auto logger = quill::Frontend::get_logger(name);
@@ -83,6 +85,52 @@ static void datactlLogHandler(const datactl::LogMessage &m)
         m.message);
 }
 
+static void qtLogHandler(QtMsgType type, const QMessageLogContext &ctx, const QString &msg)
+{
+    const QByteArray utf8 = msg.toUtf8();
+    const char *category = ctx.category ? ctx.category : "qt";
+    const char *file = ctx.file ? ctx.file : "";
+    const char *function = ctx.function ? ctx.function : "";
+
+    auto logger = getLogger(category);
+    quill::LogLevel level = quill::LogLevel::Info;
+
+    switch (type) {
+    case QtDebugMsg:
+        level = quill::LogLevel::Debug;
+        break;
+    case QtInfoMsg:
+        level = quill::LogLevel::Info;
+        break;
+    case QtWarningMsg:
+        level = quill::LogLevel::Warning;
+        break;
+    case QtCriticalMsg:
+        level = quill::LogLevel::Error;
+        break;
+    case QtFatalMsg:
+        level = quill::LogLevel::Critical;
+        break;
+    }
+
+    QUILL_LOG_RUNTIME_METADATA_CALL(
+        quill::MacroMetadata::Event::LogWithRuntimeMetadataShallowCopy,
+        logger,
+        level,
+        file,
+        ctx.line,
+        function,
+        "",
+        "{}",
+        utf8.constData());
+
+    if (type == QtFatalMsg) {
+        // Qt expects us to abort on qFatal, so we do this here
+        logger->flush_log();
+        std::abort();
+    }
+}
+
 void removeLogger(quill::Logger *logger)
 {
     quill::Frontend::remove_logger_blocking(logger);
@@ -106,10 +154,13 @@ void initializeSyLogSystem(quill::LogLevel consoleLogLevel)
     quill::Backend::start(backendOptn);
 
     // register our console sink
-    g_consoleSink = quill::Frontend::create_or_get_sink<quill::ConsoleSink>("sy_console");
+    g_consoleSink = quill::Frontend::create_or_get_sink<quill::ConsoleSink>("sy-console");
 
     // forward datactl library log messages into Quill
     datactl::setLogHandler(datactlLogHandler);
+
+    // forward any Qt log messages into Quill as well
+    g_prevQtHandler = qInstallMessageHandler(qtLogHandler);
 
     // configure defaults
     g_defaultLogLevel = consoleLogLevel;
@@ -119,6 +170,11 @@ void initializeSyLogSystem(quill::LogLevel consoleLogLevel)
 void shutdownSyLogSystem()
 {
     quill::Backend::stop();
+
+    if (g_prevQtHandler != nullptr)
+        qInstallMessageHandler(g_prevQtHandler);
+    g_prevQtHandler = nullptr;
+    datactl::setLogHandler(nullptr);
 }
 
 } // namespace Syntalos

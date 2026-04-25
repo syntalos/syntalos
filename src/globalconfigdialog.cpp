@@ -169,7 +169,7 @@ void GlobalConfigDialog::on_btnCreateDevDir_clicked()
     QDir homeDevDir(m_gc->homeDevelDir());
     QDir().mkdir(homeDevDir.absolutePath());
 
-    auto logger = getDefaultLogger();
+    auto logger = getLogger("main");
 
     // create link to venvs directory
     auto venvLinkPath = homeDevDir.filePath("venv");
