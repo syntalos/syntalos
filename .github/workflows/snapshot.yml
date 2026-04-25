@@ -1,0 +1,101 @@
+name: Snapshots
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 10 * * 1'
+
+permissions:
+  contents: write
+
+jobs:
+  revision:
+    name: Revision check
+    if: github.ref == 'refs/heads/master'
+    runs-on: ubuntu-slim
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+
+    steps:
+      - name: Derive version string
+        id: version
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+  build-packages:
+    name: Build Packages
+    needs: [revision]
+    if: github.ref == 'refs/heads/master'
+    uses: ./.github/workflows/build-packages.yml
+
+  release-snapshot:
+    name: Create Snapshot Release
+    if: github.ref == 'refs/heads/master'
+    needs: [revision, build-packages]
+    runs-on: ubuntu-slim
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          skip-decompress: true
+
+      - name: Prepare assets
+        run: |
+          mkdir -p release_assets
+
+          # include a snapshot of the current sources
+          DATE=$(date -u +%Y%m%d)
+          git archive \
+            --format=tar.gz \
+            --prefix="${GITHUB_REPOSITORY##*/}-snapshot-${DATE}/" \
+            -o "$GITHUB_WORKSPACE/release_assets/${GITHUB_REPOSITORY##*/}_snap${DATE}_src.tar.gz" \
+            HEAD
+
+          # choose what we want to attach
+          for artifact_dir in artifacts/*/; do
+            cp "$artifact_dir"/*.zip "$GITHUB_WORKSPACE/release_assets/"
+          done
+
+          echo "Assets to upload:"
+          ls -la release_assets/
+
+      - name: Delete old assets
+        uses: actions/github-script@v9
+        with:
+          script: |
+            let release;
+            try {
+              const response = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: "snapshot"
+              });
+              release = response.data;
+            } catch (error) {
+              if (error.status === 404) {
+                core.info("No existing snapshot release found; skipping asset deletion.");
+                return;
+              }
+              throw error;
+            }
+
+            for (const asset of release.assets) {
+              await github.rest.repos.deleteReleaseAsset({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                asset_id: asset.id
+              });
+            }
+
+      - name: Update GitHub snapshot release
+        uses: softprops/action-gh-release@v3.0.0
+        with:
+          name: Snapshots
+          tag_name: snapshot
+          draft: false
+          prerelease: true
+          files: release_assets/*

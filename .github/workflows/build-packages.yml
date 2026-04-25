@@ -3,8 +3,6 @@ name: Package Build
 on:
   workflow_call:
   workflow_dispatch:
-  schedule:
-    - cron: '0 10 * * 1'
 
 jobs:
   revision:
@@ -23,7 +21,7 @@ jobs:
       id: version
       run: |
         git_commit=$(git rev-parse --short HEAD)
-        git_current_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo v2.0.0)
+        git_current_tag=$(git describe --tags --match 'v*' --abbrev=0 2>/dev/null || echo v0a)
         git_commit_no=$(git rev-list --count "${git_current_tag}..HEAD" 2>/dev/null)
         SY_VERSION=${git_current_tag#v}; SY_VERSION=${SY_VERSION//-/.}
         if [ "$git_commit_no" -gt 0 ]; then

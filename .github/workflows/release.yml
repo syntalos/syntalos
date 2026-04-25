@@ -11,17 +11,29 @@ permissions:
 
 jobs:
   revision:
-    name: Revision check
+    name: Revision update
     runs-on: ubuntu-slim
     outputs:
       version: ${{ steps.version.outputs.version }}
 
     steps:
+      - uses: actions/checkout@v6
+
       - name: Derive version string
         id: version
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      # We update the weekly snapshot tag at release time to the point of the
+      # release commit. That makes the snapshots pre-release always show up
+      # immediately after the current latest release in GitHub's UI.
+      - name: Move snapshot tag
+        run: |
+          git config user.name "syntalos-robot"
+          git config user.email "noreply@syntalos.org"
+          git tag -f snapshot ${GITHUB_SHA}
+          git push -f origin snapshot
 
   build-test:
     name: Test
