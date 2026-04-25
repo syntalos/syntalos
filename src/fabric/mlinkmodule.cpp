@@ -1310,7 +1310,7 @@ void MLinkModule::runThread(OptionalWaitCondition *startWaitCondition)
 void MLinkModule::stop()
 {
     if (isProcessRunning())
-        d->callClientSimple<StopRequest>(this, STOP_CALL_ID, [](auto &) {}, 15);
+        d->callClientSimple<StopRequest>(this, STOP_CALL_ID, [](auto &) {}, 15, true, false);
 
     // stop the module thread first
     AbstractModule::stop();
