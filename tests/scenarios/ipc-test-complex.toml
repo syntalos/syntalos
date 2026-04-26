@@ -4,7 +4,7 @@ project_file = "projects/ipc-test-complex.syct"
 run_duration_sec = 6
 expected_exit_code = 0
 expected_stdout_contains = [
-    "Module start order: Devel: DataSource ⇢ Python Script ⇢ Canvas ⇢ VRecorder 2Hops ⇢ OOP Mod Example ⇢ Python Module Example ⇢ Table 3Hops ⇢ OOP Mod Example 2 ⇢ Canvas 2 ⇢ VRecorder 3Hops ⇢ Table 4Hops"
+    "Module start order: Devel: DataSource ⇢ Python Script ⇢ Canvas ⇢ VRecorder 2Hops ⇢ OOP Mod Example ⇢ Python Module Example ⇢ OOP Mod Example 2 ⇢ Table 3Hops ⇢ Canvas 2 ⇢ VRecorder 3Hops ⇢ Table 4Hops"
 ]
 
 [[test.expected_output_files]]
