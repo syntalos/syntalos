@@ -577,15 +577,12 @@ AbstractModule::AbstractModule(const ModuleInfo *info, QObject *parent)
         d->name = info->name();
     }
 
-    // Make a dummy logger immediately available, even if we don't know the
-    // ID of the module yet.
-    if (d->id.isEmpty())
-        m_log = getLogger(SY_ANON_MOD_LOGGER_NAME);
-    else
-        m_log = getLogger(QStringLiteral("mod.%1").arg(d->id));
-
     d->id = d->id.isEmpty() ? QStringLiteral("unknown") : d->id;
     d->name = d->name.isEmpty() ? QStringLiteral("New Module") : d->name;
+
+    // Make a dummy logger immediately available
+    // (we will get a proper one once the Engine has called setIdentity() on us).
+    m_log = getLogger(SY_ANON_MOD_LOGGER_NAME);
 
     d->modifiers = ModuleModifier::ENABLED | ModuleModifier::STOP_ON_FAILURE;
     d->s_eventsMaxModulesPerThread = -1;
