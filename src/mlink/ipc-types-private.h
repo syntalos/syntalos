@@ -71,7 +71,16 @@ struct IpcServiceTopology {
     const auto sendN = senderCount > 0 ? senderCount : 1U;
     // Keep one additional subscriber slot to tolerate reconnect races.
     const auto recvN = receiverCount + 1U;
-    return IpcServiceTopology(sendN, recvN, sendN + receiverCount);
+
+    // +1 extra node for the master's SySubscriber created by registerOutPortForwarders.
+    // For MLink -> MLink connections, three distinct IOX nodes participate in a data
+    // service: (1) the source worker process (publisher), (2) the master's subscriber
+    // node (registerOutPortForwarders) to take data from the source and make it internally
+    // available, and (3) the destination worker process (subscriber via ConnectInputRequest).
+    // The internal forwarder may not be used for pure MLink -> MLink connections, but it is
+    // created unconditionally. So, without this extra slot, the third node exceeds the limit
+    // and the subscriber fails to open the service.
+    return {sendN, recvN, sendN + receiverCount + 1};
 }
 
 /**

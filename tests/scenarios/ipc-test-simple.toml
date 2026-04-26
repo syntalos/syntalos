@@ -1,5 +1,5 @@
 [test]
-name = "IPC Test - Simple"
+name = "IPC Test - Simple Topology"
 project_file = "projects/ipc-test-simple.syct"
 run_duration_sec = 6
 expected_exit_code = 0

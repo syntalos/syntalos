@@ -1,0 +1,56 @@
+[test]
+name = "IPC Test - Complex Topology"
+project_file = "projects/ipc-test-complex.syct"
+run_duration_sec = 6
+expected_exit_code = 0
+expected_stdout_contains = [
+    "Module start order: Devel: DataSource ⇢ Python Script ⇢ Canvas ⇢ VRecorder 2Hops ⇢ OOP Mod Example ⇢ Python Module Example ⇢ Table 3Hops ⇢ OOP Mod Example 2 ⇢ Canvas 2 ⇢ VRecorder 3Hops ⇢ Table 4Hops"
+]
+
+[[test.expected_output_files]]
+path = "attributes.toml"
+toml_fields = ["machine_node", "success"]
+
+[[test.expected_output_files]]
+path = "manifest.toml"
+toml_fields = ["collection_id", "format_version", "time_created", "type", "generator"]
+
+[[test.expected_output_files]]
+path = "tab-3hops/manifest.toml"
+toml_fields = ["data.media_type", "data.parts"]
+
+[[test.expected_output_files]]
+path = "tab-3hops/table.csv"
+csv_validation = { expected_headers = ['Index', 'Frame Time'], min_rows = 8 }
+
+[[test.expected_output_files]]
+path = "tab-4hops/manifest.toml"
+toml_fields = ["data.media_type", "data.parts"]
+
+[[test.expected_output_files]]
+path = "tab-4hops/table.csv"
+csv_validation = { expected_headers = ['Index', 'Frame Time'], min_rows = 8 }
+
+[[test.expected_output_files]]
+path = "videos/video-2hops/manifest.toml"
+toml_fields = ["data.media_type", "data.parts"]
+
+[[test.expected_output_files]]
+path = "videos/video-2hops/*-video.mkv"
+min_size_bytes = 8200000
+
+[[test.expected_output_files]]
+path = "videos/video-2hops/*-video_timestamps.tsync"
+min_size_bytes = 10042
+
+[[test.expected_output_files]]
+path = "videos/video-3hops/manifest.toml"
+toml_fields = ["data.media_type", "data.parts"]
+
+[[test.expected_output_files]]
+path = "videos/video-3hops/*-video.mkv"
+min_size_bytes = 8200000
+
+[[test.expected_output_files]]
+path = "videos/video-3hops/*-video_timestamps.tsync"
+min_size_bytes = 10042
