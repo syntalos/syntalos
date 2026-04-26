@@ -84,6 +84,8 @@ public:
     virtual int enableNotify() = 0;
     virtual void disableNotify() = 0;
     virtual void setThrottleItemsPerSec(uint itemsPerSec, bool allowMore = true) = 0;
+    virtual void setDirectIpcBypass(bool enabled) = 0;
+    virtual bool isDirectIpcBypass() const = 0;
 
     virtual void suspend() = 0;
     virtual void resume() = 0;
@@ -110,6 +112,8 @@ public:
     [[nodiscard]] virtual bool isActive() const = 0;
     [[nodiscard]] virtual bool hasSubscribers() const = 0;
     [[nodiscard]] virtual size_t subscriberCount() const = 0;
+    [[nodiscard]] virtual bool hasDataSubscribers() const = 0;
+    [[nodiscard]] virtual size_t dataSubscriberCount() const = 0;
     virtual void pushRawData(int typeId, const void *data, size_t size) = 0;
     virtual MetaStringMap metadata() = 0;
     virtual void setMetadata(const MetaStringMap &metadata) = 0;
@@ -146,6 +150,7 @@ public:
           m_notify(false),
           m_active(true),
           m_suspended(false),
+          m_directIpcBypass(false),
           m_throttle(0),
           m_skippedElements(0),
           m_log(getLogger("subscription"))
@@ -381,6 +386,18 @@ public:
         m_skippedElements = 0;
     }
 
+    void setDirectIpcBypass(bool enabled) override
+    {
+        m_directIpcBypass = enabled;
+        if (enabled)
+            clearPending();
+    }
+
+    bool isDirectIpcBypass() const override
+    {
+        return m_directIpcBypass;
+    }
+
     void forcePushNullopt() override
     {
         m_queue.emplace(std::nullopt);
@@ -393,6 +410,7 @@ private:
     std::atomic_bool m_notify;
     std::atomic_bool m_active;
     std::atomic_bool m_suspended;
+    std::atomic_bool m_directIpcBypass;
     std::atomic_uint m_throttle;
     std::atomic_uint m_skippedElements;
 
@@ -415,6 +433,8 @@ private:
     void pushImpl(U &&data)
     {
         // don't accept any new data if we are suspended
+        if (m_directIpcBypass)
+            return;
         if (m_suspended)
             return;
 
@@ -451,6 +471,8 @@ private:
      */
     void push(const T &data)
     {
+        if (m_directIpcBypass || m_suspended)
+            return;
         pushImpl(data.clone());
     }
 
@@ -462,6 +484,8 @@ private:
      */
     void push(T &&data)
     {
+        if (m_directIpcBypass || m_suspended)
+            return;
         pushImpl(std::move(data));
     }
 
@@ -734,6 +758,21 @@ public:
     [[nodiscard]] size_t subscriberCount() const override
     {
         return m_subs.size();
+    }
+
+    [[nodiscard]] bool hasDataSubscribers() const override
+    {
+        return dataSubscriberCount() > 0;
+    }
+
+    [[nodiscard]] size_t dataSubscriberCount() const override
+    {
+        size_t count = 0;
+        for (const auto &sub : m_subs) {
+            if (!sub->isDirectIpcBypass())
+                count++;
+        }
+        return count;
     }
 
 private:

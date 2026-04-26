@@ -24,7 +24,6 @@
 
 #include "streams/stream.h"
 #include "utils/misc.h"
-#include "mlinkmodule.h"
 #include "mlink/ipc-types-private.h"
 #include "mlink/ipc-iox-private.h"
 #include "mlink/syntaloslink.h"
@@ -133,9 +132,11 @@ auto StreamExporter::publishStreamByPort(const std::shared_ptr<VarStreamInputPor
     result.instanceId = modId;
     result.channelId = channelId;
 
-    // if the emitter is an MLink module, the stream is already exported, and we just return its expected info
-    if (dynamic_cast<MLinkModule *>(iport->outPort()->owner()) != nullptr)
+    // If the emitter can publish over direct module-link IPC, the stream is already exported.
+    if (iport->outPort()->owner()->usesDirectModuleLink() && iport->owner()->usesDirectModuleLink()) {
+        iport->subscriptionVar()->setDirectIpcBypass(true);
         return result;
+    }
 
     // If this exact stream is already being exported, the IPC publisher is already
     // set up and IOX takes care of fan-out to multiple IPC subscribers.

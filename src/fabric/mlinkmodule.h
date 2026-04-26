@@ -59,6 +59,7 @@ public:
     bool initialize() override;
 
     ModuleDriverKind driver() const override;
+    bool usesDirectModuleLink() const override;
     virtual ModuleFeatures features() const override;
 
     QString moduleBinary() const;

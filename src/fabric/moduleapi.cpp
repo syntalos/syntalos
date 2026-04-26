@@ -276,6 +276,12 @@ void VarStreamInputPort::setSubscription(StreamOutputPort *src, std::shared_ptr<
     d->outPort = src;
     m_sub = sub;
 
+    if (sub != nullptr) {
+        const bool useDirectIpc =
+            src != nullptr && src->owner()->usesDirectModuleLink() && d->owner->usesDirectModuleLink();
+        sub->setDirectIpcBypass(useDirectIpc);
+    }
+
     d->owner->inputPortConnected(this);
 
     // signal interested parties as the input module that new
@@ -653,6 +659,11 @@ void AbstractModule::setName(const QString &name)
 ModuleDriverKind AbstractModule::driver() const
 {
     return ModuleDriverKind::NONE;
+}
+
+bool AbstractModule::usesDirectModuleLink() const
+{
+    return false;
 }
 
 ModuleFeatures AbstractModule::features() const

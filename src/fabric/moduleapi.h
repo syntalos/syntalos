@@ -508,6 +508,11 @@ public:
     virtual ModuleDriverKind driver() const;
 
     /**
+     * @brief Whether this module can directly exchange stream data over the module-link IPC layer.
+     */
+    virtual bool usesDirectModuleLink() const;
+
+    /**
      * @brief Return a bitfield of features this module supports.
      */
     virtual ModuleFeatures features() const;

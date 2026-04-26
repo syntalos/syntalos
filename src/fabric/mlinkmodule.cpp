@@ -645,6 +645,11 @@ ModuleDriverKind MLinkModule::driver() const
     return ModuleDriverKind::THREAD_DEDICATED;
 }
 
+bool MLinkModule::usesDirectModuleLink() const
+{
+    return true;
+}
+
 ModuleFeatures MLinkModule::features() const
 {
     return ModuleFeature::SHOW_DISPLAY | ModuleFeature::SHOW_SETTINGS;
@@ -1077,7 +1082,7 @@ bool MLinkModule::registerOutPortForwarders()
 
     // connect to external process streams
     for (auto &oport : outPorts()) {
-        if (!oport->streamVar()->hasSubscribers())
+        if (!oport->streamVar()->hasDataSubscribers())
             continue;
 
         Private::OutPortSub ps;
