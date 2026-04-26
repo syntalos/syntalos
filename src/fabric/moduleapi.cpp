@@ -572,6 +572,10 @@ AbstractModule::AbstractModule(const ModuleInfo *info, QObject *parent)
       m_running(false),
       d(new AbstractModule::Private)
 {
+    // Make a dummy logger immediately available
+    // (we will get a proper one once the Engine has called setIdentity() on us).
+    m_log = getLogger(SY_ANON_MOD_LOGGER_NAME);
+
     if (info != nullptr) {
         d->id = info->id();
         d->name = info->name();
@@ -579,10 +583,6 @@ AbstractModule::AbstractModule(const ModuleInfo *info, QObject *parent)
 
     d->id = d->id.isEmpty() ? QStringLiteral("unknown") : d->id;
     d->name = d->name.isEmpty() ? QStringLiteral("New Module") : d->name;
-
-    // Make a dummy logger immediately available
-    // (we will get a proper one once the Engine has called setIdentity() on us).
-    m_log = getLogger(SY_ANON_MOD_LOGGER_NAME);
 
     d->modifiers = ModuleModifier::ENABLED | ModuleModifier::STOP_ON_FAILURE;
     d->s_eventsMaxModulesPerThread = -1;
@@ -1238,7 +1238,7 @@ void AbstractModule::setIdentity(const QString &id, int index)
 void AbstractModule::setState(ModuleState state)
 {
     d->state = state;
-    emit stateChanged(state);
+    Q_EMIT stateChanged(state);
 }
 
 void AbstractModule::raiseError(const QString &message)
@@ -1252,7 +1252,7 @@ void AbstractModule::raiseError(const QString &message)
     d->lastError = message;
     setState(ModuleState::ERROR);
     LOG_ERROR(m_log, "Error raised by '{}': {}", name(), message);
-    emit error(message);
+    Q_EMIT error(message);
 }
 
 void AbstractModule::setSimpleStorageNames(bool enabled)

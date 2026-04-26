@@ -1152,20 +1152,16 @@ void MainWindow::scheduleProjectAutorun(
 
         // print message on error, instead of showing a message box which would require user interaction
         if (noninteractive) {
+            LOG_INFO(
+                m_log,
+                "Running in non-interactive mode, will print run errors on the command-line and avoid GUI dialogs.");
             disconnect(m_engine, &Engine::runFailed, this, nullptr);
-            connect(
-                m_engine,
-                &Engine::runFailed,
-                this,
-                [this](AbstractModule *mod, const QString &message) {
-                    if (mod != nullptr)
-                        LOG_WARNING(m_log, "Run failed in '{}': {}", mod->name(), message);
-                    else
-                        LOG_WARNING(m_log, "Run failed: {}", message);
-
-                    connect(m_engine, &Engine::runFailed, this, &MainWindow::moduleErrorReceived);
-                },
-                Qt::SingleShotConnection);
+            connect(m_engine, &Engine::runFailed, this, [this](AbstractModule *mod, const QString &message) {
+                if (mod != nullptr)
+                    LOG_ERROR(m_log, "Run failed in '{}': {}", mod->name(), message);
+                else
+                    LOG_ERROR(m_log, "Run failed: {}", message);
+            });
         }
 
         // quit cleanly once the run has finished
@@ -1196,6 +1192,10 @@ void MainWindow::scheduleProjectAutorun(
             temporaryRunActionTriggered();
         else
             runActionTriggered();
+
+        // if we disconnected the failure event before in noninteractive mode, reconnect it again
+        if (noninteractive)
+            connect(m_engine, &Engine::runFailed, this, &MainWindow::moduleErrorReceived);
     });
 }
 
