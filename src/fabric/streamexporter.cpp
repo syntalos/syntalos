@@ -133,9 +133,17 @@ auto StreamExporter::publishStreamByPort(const std::shared_ptr<VarStreamInputPor
     result.instanceId = modId;
     result.channelId = channelId;
 
-    // if the emitter is an MLink module, the stream is already exported, and we just return its expected info
-    if (dynamic_cast<MLinkModule *>(iport->outPort()->owner()) != nullptr)
+    // If the emitter is an MLink module, the data stream is already exported via IPC by the
+    // worker process itself. Register a drain-only entry so the in-process subscription that
+    // the destination module holds gets suspended on first dispatch, preventing memory buildup.
+    if (dynamic_cast<MLinkModule *>(iport->outPort()->owner()) != nullptr) {
+        StreamExportData drainEd;
+        drainEd.self = this;
+        drainEd.subscription = iport->subscriptionVar();
+        drainEd.publisher = std::nullopt;
+        d->exports.push_back(std::move(drainEd));
         return result;
+    }
 
     // If this exact stream is already being exported, the IPC publisher is already
     // set up and IOX takes care of fan-out to multiple IPC subscribers.

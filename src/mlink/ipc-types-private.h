@@ -29,10 +29,10 @@ namespace Syntalos
 {
 
 // number of elements to hold in the IPC queues
-static constexpr uint64_t SY_IOX_QUEUE_CAPACITY = 12U;
+static constexpr uint64_t SY_IOX_QUEUE_CAPACITY = 16U;
 
 // number of elements to hold in the publisher history
-static constexpr uint64_t SY_IOX_HISTORY_SIZE = 2U;
+static constexpr uint64_t SY_IOX_HISTORY_SIZE = 1U;
 
 // initial size of the shared memory block for IPC communication
 static constexpr uint64_t SY_IOX_INITIAL_SLICE_LEN = 4096;
@@ -73,13 +73,12 @@ struct IpcServiceTopology {
     const auto recvN = receiverCount + 1U;
 
     // +1 extra node for the master's SySubscriber created by registerOutPortForwarders.
-    // For MLink -> MLink connections, three distinct IOX nodes participate in a data
-    // service: (1) the source worker process (publisher), (2) the master's subscriber
-    // node (registerOutPortForwarders) to take data from the source and make it internally
-    // available, and (3) the destination worker process (subscriber via ConnectInputRequest).
-    // The internal forwarder may not be used for pure MLink -> MLink connections, but it is
-    // created unconditionally. So, without this extra slot, the third node exceeds the limit
-    // and the subscriber fails to open the service.
+    // When at least one non-MLink module subscribes to an MLink source output port, three
+    // distinct IOX nodes participate: (1) the source worker (publisher), (2) the master's
+    // forwarder subscriber (registerOutPortForwarders), and (3) each destination MLink worker
+    // (ConnectInputRequest). Without this extra slot the third node exceeds the limit.
+    // For pure MLink -> MLink connections the master forwarder is skipped entirely, so the
+    // +1 is an unused but harmless reserved slot in that case.
     return {sendN, recvN, sendN + receiverCount + 1};
 }
 

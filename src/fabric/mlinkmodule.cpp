@@ -1080,6 +1080,19 @@ bool MLinkModule::registerOutPortForwarders()
         if (!oport->streamVar()->hasSubscribers())
             continue;
 
+        // If every connected input port belongs to another MLink module, those workers
+        // subscribe directly via ConnectInputRequest and the master-side forwarder is
+        // not needed - skip creating it to avoid receiving and immediately discarding data.
+        const auto &subPorts = oport->subscriberPorts();
+        const bool allMLink = !subPorts.isEmpty()
+                              && std::all_of(subPorts.cbegin(), subPorts.cend(), [](const VarStreamInputPort *ip) {
+                                     return dynamic_cast<const MLinkModule *>(ip->owner()) != nullptr;
+                                 });
+        if (allMLink) {
+            LOG_INFO(m_log, "All destinations on {} are MLink, skipping forwarder registration.", oport->id());
+            continue;
+        }
+
         Private::OutPortSub ps;
         const auto topology = makeIpcServiceTopology(1, oport->streamVar()->subscriberCount());
         try {

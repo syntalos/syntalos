@@ -264,7 +264,10 @@ VarStreamInputPort::VarStreamInputPort(AbstractModule *owner, const QString &id,
     d->outPort = nullptr;
 }
 
-VarStreamInputPort::~VarStreamInputPort() = default;
+VarStreamInputPort::~VarStreamInputPort()
+{
+    resetSubscription();
+}
 
 bool VarStreamInputPort::hasSubscription() const
 {
@@ -275,6 +278,7 @@ void VarStreamInputPort::setSubscription(StreamOutputPort *src, std::shared_ptr<
 {
     d->outPort = src;
     m_sub = sub;
+    src->addSubscriberPort(this);
 
     d->owner->inputPortConnected(this);
 
@@ -285,8 +289,10 @@ void VarStreamInputPort::setSubscription(StreamOutputPort *src, std::shared_ptr<
 
 void VarStreamInputPort::resetSubscription()
 {
+    if (d->outPort != nullptr)
+        d->outPort->removeSubscriberPort(this);
     if (m_sub.has_value())
-        m_sub.value()->unsubscribe();
+        (*m_sub)->unsubscribe();
     m_sub.reset();
     d->outPort = nullptr;
 }
@@ -345,6 +351,7 @@ public:
     QString title;
     std::shared_ptr<VariantDataStream> stream;
     AbstractModule *owner;
+    QList<VarStreamInputPort *> subscriberPorts;
 };
 
 StreamOutputPort::StreamOutputPort(
@@ -427,6 +434,21 @@ PortDirection StreamOutputPort::direction() const
 AbstractModule *StreamOutputPort::owner() const
 {
     return d->owner;
+}
+
+QList<VarStreamInputPort *> StreamOutputPort::subscriberPorts() const
+{
+    return d->subscriberPorts;
+}
+
+void StreamOutputPort::addSubscriberPort(VarStreamInputPort *inPort)
+{
+    d->subscriberPorts.append(inPort);
+}
+
+void StreamOutputPort::removeSubscriberPort(VarStreamInputPort *inPort)
+{
+    d->subscriberPorts.removeOne(inPort);
 }
 
 #define CHECK_RETURN_INPUT_PORT(T) \

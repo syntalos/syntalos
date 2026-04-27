@@ -425,7 +425,13 @@ public:
     PortDirection direction() const override;
     AbstractModule *owner() const override;
 
+    QList<VarStreamInputPort *> subscriberPorts() const;
+
 private:
+    friend class VarStreamInputPort;
+    void addSubscriberPort(VarStreamInputPort *inPort);
+    void removeSubscriberPort(VarStreamInputPort *inPort);
+
     Q_DISABLE_COPY(StreamOutputPort)
     class Private;
     QScopedPointer<Private> d;
