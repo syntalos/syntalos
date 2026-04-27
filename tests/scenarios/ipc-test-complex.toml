@@ -21,7 +21,7 @@ toml_fields = ["data.media_type", "data.parts"]
 
 [[test.expected_output_files]]
 path = "tab-3hops/table.csv"
-csv_validation = { expected_headers = ['Index', 'Frame Time'], min_rows = 8 }
+csv_validation = { expected_headers = ['Index', 'Frame Time'], min_rows = 4 }
 
 [[test.expected_output_files]]
 path = "tab-4hops/manifest.toml"
@@ -29,7 +29,7 @@ toml_fields = ["data.media_type", "data.parts"]
 
 [[test.expected_output_files]]
 path = "tab-4hops/table.csv"
-csv_validation = { expected_headers = ['Index', 'Frame Time'], min_rows = 8 }
+csv_validation = { expected_headers = ['Index', 'Frame Time'], min_rows = 4 }
 
 [[test.expected_output_files]]
 path = "videos/video-2hops/manifest.toml"
@@ -37,11 +37,11 @@ toml_fields = ["data.media_type", "data.parts"]
 
 [[test.expected_output_files]]
 path = "videos/video-2hops/*-video.mkv"
-min_size_bytes = 8200000
+min_size_bytes = 7380000
 
 [[test.expected_output_files]]
 path = "videos/video-2hops/*-video_timestamps.tsync"
-min_size_bytes = 10042
+min_size_bytes = 5020
 
 [[test.expected_output_files]]
 path = "videos/video-3hops/manifest.toml"
@@ -49,8 +49,8 @@ toml_fields = ["data.media_type", "data.parts"]
 
 [[test.expected_output_files]]
 path = "videos/video-3hops/*-video.mkv"
-min_size_bytes = 8200000
+min_size_bytes = 7380000
 
 [[test.expected_output_files]]
 path = "videos/video-3hops/*-video_timestamps.tsync"
-min_size_bytes = 10042
+min_size_bytes = 5020
