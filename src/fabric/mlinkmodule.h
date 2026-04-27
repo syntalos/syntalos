@@ -120,7 +120,7 @@ private:
     bool sendSettings();
 
     bool registerOutPortForwarders();
-    void disconnectOutPortForwarders();
+    void shutdownOutputPorts();
 
 private:
     class Private;

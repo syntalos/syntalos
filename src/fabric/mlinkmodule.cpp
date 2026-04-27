@@ -1073,7 +1073,7 @@ void MLinkModule::markIncomingForExport(StreamExporter *exporter)
 bool MLinkModule::registerOutPortForwarders()
 {
     // ensure we are disconnected
-    disconnectOutPortForwarders();
+    shutdownOutputPorts();
 
     // connect to external process streams
     for (auto &oport : outPorts()) {
@@ -1106,25 +1106,25 @@ bool MLinkModule::registerOutPortForwarders()
         }
 
         // NOTE: oport->startStream() is intentionally NOT called here.
-        // It is called at the end of MLinkModule::prepare(), after all
-        // OutputPortChange messages from the worker's prepare() callback have
-        // been processed by handleIncomingControl(). This ensures that
-        // DataStream::start() snapshots the complete, final metadata into every
-        // subscription so that downstream modules see correct values during
-        // their own prepare() phase. The snapshot is repeated in start() to
-        // pick up any last-minute changes from the worker's start() callback.
+        // It is called in MLinkModule::start() by iterating *all* output ports
+        // (not just those with a forwarder). The pre-start metadata snapshot is
+        // taken at the end of MLinkModule::prepare() the same way, over all
+        // output ports, after all OutputPortChange messages from the worker's
+        // prepare() have been processed by handleIncomingControl().
     }
 
     return true;
 }
 
-void MLinkModule::disconnectOutPortForwarders()
+void MLinkModule::shutdownOutputPorts()
 {
-    // stop listening to messages from external process
-    for (auto &ps : d->outPortSubs) {
-        ps.oport->stopStream();
+    // stop all output streams (regardless of whether they have a forwarder)
+    for (auto &oport : outPorts())
+        oport->stopStream();
+
+    // drain the IPC forwarder subscribers
+    for (auto &ps : d->outPortSubs)
         ps.sub->drain();
-    }
     d->outPortSubs.clear();
 }
 
@@ -1211,16 +1211,6 @@ bool MLinkModule::prepare(const TestSubject &subject)
     // ensure common metadata on the output ports is up-to-date
     updateCommonStreamMetadata();
 
-    // Snapshot the now-final post-prepare() metadata into every output-port subscription.
-    // This is done here - before start() - so that downstream modules can already read the
-    // correct metadata from their input-port subscriptions during their own prepare() phase.
-    // The engine prepares modules in graph order, so a downstream module's prepare() runs
-    // after this point and will see the up-to-date values.
-    // The snapshot is repeated implicitly in start() too, via startStream(), so we pick
-    // up any last-minute changes as well.
-    for (auto &ps : d->outPortSubs)
-        ps.oport->streamVar()->commitMetadata();
-
     d->portChangesAllowed = false;
     return true;
 }
@@ -1264,13 +1254,15 @@ void MLinkModule::start()
     // stop reading control events in the GUI thread - the module thread will do that for us soon
     d->ctlEventTimer->stop();
 
-    // Start all streams. This re-snapshots the (now-final and immutable) metadata
-    // into all output-port subscriptions.
-    // The first snapshot was taken at the end of prepare(); this second pass picks
-    // up any last-minute changes the worker's start() callback may have published,
-    // as a last-minute safety net.
-    for (auto &ps : d->outPortSubs)
-        ps.oport->startStream();
+    // Start all output streams, regardless of whether they have a master-side IPC
+    // forwarder. This re-snapshots the (now-final and immutable) metadata into all
+    // output-port subscriptions, including pure MLink->MLink ports that have no
+    // forwarder entry in outPortSubs. Destination MLink workers read metadata from
+    // the in-process subscription via UpdateInputPortMetadataRequest and need it set.
+    for (auto &oport : outPorts()) {
+        if (oport->streamVar()->hasSubscribers())
+            oport->startStream();
+    }
 
     // call generic
     AbstractModule::start();
@@ -1347,7 +1339,7 @@ void MLinkModule::runThread(OptionalWaitCondition *startWaitCondition)
     }
 
     // disconnect forwarders
-    disconnectOutPortForwarders();
+    shutdownOutputPorts();
 
     d->threadStopped = true;
 }
