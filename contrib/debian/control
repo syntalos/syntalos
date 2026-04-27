@@ -5,6 +5,7 @@ Maintainer: Matthias Klumpp <mak@debian.org>
 Build-Depends: debhelper-compat (= 13),
                cmake,
                gettext,
+               git,
                gobject-introspection,
                libaravis-dev,
                libavcodec-dev,
