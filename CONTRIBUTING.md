@@ -345,7 +345,7 @@ Check `VarStreamInputPort::isDormant()` in a module's `prepare()` to react to up
    handle hardware or software sync.
 5. All data is written to an EDL directory tree with TOML metadata sidecars.
 
-### IPC for Out-of-Process Modules
+### IPC for Out-of-Process (MLink) Modules
 
 Out-of-process modules (both executable and Python) communicate with the engine via iceoryx2
 shared-memory IPC. The master side is `MLinkModule` (`src/fabric/mlinkmodule.h`); the worker side
@@ -366,6 +366,77 @@ metadata dependencies and modify stream metadata in `start()` (rare!) must opt o
 `slink->setAllowAsyncStart(false)` (C++) or setting `modLink.allow_async_start = False` (Python)
 before the first run. When async-start is disabled for a module, the engine waits for its `start()`
 to complete before proceeding to the next module.
+
+### Data Routing Topology
+
+Data routing between modules is non-trivial because in-process (library) and out-of-process (MLink)
+modules must interoperate. Below is a description of every combination and the machinery behind it.
+
+#### Background: participants in an IOX data service
+
+Each iceoryx2 data service has a fixed capacity (`max_publishers`, `max_subscribers`, `max_nodes`).
+`makeIpcServiceTopology()` (`src/mlink/ipc-types-private.h`) pre-computes these limits from
+connection counts.
+
+#### Case 1 - Library → Library
+
+No IPC involved. Both modules share the same address space; the output port's `DataStream` carries data
+in-process via `StreamSubscription` objects. The `StreamExporter` is not involved.
+
+#### Case 2 - Library → MLink (non-MLink source, MLink destination)
+
+The **`StreamExporter`** (`src/fabric/streamexporter.cpp`) bridges an in-process stream to iceoryx2.
+During engine preparation, `StreamExporter::publishStreamByPort(iport)` is called for each input
+port of every MLink destination module:
+
+1. The exporter creates an IOX **publisher** on service `<src-mod-id>/<channel-id>`.
+2. It subscribes to the source port's `DataStream` in-process.
+3. Its event-loop thread reads each `StreamSubscription` and forwards the raw bytes to the IOX publisher.
+4. The destination MLink worker receives a `ConnectInputRequest` (via `markIncomingForExport`) and
+   opens an IOX **subscriber** on that service, receiving data.
+
+If the same source output port has multiple MLink consumers, only one iceoryx publisher is created
+(iceoryx handles fan-out). Additional destination subscriptions become "drain-only" entries that are
+suspended immediately after the first dispatch so their in-process queues do not fill up.
+
+#### Case 3 - MLink → Library (MLink source, non-MLink destination)
+
+The MLink worker process owns the IOX **publisher**. The master must bring data back
+into the in-process stream graph so that the library destination module can read it:
+
+1. `MLinkModule::registerOutPortForwarders()` (`src/fabric/mlinkmodule.cpp`) creates an IOX
+   **subscriber** on the source worker's output service, attached to the master's IOX node.
+2. The master's `runThread()` waits on a `WaitSet`; when data arrives it calls
+   `ps.oport->streamVar()->pushRawData(...)` to push the bytes into the in-process `DataStream`.
+3. Library destination modules read that stream normally via their `StreamSubscription`.
+
+#### Case 4 - MLink → MLink (MLink source, all destinations are also MLink)
+
+Both ends have IOX workers. The master forwarder from Case 3 is **not created** - it would
+receive data just to push it into in-process queues that nobody reads.
+
+`registerOutPortForwarders()` checks `oport->subscriberPorts()` (see below) and skips forwarder
+creation when every connected input port's owner is an `MLinkModule`.
+
+The destination workers still connect directly to the source's iceoryx service via
+`ConnectInputRequest` (sent by `markIncomingForExport`), so data flows worker-to-worker with
+no master involvement in the data path.
+
+The in-process `StreamSubscription` objects that were created when connections were drawn in the GUI
+still exist. The `StreamExporter` detects the MLink source in `publishStreamByPort()` and registers a
+**drain-and-suspend** entry for each such subscription so it is suspended after the first dispatch
+and never accumulates data.
+
+#### Case 5 - MLink → Mixed (MLink source, some MLink and some library destinations)
+
+This is a combination of Cases 3 and 4:
+
+1. The master forwarder subscriber **is** created so that library destinations can receive
+   data via the in-process `DataStream`.
+2. MLink destinations still connect directly to the source's IOX service via `ConnectInputRequest`.
+3. Their in-process `StreamSubscription` objects would accumulate unread data. The `StreamExporter`
+   registers drain-and-suspend entries for them (same mechanism as Case 4) to prevent memory
+   buildup and false "hot connection" readings.
 
 ## Important Conventions
 
