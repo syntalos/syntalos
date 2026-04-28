@@ -243,7 +243,7 @@ if sanitize_opt == 'none' and mimalloc_dbg_opt == 'none' and not get_option('val
                                      required: false, static: false)
     if mimalloc_system_dep.found()
         mimalloc_dep = declare_dependency(
-            dependencies: mimalloc_dep,
+            dependencies: mimalloc_system_dep,
             compile_args: ['-DSY_SHARED_MIMALLOC'],
         )
     endif
