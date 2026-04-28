@@ -209,7 +209,7 @@ public:
         auto maybePub = std::move(maybePubSvc)
                             .value()
                             .publisher_builder()
-                            .unable_to_deliver_strategy(iox2::UnableToDeliverStrategy::Block)
+                            .unable_to_deliver_strategy(iox2::UnableToDeliverStrategy::RetryUntilDelivered)
                             .initial_max_slice_len(SY_IOX_INITIAL_SLICE_LEN)
                             .allocation_strategy(iox2::AllocationStrategy::PowerOfTwo)
                             .create();
@@ -654,7 +654,7 @@ IoxPublisher<T> makeTypedPublisher(
     auto maybePub = std::move(maybeSvc)
                         .value()
                         .publisher_builder()
-                        .unable_to_deliver_strategy(iox2::UnableToDeliverStrategy::Block)
+                        .unable_to_deliver_strategy(iox2::UnableToDeliverStrategy::RetryUntilDelivered)
                         .create();
     if (!maybePub.has_value())
         throw std::runtime_error(
@@ -716,7 +716,7 @@ inline IoxSlicePublisher makeSlicePublisher(
     auto maybePub = std::move(maybeSvc)
                         .value()
                         .publisher_builder()
-                        .unable_to_deliver_strategy(iox2::UnableToDeliverStrategy::Block)
+                        .unable_to_deliver_strategy(iox2::UnableToDeliverStrategy::RetryUntilDelivered)
                         .initial_max_slice_len(SY_IOX_INITIAL_SLICE_LEN)
                         .allocation_strategy(iox2::AllocationStrategy::PowerOfTwo)
                         .create();
@@ -832,7 +832,7 @@ IoxServer<Req, Res> makeTypedServer(
     auto maybeSrv = std::move(maybeSvc)
                         .value()
                         .server_builder()
-                        .unable_to_deliver_strategy(iox2::UnableToDeliverStrategy::Block)
+                        .unable_to_deliver_strategy(iox2::UnableToDeliverStrategy::RetryUntilDelivered)
                         .create();
     if (!maybeSrv.has_value())
         throw std::runtime_error(
@@ -889,7 +889,7 @@ inline auto makeSliceServer(
             "Failed to open/create untyped request-response service for server on '" + svcNameStr
             + "': " + iox2::bb::into<const char *>(maybeSvc.error()));
     auto srvBuilder = std::move(maybeSvc).value().server_builder().unable_to_deliver_strategy(
-        iox2::UnableToDeliverStrategy::Block);
+        iox2::UnableToDeliverStrategy::RetryUntilDelivered);
     if constexpr (is_iox_slice<ResponseT>) {
         std::move(srvBuilder)
             .initial_max_slice_len(SY_IOX_INITIAL_SLICE_LEN)

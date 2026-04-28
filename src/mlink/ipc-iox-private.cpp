@@ -75,9 +75,12 @@ const iox2::Config &ioxDefaultConfig()
         cfg.global().node().set_cleanup_dead_nodes_on_creation(true);
         cfg.global().node().set_cleanup_dead_nodes_on_destruction(true);
 
-        cfg.defaults().publish_subscribe().set_unable_to_deliver_strategy(iox2::UnableToDeliverStrategy::Block);
-        cfg.defaults().request_response().set_client_unable_to_deliver_strategy(iox2::UnableToDeliverStrategy::Block);
-        cfg.defaults().request_response().set_server_unable_to_deliver_strategy(iox2::UnableToDeliverStrategy::Block);
+        cfg.defaults().publish_subscribe().set_unable_to_deliver_strategy(
+            iox2::UnableToDeliverStrategy::RetryUntilDelivered);
+        cfg.defaults().request_response().set_client_unable_to_deliver_strategy(
+            iox2::UnableToDeliverStrategy::RetryUntilDelivered);
+        cfg.defaults().request_response().set_server_unable_to_deliver_strategy(
+            iox2::UnableToDeliverStrategy::RetryUntilDelivered);
 
         return cfg;
     }();
