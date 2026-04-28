@@ -27,6 +27,8 @@
 #include "logging.h"
 
 #include <iostream>
+#include <glib.h>
+#include <iox2/log.hpp>
 #include <datactl/logging.h>
 
 namespace Syntalos
@@ -60,10 +62,16 @@ quill::Logger *getLogger(const char *name)
 {
     return getLogger(std::string(name));
 }
+
 quill::Logger *logModTmp(const char *name)
 {
     const auto logName = std::format("mod.{}", name);
     return getLogger(logName);
+}
+
+void removeLogger(quill::Logger *logger)
+{
+    quill::Frontend::remove_logger_blocking(logger);
 }
 
 static void datactlLogHandler(const datactl::LogMessage &m)
@@ -132,10 +140,140 @@ static void qtLogHandler(QtMsgType type, const QMessageLogContext &ctx, const QS
     }
 }
 
-void removeLogger(quill::Logger *logger)
+static GLogWriterOutput glibLogWriter(GLogLevelFlags log_level, const GLogField *fields, gsize n_fields, gpointer)
 {
-    quill::Frontend::remove_logger_blocking(logger);
+    std::string domainStr;
+    std::string msgStr;
+    std::string fileStr;
+    std::string funcStr;
+    int line = 0;
+
+    auto assignFieldStr = [](std::string &dst, const GLogField &f) {
+        if (!f.value)
+            return;
+        const auto s = static_cast<const char *>(f.value);
+        if (f.length < 0)
+            dst.assign(s);
+        else
+            dst.assign(s, static_cast<size_t>(f.length));
+    };
+
+    for (gsize i = 0; i < n_fields; ++i) {
+        const auto &f = fields[i];
+        if (!f.key)
+            continue;
+
+        if (std::strcmp(f.key, "GLIB_DOMAIN") == 0) {
+            assignFieldStr(domainStr, f);
+        } else if (std::strcmp(f.key, "MESSAGE") == 0) {
+            assignFieldStr(msgStr, f);
+        } else if (std::strcmp(f.key, "CODE_FILE") == 0) {
+            assignFieldStr(fileStr, f);
+        } else if (std::strcmp(f.key, "CODE_FUNC") == 0) {
+            assignFieldStr(funcStr, f);
+        } else if (std::strcmp(f.key, "CODE_LINE") == 0) {
+            std::string lineStr;
+            assignFieldStr(lineStr, f);
+            if (!lineStr.empty())
+                line = static_cast<int>(std::strtol(lineStr.c_str(), nullptr, 10));
+        }
+    }
+
+    auto logger = getLogger(domainStr.empty() ? "g" : domainStr);
+
+    quill::LogLevel level;
+    switch (log_level & G_LOG_LEVEL_MASK) {
+    case G_LOG_LEVEL_ERROR:
+        level = quill::LogLevel::Critical;
+        break;
+    case G_LOG_LEVEL_CRITICAL:
+        level = quill::LogLevel::Error;
+        break;
+    case G_LOG_LEVEL_WARNING:
+        level = quill::LogLevel::Warning;
+        break;
+    case G_LOG_LEVEL_MESSAGE:
+    case G_LOG_LEVEL_INFO:
+        level = quill::LogLevel::Info;
+        break;
+    case G_LOG_LEVEL_DEBUG:
+        level = quill::LogLevel::Debug;
+        break;
+    default:
+        level = quill::LogLevel::Info;
+        break;
+    }
+
+    if ((log_level & G_LOG_FLAG_FATAL) != 0)
+        level = quill::LogLevel::Critical;
+
+    QUILL_LOG_RUNTIME_METADATA_CALL(
+        quill::MacroMetadata::Event::LogWithRuntimeMetadataShallowCopy,
+        logger,
+        level,
+        fileStr.empty() ? "" : fileStr.c_str(),
+        line,
+        funcStr.empty() ? "" : funcStr.c_str(),
+        "",
+        "{}",
+        msgStr.empty() ? "" : msgStr.c_str());
+
+    return G_LOG_WRITER_HANDLED;
 }
+
+/**
+ * Log forwarder to move iceoryx messages to our Quill loggers.
+ */
+class IoxLogger : public iox2::Log
+{
+public:
+    IoxLogger()
+        : iox2::Log(),
+          m_log(getLogger("iox"))
+    {
+    }
+
+    void log(iox2::LogLevel ioxLogLevel, const char *origin, const char *message) override
+    {
+        quill::LogLevel level;
+        switch (ioxLogLevel) {
+        case iox2::LogLevel::Debug:
+            level = quill::LogLevel::Debug;
+            break;
+        case iox2::LogLevel::Info:
+            level = quill::LogLevel::Info;
+            break;
+        case iox2::LogLevel::Warn:
+            level = quill::LogLevel::Warning;
+            break;
+        case iox2::LogLevel::Error:
+            level = quill::LogLevel::Error;
+            break;
+        case iox2::LogLevel::Fatal:
+            level = quill::LogLevel::Critical;
+            break;
+        case iox2::LogLevel::Trace:
+            level = quill::LogLevel::TraceL1;
+            break;
+        default:
+            level = quill::LogLevel::Info;
+        }
+
+        QUILL_LOG_RUNTIME_METADATA_CALL(
+            quill::MacroMetadata::Event::LogWithRuntimeMetadataShallowCopy,
+            m_log,
+            level,
+            "",
+            0,
+            origin,
+            "",
+            "{}",
+            message);
+    }
+
+private:
+    QuillLogger *m_log;
+};
 
 void initializeSyLogSystem(quill::LogLevel consoleLogLevel)
 {
@@ -163,6 +301,13 @@ void initializeSyLogSystem(quill::LogLevel consoleLogLevel)
     // forward any Qt log messages into Quill as well
     g_prevQtHandler = qInstallMessageHandler(qtLogHandler);
 
+    // forward any GLib log messages
+    g_log_set_writer_func(glibLogWriter, nullptr, nullptr);
+
+    // forward iceoryx2 messages
+    static IoxLogger ioxLogForwarder = IoxLogger();
+    iox2::set_logger(ioxLogForwarder);
+
     // configure defaults
     g_defaultLogLevel = consoleLogLevel;
     g_consoleSink->set_log_level_filter(consoleLogLevel);
@@ -170,12 +315,17 @@ void initializeSyLogSystem(quill::LogLevel consoleLogLevel)
 
 void shutdownSyLogSystem()
 {
-    quill::Backend::stop();
-
+    // reset all logging handlers back to defaults, if we can
     if (g_prevQtHandler != nullptr)
         qInstallMessageHandler(g_prevQtHandler);
     g_prevQtHandler = nullptr;
     datactl::setLogHandler(nullptr);
+
+    // NOTE: It is forbidden to reset the GLib log handler, and we cannot
+    // reset the IOX handler either. The shutdown function must be called
+    // last in a program, after no more logging is possible (or never).
+
+    quill::Backend::stop();
 }
 
 } // namespace Syntalos
