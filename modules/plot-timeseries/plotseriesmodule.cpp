@@ -200,35 +200,39 @@ public:
     template<typename T>
     void processIncomingData(PlotSubscriptionDetails<T> &sd)
     {
-        auto maybeData = sd.sub->peekNext();
-        if (!maybeData.has_value())
-            return;
-        const auto &data = *maybeData;
+        // Drain all queued blocks - peekNext() only dequeues one item, so we must
+        // loop to prevent the subscription queue from growing unboundedly when the
+        // producer (e.g. 30 kHz source) outpaces individual event firings.
+        while (true) {
+            auto maybeData = sd.sub->peekNext();
+            if (!maybeData.has_value())
+                break;
+            const auto &data = *maybeData;
 
-        sd.plotWidget->addToTimeseries(data.timestamps, sd.timestampDivisor);
+            sd.plotWidget->addToTimeseries(data.timestamps, sd.timestampDivisor);
 
-        // sanity check
-        if (data.data.cols() != sd.expectedSigSeriesCount) {
-            raiseError(QStringLiteral(
-                           "Unexpected amount of signal-series received on port %1: Expected %2, but got %3. "
-                           "This is a bug in the module we receive data from.")
-                           .arg(sd.port->title())
-                           .arg(sd.expectedSigSeriesCount)
-                           .arg(data.data.cols()));
-            return;
-        }
+            // sanity check
+            if (data.data.cols() != sd.expectedSigSeriesCount) {
+                raiseError(QStringLiteral(
+                               "Unexpected amount of signal-series received on port %1: Expected %2, but got %3. "
+                               "This is a bug in the module we receive data from.")
+                               .arg(sd.port->title())
+                               .arg(sd.expectedSigSeriesCount)
+                               .arg(data.data.cols()));
+                return;
+            }
 
-        // set the new data
-        int seriesIdx = 0;
-        for (int i = 0; i < data.data.cols(); ++i) {
-            if (!sd.showSignal[i])
-                continue;
+            int seriesIdx = 0;
+            for (int i = 0; i < data.data.cols(); ++i) {
+                if (!sd.showSignal[i])
+                    continue;
 
-            if constexpr (std::is_same_v<T, IntSignalBlock>)
-                sd.plotWidget->addToSeriesI(seriesIdx, data.data.col(i));
-            else
-                sd.plotWidget->addToSeriesF(seriesIdx, data.data.col(i));
-            seriesIdx++;
+                if constexpr (std::is_same_v<T, IntSignalBlock>)
+                    sd.plotWidget->addToSeriesI(seriesIdx, data.data.col(i));
+                else
+                    sd.plotWidget->addToSeriesF(seriesIdx, data.data.col(i));
+                seriesIdx++;
+            }
         }
     }
 

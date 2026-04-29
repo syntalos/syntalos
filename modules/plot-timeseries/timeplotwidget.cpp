@@ -25,62 +25,70 @@
 #include <implot.h>
 
 template<typename T>
-class AutoTrimBuffer
+class RingBuffer
 {
 public:
-    explicit AutoTrimBuffer(size_t cap = 80 * 1000)
-        : m_capacity(cap)
+    explicit RingBuffer(size_t cap = 80 * 1000)
+        : m_capacity(cap),
+          m_head(0),
+          m_count(0)
     {
-        m_buffer.reserve(cap);
+        m_data.resize(cap);
     }
 
     void add(const T &value)
     {
-        if (m_buffer.size() >= m_capacity)
-            m_buffer.erase(m_buffer.begin());
-
-        m_buffer.push_back(value);
-    }
-
-    const std::vector<T> &buffer() const
-    {
-        return m_buffer;
+        m_data[m_head] = value;
+        m_head = (m_head + 1) % m_capacity;
+        if (m_count < m_capacity)
+            ++m_count;
     }
 
     const T *data() const
     {
-        return m_buffer.data();
+        return m_data.data();
+    }
+
+    // Index of the oldest element; pass directly to ImPlot's offset parameter.
+    int offset() const
+    {
+        return (m_count == m_capacity) ? static_cast<int>(m_head) : 0;
     }
 
     bool isEmpty() const
     {
-        return m_buffer.empty();
+        return m_count == 0;
     }
 
-    const T last() const
+    T last() const
     {
-        return m_buffer.back();
+        return m_data[(m_head + m_capacity - 1) % m_capacity];
     }
 
     size_t size() const
     {
-        return m_buffer.size();
+        return m_count;
     }
 
     void clear()
     {
-        m_buffer.clear();
+        m_head = 0;
+        m_count = 0;
     }
 
     void setCapacity(size_t cap)
     {
         m_capacity = cap;
-        m_buffer.reserve(cap);
+        m_data.assign(cap, T{});
+        m_head = 0;
+        m_count = 0;
     }
 
 private:
-    std::vector<T> m_buffer;
+    std::pmr::vector<T> m_data;
     size_t m_capacity;
+    size_t m_head;
+    size_t m_count;
 };
 
 class TimePlotWidget::Private
@@ -101,8 +109,8 @@ public:
     QString yAxisLabel;
     size_t bufferSize;
 
-    AutoTrimBuffer<double> timeseries;
-    std::vector<AutoTrimBuffer<double>> xdata;
+    RingBuffer<double> timeseries;
+    std::vector<RingBuffer<double>> xdata;
     std::vector<PlotSeriesSettings> xdataSettings;
 
     float historyLen;
@@ -174,7 +182,7 @@ void TimePlotWidget::setBufferSize(size_t size)
     if (size < 10)
         size = 10;
     d->bufferSize = size;
-    d->timeseries = AutoTrimBuffer<double>(d->bufferSize);
+    d->timeseries = RingBuffer<double>(d->bufferSize);
 
     for (auto &buf : d->xdata)
         buf.setCapacity(d->bufferSize);
@@ -182,7 +190,7 @@ void TimePlotWidget::setBufferSize(size_t size)
 
 int TimePlotWidget::addSeries(const QString &seriesName, const PlotSeriesSettings &settings)
 {
-    d->xdata.push_back(AutoTrimBuffer<double>(d->bufferSize));
+    d->xdata.push_back(RingBuffer<double>(d->bufferSize));
 
     auto sc = PlotSeriesSettings(settings);
     sc.name = seriesName;
@@ -263,13 +271,25 @@ void TimePlotWidget::paintGL()
         // ImPlot::SetupAxisLimits(ImAxis_Y1, -0.5, +0.5);
         ImPlot::SetNextFillStyle(IMPLOT_AUTO_COL, 0.5f);
 
+        const auto ringOffset = d->timeseries.offset();
         for (uint i = 0; i < d->xdata.size(); ++i) {
             const auto pss = d->xdataSettings[i];
             if (pss.isDigital) {
                 ImPlot::PlotDigital(
-                    qPrintable(pss.name), d->timeseries.data(), d->xdata[i].data(), d->timeseries.size());
+                    qPrintable(pss.name),
+                    d->timeseries.data(),
+                    d->xdata[i].data(),
+                    d->timeseries.size(),
+                    0,
+                    ringOffset);
             } else {
-                ImPlot::PlotLine(qPrintable(pss.name), d->timeseries.data(), d->xdata[i].data(), d->timeseries.size());
+                ImPlot::PlotLine(
+                    qPrintable(pss.name),
+                    d->timeseries.data(),
+                    d->xdata[i].data(),
+                    d->timeseries.size(),
+                    0,
+                    ringOffset);
             }
         }
 
