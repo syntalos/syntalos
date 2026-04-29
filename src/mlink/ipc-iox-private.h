@@ -573,7 +573,7 @@ public:
                     logMessage(
                         datactl::LogSeverity::Error,
                         "Failed to receive sample on {}: {}",
-                        m_serviceName.to_string().unchecked_access(),
+                        m_serviceName.to_string().unchecked_access().c_str(),
                         iox2::bb::into<const char *>(maybeReceived.error()));
                     continue;
                 }
@@ -593,7 +593,7 @@ public:
                 logMessage(
                     datactl::LogSeverity::Error,
                     "Failed to receive sample on {}: {}",
-                    m_serviceName.to_string().unchecked_access(),
+                    m_serviceName.to_string().unchecked_access().c_str(),
                     iox2::bb::into<const char *>(maybeReceived.error()));
                 break;
             }
