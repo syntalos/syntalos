@@ -794,7 +794,8 @@ void SyntalosLink::processPendingControl()
                 *d->node,
                 std::string(r.instanceId.unchecked_access().c_str()),
                 std::string(r.channelId.unchecked_access().c_str()),
-                r.topology));
+                r.topology,
+                ipcLogMessageDispatch));
 
         Private::replyDone(*req, true);
 

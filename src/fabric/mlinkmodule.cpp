@@ -1070,6 +1070,11 @@ void MLinkModule::markIncomingForExport(StreamExporter *exporter)
     }
 }
 
+static void ipcLogDispatch(QuillLogger *logger, datactl::LogSeverity severity, const std::string &msg)
+{
+    LOG_DYNAMIC(logger, static_cast<quill::LogLevel>(severity), "{}", msg);
+}
+
 bool MLinkModule::registerOutPortForwarders()
 {
     // ensure we are disconnected
@@ -1097,7 +1102,15 @@ bool MLinkModule::registerOutPortForwarders()
         const auto topology = makeIpcServiceTopology(1, oport->streamVar()->subscriberCount());
         try {
             ps.sub.reset(); // ensure the old subscription is gone before we try to create a new one
-            ps.sub.emplace(SySubscriber::create(*d->node, d->clientId, "o/" + oport->id().toStdString(), topology));
+            ps.sub.emplace(
+                SySubscriber::create(
+                    *d->node,
+                    d->clientId,
+                    "o/" + oport->id().toStdString(),
+                    topology,
+                    [this](auto severity, auto &msg) {
+                        ipcLogDispatch(m_log, severity, msg);
+                    }));
             ps.oport = oport;
             d->outPortSubs.push_back(std::move(ps));
         } catch (const std::exception &e) {

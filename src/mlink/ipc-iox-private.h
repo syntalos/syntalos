@@ -138,8 +138,8 @@ public:
           m_notifier{std::move(other.m_notifier)},
           m_listener{std::move(other.m_listener)},
           m_serviceName{std::move(other.m_serviceName)},
-          m_valid{other.m_valid},
-          m_logFn(std::move(other.m_logFn))
+          m_logFn(std::move(other.m_logFn)),
+          m_valid{other.m_valid}
     {
         other.m_valid = false;
     }
@@ -167,8 +167,10 @@ public:
 
         // don't fail silently, but there isn't much we can do about it at this point
         if (!r.has_value())
-            std::cerr << "ipc: Failed to emit PublisherDisconnected in SyPublisher destructor: "
-                      << iox2::bb::into<const char *>(r.error()) << std::endl;
+            logMessage(
+                datactl::LogSeverity::Error,
+                "Failed to emit PublisherDisconnected in SyPublisher destructor: {}",
+                iox2::bb::into<const char *>(r.error()));
     }
 
     /**
@@ -300,7 +302,7 @@ public:
             default: {
                 logMessage(
                     datactl::LogSeverity::Warning,
-                    "ipc: Received unexpected event ID on {}: {}",
+                    "Received unexpected event ID on {}: {}",
                     m_serviceName.to_string().unchecked_access().c_str(),
                     static_cast<size_t>(eventId));
                 break;
@@ -361,16 +363,18 @@ private:
           m_notifier{std::move(notifier)},
           m_listener{std::move(listener)},
           m_serviceName{std::move(svcName)},
-          m_valid{true},
-          m_logFn(std::move(logFn))
+          m_logFn(std::move(logFn)),
+          m_valid{true}
     {
     }
 
     template<typename... Args>
     inline void logMessage(datactl::LogSeverity severity, std::format_string<Args...> fmt, Args &&...args)
     {
-        if (!m_logFn)
+        if (!m_logFn) {
+            std::cerr << "ipc-pub: " << std::format(fmt, std::forward<Args>(args)...) << std::endl;
             return;
+        }
         m_logFn(severity, std::format(fmt, std::forward<Args>(args)...));
     }
 
@@ -378,8 +382,8 @@ private:
     IoxNotifier m_notifier;
     IoxListener m_listener;
     iox2::ServiceName m_serviceName;
-    bool m_valid = false;
     IpcLogFn m_logFn = {};
+    bool m_valid = false;
 };
 
 /**
@@ -402,6 +406,7 @@ public:
           m_notifier{std::move(other.m_notifier)},
           m_listener{std::move(other.m_listener)},
           m_serviceName{std::move(other.m_serviceName)},
+          m_logFn(std::move(other.m_logFn)),
           m_valid{other.m_valid}
     {
         other.m_valid = false;
@@ -414,6 +419,7 @@ public:
             m_notifier = std::move(other.m_notifier);
             m_listener = std::move(other.m_listener);
             m_serviceName = std::move(other.m_serviceName);
+            m_logFn = std::move(other.m_logFn);
             m_valid = other.m_valid;
             other.m_valid = false;
         }
@@ -429,8 +435,10 @@ public:
 
         // don't fail silently, but there isn't much we can do about it at this point
         if (!r.has_value())
-            std::cerr << "ipc: Failed to emit SubscriberDisconnected in SySubscriber destructor: "
-                      << iox2::bb::into<const char *>(r.error()) << std::endl;
+            logMessage(
+                datactl::LogSeverity::Error,
+                "Failed to emit SubscriberDisconnected in SySubscriber destructor: ",
+                iox2::bb::into<const char *>(r.error()));
     }
 
     /**
@@ -441,7 +449,8 @@ public:
         iox2::Node<iox2::ServiceType::Ipc> &node,
         const std::string &instanceId,
         const std::string &channelName,
-        const IpcServiceTopology &topology = IpcServiceTopology())
+        const IpcServiceTopology &topology,
+        IpcLogFn logFn)
     {
         // Main service name to receive samples & notifications
         const auto svcNameStr = makeModuleServiceName(instanceId, channelName);
@@ -511,7 +520,8 @@ public:
             std::move(svcName),
             std::move(maybeSub).value(),
             std::move(maybeNotifier).value(),
-            std::move(maybeListener).value()};
+            std::move(maybeListener).value(),
+            std::move(logFn)};
 
         // Announce presence to any existing publisher
         sub.m_notifier
@@ -560,9 +570,11 @@ public:
                 // This is handled by the extra pass on the listener after draining all events.
                 const auto &maybeReceived = m_subscriber.receive();
                 if (!maybeReceived.has_value()) [[unlikely]] {
-                    std::cerr << "ipc: Failed to receive sample on "
-                              << m_serviceName.to_string().unchecked_access().c_str() << ": "
-                              << iox2::bb::into<const char *>(maybeReceived.error()) << std::endl;
+                    logMessage(
+                        datactl::LogSeverity::Error,
+                        "Failed to receive sample on {}: {}",
+                        m_serviceName.to_string().unchecked_access(),
+                        iox2::bb::into<const char *>(maybeReceived.error()));
                     continue;
                 }
                 const auto &sample = maybeReceived.value();
@@ -578,8 +590,11 @@ public:
         for (;;) {
             const auto &maybeReceived = m_subscriber.receive();
             if (!maybeReceived.has_value()) [[unlikely]] {
-                std::cerr << "ipc: Failed to receive sample on " << m_serviceName.to_string().unchecked_access().c_str()
-                          << ": " << iox2::bb::into<const char *>(maybeReceived.error()) << std::endl;
+                logMessage(
+                    datactl::LogSeverity::Error,
+                    "Failed to receive sample on {}: {}",
+                    m_serviceName.to_string().unchecked_access(),
+                    iox2::bb::into<const char *>(maybeReceived.error()));
                 break;
             }
             const auto &sample = maybeReceived.value();
@@ -612,19 +627,32 @@ private:
         iox2::ServiceName serviceName,
         IoxSliceSubscriber &&sub,
         IoxNotifier &&notifier,
-        IoxListener &&listener)
+        IoxListener &&listener,
+        IpcLogFn &&logFn = {})
         : m_subscriber{std::move(sub)},
           m_notifier{std::move(notifier)},
           m_listener{std::move(listener)},
           m_serviceName{std::move(serviceName)},
+          m_logFn(std::move(logFn)),
           m_valid{true}
     {
+    }
+
+    template<typename... Args>
+    inline void logMessage(datactl::LogSeverity severity, std::format_string<Args...> fmt, Args &&...args)
+    {
+        if (!m_logFn) {
+            std::cerr << "ipc-sub: " << std::format(fmt, std::forward<Args>(args)...) << std::endl;
+            return;
+        }
+        m_logFn(severity, std::format(fmt, std::forward<Args>(args)...));
     }
 
     IoxSliceSubscriber m_subscriber;
     IoxNotifier m_notifier;
     IoxListener m_listener;
     iox2::ServiceName m_serviceName;
+    IpcLogFn m_logFn = {};
     bool m_valid = false;
 };
 
