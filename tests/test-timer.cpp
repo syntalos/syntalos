@@ -1,6 +1,7 @@
 
 #include <QDebug>
 #include <QtTest>
+#include <cstdlib>
 #include <iostream>
 #include <memory>
 #include <thread>
@@ -79,9 +80,15 @@ private slots:
 
         timer->start();
 
+        const auto before = timer->timeSinceStartNsec();
         auto res = TIMER_FUNC_TIMESTAMP(timer, slow_work_with_result(2));
+        const auto after = timer->timeSinceStartNsec();
         std::this_thread::sleep_for(std::chrono::milliseconds(12));
-        QVERIFY((res.count() < (251 * 1000)) && (res.count() > (249 * 1000)));
+
+        const auto expectedMidpoint = std::chrono::round<microseconds_t>((before + after) / 2.0);
+        const auto deltaUsec = std::llabs((res - expectedMidpoint).count());
+        QVERIFY2(
+            deltaUsec <= 2200, qPrintable(QStringLiteral("timestamp midpoint delta too large: %1 us").arg(deltaUsec)));
 
         QVERIFY(timer->timeSinceStartMsec().count() >= 512);
     }
