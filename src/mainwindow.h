@@ -149,9 +149,9 @@ private slots:
     void on_actionOpenCrashCollector_triggered();
 
 protected:
+    void showEvent(QShowEvent *event) override;
     void closeEvent(QCloseEvent *event) override;
     void resizeEvent(QResizeEvent *event) override;
-    void showEvent(QShowEvent *event) override;
 
 private:
     void applySelectedAppStyle(bool updateIcons = true);

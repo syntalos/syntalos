@@ -35,53 +35,6 @@ python = import('python').find_installation('python3', modules: ['numpy'])
 cmake  = import('cmake')
 
 #
-# Feature tests
-#
-have_sigdescr_np = cpp_compiler.has_function('sigdescr_np', prefix : '#include <string.h>')
-
-#
-# Configure files
-#
-sy_libdir = join_paths(get_option('prefix'),
-                       get_option('libdir'),
-                       'syntalos')
-sy_modules_dir = join_paths(sy_libdir, 'modules')
-
-conf = configuration_data()
-conf.set('SY_MAJOR_VERSION_CONF', sy_major_version)
-conf.set('SY_MINOR_VERSION_CONF', sy_minor_version)
-conf.set('SY_MICRO_VERSION_CONF', sy_micro_version)
-conf.set_quoted('PROJECT_VERSION', sy_version)
-conf.set10('HAVE_SIGDESCR_NP', have_sigdescr_np)
-conf.set_quoted('LIBEXECDIR',
-                join_paths(get_option('prefix'),
-                           get_option('libexecdir')))
-conf.set_quoted('DATADIR',
-                join_paths(get_option('prefix'),
-                           get_option('datadir')))
-conf.set_quoted('LIBDIR',
-                join_paths(get_option('prefix'),
-                           get_option('libdir')))
-conf.set_quoted('BINDIR',
-                join_paths(get_option('prefix'),
-                           get_option('bindir')))
-conf.set_quoted('SYSCONFDIR',
-                join_paths(get_option('prefix'),
-                           get_option('sysconfdir')))
-conf.set_quoted('SY_LIBDIR', sy_libdir)
-conf.set_quoted('SY_MODULESDIR', sy_modules_dir)
-conf.set_quoted('PYTHON_LANG_VERSION', python.language_version())
-conf.set_quoted('PYTHON_INSTALL_PATH', python.get_install_dir())
-conf.set_quoted('SY_VCS_TAG', '@VCS_TAG@')
-conf.set_quoted('SY_BUG_REPORT_URL', bug_report_url)
-config_h = configure_file(output: 'config.h.in', configuration: conf)
-config_h = vcs_tag(input: config_h, output: 'config.h')
-
-mconf = configuration_data()
-mconf.set_quoted('SY_MODULE_API_TAG', 'sy-' + sy_version)
-modconfig_h = configure_file(output: 'modconfig.h', configuration: mconf)
-
-#
 # Custom compile flags
 #
 if get_option('maintainer')
@@ -278,6 +231,11 @@ if not mimalloc_dep.found()
 endif
 
 #
+# Feature tests
+#
+have_sigdescr_np = cpp_compiler.has_function('sigdescr_np', prefix : '#include <string.h>')
+
+#
 # Dependencies
 #
 qt_core_dep = dependency('qt6', modules: ['Core'], version: '>= 6.8.2', include_type: 'system')
@@ -330,6 +288,17 @@ gstreamer_video_dep = dependency('gstreamer-video-1.0')
 python_dep = dependency('python3')
 python_embed_dep = dependency('python3-embed')
 pybind11_dep = dependency('pybind11', version: '>= 3.0')
+
+# Wayland preference
+wayland_opt = get_option('wayland')
+prefer_wayland = wayland_opt.enabled() or (wayland_opt.auto() and qt_core_dep.version().version_compare('>=6.10'))
+winpos_dep = dependency('', required: false)
+if prefer_wayland
+    winpos_dep = dependency('winpos-qt',
+        fallback: ['winpos-qt', 'winpos_qt_dep'],
+        default_options: ['default_library=static']
+    )
+endif
 
 # We set strict API bounds to allow the MLink and Datactl libraries to be compatible
 # with a wide range of GLib versions, as they may be used in e.g. Python virtualenvs
@@ -412,6 +381,49 @@ if udevdir == ''
     udev = dependency('udev')
     udevdir = udev.get_variable(pkgconfig: 'udevdir')
 endif
+
+#
+# Configure files
+#
+sy_libdir = join_paths(get_option('prefix'),
+                       get_option('libdir'),
+                       'syntalos')
+sy_modules_dir = join_paths(sy_libdir, 'modules')
+
+conf = configuration_data()
+conf.set('SY_MAJOR_VERSION_CONF', sy_major_version)
+conf.set('SY_MINOR_VERSION_CONF', sy_minor_version)
+conf.set('SY_MICRO_VERSION_CONF', sy_micro_version)
+conf.set_quoted('PROJECT_VERSION', sy_version)
+conf.set10('HAVE_SIGDESCR_NP', have_sigdescr_np)
+conf.set10('SY_PREFER_WAYLAND', prefer_wayland)
+conf.set_quoted('LIBEXECDIR',
+                join_paths(get_option('prefix'),
+                           get_option('libexecdir')))
+conf.set_quoted('DATADIR',
+                join_paths(get_option('prefix'),
+                           get_option('datadir')))
+conf.set_quoted('LIBDIR',
+                join_paths(get_option('prefix'),
+                           get_option('libdir')))
+conf.set_quoted('BINDIR',
+                join_paths(get_option('prefix'),
+                           get_option('bindir')))
+conf.set_quoted('SYSCONFDIR',
+                join_paths(get_option('prefix'),
+                           get_option('sysconfdir')))
+conf.set_quoted('SY_LIBDIR', sy_libdir)
+conf.set_quoted('SY_MODULESDIR', sy_modules_dir)
+conf.set_quoted('PYTHON_LANG_VERSION', python.language_version())
+conf.set_quoted('PYTHON_INSTALL_PATH', python.get_install_dir())
+conf.set_quoted('SY_VCS_TAG', '@VCS_TAG@')
+conf.set_quoted('SY_BUG_REPORT_URL', bug_report_url)
+config_h = configure_file(output: 'config.h.in', configuration: conf)
+config_h = vcs_tag(input: config_h, output: 'config.h')
+
+mconf = configuration_data()
+mconf.set_quoted('SY_MODULE_API_TAG', 'sy-' + sy_version)
+modconfig_h = configure_file(output: 'modconfig.h', configuration: mconf)
 
 #
 # Source info file

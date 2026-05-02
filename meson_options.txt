@@ -22,6 +22,11 @@ option('modules',
        description: 'Select modules to enable.'
 )
 
+option('wayland',
+       type : 'feature',
+       value : 'auto',
+       description : 'Try to build with Wayland support, if possible.'
+)
 option('optimize-modern-amd64',
     type : 'boolean',
     value : true,

@@ -113,6 +113,7 @@ syntalos_exe = executable('syntalos',
         qt_opengl_dep,
         qt_svg_dep,
         qt_dbus_dep,
+        winpos_dep,
 
         kfdbusaddons_dep,
         kfarchive_dep,

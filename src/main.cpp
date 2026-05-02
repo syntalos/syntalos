@@ -41,10 +41,17 @@
 #include "logging.h"
 #include "mainwindow.h"
 
+#include <random>
+
 int main(int argc, char *argv[])
 {
+#ifndef SY_PREFER_WAYLAND
+    qputenv("QT_QPA_PLATFORM", "xcb");
+#endif
+
     // set random seed
-    srand(static_cast<uint>(time(nullptr)));
+    std::random_device rd;
+    srand(static_cast<uint>(rd()));
 
     // initialize PipeWire
     pw_init(&argc, &argv);

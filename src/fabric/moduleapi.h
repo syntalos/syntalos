@@ -791,7 +791,7 @@ public:
     QList<QPair<intervalEventFunc_t, int>> intervalEventCallbacks() const;
     QList<QPair<recvDataEventFunc_t, std::shared_ptr<VariantStreamSubscription>>> recvDataEventCallbacks() const;
 
-    QVariant serializeDisplayUiGeometry();
+    QVariant serializeDisplayUiGeometry() const;
     void restoreDisplayUiGeometry(const QVariant &var);
 
     void setTimer(std::shared_ptr<SyncTimer> timer);

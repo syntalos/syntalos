@@ -44,6 +44,11 @@
 #include <memory>
 #include <optional>
 
+#ifdef SY_PREFER_WAYLAND
+#include <Winpos/WindowPositioner.h>
+#include <Winpos/Manager.h>
+#endif
+
 #include "aboutdialog.h"
 #include "appstyle.h"
 #include "chiporderwidget.h"
@@ -303,10 +308,6 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::aboutActionTriggered);
     connect(ui->actionGlobalConfig, &QAction::triggered, this, &MainWindow::globalConfigActionTriggered);
 
-    // restore main window geometry and state
-    restoreGeometry(m_gconf->mainWinGeometry());
-    restoreState(m_gconf->mainWinState());
-
     // get a reference to the current engine
     m_engine = ui->graphForm->engine();
     connect(m_engine, &Engine::runFailed, this, &MainWindow::moduleErrorReceived);
@@ -392,6 +393,14 @@ MainWindow::MainWindow(QWidget *parent)
         // hide crash collector, it does not do anything useful in the sandbox
         ui->actionOpenCrashCollector->setVisible(false);
     }
+
+    // print warning if we can't set any window positions
+#ifdef SY_PREFER_WAYLAND
+    if (QGuiApplication::platformName() == QLatin1String("wayland")) {
+        if (!Winpos::Manager::instance()->isActive())
+            LOG_WARNING(m_log, "Wayland window positioning (xx-zones-v1) is not supported by the current compositor.");
+    }
+#endif
 }
 
 MainWindow::~MainWindow()
@@ -828,11 +837,66 @@ void MainWindow::shutdown(int errorCode)
         qApp->exit(errorCode);
 }
 
+void MainWindow::showEvent(QShowEvent *event)
+{
+    QMainWindow::showEvent(event);
+    m_busyIndicator->move(ui->stackedWidget->width() - m_busyIndicator->width() - 4, ui->menuBar->height() + 4);
+
+    // restore main window geometry and state
+#ifdef SY_PREFER_WAYLAND
+    // Create a persistent WindowPositioner for the main window so that its
+    // zone position is confirmed by the compositor before any module opens a
+    // settings window relative to it. On the very first show (no positioner yet)
+    // also restore the geometry saved by the previous session.
+    if (QGuiApplication::platformName() == QStringLiteral("wayland")) {
+        auto wnd = windowHandle();
+        auto ph = wnd->findChild<Winpos::WindowPositioner *>();
+        if (!ph) {
+            ph = new Winpos::WindowPositioner(wnd, wnd);
+            // Defer the restore to the next event loop iteration so the initial
+            // Wayland configure exchange (which can override our resize) has
+            // completed and the zone item is set up before we apply the geometry.
+            const auto geomData = m_gconf->mainWinGeometry();
+            QMetaObject::invokeMethod(
+                ph,
+                [ph, geomData, this]() {
+                    if (!ph->restoreGeometry(geomData))
+                        restoreGeometry(geomData); // fallback: Qt format or old data
+                },
+                Qt::QueuedConnection);
+        }
+    } else {
+        restoreGeometry(m_gconf->mainWinGeometry());
+    }
+#else
+    restoreGeometry(m_gconf->mainWinGeometry());
+#endif
+    restoreState(m_gconf->mainWinState());
+}
+
 void MainWindow::closeEvent(QCloseEvent *event)
 {
     setStatusText("Shutting down...");
     QApplication::processEvents();
 
+    // save main window geometry and state to global config
+#ifdef SY_PREFER_WAYLAND
+    {
+        QByteArray geomData;
+        if (QGuiApplication::platformName() == QStringLiteral("wayland")) {
+            if (const auto wnd = windowHandle()) {
+                if (const auto ph = wnd->findChild<Winpos::WindowPositioner *>())
+                    geomData = ph->saveGeometry();
+            }
+        }
+        m_gconf->setMainWinGeometry(geomData.isEmpty() ? saveGeometry() : geomData);
+    }
+#else
+    m_gconf->setMainWinGeometry(saveGeometry());
+#endif
+    m_gconf->setMainWinState(saveState());
+
+    // shutdown the engine and program
     if (m_engine->isActive()) {
         connect(m_engine, &Engine::runStopped, this, [this]() {
             shutdown();
@@ -842,21 +906,11 @@ void MainWindow::closeEvent(QCloseEvent *event)
     } else {
         shutdown();
     }
-
-    // save main window geometry and state to global config
-    m_gconf->setMainWinGeometry(saveGeometry());
-    m_gconf->setMainWinState(saveState());
 }
 
 void MainWindow::resizeEvent(QResizeEvent *event)
 {
     QMainWindow::resizeEvent(event);
-    m_busyIndicator->move(ui->stackedWidget->width() - m_busyIndicator->width() - 4, ui->menuBar->height() + 4);
-}
-
-void MainWindow::showEvent(QShowEvent *event)
-{
-    QMainWindow::showEvent(event);
     m_busyIndicator->move(ui->stackedWidget->width() - m_busyIndicator->width() - 4, ui->menuBar->height() + 4);
 }
 

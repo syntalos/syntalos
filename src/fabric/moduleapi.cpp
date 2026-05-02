@@ -17,16 +17,22 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "config.h"
 #include "moduleapi.h"
 
 #include "config.h"
 #include <cmath>
-#include <QCoreApplication>
+#include <QGuiApplication>
+#include <QScreen>
 #include <QDir>
 #include <QMainWindow>
 #include <QMessageBox>
 #include <QStandardPaths>
 #include <QCursor>
+
+#ifdef SY_PREFER_WAYLAND
+#include <Winpos/WindowPositioner.h>
+#endif
 
 #include "datactl/frametype.h"
 #include "utils/misc.h"
@@ -733,13 +739,21 @@ void AbstractModule::showDisplayUi()
             wp.first->setWindowTitle(name());
 
         // defer via queued connection - see showSettingsUi() for the rationale
-        auto *w = wp.first;
+        auto w = wp.first;
         QMetaObject::invokeMethod(
             w,
             [w]() {
                 w->show();
                 w->raise();
                 w->activateWindow();
+#ifdef SY_PREFER_WAYLAND
+                // Ensure a WindowPositioner exists so the window's zone position
+                // is tracked and available for serializeDisplayUiGeometry().
+                if (auto wnd = w->windowHandle()) {
+                    if (!wnd->findChild<Winpos::WindowPositioner *>())
+                        new Winpos::WindowPositioner(wnd, wnd);
+                }
+#endif
             },
             Qt::QueuedConnection);
     }
@@ -759,7 +773,7 @@ void AbstractModule::showSettingsUi()
     const bool onlyOne = d->settingsWindows.size() == 1;
     for (auto const &wp : d->settingsWindows) {
         if (onlyOne)
-            wp.first->setWindowTitle(QStringLiteral("%1 - Settings").arg(name()));
+            wp.first->setWindowTitle(QStringLiteral("%1 – Settings").arg(name()));
 
         // The deferred show() (via Qt::QueuedConnection) avoids triggering
         // synchronous X11/GLX operations (native window + GL context creation) from
@@ -770,19 +784,83 @@ void AbstractModule::showSettingsUi()
         // Deferring to the next event loop iteration ensures QXcbEventQueue is
         // quiescent and the DRI3 handshake completes safely.
         auto w = wp.first;
+
+        // Determine whether an initial position is needed. If the window has
+        // been shown before and already carries a positioner with a known
+        // position, we leave it where the user last placed it.
+#ifdef SY_PREFER_WAYLAND
+        bool needsInitialPos = true;
+        if (const auto wnd = w->windowHandle()) {
+            if (const auto ph = wnd->findChild<Winpos::WindowPositioner *>())
+                needsInitialPos = ph->position().isNull();
+        }
+#else
         const bool needsInitialPos = w->pos().isNull();
-        const auto cursorPos = QCursor::pos();
+#endif
+
+        // Capture cursor position NOW while the cursor is inside the flow-graph
+        // view the user just interacted with.
+        // On X11: QCursor::pos() is a true global coordinate; subtract the screen
+        //   origin to get zone-relative coords for WindowPositioner::move().
+        // On Wayland: QCursor::pos() is surface-relative (Qt does not know the
+        //   window's absolute position on Wayland).
+        //   The main window creates a WindowPositioner in showEvent() so its zone
+        //   position is already confirmed by the time any module double-clicks.
+        QPoint cursorPos = QCursor::pos(); // global on X11, surface-relative on Wayland
+#ifdef SY_PREFER_WAYLAND
+        if (QGuiApplication::platformName() == QLatin1String("wayland")) {
+            // Prefer the zone-aware conversion via the focused window's positioner.
+            const auto refWnd = QGuiApplication::focusWindow();
+            const auto refPh = refWnd ? refWnd->findChild<Winpos::WindowPositioner *>() : nullptr;
+            const auto zp = refPh ? refPh->cursorPosition() : QPoint{};
+            cursorPos = zp.isNull() ? QCursor::pos() : zp;
+        } else {
+            // X11: subtract screen origin to produce zone-relative coords.
+            auto cs = QGuiApplication::screenAt(cursorPos);
+            if (!cs)
+                cs = QGuiApplication::primaryScreen();
+            if (cs)
+                cursorPos -= cs->availableGeometry().topLeft();
+        }
+#endif
+
         QMetaObject::invokeMethod(
             w,
             [w, needsInitialPos, cursorPos]() {
                 w->show();
+#ifdef SY_PREFER_WAYLAND
+                auto wnd = w->windowHandle();
+                auto posHelper = wnd ? wnd->findChild<Winpos::WindowPositioner *>() : nullptr;
+                if (wnd && !posHelper)
+                    posHelper = new Winpos::WindowPositioner(wnd, wnd);
+                if (posHelper) {
+                    if (needsInitialPos) {
+                        // First show: center vertically on the cursor.
+                        // cursorPos is zone-relative (screen origin subtracted above).
+                        // height() is valid here; show() has triggered the layout pass.
+                        auto pos = cursorPos;
+                        pos.setY(pos.y() - (w->height() / 2));
+                        posHelper->move(pos);
+                    } else {
+                        // Re-show: restore the last compositor-confirmed position.
+                        // On Wayland the surface is destroyed on hide() and recreated
+                        // on show(), so the compositor would otherwise reassign a new
+                        // default placement. Calling move() here queues the saved
+                        // position as pendingPosition; WindowPositioner applies it in
+                        // initializeWayland() once the surface role is created.
+                        posHelper->move(posHelper->position());
+                    }
+                }
+#else
                 if (needsInitialPos) {
-                    // height() is valid now because show() has triggered a layout
-                    // pass; center the window vertically on the cursor.
+                    // First show only: on X11 without Winpos, Qt retains the widget
+                    // position across hide()/show() cycles so we only need to set it
+                    // the very first time.  cursorPos is in global screen coordinates.
                     auto pos = cursorPos;
                     pos.setY(pos.y() - (w->height() / 2));
                     w->move(pos);
                 }
+#endif
                 // raise() is a no-op on Wayland, but activate does bring
                 // the window to the front if it was hidden on most Wayland
                 // compositors... On X11, raise() is enough, but activating
@@ -1199,7 +1277,7 @@ bool AbstractModule::initialized() const
     return d->initialized;
 }
 
-QVariant AbstractModule::serializeDisplayUiGeometry()
+QVariant AbstractModule::serializeDisplayUiGeometry() const
 {
     QVariantHash obj;
     for (int i = 0; i < d->displayWindows.size(); i++) {
@@ -1207,7 +1285,18 @@ QVariant AbstractModule::serializeDisplayUiGeometry()
 
         QVariantHash info;
         info.insert("visible", wp.first->isVisible());
+#ifdef SY_PREFER_WAYLAND
+        if (auto wnd = wp.first->windowHandle()) {
+            auto posHelper = wnd->findChild<Winpos::WindowPositioner *>();
+            if (!posHelper)
+                posHelper = new Winpos::WindowPositioner(wnd, wnd);
+            info.insert("geometry", QString::fromUtf8(posHelper->saveGeometry().toBase64()));
+        } else {
+            info.insert("geometry", QString::fromUtf8(wp.first->saveGeometry().toBase64()));
+        }
+#else
         info.insert("geometry", QString::fromUtf8(wp.first->saveGeometry().toBase64()));
+#endif
 
         const auto mw = qobject_cast<QMainWindow *>(wp.first);
         if (mw != nullptr)
@@ -1235,8 +1324,19 @@ void AbstractModule::restoreDisplayUiGeometry(const QVariant &var)
         else
             wp.first->hide();
 
-        const auto b64Geometry = winfo.value("geometry").toString();
-        wp.first->restoreGeometry(QByteArray::fromBase64(b64Geometry.toUtf8()));
+        const auto geomData = QByteArray::fromBase64(winfo.value("geometry").toString().toUtf8());
+#ifdef SY_PREFER_WAYLAND
+        if (auto wnd = wp.first->windowHandle()) {
+            auto posHelper = wnd->findChild<Winpos::WindowPositioner *>();
+            if (!posHelper)
+                posHelper = new Winpos::WindowPositioner(wnd, wnd);
+            posHelper->restoreGeometry(geomData);
+        } else {
+            wp.first->restoreGeometry(geomData);
+        }
+#else
+        wp.first->restoreGeometry(geomData);
+#endif
 
         const auto mw = qobject_cast<QMainWindow *>(wp.first);
         if (mw != nullptr) {

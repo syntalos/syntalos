@@ -65,6 +65,8 @@ public:
     long long rtkitMaxRTTimeUsec() const;
     SysInfoCheckResult checkRtkitMaxRTTimeUsec();
 
+    QString guiPlatform() const;
+
     QString glVersion() const;
     QString glExtensions() const;
 

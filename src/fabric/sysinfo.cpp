@@ -29,7 +29,7 @@
 #include <QSysInfo>
 #include <QTextStream>
 #include <QThread>
-#include <stdlib.h>
+#include <QGuiApplication>
 #include <sys/utsname.h>
 #include <opencv2/core.hpp>
 extern "C" {
@@ -348,6 +348,11 @@ SysInfoCheckResult SysInfo::checkRtkitMaxRTTimeUsec()
     if (d->rtkitMaxRTTimeUsec < 200000)
         return SysInfoCheckResult::ISSUE;
     return SysInfoCheckResult::OK;
+}
+
+QString SysInfo::guiPlatform() const
+{
+    return qGuiApp->platformName();
 }
 
 QString SysInfo::glVersion() const

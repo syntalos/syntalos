@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>660</width>
-    <height>767</height>
+    <height>777</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -72,7 +72,7 @@
          <item>
           <spacer name="horizontalSpacer">
            <property name="orientation">
-            <enum>Qt::Horizontal</enum>
+            <enum>Qt::Orientation::Horizontal</enum>
            </property>
            <property name="sizeHint" stdset="0">
             <size>
@@ -87,7 +87,6 @@
            <property name="font">
             <font>
              <pointsize>10</pointsize>
-             <weight>75</weight>
              <bold>true</bold>
             </font>
            </property>
@@ -99,7 +98,7 @@
          <item>
           <spacer name="horizontalSpacer_2">
            <property name="orientation">
-            <enum>Qt::Horizontal</enum>
+            <enum>Qt::Orientation::Horizontal</enum>
            </property>
            <property name="sizeHint" stdset="0">
             <size>
@@ -131,7 +130,7 @@
       <item>
        <widget class="Line" name="line">
         <property name="orientation">
-         <enum>Qt::Horizontal</enum>
+         <enum>Qt::Orientation::Horizontal</enum>
         </property>
        </widget>
       </item>
@@ -153,7 +152,6 @@
          <widget class="QLabel" name="nameInfoLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -166,7 +164,6 @@
          <widget class="QLabel" name="kernelInfoLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -193,7 +190,6 @@
          <widget class="QLabel" name="initLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -213,7 +209,6 @@
          <widget class="QLabel" name="usbFsMemoryLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -233,7 +228,6 @@
          <widget class="QLabel" name="maxRealtimePrioLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -253,7 +247,6 @@
          <widget class="QLabel" name="minNiceLevelLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -273,7 +266,6 @@
          <widget class="QLabel" name="maxRTTimeUsecLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -284,6 +276,25 @@
         </item>
         <item row="6" column="1">
          <widget class="QLabel" name="valMaxRTTimeUsec">
+          <property name="text">
+           <string>???</string>
+          </property>
+         </widget>
+        </item>
+        <item row="7" column="0">
+         <widget class="QLabel" name="guiPlatformLabel">
+          <property name="font">
+           <font>
+            <bold>true</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string>GUI Platform</string>
+          </property>
+         </widget>
+        </item>
+        <item row="7" column="1">
+         <widget class="QLabel" name="valGuiPlatform">
           <property name="text">
            <string>???</string>
           </property>
@@ -337,7 +348,7 @@
          <item>
           <spacer name="horizontalSpacer_3">
            <property name="orientation">
-            <enum>Qt::Horizontal</enum>
+            <enum>Qt::Orientation::Horizontal</enum>
            </property>
            <property name="sizeHint" stdset="0">
             <size>
@@ -352,7 +363,6 @@
            <property name="font">
             <font>
              <pointsize>10</pointsize>
-             <weight>75</weight>
              <bold>true</bold>
             </font>
            </property>
@@ -364,7 +374,7 @@
          <item>
           <spacer name="horizontalSpacer_4">
            <property name="orientation">
-            <enum>Qt::Horizontal</enum>
+            <enum>Qt::Orientation::Horizontal</enum>
            </property>
            <property name="sizeHint" stdset="0">
             <size>
@@ -396,7 +406,7 @@
       <item>
        <widget class="Line" name="line_2">
         <property name="orientation">
-         <enum>Qt::Horizontal</enum>
+         <enum>Qt::Orientation::Horizontal</enum>
         </property>
        </widget>
       </item>
@@ -418,7 +428,6 @@
          <widget class="QLabel" name="architectureLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -438,7 +447,6 @@
          <widget class="QLabel" name="cpuModelNameLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -451,7 +459,6 @@
          <widget class="QLabel" name="valCPU0ModelName">
           <property name="font">
            <font>
-            <weight>50</weight>
             <bold>false</bold>
            </font>
           </property>
@@ -464,7 +471,6 @@
          <widget class="QLabel" name="cpuLogicalCoreCountLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -484,7 +490,6 @@
          <widget class="QLabel" name="cpuPhysicalCoreCountLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -504,7 +509,6 @@
          <widget class="QLabel" name="currentClocksourceLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -531,7 +535,6 @@
          <widget class="QLabel" name="avxSupportLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -544,7 +547,6 @@
          <widget class="QLabel" name="openGLLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -564,7 +566,6 @@
          <widget class="QLabel" name="constantTSCLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -577,7 +578,6 @@
          <widget class="QLabel" name="availableClocksourcesLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -597,7 +597,6 @@
          <widget class="QLabel" name="syHWSupportLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -650,8 +649,7 @@
               <string/>
              </property>
              <property name="icon">
-              <iconset theme="help-about">
-               <normaloff>.</normaloff>.</iconset>
+              <iconset theme="help-about"/>
              </property>
              <property name="flat">
               <bool>true</bool>
@@ -661,7 +659,7 @@
            <item>
             <spacer name="horizontalSpacer_8">
              <property name="orientation">
-              <enum>Qt::Horizontal</enum>
+              <enum>Qt::Orientation::Horizontal</enum>
              </property>
              <property name="sizeHint" stdset="0">
               <size>
@@ -722,7 +720,7 @@
          <item>
           <spacer name="horizontalSpacer_5">
            <property name="orientation">
-            <enum>Qt::Horizontal</enum>
+            <enum>Qt::Orientation::Horizontal</enum>
            </property>
            <property name="sizeHint" stdset="0">
             <size>
@@ -737,7 +735,6 @@
            <property name="font">
             <font>
              <pointsize>10</pointsize>
-             <weight>75</weight>
              <bold>true</bold>
             </font>
            </property>
@@ -749,7 +746,7 @@
          <item>
           <spacer name="horizontalSpacer_6">
            <property name="orientation">
-            <enum>Qt::Horizontal</enum>
+            <enum>Qt::Orientation::Horizontal</enum>
            </property>
            <property name="sizeHint" stdset="0">
             <size>
@@ -781,7 +778,7 @@
       <item>
        <widget class="Line" name="line_3">
         <property name="orientation">
-         <enum>Qt::Horizontal</enum>
+         <enum>Qt::Orientation::Horizontal</enum>
         </property>
        </widget>
       </item>
@@ -803,7 +800,6 @@
          <widget class="QLabel" name="syntalosLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -823,7 +819,6 @@
          <widget class="QLabel" name="qtLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -843,7 +838,6 @@
          <widget class="QLabel" name="ocvLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -863,7 +857,6 @@
          <widget class="QLabel" name="eigenLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -883,7 +876,6 @@
          <widget class="QLabel" name="ffmpegLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -903,7 +895,6 @@
          <widget class="QLabel" name="pythonAPILabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -926,7 +917,6 @@
          <widget class="QLabel" name="sandboxLabel">
           <property name="font">
            <font>
-            <weight>75</weight>
             <bold>true</bold>
            </font>
           </property>
@@ -947,7 +937,7 @@
       <item>
        <spacer name="verticalSpacer_3">
         <property name="orientation">
-         <enum>Qt::Vertical</enum>
+         <enum>Qt::Orientation::Vertical</enum>
         </property>
         <property name="sizeHint" stdset="0">
          <size>
@@ -984,15 +974,14 @@
          <string>Copy to clipboard</string>
         </property>
         <property name="icon">
-         <iconset theme="edit-copy">
-          <normaloff>.</normaloff>.</iconset>
+         <iconset theme="edit-copy"/>
         </property>
        </widget>
       </item>
       <item>
        <spacer name="horizontalSpacer_7">
         <property name="orientation">
-         <enum>Qt::Horizontal</enum>
+         <enum>Qt::Orientation::Horizontal</enum>
         </property>
         <property name="sizeHint" stdset="0">
          <size>
@@ -1008,8 +997,7 @@
          <string>&amp;Close</string>
         </property>
         <property name="icon">
-         <iconset theme="dialog-close">
-          <normaloff>.</normaloff>.</iconset>
+         <iconset theme="dialog-close"/>
         </property>
        </widget>
       </item>

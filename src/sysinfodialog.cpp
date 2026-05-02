@@ -58,6 +58,7 @@ SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent)
     setLabelTextStyle(sysInfo->checkRtkitMinNiceLevel(), ui->valMinNiceLevel);
     ui->valMaxRTTimeUsec->setText(QStringLiteral("%1 µs").arg(sysInfo->rtkitMaxRTTimeUsec()));
     setLabelTextStyle(sysInfo->checkRtkitMaxRTTimeUsec(), ui->valMaxRTTimeUsec);
+    ui->valGuiPlatform->setText(sysInfo->guiPlatform());
 
     // Hardware Information
     ui->valHWArch->setText(sysInfo->currentArchitecture());
@@ -112,8 +113,9 @@ SysInfoDialog::~SysInfoDialog()
 
 void SysInfoDialog::on_btnClipboardCopy_clicked()
 {
-    auto infoText = QStringLiteral("Syntalos %1 | %2 (Kernel: %3)\n")
-                        .arg(ui->valSyntalos->text(), ui->valOSName->text(), ui->valKernel->text());
+    auto infoText =
+        QStringLiteral("Syntalos %1 | %2 (Kernel: %3) | QPA: %4\n")
+            .arg(ui->valSyntalos->text(), ui->valOSName->text(), ui->valKernel->text(), ui->valGuiPlatform->text());
     infoText += QStringLiteral("Software: Qt %1 | OpenCV %2 | FFMpeg %3 | Python %4\n")
                     .arg(ui->valQt->text(), ui->valOpenCV->text(), ui->valFFmpeg->text(), ui->valPythonAPI->text());
     infoText += QStringLiteral("Sandbox: %1\n").arg(ui->valSandboxInfo->text());

@@ -1,0 +1,5 @@
+[wrap-git]
+directory = winpos-qt
+url = https://github.com/ximion/libwinpos.git
+revision = main
+depth = 1
