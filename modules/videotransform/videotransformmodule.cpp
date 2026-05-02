@@ -62,6 +62,7 @@ public:
 
     bool prepare(const TestSubject &) override
     {
+        clearDataReceivedEventRegistrations();
         m_framesIn = nullptr;
         // check if there even is something to do for us
         if (m_framesInPort->isDormant()) {
@@ -114,6 +115,8 @@ public:
 
     void onFrameReceived()
     {
+        if (!m_framesIn)
+            return;
         auto maybeFrame = m_framesIn->peekNext();
         if (!maybeFrame.has_value())
             return;

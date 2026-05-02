@@ -1941,6 +1941,11 @@ bool Engine::runInternal(const QString &exportDirPath)
         for (auto const &port : mod->outPorts())
             port->setDormant(false);
 
+        // Clear any event callbacks registered in a previous run. Event subscriptions are
+        // run-scoped, so carrying them across prepare() calls is always wrong and causes
+        // stale-callback crashes if a module forgets to clear them itself.
+        mod->clearDataReceivedEventRegistrations();
+
         // prepare the module
         if (!mod->prepare(d->testSubject)) {
             initSuccessful = false;
