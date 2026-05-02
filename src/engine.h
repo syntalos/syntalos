@@ -183,7 +183,7 @@ private:
         std::shared_ptr<EDLCollection> storageCollection,
         qint64 finishTimestamp,
         const QList<AbstractModule *> &activeModules);
-    void setInactiveModuleInputPortsSuspended(bool suspended);
+    void setInactiveModulePortsSuspended(const Engine::ModuleRunOrder &modOrder, bool suspended);
 
     void allocateNicenessBudget(const ModuleRunOrder &modOrder, uint maxRtThreads, int defaultThreadNice);
     bool runInternal(const QString &exportDirPath);

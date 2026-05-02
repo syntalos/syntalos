@@ -1601,7 +1601,7 @@ bool Engine::finalizeExperimentMetadata(
  *
  * @param suspended Whether to suspend input to disabled modules.
  */
-void Engine::setInactiveModuleInputPortsSuspended(bool suspended)
+void Engine::setInactiveModulePortsSuspended(const Engine::ModuleRunOrder &modOrder, bool suspended)
 {
     for (auto &mod : d->presentModules) {
         for (const auto &iport : mod->inPorts()) {
@@ -1621,6 +1621,37 @@ void Engine::setInactiveModuleInputPortsSuspended(bool suspended)
             // suspend inputs on dormant or disabled modules
             if (!mod->modifiers().testFlag(ModuleModifier::ENABLED) || mod->state() == ModuleState::DORMANT)
                 sub->suspend();
+        }
+    }
+
+    if (suspended) {
+        // mark output ports of all dormant modules as dormant as well
+        for (auto &mod : modOrder.start) {
+            if (mod->state() == ModuleState::DORMANT) {
+                LOG_INFO(d->log, "Module '{}' is marked dormant, it will not be started.", mod->name());
+                for (auto const &port : mod->outPorts())
+                    port->setDormant(true);
+            }
+        }
+
+        // NOTE: Inactive modules (modOrder.inactive) have already been marked as dormant and their output
+        // ports as well, before the PREPARE step. This function is called *after* PREPARE, because modules
+        // can disable themselves or specific ports in PREPARE.
+        // However, it is called only once after the run, which is why we reverse the dormancy state below.
+    } else {
+        // mark inactive modules as idle again
+        for (auto &mod : modOrder.inactive) {
+            if (mod->state() != ModuleState::IDLE)
+                mod->setState(ModuleState::IDLE);
+            for (auto const &port : mod->outPorts())
+                port->setDormant(false);
+        }
+        for (auto &mod : modOrder.start) {
+            if (mod->state() == ModuleState::DORMANT) {
+                mod->setState(ModuleState::IDLE);
+                for (auto const &port : mod->outPorts())
+                    port->setDormant(false);
+            }
         }
     }
 }
@@ -1863,6 +1894,15 @@ bool Engine::runInternal(const QString &exportDirPath)
     // distribute niceness slots across all module threads before preparing any module
     allocateNicenessBudget(modOrder, d->gconf->defaultRtKitThreadsMax(), defaultThreadNice);
 
+    // mark all inactive modules and their ports as dormant *before* PREPARE, so dormancy can propagate
+    for (auto &mod : modOrder.inactive) {
+        mod->setState(ModuleState::DORMANT);
+        for (auto const &port : mod->outPorts())
+            port->setDormant(true);
+
+        LOG_INFO(d->log, "Module '{}' is explicitly disabled. It was marked dormant and will not be started.", mod->name());
+    }
+
     // prepare modules
     for (auto &mod : modOrder.start) {
         // Prepare module. At this point it should have a timer,
@@ -1934,17 +1974,8 @@ bool Engine::runInternal(const QString &exportDirPath)
         LOG_INFO(d->log, "Module '{}' prepared in {} msec", mod->name(), timeDiffToNowMsec(lastPhaseTimepoint).count());
     }
 
-    // mark all inactive modules as dormant
-    for (auto &mod : modOrder.inactive) {
-        mod->setState(ModuleState::DORMANT);
-    }
-    for (auto &mod : modOrder.start) {
-        if (mod->state() == ModuleState::DORMANT)
-            LOG_INFO(d->log, "Module '{}' is marked dormant, it will not be started.", mod->name());
-    }
-
-    // suspend input to all inactive modules
-    setInactiveModuleInputPortsSuspended(true);
+    // suspend input to and output from to all inactive modules
+    setInactiveModulePortsSuspended(modOrder, true);
 
     // exporter for streams so out-of-process mlink modules can access them
     auto streamExporter = std::make_unique<StreamExporter>();
@@ -2447,14 +2478,8 @@ bool Engine::runInternal(const QString &exportDirPath)
             d->log, "Manifest and additional data saved in {} msec", timeDiffToNowMsec(lastPhaseTimepoint).count());
     }
 
-    // unsuspend input ports on modules that were inactive this run
-    setInactiveModuleInputPortsSuspended(false);
-
-    // mark inactive modules as idle again
-    for (auto &mod : modOrder.inactive) {
-        if (mod->state() != ModuleState::IDLE)
-            mod->setState(ModuleState::IDLE);
-    }
+    // unsuspend input/output ports on modules that were inactive this run
+    setInactiveModulePortsSuspended(modOrder, false);
 
     // release system sleep inhibitor lock
     if (sleepInhibitorLockFd != -1)
