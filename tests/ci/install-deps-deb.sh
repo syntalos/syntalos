@@ -64,6 +64,7 @@ eatmydata apt-get install -yq --no-install-recommends \
     qt6-multimedia-dev \
     udev \
     uuid-dev \
+    wayland-protocols \
     $extra_deps
 
 # test dependencies

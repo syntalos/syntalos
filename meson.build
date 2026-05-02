@@ -395,8 +395,8 @@ conf.set('SY_MAJOR_VERSION_CONF', sy_major_version)
 conf.set('SY_MINOR_VERSION_CONF', sy_minor_version)
 conf.set('SY_MICRO_VERSION_CONF', sy_micro_version)
 conf.set_quoted('PROJECT_VERSION', sy_version)
-conf.set10('HAVE_SIGDESCR_NP', have_sigdescr_np)
-conf.set10('SY_PREFER_WAYLAND', prefer_wayland)
+conf.set('HAVE_SIGDESCR_NP', have_sigdescr_np)
+conf.set('SY_PREFER_WAYLAND', prefer_wayland)
 conf.set_quoted('LIBEXECDIR',
                 join_paths(get_option('prefix'),
                            get_option('libexecdir')))
