@@ -44,7 +44,7 @@ void findAndCleanupDeadNodes()
                 std::cout << view.details().value().name().to_string().unchecked_access().c_str();
             }
             std::cout << std::endl;
-            IOX2_DISCARD_RESULT(view.remove_stale_resources().value());
+            IOX2_DISCARD_RESULT(view.try_remove_stale_resources());
         });
         return iox2::CallbackProgression::Continue;
     }).value();
