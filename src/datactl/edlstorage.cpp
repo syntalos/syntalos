@@ -154,6 +154,7 @@ public:
     std::vector<EDLDataFile> auxDataFiles;
     std::map<std::string, MetaValue> attrs;
 
+    bool isDetached = false;
     mutable std::mutex mutex;
 };
 
@@ -328,8 +329,20 @@ void EDLUnit::insertAttribute(const std::string &key, const MetaValue &value)
     d->attrs.insert_or_assign(key, value);
 }
 
+bool EDLUnit::isDetached() const
+{
+    return d->isDetached;
+}
+
+void EDLUnit::setDetached(bool detached)
+{
+    d->isDetached = detached;
+}
+
 std::expected<void, std::string> EDLUnit::save()
 {
+    if (isDetached())
+        return {};
     if (rootPath().empty())
         return std::unexpected("Unable to save experiment data: No root directory is set.");
     auto r = saveManifest();
@@ -837,11 +850,14 @@ std::expected<std::shared_ptr<EDLGroup>, std::string> EDLGroup::groupByName(cons
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     for (auto &node : d->children) {
-        if (node->name() == name) {
-            if (flag == EDLCreateFlag::MUST_CREATE)
-                return std::unexpected(std::format("Group '{}' already exists in group '{}'.", name, this->name()));
-            return std::dynamic_pointer_cast<EDLGroup>(node);
-        }
+        if (node->name() != name)
+            continue;
+        if (!std::dynamic_pointer_cast<EDLGroup>(node))
+            return std::unexpected(
+                std::format("A dataset named '{}' already exists in group '{}'.", name, this->name()));
+        if (flag == EDLCreateFlag::MUST_CREATE)
+            return std::unexpected(std::format("Group '{}' already exists in group '{}'.", name, this->name()));
+        return std::dynamic_pointer_cast<EDLGroup>(node);
     }
     if (flag == EDLCreateFlag::OPEN_ONLY)
         return std::unexpected(std::format("Group '{}' not found in group '{}'.", name, this->name()));
@@ -857,11 +873,14 @@ std::expected<std::shared_ptr<EDLDataset>, std::string> EDLGroup::datasetByName(
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     for (auto &node : d->children) {
-        if (node->name() == name) {
-            if (flag == EDLCreateFlag::MUST_CREATE)
-                return std::unexpected(std::format("Dataset '{}' already exists in group '{}'.", name, this->name()));
-            return std::dynamic_pointer_cast<EDLDataset>(node);
-        }
+        if (node->name() != name)
+            continue;
+        if (!std::dynamic_pointer_cast<EDLDataset>(node))
+            return std::unexpected(
+                std::format("A group named '{}' already exists in group '{}'.", name, this->name()));
+        if (flag == EDLCreateFlag::MUST_CREATE)
+            return std::unexpected(std::format("Dataset '{}' already exists in group '{}'.", name, this->name()));
+        return std::dynamic_pointer_cast<EDLDataset>(node);
     }
     if (flag == EDLCreateFlag::OPEN_ONLY)
         return std::unexpected(std::format("Dataset '{}' not found in group '{}'.", name, this->name()));
@@ -889,6 +908,10 @@ std::expected<void, std::string> EDLGroup::save()
 
     for (auto it = snap.begin(); it != snap.end();) {
         auto &obj = *it;
+        if (obj->isDetached()) {
+            ++it;
+            continue;
+        }
         if (obj->parent() != this) {
             SY_LOG_WARNING(
                 logEdl, "Unlinking EDL child '{}' that doesn't believe '{}' is its parent.", obj->name(), name());
@@ -922,6 +945,10 @@ std::expected<void, std::string> EDLGroup::validate(bool recursive)
         const auto childName = obj->name();
         if (!seenNames.insert(childName).second)
             return std::unexpected(std::format("Duplicate child name '{}' in group '{}'.", childName, name()));
+
+        // externally-owned nodes are saved by their owning worker process
+        if (obj->isDetached())
+            continue;
 
         // recursively validate child nodes
         if (recursive) {

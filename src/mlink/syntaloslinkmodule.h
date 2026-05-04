@@ -91,6 +91,49 @@ protected:
     const TestSubjectInfo &testSubject() const;
 
     /**
+     * The run info (EDL root group, UUID, etc.). Available after prepare() is called.
+     */
+    const RunInfo &runInfo() const;
+
+    /**
+     * @brief Create (or return cached) the default dataset for this module.
+     *
+     * Uses MUST_CREATE semantics; fails if the name is already taken in the assigned root group.
+     * The result is cached: repeated calls with the same name return the same dataset.
+     *
+     * @param preferredName Dataset name; defaults to the module name if empty.
+     */
+    auto createDefaultDataset(const std::string &preferredName = {})
+        -> std::expected<std::shared_ptr<EDLDataset>, std::string>;
+
+    /**
+     * @brief Create a new dataset in the given group.
+     *
+     * Uses MUST_CREATE semantics: fails if a dataset with that name already exists
+     * in the group (both locally and on the master side).
+     *
+     * @param parent Group to create the dataset in.
+     * @param name   Dataset name.
+     */
+    auto createDatasetInGroup(const std::shared_ptr<EDLGroup> &parent, const std::string &name)
+        -> std::expected<std::shared_ptr<EDLDataset>, std::string>;
+
+    /**
+     * @brief Create (or open) a sub-group under the module's assigned root.
+     *
+     * Uses CREATE_OR_OPEN semantics: safe to call multiple times with the same name.
+     *
+     * @param name Group name.
+     */
+    auto createStorageGroup(const std::string &name) -> std::expected<std::shared_ptr<EDLGroup>, std::string>;
+
+    /**
+     * @brief Create (or open) a sub-group under an existing group.
+     */
+    auto createStorageGroup(const std::shared_ptr<EDLGroup> &parent, const std::string &name)
+        -> std::expected<std::shared_ptr<EDLGroup>, std::string>;
+
+    /**
      * @brief Register an output port for this module
      *
      * This function should be called in the module's constructor to publish the intent

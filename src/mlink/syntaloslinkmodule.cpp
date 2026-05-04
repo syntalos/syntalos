@@ -33,6 +33,8 @@ class SyntalosLinkModule::Private
 public:
     Private() = default;
     ~Private() = default;
+
+    std::shared_ptr<EDLDataset> defaultDataset;
 };
 
 SyntalosLinkModule::SyntalosLinkModule(SyntalosLink *slink)
@@ -159,6 +161,40 @@ void SyntalosLinkModule::saveSettings(ByteVector &settings, const fs::path &base
 bool SyntalosLinkModule::loadSettings(const ByteVector &settings, const fs::path &baseDir)
 {
     return true;
+}
+
+const RunInfo &SyntalosLinkModule::runInfo() const
+{
+    return m_slink->runInfo();
+}
+
+auto SyntalosLinkModule::createDefaultDataset(const std::string &preferredName)
+    -> std::expected<std::shared_ptr<EDLDataset>, std::string>
+{
+    if (d->defaultDataset)
+        return d->defaultDataset;
+    auto result = m_slink->createDefaultDataset(preferredName);
+    if (result)
+        d->defaultDataset = *result;
+    return result;
+}
+
+auto SyntalosLinkModule::createDatasetInGroup(const std::shared_ptr<EDLGroup> &parent, const std::string &name)
+    -> std::expected<std::shared_ptr<EDLDataset>, std::string>
+{
+    return m_slink->reserveEdlDataset(parent, name);
+}
+
+auto SyntalosLinkModule::createStorageGroup(const std::string &name)
+    -> std::expected<std::shared_ptr<EDLGroup>, std::string>
+{
+    return m_slink->createStorageGroup(name);
+}
+
+auto SyntalosLinkModule::createStorageGroup(const std::shared_ptr<EDLGroup> &parent, const std::string &name)
+    -> std::expected<std::shared_ptr<EDLGroup>, std::string>
+{
+    return m_slink->reserveEdlGroup(parent, name);
 }
 
 } // namespace Syntalos

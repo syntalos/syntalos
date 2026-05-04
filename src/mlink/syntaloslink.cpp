@@ -275,6 +275,7 @@ public:
 
         cltInPortChange.emplace(makeSliceClient(*node, svcName(IN_PORT_CHANGE_CHANNEL_ID)));
         cltOutPortChange.emplace(makeSliceClient(*node, svcName(OUT_PORT_CHANGE_CHANNEL_ID)));
+        cltEdlReserve.emplace(makeSliceClient<IoxByteSlice>(*node, svcName(EDL_RESERVE_CALL_ID)));
 
         srvApiVersion.emplace(
             makeTypedServer<ApiVersionRequest, ApiVersionResponse>(*node, svcName(API_VERSION_CALL_ID)));
@@ -316,6 +317,7 @@ public:
     // Clients: Module -> Syntalos master
     std::optional<IoxUntypedClient> cltInPortChange;
     std::optional<IoxUntypedClient> cltOutPortChange;
+    std::optional<IoxUntypedReqResClient> cltEdlReserve;
 
     // Servers: Syntalos master -> Module process commands
     std::optional<IoxServer<ApiVersionRequest, ApiVersionResponse>> srvApiVersion;
@@ -357,6 +359,7 @@ public:
     std::vector<std::shared_ptr<OutputPortInfo>> outPortInfo;
     SyncTimer *syTimer;
     TestSubjectInfo testSubject;
+    RunInfo runInfo;
     bool allowAsyncStart = true;
 
     LoadScriptFn loadScriptCb;
@@ -524,6 +527,35 @@ public:
         }
         inputPortResetPending = false;
         waitSetDirty = true;
+    }
+
+    /**
+     * Send an EdlReserveRequest to master and return the parsed reply.
+     */
+    std::expected<EdlReserveReply, std::string> sendEdlReserveRequest(const EdlReserveRequest &req)
+    {
+        const auto bytes = req.toBytes();
+        auto maybeSlice = cltEdlReserve->loan_slice_uninit(static_cast<uint64_t>(bytes.size()));
+        if (!maybeSlice.has_value())
+            return std::unexpected(
+                std::string("Failed to loan slice for EdlReserve: ")
+                + iox2::bb::into<const char *>(maybeSlice.error()));
+        auto rawSlice = std::move(maybeSlice).value();
+        std::memcpy(rawSlice.payload_mut().data(), bytes.data(), bytes.size());
+        auto pending = iox2::send(iox2::assume_init(std::move(rawSlice))).value();
+        notifyMaster();
+
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(15);
+        while (true) {
+            auto response = pending.receive().value();
+            if (response.has_value()) {
+                const auto pl = response->payload();
+                return EdlReserveReply::fromMemory(pl.data(), pl.number_of_bytes());
+            }
+            if (std::chrono::steady_clock::now() >= deadline)
+                return std::unexpected("Timeout waiting for EdlReserve response from master.");
+            std::this_thread::sleep_for(std::chrono::microseconds(25));
+        }
     }
 
     /**
@@ -876,6 +908,17 @@ void SyntalosLink::processPendingControl()
         d->testSubject.id = prepReq.subjectId;
         d->testSubject.group = prepReq.subjectGroup;
 
+        // set up run info and build local EDL tree root
+        d->runInfo.uuid = Uuid(prepReq.runUuid);
+        d->runInfo.moduleName = prepReq.moduleName;
+        if (!prepReq.edlRootPath.empty()) {
+            const fs::path rootPath(prepReq.edlRootPath);
+            auto rootGroup = std::make_shared<EDLGroup>(rootPath.filename().string());
+            rootGroup->setPath(rootPath);
+            rootGroup->setCollectionId(prepReq.runUuid);
+            d->runInfo.rootGroup = std::move(rootGroup);
+        }
+
         // prepare the run
         auto success = true;
         if (d->prepareRunCb)
@@ -927,6 +970,18 @@ void SyntalosLink::processPendingControl()
         // we wait for the stop callback to finish before responding
         if (d->stopCb)
             d->stopCb();
+
+        // save local EDL subtree (if any was created during the run)
+        if (d->runInfo.rootGroup) {
+            for (const auto &child : d->runInfo.rootGroup->children()) {
+                if (auto r = child->save(); !r)
+                    SY_LOG_ERROR(logSyLink, "Failed to save EDL child '{}': {}", child->name(), r.error());
+            }
+        }
+
+        // reset EDL reference, it should no longer be used after stop()
+        d->runInfo.rootGroup.reset();
+
         Private::replyDone(*req, true);
 
         // Mark input ports for deferred dropping. We do NOT drop them here because
@@ -1177,6 +1232,90 @@ SyncTimer *SyntalosLink::timer() const
 const TestSubjectInfo &SyntalosLink::testSubject() const
 {
     return d->testSubject;
+}
+
+const RunInfo &SyntalosLink::runInfo() const
+{
+    return d->runInfo;
+}
+
+/**
+ * Helper: compute the relative path of `target` from the rootGroup.
+ * Returns "" if target IS the rootGroup (i.e., put at root level).
+ */
+static std::string edlRelPath(const EDLGroup &root, const EDLGroup &target)
+{
+    if (root.path() == target.path())
+        return {};
+    const auto rootStr = root.path().string();
+    auto targetStr = target.path().string();
+    if (targetStr.size() > rootStr.size() + 1 && targetStr.substr(0, rootStr.size()) == rootStr)
+        return targetStr.substr(rootStr.size() + 1); // strip leading slash
+    return targetStr;                                // fallback: return full path (shouldn't happen)
+}
+
+auto SyntalosLink::reserveEdlGroup(const std::shared_ptr<EDLGroup> &parent, const std::string &name)
+    -> std::expected<std::shared_ptr<EDLGroup>, std::string>
+{
+    if (!d->runInfo.rootGroup)
+        return std::unexpected("No EDL root group available (prepare step has not been reached yet).");
+    if (!d->cltEdlReserve.has_value())
+        return std::unexpected("EDL reserve client not initialized.");
+
+    EdlReserveRequest req;
+    req.kind = EdlReserveRequest::Kind::Group;
+    req.parentRelPath = edlRelPath(*d->runInfo.rootGroup, *parent);
+    req.name = name;
+
+    auto rep = d->sendEdlReserveRequest(req);
+    if (!rep)
+        return std::unexpected(rep.error());
+    if (!rep->success)
+        return std::unexpected(rep->errorMessage);
+    return parent->groupByName(name, EDLCreateFlag::CREATE_OR_OPEN);
+}
+
+auto SyntalosLink::reserveEdlDataset(const std::shared_ptr<EDLGroup> &parent, const std::string &name)
+    -> std::expected<std::shared_ptr<EDLDataset>, std::string>
+{
+    if (!d->runInfo.rootGroup)
+        return std::unexpected("No EDL root group available (prepare step has not been reached yet).");
+    if (!d->cltEdlReserve.has_value())
+        return std::unexpected("EDL reserve client not initialized.");
+
+    EdlReserveRequest req;
+    req.kind = EdlReserveRequest::Kind::Dataset;
+    req.parentRelPath = edlRelPath(*d->runInfo.rootGroup, *parent);
+    req.name = name;
+
+    auto rep = d->sendEdlReserveRequest(req);
+    if (!rep)
+        return std::unexpected(rep.error());
+    if (!rep->success)
+        return std::unexpected(rep->errorMessage);
+    return parent->datasetByName(name, EDLCreateFlag::MUST_CREATE);
+}
+
+auto SyntalosLink::createDefaultDataset(const std::string &preferredName)
+    -> std::expected<std::shared_ptr<EDLDataset>, std::string>
+{
+    const auto root = d->runInfo.rootGroup;
+    if (!root)
+        return std::unexpected("No EDL root group available (prepare step has not been reached yet).");
+    const auto &modName = d->runInfo.moduleName;
+    const auto &name = preferredName.empty() ? modName : preferredName;
+    if (name.empty())
+        return std::unexpected("Unable to determine dataset name.");
+    return reserveEdlDataset(root, name);
+}
+
+auto SyntalosLink::createStorageGroup(const std::string &name)
+    -> std::expected<std::shared_ptr<EDLGroup>, std::string>
+{
+    const auto root = d->runInfo.rootGroup;
+    if (!root)
+        return std::unexpected("No EDL root group available (prepare step has not been reached yet).");
+    return reserveEdlGroup(root, name);
 }
 
 bool SyntalosLink::allowAsyncStart() const

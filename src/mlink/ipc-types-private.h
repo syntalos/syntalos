@@ -495,6 +495,9 @@ static const std::string LOAD_SETTINGS_CALL_ID = "LoadSettings";
 struct PrepareRunRequest {
     std::string subjectId;
     std::string subjectGroup;
+    Uuid runUuid;
+    std::string edlRootPath;
+    std::string moduleName;
 
     [[nodiscard]] ByteVector toBytes() const
     {
@@ -502,6 +505,9 @@ struct PrepareRunRequest {
         BinaryStreamWriter stream(bytes);
         stream.write(subjectId);
         stream.write(subjectGroup);
+        stream.write(runUuid);
+        stream.write(edlRootPath);
+        stream.write(moduleName);
         return bytes;
     }
 
@@ -511,6 +517,9 @@ struct PrepareRunRequest {
         BinaryStreamReader stream(memory, size);
         stream.read(req.subjectId);
         stream.read(req.subjectGroup);
+        stream.read(req.runUuid);
+        stream.read(req.edlRootPath);
+        stream.read(req.moduleName);
         return req;
     }
 };
@@ -551,5 +560,67 @@ static const std::string SHOW_SETTINGS_CALL_ID = "ShowSettings";
 struct ShowDisplayRequest {
 };
 static const std::string SHOW_DISPLAY_CALL_ID = "ShowDisplay";
+
+/**
+ * Reserve a name in the master's canonical EDL tree.
+ * For groups: CREATE_OR_OPEN semantics.
+ * For datasets: MUST_CREATE semantics - fails if the name is already taken.
+ */
+struct EdlReserveRequest {
+    enum class Kind : uint8_t {
+        Group = 0,
+        Dataset = 1
+    };
+    Kind kind{Kind::Dataset};
+    std::string parentRelPath; // "" or "/" -> assigned EDL root; otherwise slash-separated sub-groups
+    std::string name;
+
+    [[nodiscard]] ByteVector toBytes() const
+    {
+        ByteVector bytes;
+        BinaryStreamWriter stream(bytes);
+        stream.write(kind);
+        stream.write(parentRelPath);
+        stream.write(name);
+        return bytes;
+    }
+
+    static EdlReserveRequest fromMemory(const void *memory, size_t size)
+    {
+        EdlReserveRequest req;
+        BinaryStreamReader stream(memory, size);
+        stream.read(req.kind);
+        stream.read(req.parentRelPath);
+        stream.read(req.name);
+        return req;
+    }
+};
+static const std::string EDL_RESERVE_CALL_ID = "EdlReserve";
+
+struct EdlReserveReply {
+    bool success{false};
+    std::string errorMessage;
+    std::string absolutePath;
+
+    [[nodiscard]] ByteVector toBytes() const
+    {
+        ByteVector bytes;
+        BinaryStreamWriter stream(bytes);
+        stream.write(success);
+        stream.write(errorMessage);
+        stream.write(absolutePath);
+        return bytes;
+    }
+
+    static EdlReserveReply fromMemory(const void *memory, size_t size)
+    {
+        EdlReserveReply rep;
+        BinaryStreamReader stream(memory, size);
+        stream.read(rep.success);
+        stream.read(rep.errorMessage);
+        stream.read(rep.absolutePath);
+        return rep;
+    }
+};
 
 } // namespace Syntalos

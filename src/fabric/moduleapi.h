@@ -1131,10 +1131,12 @@ private:
     QList<QPair<intervalEventFunc_t, int>> m_intervalEventCBList;
     QList<QPair<recvDataEventFunc_t, std::shared_ptr<VariantStreamSubscription>>> m_recvDataEventCBList;
 
+    std::shared_ptr<EDLGroup> storageGroup() const;
+    void setStorageGroup(std::shared_ptr<EDLGroup> edlGroup);
+
     void setIdentity(const QString &id, int index);
     void setState(ModuleState state);
     void setSimpleStorageNames(bool enabled);
-    void setStorageGroup(std::shared_ptr<EDLGroup> edlGroup);
     void resetEventCallbacks();
     void setPotentialNoaffinityCPUCount(uint coreN);
     void setDefaultRTPriority(int prio);

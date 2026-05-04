@@ -132,6 +132,15 @@ struct TestSubjectInfo {
 };
 
 /**
+ * @brief Information about the current run and its data storage location.
+ */
+struct RunInfo {
+    Uuid uuid{};                         /// EDL collection UUID
+    std::string moduleName;              /// User-provided module name
+    std::shared_ptr<EDLGroup> rootGroup; /// EDL tree root for data storage for the current run
+};
+
+/**
  * @brief Connection to a Syntalos instance
  */
 class SyntalosLink
@@ -161,6 +170,50 @@ public:
     [[nodiscard]] SyncTimer *timer() const;
 
     const TestSubjectInfo &testSubject() const;
+    const RunInfo &runInfo() const;
+
+    /**
+     * @brief Reserve a sub-group under the given parent in the master's canonical EDL tree,
+     * then mirror the reservation into the local worker tree.
+     *
+     * CREATE_OR_OPEN semantics: if the group already exists (in the master or locally) it is
+     * returned as-is. Returns the local EDLGroup on success; an error string on failure.
+     *
+     * @param parent Group to create the new group under (must be reachable from runInfo().rootGroup).
+     * @param name   Name for the new sub-group.
+     */
+    auto reserveEdlGroup(const std::shared_ptr<EDLGroup> &parent, const std::string &name)
+        -> std::expected<std::shared_ptr<EDLGroup>, std::string>;
+
+    /**
+     * @brief Reserve a dataset under the given parent in the master's canonical EDL tree,
+     * then mirror the reservation into the local worker tree.
+     *
+     * MUST_CREATE semantics: fails if a dataset with the same name already exists in the
+     * group (catches cross-process duplicates via the master's single source of truth).
+     * Returns the local EDLDataset on success; an error string on failure.
+     *
+     * @param parent Group to create the dataset in (must be reachable from runInfo().rootGroup).
+     * @param name   Name for the new dataset.
+     */
+    auto reserveEdlDataset(const std::shared_ptr<EDLGroup> &parent, const std::string &name)
+        -> std::expected<std::shared_ptr<EDLDataset>, std::string>;
+
+    /**
+     * @brief Create (or return cached) the default dataset for this module.
+     *
+     * Uses MUST_CREATE semantics; fails if the name is already taken.
+     */
+    auto createDefaultDataset(const std::string &preferredName = {})
+        -> std::expected<std::shared_ptr<EDLDataset>, std::string>;
+
+    /**
+     * @brief Create (or open) a sub-group under this module's assigned root.
+     *
+     * Convenience shorthand for reserveEdlGroup(runInfo().rootGroup, name).
+     */
+    auto createStorageGroup(const std::string &name)
+        -> std::expected<std::shared_ptr<EDLGroup>, std::string>;
 
     /**
      * On startup, Syntalos can request start() on all external modules in parallel.

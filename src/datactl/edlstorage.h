@@ -161,6 +161,14 @@ public:
     void setAttributes(const std::map<std::string, MetaValue> &attributes);
     void insertAttribute(const std::string &key, const MetaValue &value);
 
+    /**
+     * True if the unit is externally managed and not controlled by
+     * its current parent group. This allows it to be saved by a different
+     * owning process or thread.
+     */
+    bool isDetached() const;
+    void setDetached(bool detached);
+
     virtual std::expected<void, std::string> save();
     virtual std::expected<void, std::string> validate(bool recursive = true);
 

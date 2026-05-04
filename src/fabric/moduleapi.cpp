@@ -1382,6 +1382,11 @@ void AbstractModule::setSimpleStorageNames(bool enabled)
     d->simpleStorageNames = enabled;
 }
 
+std::shared_ptr<EDLGroup> AbstractModule::storageGroup() const
+{
+    return d->rootDataGroup;
+}
+
 void AbstractModule::setStorageGroup(std::shared_ptr<EDLGroup> edlGroup)
 {
     d->defaultDataset.reset();

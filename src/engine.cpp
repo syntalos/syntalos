@@ -1900,7 +1900,8 @@ bool Engine::runInternal(const QString &exportDirPath)
         for (auto const &port : mod->outPorts())
             port->setDormant(true);
 
-        LOG_INFO(d->log, "Module '{}' is explicitly disabled. It was marked dormant and will not be started.", mod->name());
+        LOG_INFO(
+            d->log, "Module '{}' is explicitly disabled. It was marked dormant and will not be started.", mod->name());
     }
 
     // prepare modules

@@ -43,6 +43,8 @@ class MyExampleModule:
         self._label_prefix: str = ''
         self._frame_count: int = 0
         self._settings_dlg: None | QDialog = None
+        self._dataset: syl.EdlDataset | None = None
+        self._log_path: pathlib.Path | None = None
 
         # register ports that this module supports
         self._iport: syl.InputPort = self._modLink.register_input_port(
@@ -82,6 +84,12 @@ class MyExampleModule:
         if frame_size:
             self._oport_frames.set_metadata_value_size('size', frame_size)
 
+        # Create the default EDL dataset and record a metadata attribute
+        self._dataset = self._modLink.create_default_dataset()
+        self._dataset.set_attribute('module_generator', 'example-py')
+        self._log_path = self._dataset.set_data_file('frame-indices.tsv', 'Example test data')
+        self._frame_count = 0
+
         return True
 
     def start(self):
@@ -117,14 +125,21 @@ class MyExampleModule:
         self._oport_frames.submit(frame)
 
         if self._frame_count % 100 == 0:
-            self._oport_rows.submit([syl.time_since_start_usec(), self._frame_count])
+            ts = syl.time_since_start_usec()
+            self._oport_rows.submit([ts, self._frame_count])
+
+            # Log every 100th frame timestamp to the EDL dataset file
+            if self._log_path is not None:
+                with open(self._log_path, 'a') as f:
+                    f.write(f'{ts}\t{self._frame_count}\n')
 
     def stop(self):
         """
         This function is called once a run is stopped, by the user, and error or when
         the loop() function returned False.
         """
-        pass
+        if self._dataset is not None:
+            self._dataset.set_attribute('frame_count', self._frame_count)
 
     def _show_settings_dialog(self):
         """

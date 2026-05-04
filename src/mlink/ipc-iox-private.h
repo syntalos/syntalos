@@ -50,8 +50,10 @@ using IoxUntypedReqResServer = iox2::Server<iox2::ServiceType::Ipc, IoxByteSlice
 template<typename Req, typename Res>
 using IoxClient = iox2::Client<iox2::ServiceType::Ipc, Req, void, Res, void>;
 using IoxUntypedClient = iox2::Client<iox2::ServiceType::Ipc, IoxByteSlice, void, DoneResponse, void>;
+using IoxUntypedReqResClient = iox2::Client<iox2::ServiceType::Ipc, IoxByteSlice, void, IoxByteSlice, void>;
 
 using SliceActiveRequest = iox2::ActiveRequest<iox2::ServiceType::Ipc, IoxByteSlice, void, DoneResponse, void>;
+using SliceBiDiActiveRequest = iox2::ActiveRequest<iox2::ServiceType::Ipc, IoxByteSlice, void, IoxByteSlice, void>;
 
 using IoxImmutableByteSlice = iox2::bb::ImmutableSlice<std::byte>;
 using IoxServiceNameString = iox2::bb::StaticString<IOX2_SERVICE_NAME_LENGTH>;

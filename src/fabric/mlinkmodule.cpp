@@ -89,6 +89,7 @@ public:
     std::optional<IoxSubscriber<StateChangeEvent>> subStateChange;
     std::optional<IoxUntypedReqServer> srvInPortChange;
     std::optional<IoxUntypedReqServer> srvOutPortChange;
+    std::optional<IoxUntypedReqResServer> srvEdlReserve;
 
     // Output port forwarders
     struct OutPortSub {
@@ -163,6 +164,22 @@ public:
             return;
         }
         iox2::send(std::move(maybeResponse).value().write_payload(DoneResponse{success})).value();
+    }
+
+    void replySlice(SliceBiDiActiveRequest &req, const ByteVector &data) const
+    {
+        auto maybeResponse = req.loan_slice_uninit(data.size());
+        if (!maybeResponse.has_value()) {
+            LOG_WARNING(
+                log,
+                "Failed to loan response slice ({} bytes): {}",
+                data.size(),
+                iox2::bb::into<const char *>(maybeResponse.error()));
+            return;
+        }
+        auto rawResponse = std::move(maybeResponse).value();
+        std::memcpy(rawResponse.payload_mut().data(), data.data(), data.size());
+        iox2::send(iox2::assume_init(std::move(rawResponse))).value();
     }
 
     void checkClientStateChange(MLinkModule *self)
@@ -611,6 +628,73 @@ void MLinkModule::handleIncomingControl()
             d->replyDoneSlice(*req, true);
         }
     }
+
+    // EDL name-reservation requests from the worker
+    if (d->srvEdlReserve.has_value()) {
+        const auto sg = storageGroup();
+        while (true) {
+            auto req = safeReceive(*d->srvEdlReserve);
+            if (!req.has_value())
+                break;
+
+            const auto pl = req->payload();
+            const auto reserveReq = EdlReserveRequest::fromMemory(pl.data(), pl.number_of_bytes());
+
+            EdlReserveReply rep;
+            if (!sg) {
+                rep.success = false;
+                rep.errorMessage = "Module has no storage group assigned.";
+            } else {
+                // Walk parentRelPath (slash-separated sub-group names) from the assigned root.
+                std::shared_ptr<EDLGroup> parent = sg;
+                bool walkOk = true;
+                const auto &relPath = reserveReq.parentRelPath;
+                if (!relPath.empty() && relPath != "/") {
+                    std::istringstream ss(relPath);
+                    std::string segment;
+                    while (std::getline(ss, segment, '/')) {
+                        if (segment.empty())
+                            continue;
+                        auto maybeGroup = parent->groupByName(segment, EDLCreateFlag::CREATE_OR_OPEN);
+                        if (!maybeGroup.has_value()) {
+                            rep.success = false;
+                            rep.errorMessage = maybeGroup.error();
+                            walkOk = false;
+                            break;
+                        }
+                        maybeGroup.value()->setDetached(true);
+                        parent = maybeGroup.value();
+                    }
+                }
+
+                if (walkOk) {
+                    if (reserveReq.kind == EdlReserveRequest::Kind::Group) {
+                        auto maybeGroup = parent->groupByName(reserveReq.name, EDLCreateFlag::CREATE_OR_OPEN);
+                        if (maybeGroup.has_value()) {
+                            maybeGroup.value()->setDetached(true);
+                            rep.success = true;
+                            rep.absolutePath = maybeGroup.value()->path().string();
+                        } else {
+                            rep.success = false;
+                            rep.errorMessage = maybeGroup.error();
+                        }
+                    } else {
+                        auto maybeDataset = parent->datasetByName(reserveReq.name, EDLCreateFlag::MUST_CREATE);
+                        if (maybeDataset.has_value()) {
+                            maybeDataset.value()->setDetached(true);
+                            rep.success = true;
+                            rep.absolutePath = maybeDataset.value()->path().string();
+                        } else {
+                            rep.success = false;
+                            rep.errorMessage = maybeDataset.error();
+                        }
+                    }
+                }
+            }
+
+            d->replySlice(*req, rep.toBytes());
+        }
+    }
 }
 
 void MLinkModule::resetConnection()
@@ -625,6 +709,7 @@ void MLinkModule::resetConnection()
     d->subStateChange.reset();
     d->srvInPortChange.reset();
     d->srvOutPortChange.reset();
+    d->srvEdlReserve.reset();
     d->workerCtlEventListener.reset();
     d->ctlEventNotifier.reset();
 
@@ -633,6 +718,7 @@ void MLinkModule::resetConnection()
     d->subStateChange.emplace(makeTypedSubscriber<StateChangeEvent>(*d->node, d->svcName(STATE_CHANNEL_ID)));
     d->srvInPortChange.emplace(makeSliceServer(*d->node, d->svcName(IN_PORT_CHANGE_CHANNEL_ID)));
     d->srvOutPortChange.emplace(makeSliceServer(*d->node, d->svcName(OUT_PORT_CHANGE_CHANNEL_ID)));
+    d->srvEdlReserve.emplace(makeSliceServer<IoxByteSlice>(*d->node, d->svcName(EDL_RESERVE_CALL_ID)));
 
     // control listener: Called when the client publishes a control command
     d->workerCtlEventListener.emplace(ipc::makeEventListener(*d->node, d->svcName(WORKER_CTL_EVENT_ID)));
@@ -1187,9 +1273,13 @@ bool MLinkModule::prepare(const TestSubject &subject)
     handleIncomingControl();
 
     // call the module's own startup preparations
+    const auto sg = storageGroup();
     PrepareRunRequest prepReq{
         .subjectId = subject.id.toStdString(),
         .subjectGroup = subject.group.toStdString(),
+        .runUuid = sg ? sg->collectionId() : Uuid(),
+        .edlRootPath = sg ? sg->path().string() : std::string{},
+        .moduleName = name().toStdString(),
     };
     if (!d->callSliceClientSimple(
             this, PREPARE_RUN_CALL_ID, prepReq, 15, IpcCallFlag::TimeoutIsError | IpcCallFlag::SkipWaitOnError))
