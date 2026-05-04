@@ -876,8 +876,7 @@ std::expected<std::shared_ptr<EDLDataset>, std::string> EDLGroup::datasetByName(
         if (node->name() != name)
             continue;
         if (!std::dynamic_pointer_cast<EDLDataset>(node))
-            return std::unexpected(
-                std::format("A group named '{}' already exists in group '{}'.", name, this->name()));
+            return std::unexpected(std::format("A group named '{}' already exists in group '{}'.", name, this->name()));
         if (flag == EDLCreateFlag::MUST_CREATE)
             return std::unexpected(std::format("Dataset '{}' already exists in group '{}'.", name, this->name()));
         return std::dynamic_pointer_cast<EDLDataset>(node);

@@ -1309,8 +1309,7 @@ auto SyntalosLink::createDefaultDataset(const std::string &preferredName)
     return reserveEdlDataset(root, name);
 }
 
-auto SyntalosLink::createStorageGroup(const std::string &name)
-    -> std::expected<std::shared_ptr<EDLGroup>, std::string>
+auto SyntalosLink::createStorageGroup(const std::string &name) -> std::expected<std::shared_ptr<EDLGroup>, std::string>
 {
     const auto root = d->runInfo.rootGroup;
     if (!root)

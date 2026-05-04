@@ -1328,8 +1328,103 @@ PYBIND11_MODULE(syntalos_mlink, m)
         ":rtype: FirmataControl");
 
     /**
+     * EDL Storage (for standalone Python modules)
+     */
+
+    py::class_<EDLDataset, std::shared_ptr<EDLDataset>>(
+        m, "EdlDataset", "An EDL dataset that holds data files for a modality.")
+        .def_property_readonly("path", &EDLDataset::path, "Filesystem path of this dataset's directory (pathlib.Path).")
+        .def_property_readonly("name", &EDLDataset::name, "Name of this dataset (str).")
+        .def_property_readonly("is_empty", &EDLDataset::isEmpty, "True if no data file has been registered yet.")
+        .def(
+            "set_data_file",
+            [](EDLDataset &ds, const std::string &fileName, const std::string &summary, bool scanPattern) {
+                if (scanPattern) {
+                    ds.setDataScanPattern(fileName, summary);
+                    return ds.path();
+                }
+                return ds.setDataFile(fileName, summary);
+            },
+            py::arg("file_name"),
+            py::arg("summary") = std::string{},
+            py::arg("scan") = false,
+            "Register the primary data file (or a scan pattern).\n"
+            "\n"
+            "Returns the path where the data should be written (pathlib.Path).\n"
+            ":param scan: If True, treat ``file_name`` as a glob pattern scanned at save time.")
+        .def(
+            "add_aux_file",
+            [](EDLDataset &ds,
+               const std::string &fileName,
+               const std::string &key,
+               const std::string &summary,
+               bool scanPattern) {
+                if (scanPattern) {
+                    ds.addAuxDataScanPattern(fileName, summary);
+                    return ds.path();
+                }
+                auto res = ds.addAuxDataFile(fileName, key, summary);
+                if (!res)
+                    throw SyntalosPyError(res.error());
+                return *res;
+            },
+            py::arg("file_name"),
+            py::arg("key") = std::string{},
+            py::arg("summary") = std::string{},
+            py::arg("scan") = false,
+            "Register an auxiliary data file (or scan pattern).\n"
+            "\n"
+            "Returns the path where the data should be written (pathlib.Path).")
+        .def(
+            "path_for_basename",
+            &EDLDataset::pathForDataBasename,
+            py::arg("basename"),
+            "Return the path for a data file with the given basename (pathlib.Path).\n"
+            "\n"
+            "The file is *not* registered. Use a scan pattern to include it in the manifest.")
+        .def(
+            "set_attribute",
+            &EDLDataset::insertAttribute,
+            py::arg("key"),
+            py::arg("value"),
+            "Set an attribute on this dataset.");
+
+    py::class_<EDLGroup, std::shared_ptr<EDLGroup>>(
+        m, "EdlGroup", "An EDL group that can contain datasets and sub-groups.")
+        .def_property_readonly("path", &EDLGroup::path, "Filesystem path of this group (pathlib.Path).")
+        .def_property_readonly("name", &EDLGroup::name, "Name of this group (str).")
+        .def(
+            "create_group",
+            [](std::shared_ptr<EDLGroup> g, const std::string &name) {
+                auto res = getActiveLink()->reserveEdlGroup(g, name);
+                if (!res)
+                    throw SyntalosPyError(res.error());
+                return *res;
+            },
+            py::arg("name"),
+            "Create (or open) a sub-group with the given name.\n"
+            ":rtype: EdlGroup")
+        .def(
+            "create_dataset",
+            [](std::shared_ptr<EDLGroup> g, const std::string &name) {
+                auto res = getActiveLink()->reserveEdlDataset(g, name);
+                if (!res)
+                    throw SyntalosPyError(res.error());
+                return *res;
+            },
+            py::arg("name"),
+            "Create a dataset with the given name (MUST_CREATE semantics).\n"
+            ":rtype: EdlDataset")
+        .def(
+            "set_attribute",
+            &EDLGroup::insertAttribute,
+            py::arg("key"),
+            py::arg("value"),
+            "Set an attribute on this group.");
+
+    /**
      * Module registration (for standalone Python modules)
-     **/
+     */
 
     py::class_<PySyLinkManager>(m, "SyntalosLink", "Manages the connection to Syntalos.")
         .def_property(
@@ -1514,97 +1609,6 @@ PYBIND11_MODULE(syntalos_mlink, m)
             ":param name: Dataset name.\n"
             ":return: The new :class:`EdlDataset`.\n"
             ":rtype: EdlDataset");
-
-    py::class_<EDLGroup, std::shared_ptr<EDLGroup>>(
-        m, "EdlGroup", "An EDL group that can contain datasets and sub-groups.")
-        .def_property_readonly("path", &EDLGroup::path, "Filesystem path of this group (pathlib.Path).")
-        .def_property_readonly("name", &EDLGroup::name, "Name of this group (str).")
-        .def(
-            "create_group",
-            [](std::shared_ptr<EDLGroup> g, const std::string &name) {
-                auto res = getActiveLink()->reserveEdlGroup(g, name);
-                if (!res)
-                    throw SyntalosPyError(res.error());
-                return *res;
-            },
-            py::arg("name"),
-            "Create (or open) a sub-group with the given name.\n"
-            ":rtype: EdlGroup")
-        .def(
-            "create_dataset",
-            [](std::shared_ptr<EDLGroup> g, const std::string &name) {
-                auto res = getActiveLink()->reserveEdlDataset(g, name);
-                if (!res)
-                    throw SyntalosPyError(res.error());
-                return *res;
-            },
-            py::arg("name"),
-            "Create a dataset with the given name (MUST_CREATE semantics).\n"
-            ":rtype: EdlDataset")
-        .def(
-            "set_attribute",
-            &EDLGroup::insertAttribute,
-            py::arg("key"),
-            py::arg("value"),
-            "Set an attribute on this group.");
-
-    py::class_<EDLDataset, std::shared_ptr<EDLDataset>>(
-        m, "EdlDataset", "An EDL dataset that holds data files for a modality.")
-        .def_property_readonly("path", &EDLDataset::path, "Filesystem path of this dataset's directory (pathlib.Path).")
-        .def_property_readonly("name", &EDLDataset::name, "Name of this dataset (str).")
-        .def_property_readonly("is_empty", &EDLDataset::isEmpty, "True if no data file has been registered yet.")
-        .def(
-            "set_data_file",
-            [](EDLDataset &ds, const std::string &fileName, const std::string &summary, bool scanPattern) {
-                if (scanPattern) {
-                    ds.setDataScanPattern(fileName, summary);
-                    return ds.path();
-                }
-                return ds.setDataFile(fileName, summary);
-            },
-            py::arg("file_name"),
-            py::arg("summary") = std::string{},
-            py::arg("scan") = false,
-            "Register the primary data file (or a scan pattern).\n"
-            "\n"
-            "Returns the path where the data should be written (pathlib.Path).\n"
-            ":param scan: If True, treat ``file_name`` as a glob pattern scanned at save time.")
-        .def(
-            "add_aux_file",
-            [](EDLDataset &ds,
-               const std::string &fileName,
-               const std::string &key,
-               const std::string &summary,
-               bool scanPattern) {
-                if (scanPattern) {
-                    ds.addAuxDataScanPattern(fileName, summary);
-                    return ds.path();
-                }
-                auto res = ds.addAuxDataFile(fileName, key, summary);
-                if (!res)
-                    throw SyntalosPyError(res.error());
-                return *res;
-            },
-            py::arg("file_name"),
-            py::arg("key") = std::string{},
-            py::arg("summary") = std::string{},
-            py::arg("scan") = false,
-            "Register an auxiliary data file (or scan pattern).\n"
-            "\n"
-            "Returns the path where the data should be written (pathlib.Path).")
-        .def(
-            "path_for_basename",
-            &EDLDataset::pathForDataBasename,
-            py::arg("basename"),
-            "Return the path for a data file with the given basename (pathlib.Path).\n"
-            "\n"
-            "The file is *not* registered. Use a scan pattern to include it in the manifest.")
-        .def(
-            "set_attribute",
-            &EDLDataset::insertAttribute,
-            py::arg("key"),
-            py::arg("value"),
-            "Set an attribute on this dataset.");
 
     m.def(
         "init_link",

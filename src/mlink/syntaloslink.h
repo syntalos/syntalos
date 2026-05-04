@@ -212,8 +212,7 @@ public:
      *
      * Convenience shorthand for reserveEdlGroup(runInfo().rootGroup, name).
      */
-    auto createStorageGroup(const std::string &name)
-        -> std::expected<std::shared_ptr<EDLGroup>, std::string>;
+    auto createStorageGroup(const std::string &name) -> std::expected<std::shared_ptr<EDLGroup>, std::string>;
 
     /**
      * On startup, Syntalos can request start() on all external modules in parallel.
