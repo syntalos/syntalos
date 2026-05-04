@@ -54,6 +54,7 @@ Build-Depends: debhelper-compat (= 13),
                tiscamera-dev,
                udev,
                uuid-dev,
+               wayland-protocols,
                xvfb
 Rules-Requires-Root: no
 Standards-Version: 4.6.2
@@ -72,7 +73,8 @@ Depends: breeze-icon-theme,
 Recommends: kde-style-breeze,
             libminiscope0,
             tiscamera
-Suggests: pomidaq
+Suggests: kwin-zones,
+          pomidaq
 Description: Synchronized DAQ from diverse sources and flexible experiment control
  Syntalos is a software for timestamp-synchronized parallel data acquisition
  from diverse data sources, such as cameras, microendoscopes,
