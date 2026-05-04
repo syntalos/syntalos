@@ -1987,6 +1987,18 @@ bool Engine::runInternal(const QString &exportDirPath)
     auto streamExporter = std::make_unique<StreamExporter>();
     if (initSuccessful) {
         emitStatusMessage(QStringLiteral("Exporting streams for external modules..."));
+
+        // Inactive MLink modules (persistent workers) created their IPC publishers at initialization
+        // time with default topology. If an active MLink module subscribes to an inactive module's
+        // output, the default topology's maxReceivers may be too small, causing a connection failure.
+        // Sending port information here updates the dormant worker's publishers to use the correct
+        // topology based on the actual subscriber count.
+        for (auto &mod : modOrder.inactive) {
+            auto mlinkMod = qobject_cast<MLinkModule *>(mod);
+            if (mlinkMod != nullptr && mlinkMod->isProcessRunning())
+                mlinkMod->sendPortInformation();
+        }
+
         for (auto &mod : modOrder.start) {
             auto mlinkMod = qobject_cast<MLinkModule *>(mod);
             if (mlinkMod != nullptr)

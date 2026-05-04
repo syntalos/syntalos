@@ -1,0 +1,13 @@
+[test]
+name = "Disabled Module Chains Test"
+project_file = "projects/disabled-inputs.syct"
+run_duration_sec = 3
+expected_exit_code = 0
+expected_datasets = []
+expected_stdout_contains = [
+    "engine: Module start order: Python Module Example 2 ⇢ Canvas ⇢ Video Transformer ⇢ Canvas 2",
+    "engine: Module 'Python Module Example' is explicitly disabled. It was marked dormant and will not be started.",
+    "engine: Module 'Devel: DataSource' is explicitly disabled. It was marked dormant and will not be started.",
+    "engine: Module 'Video Transformer' is marked dormant, it will not be started.",
+    "engine: Exporting streams for external modules...",
+]
