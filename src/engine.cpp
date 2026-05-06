@@ -1745,8 +1745,68 @@ void Engine::allocateNicenessBudget(const ModuleRunOrder &modOrder, uint maxRtTh
     }
 }
 
+
+bool Engine::validateModuleNames(const ModuleRunOrder &modOrder)
+{
+    QSet<QString> modNameSet;
+    for (auto &mod : modOrder.start) {
+        const auto expectedName = simplifyStrForModuleName(mod->name());
+        if (mod->name() != expectedName) {
+            LOG_WARNING(
+                d->log,
+                "Module {} has invalid name. Expected: {} (The module has been renamed)",
+                mod->name(),
+                expectedName);
+            mod->setName(expectedName);
+        }
+
+        const auto uniqName = simplifyStrForFileBasenameLower(mod->name());
+        if (modNameSet.contains(uniqName)) {
+            QMessageBox::critical(
+                d->parentWidget,
+                QStringLiteral("Can not run this board"),
+                QStringLiteral(
+                    "A module with the name '%1' exists twice in this board, or another module has a "
+                    "very similar name. "
+                    "Please give the duplicate a unique name in order to execute this board.")
+                    .arg(mod->name()));
+            return false;
+        }
+        modNameSet.insert(uniqName);
+    }
+    return true;
+}
+
+bool Engine::waitForModulesReady(const ModuleRunOrder &modOrder)
+{
+    // ensure all modules are in the READY state
+    // (modules may take a bit of time to prepare their threads)
+    // FIXME: Maybe add a timeout on this, in case a module doesn't
+    // behave and never ever leaves its preparation phase?
+    for (auto &mod : modOrder.start) {
+        if (mod->state() == ModuleState::READY)
+            continue;
+        // DORMANT is also a valid state at this point, the module may not
+        // have had additional setup to do
+        if (mod->state() == ModuleState::DORMANT)
+            continue;
+        emitStatusMessage(QStringLiteral("Waiting for '%1' to get ready...").arg(mod->name()));
+        while (mod->state() != ModuleState::READY) {
+            QThread::msleep(250);
+            qApp->processEvents();
+            if (mod->state() == ModuleState::ERROR) {
+                emitStatusMessage(QStringLiteral("Module '%1' failed to initialize.").arg(mod->name()));
+                return false;
+            }
+            if (d->failed)
+                return false;
+        }
+    }
+    return true;
+}
+
 /**
- * @brief Actually run an experiment module board
+ * @brief Actually run an experiment module board after initial checks succeeded.
  * @return true on succees
  *
  * This function runs an experiment with the given path,
@@ -1825,36 +1885,11 @@ bool Engine::runInternal(const QString &exportDirPath)
     d->failed = false;
 
     // perform module name sanity check
-    {
-        QSet<QString> modNameSet;
-        for (auto &mod : modOrder.start) {
-            const auto expectedName = simplifyStrForModuleName(mod->name());
-            if (mod->name() != expectedName) {
-                LOG_WARNING(
-                    d->log,
-                    "Module {} has invalid name. Expected: {} (The module has been renamed)",
-                    mod->name(),
-                    expectedName);
-                mod->setName(expectedName);
-            }
-
-            const auto uniqName = simplifyStrForFileBasenameLower(mod->name());
-            if (modNameSet.contains(uniqName)) {
-                QMessageBox::critical(
-                    d->parentWidget,
-                    QStringLiteral("Can not run this board"),
-                    QStringLiteral(
-                        "A module with the name '%1' exists twice in this board, or another module has a "
-                        "very similar name. "
-                        "Please give the duplicate a unique name in order to execute this board.")
-                        .arg(mod->name()));
-                d->active = false;
-                d->failed = true;
-                d->usbEventsTimer->start();
-                return false;
-            }
-            modNameSet.insert(uniqName);
-        }
+    if (!validateModuleNames(modOrder)) {
+        d->active = false;
+        d->failed = true;
+        d->usbEventsTimer->start();
+        return false;
     }
 
     // prevent the system from sleeping or shutdown
@@ -2129,33 +2164,8 @@ bool Engine::runInternal(const QString &exportDirPath)
         LOG_INFO(d->log, "Module and engine threads created in {} msec", timeDiffToNowMsec(lastPhaseTimepoint).count());
         lastPhaseTimepoint = currentTimePoint();
 
-        // ensure all modules are in the READY state
-        // (modules may take a bit of time to prepare their threads)
-        // FIXME: Maybe add a timeout on this, in case a module doesn't
-        // behave and never ever leaves its preparation phase?
-        for (auto &mod : modOrder.start) {
-            if (mod->state() == ModuleState::READY)
-                continue;
-            // DORMANT is also a valid state at this point, the module may not
-            // have had additional setup to do
-            if (mod->state() == ModuleState::DORMANT)
-                continue;
-            emitStatusMessage(QStringLiteral("Waiting for '%1' to get ready...").arg(mod->name()));
-            while (mod->state() != ModuleState::READY) {
-                QThread::msleep(250);
-                qApp->processEvents();
-                if (mod->state() == ModuleState::ERROR) {
-                    emitStatusMessage(QStringLiteral("Module '%1' failed to initialize.").arg(mod->name()));
-                    initSuccessful = false;
-                    break;
-                }
-                if (d->failed) {
-                    // we failed elsewhere
-                    initSuccessful = false;
-                    break;
-                }
-            }
-        }
+        if (!waitForModulesReady(modOrder))
+            initSuccessful = false;
 
         LOG_INFO(d->log, "Waited for modules to get ready for {} msec", timeDiffToNowMsec(lastPhaseTimepoint).count());
     }
