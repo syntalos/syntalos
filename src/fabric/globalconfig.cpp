@@ -219,6 +219,26 @@ void GlobalConfig::setEmergencyOOMStop(bool enabled)
     m_s->setValue("engine/emergency_oom_stop", enabled);
 }
 
+bool GlobalConfig::netControlEnabled() const
+{
+    return m_s->value("net_control/enabled", true).toBool();
+}
+
+void GlobalConfig::setNetControlEnabled(bool enabled)
+{
+    m_s->setValue("net_control/enabled", enabled);
+}
+
+int GlobalConfig::netControlPort() const
+{
+    return m_s->value("net_control/port", 5556).toInt();
+}
+
+void GlobalConfig::setNetControlPort(int port)
+{
+    m_s->setValue("net_control/port", port);
+}
+
 QString GlobalConfig::lastProjectDir() const
 {
     return m_s->value("project/last_project_dir", QStandardPaths::writableLocation(QStandardPaths::HomeLocation))

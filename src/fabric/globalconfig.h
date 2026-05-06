@@ -90,6 +90,12 @@ public:
     bool emergencyOOMStop() const;
     void setEmergencyOOMStop(bool enabled);
 
+    bool netControlEnabled() const;
+    void setNetControlEnabled(bool enabled);
+
+    int netControlPort() const;
+    void setNetControlPort(int port);
+
     QString lastProjectDir() const;
     void setLastProjectDir(const QString &dir);
 

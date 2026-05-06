@@ -1745,7 +1745,6 @@ void Engine::allocateNicenessBudget(const ModuleRunOrder &modOrder, uint maxRtTh
     }
 }
 
-
 bool Engine::validateModuleNames(const ModuleRunOrder &modOrder)
 {
     QSet<QString> modNameSet;
@@ -1807,7 +1806,7 @@ bool Engine::waitForModulesReady(const ModuleRunOrder &modOrder)
 
 /**
  * @brief Actually run an experiment module board after initial checks succeeded.
- * @return true on succees
+ * @return true on success
  *
  * This function runs an experiment with the given path,
  * doing *no* error checking on the data export path anymore.

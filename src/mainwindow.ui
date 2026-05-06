@@ -17,6 +17,9 @@
    <iconset>
     <normaloff>:/icons/appicon</normaloff>:/icons/appicon</iconset>
   </property>
+  <property name="toolButtonStyle">
+   <enum>Qt::ToolButtonStyle::ToolButtonIconOnly</enum>
+  </property>
   <widget class="QWidget" name="centralWidget">
    <layout class="QVBoxLayout" name="verticalLayout_15">
     <property name="spacing">
@@ -1381,7 +1384,6 @@
    <addaction name="separator"/>
    <addaction name="actionRunTemp"/>
   </widget>
-  <widget class="QStatusBar" name="statusBar"/>
   <widget class="QToolBar" name="projectToolBar">
    <property name="windowTitle">
     <string>toolBar</string>
@@ -1391,6 +1393,9 @@
      <width>26</width>
      <height>26</height>
     </size>
+   </property>
+   <property name="floatable">
+    <bool>true</bool>
    </property>
    <attribute name="toolBarArea">
     <enum>TopToolBarArea</enum>
@@ -1405,18 +1410,18 @@
    <addaction name="actionEditComment"/>
    <addaction name="actionProjectDetails"/>
   </widget>
-  <widget class="QToolBar" name="toolbarVSpacing">
+  <widget class="QToolBar" name="networkToolBar">
    <property name="windowTitle">
     <string>toolBar</string>
    </property>
-   <property name="movable">
-    <bool>false</bool>
-   </property>
-   <property name="allowedAreas">
-    <set>Qt::ToolBarArea::NoToolBarArea</set>
+   <property name="iconSize">
+    <size>
+     <width>26</width>
+     <height>26</height>
+    </size>
    </property>
    <property name="floatable">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
    <attribute name="toolBarArea">
     <enum>TopToolBarArea</enum>
@@ -1424,7 +1429,10 @@
    <attribute name="toolBarBreak">
     <bool>false</bool>
    </attribute>
+   <addaction name="actionNetRunController"/>
+   <addaction name="actionNetRunListener"/>
   </widget>
+  <widget class="QStatusBar" name="statusBar"/>
   <action name="actionQuit">
    <property name="icon">
     <iconset theme="window-close"/>
@@ -1667,6 +1675,34 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+N</string>
+   </property>
+  </action>
+  <action name="actionNetRunController">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Network run controller</string>
+   </property>
+   <property name="toolTip">
+    <string>Broadcast the run start/stop over the network, so connected applications can start recording as well</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionNetRunListener">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Network run listener</string>
+   </property>
+   <property name="toolTip">
+    <string>Listen for network commands to run this experiment and synchronize start/stop</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
    </property>
   </action>
  </widget>

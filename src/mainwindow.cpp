@@ -84,6 +84,7 @@ MainWindow::MainWindow(QWidget *parent)
     // create main window UI
     ui->setupUi(this);
     ui->stackedWidget->setCurrentIndex(0);
+    ui->mainToolBar->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Preferred);
 
     // Create status bar
     m_statusBarLabel = new QLabel(QString(), statusBar());
@@ -294,6 +295,8 @@ MainWindow::MainWindow(QWidget *parent)
     // configure actions
     ui->actionRun->setEnabled(false);
     ui->actionStop->setEnabled(false);
+    if (!m_gconf->netControlEnabled())
+        ui->networkToolBar->hide();
 
     // connect actions
     connect(ui->actionRun, &QAction::triggered, this, &MainWindow::runActionTriggered);
@@ -818,6 +821,8 @@ void MainWindow::updateIconStyles()
     setWidgetIconFromResource(ui->actionRunTemp, "run-temp", isDark);
     setWidgetIconFromResource(ui->actionProjectDetails, "project-settings", isDark);
     setWidgetIconFromResource(ui->actionUsbDevices, "usb-device", isDark);
+    setWidgetIconFromResource(ui->actionNetRunController, "net-run-controller", isDark);
+    setWidgetIconFromResource(ui->actionNetRunListener, "net-run-listener", isDark);
 }
 
 void MainWindow::shutdown(int errorCode)
@@ -1037,6 +1042,12 @@ void MainWindow::globalConfigActionTriggered()
 
     // show configuration dialog
     gcDlg.exec();
+
+    // immediately apply some visual changes
+    if (m_gconf->netControlEnabled())
+        ui->networkToolBar->show();
+    else
+        ui->networkToolBar->hide();
 }
 
 void MainWindow::setCurrentProjectFile(const QString &fileName)

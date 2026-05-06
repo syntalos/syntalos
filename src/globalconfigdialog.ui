@@ -92,7 +92,7 @@
             <property name="title">
              <string>Visual Style</string>
             </property>
-            <layout class="QVBoxLayout" name="verticalLayout_4">
+            <layout class="QFormLayout" name="formLayout">
              <property name="leftMargin">
               <number>4</number>
              </property>
@@ -105,30 +105,26 @@
              <property name="bottomMargin">
               <number>4</number>
              </property>
-             <item>
-              <layout class="QFormLayout" name="formLayout">
-               <item row="0" column="0">
-                <widget class="QLabel" name="colorModeLabel">
-                 <property name="text">
-                  <string>Color Mode</string>
-                 </property>
-                </widget>
+             <item row="0" column="0">
+              <widget class="QLabel" name="colorModeLabel">
+               <property name="text">
+                <string>Color Mode</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QComboBox" name="colorModeComboBox">
+               <item>
+                <property name="text">
+                 <string>Default</string>
+                </property>
                </item>
-               <item row="0" column="1">
-                <widget class="QComboBox" name="colorModeComboBox">
-                 <item>
-                  <property name="text">
-                   <string>Default</string>
-                  </property>
-                 </item>
-                 <item>
-                  <property name="text">
-                   <string>Dark</string>
-                  </property>
-                 </item>
-                </widget>
+               <item>
+                <property name="text">
+                 <string>Dark</string>
+                </property>
                </item>
-              </layout>
+              </widget>
              </item>
             </layout>
            </widget>
@@ -138,7 +134,7 @@
             <property name="title">
              <string>Engine</string>
             </property>
-            <layout class="QVBoxLayout" name="verticalLayout_5">
+            <layout class="QFormLayout" name="formLayout_3">
              <property name="leftMargin">
               <number>4</number>
              </property>
@@ -151,19 +147,73 @@
              <property name="bottomMargin">
               <number>4</number>
              </property>
-             <item>
-              <layout class="QFormLayout" name="formLayout_3">
-               <item row="0" column="0">
-                <widget class="QLabel" name="emergencyStopWhenLowOnMemoryLabel">
-                 <property name="text">
-                  <string>Emergency stop when low on memory</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="0" column="1">
-                <widget class="QCheckBox" name="cbEmergencyOOMStop"/>
-               </item>
-              </layout>
+             <item row="0" column="0">
+              <widget class="QLabel" name="emergencyStopWhenLowOnMemoryLabel">
+               <property name="text">
+                <string>Emergency stop when low on memory</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QCheckBox" name="cbEmergencyOOMStop"/>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <widget class="QGroupBox" name="groupBox_6">
+            <property name="title">
+             <string>Network Control</string>
+            </property>
+            <property name="checkable">
+             <bool>false</bool>
+            </property>
+            <layout class="QFormLayout" name="formLayout_4">
+             <property name="leftMargin">
+              <number>4</number>
+             </property>
+             <property name="topMargin">
+              <number>4</number>
+             </property>
+             <property name="rightMargin">
+              <number>4</number>
+             </property>
+             <property name="bottomMargin">
+              <number>4</number>
+             </property>
+             <item row="0" column="0">
+              <widget class="QLabel" name="netEnabledLabel">
+               <property name="text">
+                <string>Enabled</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QCheckBox" name="cbNetEnabled">
+               <property name="checked">
+                <bool>true</bool>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="portLabel">
+               <property name="text">
+                <string>Port</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QSpinBox" name="sbNetPort">
+               <property name="minimum">
+                <number>1024</number>
+               </property>
+               <property name="maximum">
+                <number>65535</number>
+               </property>
+               <property name="value">
+                <number>5556</number>
+               </property>
+              </widget>
              </item>
             </layout>
            </widget>
@@ -230,107 +280,118 @@
             <property name="title">
              <string>OS Scheduling</string>
             </property>
-            <layout class="QVBoxLayout" name="verticalLayout_6">
-             <item>
-              <layout class="QFormLayout" name="formLayout_2">
-               <item row="0" column="0">
-                <widget class="QLabel" name="minDefaultNicenessLabel">
-                 <property name="text">
-                  <string>Default thread niceness</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="0" column="1">
-                <widget class="QSpinBox" name="defaultNicenessSpinBox">
-                 <property name="toolTip">
-                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Some module threads run with a higher priority (lower niceness) than others, in order to be preferred for data acquisition.&lt;/p&gt;&lt;p&gt;You can adjust their default priority here.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                 </property>
-                 <property name="minimum">
-                  <number>-20</number>
-                 </property>
-                 <property name="maximum">
-                  <number>0</number>
-                 </property>
-                </widget>
-               </item>
-               <item row="1" column="0">
-                <widget class="QLabel" name="defaultRTPrioLabel">
-                 <property name="text">
-                  <string>Default realtime priority for RT threads</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="1" column="1">
-                <widget class="QSpinBox" name="defaultRTPrioSpinBox">
-                 <property name="toolTip">
-                  <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Some module threads can request realtime scheduling, to make data acquisition more immediate.&lt;/p&gt;&lt;p&gt;You can set their default realtime scheduling priority here.&lt;/p&gt;&lt;p&gt;Values are limited by system defaults in RealtimeKit.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-                 </property>
-                 <property name="maximum">
-                  <number>20</number>
-                 </property>
-                 <property name="value">
-                  <number>10</number>
-                 </property>
-                </widget>
-               </item>
-               <item row="2" column="0">
-                <widget class="QLabel" name="explicitlySetCPUCoreAffinitiesLabel">
-                 <property name="text">
-                  <string>Explicitly set CPU core affinities</string>
-                 </property>
-                </widget>
-               </item>
-               <item row="2" column="1">
-                <widget class="QWidget" name="widget_4" native="true">
-                 <property name="minimumSize">
-                  <size>
-                   <width>0</width>
-                   <height>22</height>
-                  </size>
-                 </property>
-                 <layout class="QHBoxLayout" name="horizontalLayout_4">
-                  <property name="spacing">
-                   <number>2</number>
+            <layout class="QFormLayout" name="formLayout_2">
+             <property name="verticalSpacing">
+              <number>6</number>
+             </property>
+             <property name="leftMargin">
+              <number>4</number>
+             </property>
+             <property name="topMargin">
+              <number>4</number>
+             </property>
+             <property name="rightMargin">
+              <number>4</number>
+             </property>
+             <property name="bottomMargin">
+              <number>4</number>
+             </property>
+             <item row="0" column="0">
+              <widget class="QLabel" name="minDefaultNicenessLabel">
+               <property name="text">
+                <string>Default thread niceness</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QSpinBox" name="defaultNicenessSpinBox">
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Some module threads run with a higher priority (lower niceness) than others, in order to be preferred for data acquisition.&lt;/p&gt;&lt;p&gt;You can adjust their default priority here.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
+               <property name="minimum">
+                <number>-20</number>
+               </property>
+               <property name="maximum">
+                <number>0</number>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="defaultRTPrioLabel">
+               <property name="text">
+                <string>Default realtime priority for RT threads</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QSpinBox" name="defaultRTPrioSpinBox">
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Some module threads can request realtime scheduling, to make data acquisition more immediate.&lt;/p&gt;&lt;p&gt;You can set their default realtime scheduling priority here.&lt;/p&gt;&lt;p&gt;Values are limited by system defaults in RealtimeKit.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
+               <property name="maximum">
+                <number>20</number>
+               </property>
+               <property name="value">
+                <number>10</number>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="explicitlySetCPUCoreAffinitiesLabel">
+               <property name="text">
+                <string>Explicitly set CPU core affinities</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1">
+              <widget class="QWidget" name="widget_4" native="true">
+               <property name="minimumSize">
+                <size>
+                 <width>0</width>
+                 <height>22</height>
+                </size>
+               </property>
+               <layout class="QHBoxLayout" name="horizontalLayout_4">
+                <property name="spacing">
+                 <number>2</number>
+                </property>
+                <property name="leftMargin">
+                 <number>0</number>
+                </property>
+                <property name="topMargin">
+                 <number>0</number>
+                </property>
+                <property name="rightMargin">
+                 <number>0</number>
+                </property>
+                <property name="bottomMargin">
+                 <number>0</number>
+                </property>
+                <item>
+                 <widget class="QCheckBox" name="explicitCoreAffinitiesCheckBox"/>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="cpuAffinityWarnButton">
+                  <property name="text">
+                   <string/>
                   </property>
-                  <property name="leftMargin">
-                   <number>0</number>
+                  <property name="icon">
+                   <iconset theme="emblem-warning">
+                    <normaloff>../modules/videorecorder</normaloff>../modules/videorecorder</iconset>
                   </property>
-                  <property name="topMargin">
-                   <number>0</number>
+                  <property name="iconSize">
+                   <size>
+                    <width>16</width>
+                    <height>16</height>
+                   </size>
                   </property>
-                  <property name="rightMargin">
-                   <number>0</number>
+                  <property name="flat">
+                   <bool>true</bool>
                   </property>
-                  <property name="bottomMargin">
-                   <number>0</number>
-                  </property>
-                  <item>
-                   <widget class="QCheckBox" name="explicitCoreAffinitiesCheckBox"/>
-                  </item>
-                  <item>
-                   <widget class="QPushButton" name="cpuAffinityWarnButton">
-                    <property name="text">
-                     <string/>
-                    </property>
-                    <property name="icon">
-                     <iconset theme="emblem-warning">
-                      <normaloff>../modules/videorecorder</normaloff>../modules/videorecorder</iconset>
-                    </property>
-                    <property name="iconSize">
-                     <size>
-                      <width>16</width>
-                      <height>16</height>
-                     </size>
-                    </property>
-                    <property name="flat">
-                     <bool>true</bool>
-                    </property>
-                   </widget>
-                  </item>
-                 </layout>
-                </widget>
-               </item>
-              </layout>
+                 </widget>
+                </item>
+               </layout>
+              </widget>
              </item>
             </layout>
            </widget>
@@ -393,19 +454,19 @@
             </property>
             <layout class="QVBoxLayout" name="verticalLayout_2">
              <property name="spacing">
-              <number>4</number>
+              <number>6</number>
              </property>
              <property name="leftMargin">
-              <number>2</number>
+              <number>4</number>
              </property>
              <property name="topMargin">
-              <number>2</number>
+              <number>4</number>
              </property>
              <property name="rightMargin">
-              <number>2</number>
+              <number>4</number>
              </property>
              <property name="bottomMargin">
-              <number>2</number>
+              <number>4</number>
              </property>
              <item>
               <widget class="QCheckBox" name="cbDisplayDevModules">
@@ -431,19 +492,19 @@
             </property>
             <layout class="QVBoxLayout" name="verticalLayout_8">
              <property name="spacing">
-              <number>4</number>
+              <number>6</number>
              </property>
              <property name="leftMargin">
-              <number>2</number>
+              <number>4</number>
              </property>
              <property name="topMargin">
-              <number>2</number>
+              <number>4</number>
              </property>
              <property name="rightMargin">
-              <number>2</number>
+              <number>4</number>
              </property>
              <property name="bottomMargin">
-              <number>2</number>
+              <number>4</number>
              </property>
              <item>
               <widget class="QWidget" name="widget_5" native="true">

@@ -54,6 +54,8 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent)
         ui->colorModeComboBox->setCurrentIndex(static_cast<int>(m_gc->appColorMode()));
     }
     ui->cbEmergencyOOMStop->setChecked(m_gc->emergencyOOMStop());
+    ui->cbNetEnabled->setChecked(m_gc->netControlEnabled());
+    ui->sbNetPort->setValue(m_gc->netControlPort());
 
     // advanced section
     ui->defaultNicenessSpinBox->setMaximum(20);
@@ -99,6 +101,18 @@ void GlobalConfigDialog::on_cbEmergencyOOMStop_toggled(bool checked)
 {
     if (m_acceptChanges)
         m_gc->setEmergencyOOMStop(checked);
+}
+
+void GlobalConfigDialog::on_cbNetEnabled_toggled(bool checked)
+{
+    if (m_acceptChanges)
+        m_gc->setNetControlEnabled(checked);
+}
+
+void GlobalConfigDialog::on_sbNetPort_valueChanged(int arg1)
+{
+    if (m_acceptChanges)
+        m_gc->setNetControlPort(arg1);
 }
 
 void GlobalConfigDialog::on_defaultNicenessSpinBox_valueChanged(int arg1)

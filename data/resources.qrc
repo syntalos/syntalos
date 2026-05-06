@@ -17,6 +17,9 @@
         <file alias="usb-device">usb-device.svg</file>
         <file alias="chip-connect">chip-connect.svg</file>
         <file alias="terminal">terminal.svg</file>
+        <file alias="net-run-controller">net-run-controller.svg</file>
+        <file alias="net-run-listener">net-run-listener.svg</file>
+        <file alias="net-run-settings">net-run-settings.svg</file>
     </qresource>
     <qresource prefix="/icons/dark">
         <file alias="run">dark/run.svg</file>
