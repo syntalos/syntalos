@@ -50,6 +50,104 @@ static PySyLinkManager *g_pslMgr = nullptr;
 
 using PyNewDataFn = std::function<void(const py::object &obj)>;
 
+// Restrict Python callback signatures to pathlib.Path while keeping fs::path internally.
+struct PyCallbackPath {
+    PyCallbackPath() = default;
+    PyCallbackPath(fs::path p)
+        : path(std::move(p))
+    {
+    }
+
+    fs::path path;
+};
+
+// Use callback-specific payload wrappers so nested Callable[...] stubs reflect
+// what Python code actually receives and returns.
+struct PyCallbackBytes {
+    PyCallbackBytes() = default;
+    PyCallbackBytes(ByteVector bytes)
+        : data(std::move(bytes))
+    {
+    }
+
+    ByteVector data;
+};
+
+struct PyCallbackBytesLike {
+    PyCallbackBytesLike() = default;
+    PyCallbackBytesLike(ByteVector bytes)
+        : data(std::move(bytes))
+    {
+    }
+
+    ByteVector data;
+};
+
+namespace pybind11::detail
+{
+
+template<>
+struct type_caster<PyCallbackPath> {
+    PYBIND11_TYPE_CASTER(PyCallbackPath, io_name("pathlib.Path", "pathlib.Path"));
+
+    bool load(handle src, bool convert)
+    {
+        make_caster<fs::path> path_caster;
+        if (!path_caster.load(src, convert))
+            return false;
+
+        value = PyCallbackPath{cast_op<fs::path>(path_caster)};
+        return true;
+    }
+
+    static handle cast(const PyCallbackPath &src, return_value_policy policy, handle parent)
+    {
+        return py::cast(src.path, policy, parent).release();
+    }
+};
+
+template<>
+struct type_caster<PyCallbackBytes> {
+    PYBIND11_TYPE_CASTER(PyCallbackBytes, io_name("bytes", "bytes"));
+
+    bool load(handle src, bool convert)
+    {
+        make_caster<ByteVector> bytes_caster;
+        if (!bytes_caster.load(src, convert))
+            return false;
+
+        value = PyCallbackBytes {cast_op<ByteVector>(bytes_caster)};
+        return true;
+    }
+
+    static handle cast(const PyCallbackBytes &src, return_value_policy policy, handle parent)
+    {
+        return py::cast(src.data, policy, parent).release();
+    }
+};
+
+template<>
+struct type_caster<PyCallbackBytesLike> {
+    PYBIND11_TYPE_CASTER(PyCallbackBytesLike, io_name("bytes | bytearray", "bytes | bytearray"));
+
+    bool load(handle src, bool convert)
+    {
+        make_caster<ByteVector> bytes_caster;
+        if (!bytes_caster.load(src, convert))
+            return false;
+
+        value = PyCallbackBytesLike {cast_op<ByteVector>(bytes_caster)};
+        return true;
+    }
+
+    static handle cast(const PyCallbackBytesLike &src, return_value_policy policy, handle parent)
+    {
+        return py::cast(src.data, policy, parent).release();
+    }
+};
+
+} // namespace pybind11::detail
+
 SyntalosPyError::SyntalosPyError(const char *what_arg)
     : std::runtime_error(what_arg) {};
 SyntalosPyError::SyntalosPyError(const std::string &what_arg)
@@ -319,7 +417,8 @@ struct OutputPort {
     const std::shared_ptr<OutputPortInfo> _oport;
 };
 
-using PySaveSettingsFn = std::function<ByteVector(const fs::path &baseDir)>;
+using PySaveSettingsFn = std::function<PyCallbackBytesLike(const PyCallbackPath &baseDir)>;
+using PyLoadSettingsFn = std::function<bool(const PyCallbackBytes &settings, const PyCallbackPath &baseDir)>;
 
 /**
  * Central link object for Syntalos Python modules.
@@ -339,7 +438,7 @@ private:
     StopFn m_stopFn;
 
     PySaveSettingsFn m_saveSettingsFn;
-    LoadSettingsFn m_loadSettingsFn;
+    PyLoadSettingsFn m_loadSettingsFn;
 
     ShowSettingsFn m_showSettingsFn;
     ShowDisplayFn m_showDisplayFn;
@@ -571,7 +670,8 @@ public:
 
         m_slink->setSaveSettingsCallback([this](ByteVector &settings, const fs::path &baseDir) {
             try {
-                settings = m_saveSettingsFn(baseDir);
+                auto pySettings = m_saveSettingsFn(baseDir);
+                settings = std::move(pySettings.data);
                 return true;
             } catch (py::error_already_set &e) {
                 if (!handlePyError(m_slink, e))
@@ -586,7 +686,7 @@ public:
         return m_saveSettingsFn;
     }
 
-    void setOnLoadSettings(LoadSettingsFn fn)
+    void setOnLoadSettings(PyLoadSettingsFn fn)
     {
         m_loadSettingsFn = std::move(fn);
         if (!m_loadSettingsFn) {
@@ -1482,13 +1582,13 @@ PYBIND11_MODULE(syntalos_mlink, m)
             &PySyLinkManager::setOnLoadSettings,
             "Register a callback invoked when Syntalos loads settings for this module.\n"
             "\n"
-            "The callback receives the loaded settings payload first (``bytes`` / ``bytearray``), followed by\n"
+            "The callback receives the loaded settings payload first (``bytes``), followed by\n"
             "the base project directory as ``pathlib.Path``.\n"
             "The callback must return ``True`` to signal that the settings were loaded successfully, or"
             " ``False`` / use ``raise_error`` to signal a loading failure.\n"
             "If not registered, incoming settings are ignored.\n"
             "\n"
-            "Type: ``Callable[[bytes | bytearray, pathlib.Path], bool] | None``.")
+            "Type: ``Callable[[bytes, pathlib.Path], bool] | None``.")
         .def(
             "register_input_port",
             &PySyLinkManager::registerInputPort,
