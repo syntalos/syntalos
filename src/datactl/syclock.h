@@ -142,6 +142,7 @@ public:
 
     void start() noexcept;
     void startAt(const symaster_timepoint &startTimePoint) noexcept;
+    void startAtWallTime(const std::chrono::system_clock::time_point &startWallTime) noexcept;
 
     inline milliseconds_t timeSinceStartMsec() noexcept
     {
@@ -163,13 +164,25 @@ public:
         return symaster_clock::now();
     }
 
-    symaster_timepoint startTime() noexcept
+    [[nodiscard]] symaster_timepoint startTime() const noexcept
     {
         return m_startTime;
     }
 
+    /**
+     * @brief Wall-clock time at which the timer was started (system_clock).
+     *
+     * Captured atomically alongside the master clock in start() / startAt(),
+     * so it can be used as an absolute reference for cross-device alignment.
+     */
+    [[nodiscard]] std::chrono::system_clock::time_point startWallTime() const noexcept
+    {
+        return m_startWallTime;
+    }
+
 private:
     symaster_timepoint m_startTime;
+    std::chrono::system_clock::time_point m_startWallTime;
     bool m_started;
 };
 

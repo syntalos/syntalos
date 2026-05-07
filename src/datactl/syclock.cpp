@@ -19,7 +19,7 @@
 
 #include "syclock.h"
 
-#include <time.h>
+#include <ctime>
 
 #include "eigenaux.h"
 #include "loginternal.h"
@@ -56,7 +56,10 @@ void SyncTimer::start() noexcept
         SY_LOG_CRITICAL(
             logTimeClock, "The master sync timer was restarted after it was already running! This must never happen.");
 
+    // capture both clocks as close together as possible so startWallTime() is a
+    // reliable absolute reference for cross-device alignment
     m_startTime = symaster_clock::now();
+    m_startWallTime = std::chrono::system_clock::now();
     m_started = true;
 }
 
@@ -66,6 +69,25 @@ void SyncTimer::startAt(const Syntalos::symaster_timepoint &startTimePoint) noex
         SY_LOG_CRITICAL(
             logTimeClock, "The master sync timer was restarted after it was already running! This must never happen.");
 
+    // Back-compute the wall-clock start from how long ago the master clock started.
+    // Both clocks tick at nanosecond resolution with (hopefully!) negligible relative drift,
+    // so the same elapsed duration serves as a ruler for both.
+    const auto elapsed = symaster_clock::now() - startTimePoint;
+    m_startWallTime = std::chrono::system_clock::now() - elapsed;
     m_startTime = startTimePoint;
+    m_started = true;
+}
+
+void SyncTimer::startAtWallTime(const std::chrono::system_clock::time_point &startWallTime) noexcept
+{
+    if (m_started)
+        SY_LOG_CRITICAL(
+            logTimeClock, "The master sync timer was restarted after it was already running! This must never happen.");
+
+    // Back-compute the master-clock start from how long ago the wall clock started.
+    // This allows multiple devices in a networked system to share a common t=0.
+    const auto elapsed = std::chrono::system_clock::now() - startWallTime;
+    m_startTime = symaster_clock::now() - std::chrono::duration_cast<symaster_clock::duration>(elapsed);
+    m_startWallTime = startWallTime;
     m_started = true;
 }
