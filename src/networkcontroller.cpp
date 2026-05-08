@@ -474,6 +474,20 @@ public:
         }
     }
 
+    /**
+     * Clears all per-run listener bookkeeping. Called both before applying a
+     * new prepare and from any path that might otherwise leave stale state
+     * (failed run, listener mode toggled off).
+     */
+    void resetListenerRunState()
+    {
+        runOriginRemote = false;
+        remoteRunId = Uuid{};
+        listenerPrepareAckPending = false;
+        listenerStopAckPending = false;
+        pendingStartWallTime.reset();
+    }
+
     void onRecvPrepareCommand(
         const Uuid &runId,
         const QString &project,
@@ -489,6 +503,9 @@ public:
             return;
         }
 
+        // Defensively clear any stray state from a previous (possibly aborted) run
+        resetListenerRunState();
+
         // Mark this run as remotely triggered so the controller path stays quiet
         runOriginRemote = true;
         remoteRunId = runId;
@@ -503,12 +520,11 @@ public:
 
         // Add some extra metadata about the remote-trigger event
         MetaStringMap netMeta;
-        netMeta["remote/project"] = project.toStdString();
-        netMeta["remote/launched_by"] = triggerInstanceId;
+        MetaStringMap metaRemote;
+        metaRemote["project"] = project.toStdString();
+        metaRemote["launched_by"] = triggerInstanceId;
+        netMeta["remote"] = metaRemote;
         engine->addNextRunExtraAttrMetadata(netMeta);
-
-        // Reset so waitForStartCommand() starts fresh for this run
-        pendingStartWallTime.reset();
 
         // Signal to allow connected slots to actually launch the run (in this case, we go through MainWindow)
         Q_EMIT self->prepareReceived(runId);
@@ -638,6 +654,7 @@ void NetworkController::stopListenerMode()
         return;
 
     d->listenerActive = false;
+    d->resetListenerRunState();
     d->stopWorker();
     if (d->controllerActive)
         d->startWorker();
@@ -788,6 +805,11 @@ void NetworkController::broadcastStop(const Uuid &runId, bool success)
     d->sendCtrlMsg(CommandKind::Broadcast, payload);
 }
 
+void NetworkController::resetListenerRunState()
+{
+    d->resetListenerRunState();
+}
+
 void NetworkController::onListenerRunReadyToStart()
 {
     // All modules are prepared; the engine is about to enter the start barrier.
@@ -821,8 +843,16 @@ void NetworkController::onListenerRunStopped()
 
 void NetworkController::onListenerRunFailed(AbstractModule * /*mod*/, const QString &message)
 {
-    if (!d->listenerActive || !d->runOriginRemote || !d->listenerPrepareAckPending)
+    if (!d->listenerActive || !d->runOriginRemote)
         return;
-    d->listenerPrepareAckPending = false;
-    d->sendAckReply(QStringLiteral("prepare"), d->remoteRunId, false, message);
+
+    // Surface the failure as a negative prepare ACK if we hadn't ACKed yet, so
+    // the controller knows immediately that this listener can not participate.
+    if (d->listenerPrepareAckPending)
+        d->sendAckReply(QStringLiteral("prepare"), d->remoteRunId, false, message);
+
+    // A failure may bypass the normal runStopped -> onListenerRunStopped path
+    // (e.g. when runInternal aborts before its teardown). Reset state defensively
+    // so the next remote prepare starts from a clean slate.
+    d->resetListenerRunState();
 }

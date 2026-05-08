@@ -114,6 +114,14 @@ public:
      */
     void broadcastStop(const Syntalos::Uuid &runId, bool success);
 
+    /**
+     * Reset all per-run listener bookkeeping. Engine calls this from
+     * abort paths in runInternal that bypass the normal runStopped
+     * / runFailed signal flow, so a subsequent remote prepare starts
+     * from a clean slate.
+     */
+    void resetListenerRunState();
+
     // Set project name (if we have any) to include in PREPARE broadcast
     void setProjectId(const QString &id);
 

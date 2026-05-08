@@ -1859,6 +1859,15 @@ bool Engine::waitForModulesReady(const ModuleRunOrder &modOrder)
  */
 bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
 {
+    // Cleanup for any abort path that returns early from this function before
+    // the normal teardown is reached. Without this, listener-side state
+    // (runOriginRemote, pending ACKs) and engine-injected metadata can leak
+    // into the next run.
+    auto cleanupAbortedRun = [this]() {
+        d->extraRunAttrs.clear();
+        d->netCtl->resetListenerRunState();
+    };
+
     QDir edlDir(exportDirPath);
     if (edlDir.exists()) {
         QMessageBox::critical(
@@ -1868,11 +1877,14 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
                 "Directory '%1' was expected to be nonexistent, but the directory exists. "
                 "Stopped run to prevent potential data loss. This condition should never happen.")
                 .arg(exportDirPath));
+        cleanupAbortedRun();
         return false;
     }
 
-    if (!makeDirectory(exportDirPath))
+    if (!makeDirectory(exportDirPath)) {
+        cleanupAbortedRun();
         return false;
+    }
 
     // ensure error queue is clean
     d->pendingErrors.clear();
@@ -1918,6 +1930,7 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
         d->active = false;
         d->failed = true;
         d->usbEventsTimer->start();
+        cleanupAbortedRun();
         return false;
     }
 
@@ -1946,6 +1959,10 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
         d->active = false;
         d->failed = true;
         d->usbEventsTimer->start();
+        // listeners that ACKed the prepare above are now waiting for START - tell
+        // them to abort, otherwise they would only unblock at the 30 s timeout.
+        d->netCtl->broadcastStop(storageCollection->collectionId(), false);
+        cleanupAbortedRun();
         return false;
     }
 
@@ -2259,103 +2276,118 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
                 "Did not receive a start command from the controlling network instance. Run has been aborted."));
             d->failed = true;
         }
+        // a stop request that arrived while we were waiting for the START command
+        // (e.g. via the user pressing Stop, or a network STOP) must abort the run
+        // rather than have it limp along into the running state
+        if (d->stopRequested)
+            d->failed = true;
+
         if (netStartWall.has_value())
             d->timer->startAtWallTime(*netStartWall);
         else
             d->timer->start();
         d->running = true;
 
-        // broadcast start time to network listeners
-        d->netCtl->broadcastStart(
-            storageCollection->collectionId(),
-            std::chrono::duration_cast<microseconds_t>(d->timer->startWallTime().time_since_epoch()).count());
+        // If the start barrier was aborted (network timeout, user stop), do not
+        // actually start any modules or emit runStarted. Just wake any threads
+        // waiting on the start condition so they can exit, and fall through to
+        // teardown - which will join them and clean up.
+        if (d->failed) {
+           startWaitCondition->wakeAll();
+            d->running = false;
+        } else {
+            // broadcast start time to network listeners
+            d->netCtl->broadcastStart(
+                storageCollection->collectionId(),
+                std::chrono::duration_cast<microseconds_t>(d->timer->startWallTime().time_since_epoch()).count());
 
-        // first, launch all threaded and evented modules
-        for (auto &mod : modOrder.start) {
-            if ((mod->driver() != ModuleDriverKind::THREAD_DEDICATED)
-                && (mod->driver() != ModuleDriverKind::EVENTS_DEDICATED)
-                && (mod->driver() != ModuleDriverKind::EVENTS_SHARED))
-                continue;
+            // first, launch all threaded and evented modules
+            for (auto &mod : modOrder.start) {
+                if ((mod->driver() != ModuleDriverKind::THREAD_DEDICATED)
+                    && (mod->driver() != ModuleDriverKind::EVENTS_DEDICATED)
+                    && (mod->driver() != ModuleDriverKind::EVENTS_SHARED))
+                    continue;
 
-            if (mod->state() != ModuleState::DORMANT)
-                mod->start();
-
-            // ensure modules are in their "running" state now, or
-            // have themselves declared "dormant" (meaning they won't be used at all)
-            if (mod->state() != ModuleState::ERROR) {
-                mod->m_running = true;
                 if (mod->state() != ModuleState::DORMANT)
-                    mod->setState(ModuleState::RUNNING);
+                    mod->start();
+
+                // ensure modules are in their "running" state now, or
+                // have themselves declared "dormant" (meaning they won't be used at all)
+                if (mod->state() != ModuleState::ERROR) {
+                    mod->m_running = true;
+                    if (mod->state() != ModuleState::DORMANT)
+                        mod->setState(ModuleState::RUNNING);
+                }
             }
-        }
 
-        // make stream exporter resume its work
-        streamExporter->run(startWaitCondition.get());
+            // make stream exporter resume its work
+            streamExporter->run(startWaitCondition.get());
 
-        // wake that thundering herd and hope all threaded modules awoken by the
-        // start signal behave properly
-        // (Threads *must* only be unlocked after we've sent start() to the modules, as they
-        // may prepare stuff in start() that the threads need, like timestamp syncs)
-        startWaitCondition->wakeAll();
+            // wake that thundering herd and hope all threaded modules awoken by the
+            // start signal behave properly
+            // (Threads *must* only be unlocked after we've sent start() to the modules, as they
+            // may prepare stuff in start() that the threads need, like timestamp syncs)
+            startWaitCondition->wakeAll();
 
-        LOG_DEBUG(
-            d->log, "Threaded/evented module startup completed, took {} msec", d->timer->timeSinceStartMsec().count());
-        lastPhaseTimepoint = d->timer->currentTimePoint();
+            LOG_DEBUG(
+                d->log, "Threaded/evented module startup completed, took {} msec", d->timer->timeSinceStartMsec().count());
+            lastPhaseTimepoint = d->timer->currentTimePoint();
 
-        // tell all non-threaded modules individually now that we started
-        for (auto &mod : modOrder.start) {
-            // ignore threaded & evented
-            if ((mod->driver() == ModuleDriverKind::THREAD_DEDICATED)
-                || (mod->driver() == ModuleDriverKind::EVENTS_DEDICATED)
-                || (mod->driver() == ModuleDriverKind::EVENTS_SHARED))
-                continue;
+            // tell all non-threaded modules individually now that we started
+            for (auto &mod : modOrder.start) {
+                // ignore threaded & evented
+                if ((mod->driver() == ModuleDriverKind::THREAD_DEDICATED)
+                    || (mod->driver() == ModuleDriverKind::EVENTS_DEDICATED)
+                    || (mod->driver() == ModuleDriverKind::EVENTS_SHARED))
+                    continue;
 
-            if (mod->state() != ModuleState::DORMANT)
-                mod->start();
-
-            // work around bad modules which don't set this on their own in start()
-            if (mod->state() != ModuleState::ERROR) {
-                mod->m_running = true;
                 if (mod->state() != ModuleState::DORMANT)
-                    mod->setState(ModuleState::RUNNING);
+                    mod->start();
+
+                // work around bad modules which don't set this on their own in start()
+                if (mod->state() != ModuleState::ERROR) {
+                    mod->m_running = true;
+                    if (mod->state() != ModuleState::DORMANT)
+                        mod->setState(ModuleState::RUNNING);
+                }
             }
+
+            LOG_DEBUG(
+                d->log,
+                "Startup phase completed, all modules are running. Took additional {} msec",
+                timeDiffToNowMsec(lastPhaseTimepoint).count());
+
+            // tell listeners that we are running now
+            emit runStarted();
+
+            emitStatusMessage(QStringLiteral("Running..."));
+            qApp->processEvents();
+
+            // apply main thread core affinity now
+            // (this must not be done earlier, as otherwise external module threads may inherit
+            //  the main thread's affinity settings)
+            if (!d->mainThreadCoreAffinity.empty())
+                thread_set_affinity_from_vec(pthread_self(), d->mainThreadCoreAffinity);
+
+            // run the main loop and process UI events
+            // modules may have injected themselves into the UI event loop
+            // as well via QTimer callbacks, in case they need to modify UI elements.
+            while (d->running) {
+                // process modules which want to be explicitly called to process UI events
+                for (auto &mod : callUiEventModules)
+                    mod->processUiEvents();
+
+                // process application GUI events
+                qApp->processEvents(QEventLoop::WaitForMoreEvents);
+
+                // bail in case something has failed
+                if (d->failed)
+                    break;
+            }
+
+            // stop resource watcher timers
+            stopResourceMonitoring();
         }
-
-        LOG_DEBUG(
-            d->log,
-            "Startup phase completed, all modules are running. Took additional {} msec",
-            timeDiffToNowMsec(lastPhaseTimepoint).count());
-
-        // tell listeners that we are running now
-        emit runStarted();
-
-        emitStatusMessage(QStringLiteral("Running..."));
-        qApp->processEvents();
-
-        // apply main thread core affinity now
-        // (this must not be done earlier, as otherwise external module threads may inherit
-        //  the main thread's affinity settings)
-        if (!d->mainThreadCoreAffinity.empty())
-            thread_set_affinity_from_vec(pthread_self(), d->mainThreadCoreAffinity);
-
-        // run the main loop and process UI events
-        // modules may have injected themselves into the UI event loop
-        // as well via QTimer callbacks, in case they need to modify UI elements.
-        while (d->running) {
-            // process modules which want to be explicitly called to process UI events
-            for (auto &mod : callUiEventModules)
-                mod->processUiEvents();
-
-            // process application GUI events
-            qApp->processEvents(QEventLoop::WaitForMoreEvents);
-
-            // bail in case something has failed
-            if (d->failed)
-                break;
-        }
-
-        // stop resource watcher timers
-        stopResourceMonitoring();
     }
 
     auto finishTimestamp = static_cast<long long>(d->timer->timeSinceStartMsec().count());
@@ -2646,7 +2678,7 @@ void Engine::onModuleError(const QString &message)
         d->runFailedReason = QStringLiteral("%1(%2): %3").arg(mod->id(), mod->name(), message);
         stopOnFailure = mod->modifiers().testFlag(ModuleModifier::STOP_ON_FAILURE);
     } else {
-        d->runFailedReason = QStringLiteral("?(?): %1").arg(message);
+        d->runFailedReason = message;
     }
 
     const bool wasRunning = d->running;
