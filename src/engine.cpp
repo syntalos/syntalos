@@ -60,6 +60,7 @@
 
 #include "globalconfig.h"
 #include "moduleeventthread.h"
+#include "networkcontroller.h"
 #include "modulelibrary.h"
 #include "mlinkmodule.h"
 #include "sysinfo.h"
@@ -302,6 +303,11 @@ public:
     QString lastRunExportDir;
     QString nextRunComment;
 
+    MetaStringMap extraRunAttrs; // extra attributes injected by external components (e.g. network controller)
+    NetworkController *netCtl;
+
+    bool stopRequested{false}; // set by stop() to interrupt a blocking wait cleanly
+
     QList<QPair<AbstractModule *, QString>> pendingErrors;
 
     bool saveInternal;
@@ -391,6 +397,12 @@ Engine::Engine(QWidget *parentWidget)
         });
         d->usbEventsTimer->start();
     }
+
+    d->netCtl = new NetworkController(d->gconf, this, this);
+    connect(d->netCtl, &NetworkController::statusMessage, this, &Engine::statusMessage);
+    connect(d->netCtl, &NetworkController::errorMessage, this, [this](const QString &msg) {
+        onModuleError(msg);
+    });
 }
 
 Engine::~Engine()
@@ -600,6 +612,16 @@ bool Engine::isActive() const
     return d->active;
 }
 
+bool Engine::isStopRequested() const
+{
+    return d->stopRequested;
+}
+
+bool Engine::isRunEphemeral() const
+{
+    return d->runIsEphemeral;
+}
+
 bool Engine::hasFailed() const
 {
     return d->failed;
@@ -689,7 +711,7 @@ AbstractModule *Engine::createModule(const QString &id, const QString &name)
     mod->setInitialized();
 
     // now listen to errors emitted by this module
-    connect(mod, &AbstractModule::error, this, &Engine::receiveModuleError);
+    connect(mod, &AbstractModule::error, this, &Engine::onModuleError);
 
     // connect synchronizer details callbacks
     connect(
@@ -819,6 +841,24 @@ void Engine::setRunComment(const QString &comment, const QString &runExportDir)
     file.open(attrsFname.toStdString());
     file << document << "\n";
     file.close();
+}
+
+NetworkController *Engine::netController() const
+{
+    return d->netCtl;
+}
+
+symaster_timepoint Engine::runStartTime() const
+{
+    if (d->timer)
+        return d->timer->startTime();
+    return symaster_timepoint{};
+}
+
+void Engine::addNextRunExtraAttrMetadata(const MetaStringMap &attrs)
+{
+    for (const auto &[k, v] : attrs)
+        d->extraRunAttrs.insert(k, v);
 }
 
 bool Engine::saveInternalDiagnostics() const
@@ -1128,7 +1168,7 @@ void Engine::notifyUsbHotplugEvent(UsbHotplugEventKind kind) const
     }
 }
 
-bool Engine::run()
+bool Engine::run(const Uuid &recordIdOverride)
 {
     if (d->running)
         return false;
@@ -1216,7 +1256,7 @@ bool Engine::run()
     }
 
     // perform the actual run, now that all error checking is done
-    return runInternal(d->exportDir);
+    return runInternal(d->exportDir, recordIdOverride);
 }
 
 bool Engine::runEphemeral()
@@ -1366,7 +1406,7 @@ void Engine::onMemoryMonitorEvent()
     if (memInfo.memAvailablePercent < d->monitoring->prevMemAvailablePercent && memInfo.memAvailablePercent < 1.6
         && d->monitoring->emergencyOOMStop) {
         LOG_WARNING(d->log, "Less than 2% of system memory available and shrinking, commencing emergency stop.");
-        receiveModuleError(QStringLiteral(
+        onModuleError(QStringLiteral(
             "Emergency stop: We are low on system memory, and it is continuing to shrink rapidly.\n"
             "To prevent Syntalos from being killed by the system and loosing data, this run has been stopped.\n"
             "Please check your module setup to ensure modules are able to process incoming data fast enough.\n"
@@ -1578,6 +1618,11 @@ bool Engine::finalizeExperimentMetadata(
         attrModList.push_back(info);
     }
     extraData["modules"] = attrModList;
+
+    for (const auto &[k, v] : d->extraRunAttrs)
+        extraData.insert(k, v);
+    d->extraRunAttrs.clear();
+
     storageCollection->setAttributes(extraData);
 
     LOG_INFO(d->log, "Saving experiment metadata in: {}", storageCollection->path().string());
@@ -1812,7 +1857,7 @@ bool Engine::waitForModulesReady(const ModuleRunOrder &modOrder)
  * doing *no* error checking on the data export path anymore.
  * It may never be called from anything but internal engine functions.
  */
-bool Engine::runInternal(const QString &exportDirPath)
+bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
 {
     QDir edlDir(exportDirPath);
     if (edlDir.exists()) {
@@ -1832,6 +1877,9 @@ bool Engine::runInternal(const QString &exportDirPath)
     // ensure error queue is clean
     d->pendingErrors.clear();
 
+    // a fresh run starts un-stopped
+    d->stopRequested = false;
+
     // the engine is actively doing stuff with modules now
     d->active = true;
     d->usbEventsTimer->stop();
@@ -1840,7 +1888,7 @@ bool Engine::runInternal(const QString &exportDirPath)
     d->runFailedReason = QString();
 
     // tell listeners that we are preparing a run
-    emit preRunStart();
+    Q_EMIT preRunPrepare();
 
     // cache default thread RT and niceness values
     const auto defaultThreadNice = d->gconf->defaultThreadNice();
@@ -1860,8 +1908,18 @@ bool Engine::runInternal(const QString &exportDirPath)
 
     // create new experiment directory layout (EDL) collection to store
     // all data modules generate in
-    auto storageCollection = std::make_shared<EDLCollection>(d->exportName.toStdString());
+    auto storageCollection = std::make_shared<EDLCollection>(d->exportName.toStdString(), recordingId);
     storageCollection->setPath(exportDirPath.toStdString());
+
+    // notify network controller that a run is being prepared (controller mode);
+    // this call may block briefly to await ACKs from network listeners
+    if (!d->netCtl->broadcastPrepare(
+            storageCollection->collectionId(), d->testSubject.id, d->testSubject.group, d->experimentIdFinal)) {
+        d->active = false;
+        d->failed = true;
+        d->usbEventsTimer->start();
+        return false;
+    }
 
     // if we should save internal diagnostic data, create a group for it!
     if (d->saveInternal) {
@@ -2187,9 +2245,30 @@ bool Engine::runInternal(const QString &exportDirPath)
         // start monitoring resource issues during this run
         startResourceMonitoring(modOrder.start, exportDirPath);
 
-        // we officially start now, launch the timer
-        d->timer->start();
+        // signal that all modules are prepared and we are about to start the timer;
+        // in listener mode, NetworkController uses this to send the prepare ACK to
+        // the controller ("I am ready to start on your command")
+        Q_EMIT runReadyToStart();
+
+        // If in network listener mode, wait for the controller's START command before
+        // starting the timer - this is what synchronizes start times across the fleet.
+        std::optional<std::chrono::system_clock::time_point> netStartWall;
+        if (!d->netCtl->waitForStartCommand(storageCollection->collectionId(), netStartWall)) {
+            LOG_WARNING(d->log, "Timed out waiting for network START command - aborting run");
+            onModuleError(QStringLiteral(
+                "Did not receive a start command from the controlling network instance. Run has been aborted."));
+            d->failed = true;
+        }
+        if (netStartWall.has_value())
+            d->timer->startAtWallTime(*netStartWall);
+        else
+            d->timer->start();
         d->running = true;
+
+        // broadcast start time to network listeners
+        d->netCtl->broadcastStart(
+            storageCollection->collectionId(),
+            std::chrono::duration_cast<microseconds_t>(d->timer->startWallTime().time_since_epoch()).count());
 
         // first, launch all threaded and evented modules
         for (auto &mod : modOrder.start) {
@@ -2542,8 +2621,11 @@ bool Engine::runInternal(const QString &exportDirPath)
     __lsan_do_recoverable_leak_check();
 #endif
 
+    // broadcast stop to network listeners
+    d->netCtl->broadcastStop(storageCollection->collectionId(), !d->failed);
+
     // tell listeners that we are stopped now
-    emit runStopped();
+    Q_EMIT runStopped();
 
     emitStatusMessage(QStringLiteral("Ready."));
     return true;
@@ -2552,14 +2634,15 @@ bool Engine::runInternal(const QString &exportDirPath)
 void Engine::stop()
 {
     d->running = false;
+    d->stopRequested = true;
 }
 
-void Engine::receiveModuleError(const QString &message)
+void Engine::onModuleError(const QString &message)
 {
     auto mod = qobject_cast<AbstractModule *>(sender());
-    mod->setState(ModuleState::ERROR);
     bool stopOnFailure = true;
     if (mod != nullptr) {
+        mod->setState(ModuleState::ERROR);
         d->runFailedReason = QStringLiteral("%1(%2): %3").arg(mod->id(), mod->name(), message);
         stopOnFailure = mod->modifiers().testFlag(ModuleModifier::STOP_ON_FAILURE);
     } else {
@@ -2580,7 +2663,7 @@ void Engine::receiveModuleError(const QString &message)
     if (wasRunning || !stopOnFailure)
         d->pendingErrors.append(qMakePair(mod, message));
     else
-        emit runFailed(mod, message);
+        Q_EMIT runFailed(mod, message);
 }
 
 void Engine::onSynchronizerDetailsChanged(const std::string &id, const TimeSyncStrategies &, const microseconds_t &)

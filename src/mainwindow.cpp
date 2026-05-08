@@ -299,7 +299,7 @@ MainWindow::MainWindow(QWidget *parent)
         ui->networkToolBar->hide();
 
     // connect actions
-    connect(ui->actionRun, &QAction::triggered, this, &MainWindow::runActionTriggered);
+    connect(ui->actionRun, &QAction::triggered, this, qOverload<>(&MainWindow::runActionTriggered));
     connect(ui->actionRunTemp, &QAction::triggered, this, &MainWindow::temporaryRunActionTriggered);
     connect(ui->actionStop, &QAction::triggered, this, &MainWindow::stopActionTriggered);
     connect(ui->actionProjectNew, &QAction::triggered, this, &MainWindow::projectNewActionTriggered);
@@ -316,7 +316,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_engine, &Engine::runFailed, this, &MainWindow::moduleErrorReceived);
     connect(m_engine, &Engine::statusMessage, this, &MainWindow::statusMessageChanged);
     connect(m_engine, &Engine::moduleCreated, this, &MainWindow::onModuleCreated);
-    connect(m_engine, &Engine::preRunStart, this, &MainWindow::onEnginePreRunStart);
+    connect(m_engine, &Engine::preRunPrepare, this, &MainWindow::onEnginePreRunPrepare);
     connect(m_engine, &Engine::runStarted, this, &MainWindow::onEngineRunStarted);
     connect(m_engine, &Engine::runStopped, this, &MainWindow::onEngineStopped);
     connect(m_engine, &Engine::resourceWarningUpdate, this, &MainWindow::onEngineResourceWarningUpdate);
@@ -333,6 +333,15 @@ MainWindow::MainWindow(QWidget *parent)
         hideBusyIndicator();
         setConfigModifyAllowed(true);
     });
+
+    // connect network controller component
+    {
+        auto netCtl = m_engine->netController();
+        connect(ui->actionNetRunController, &QAction::toggled, this, &MainWindow::onActionNetControllerToggled);
+        connect(ui->actionNetRunListener, &QAction::toggled, this, &MainWindow::onActionNetListenerToggled);
+        connect(netCtl, &NetworkController::prepareReceived, this, &MainWindow::onNetPrepareReceived);
+        connect(netCtl, &NetworkController::stopReceived, this, &MainWindow::onNetStopReceived);
+    }
 
     // keep the export directory preview in sync with the optional hour/minute suffix setting
     m_engine->setClockTimeInExportDir(ui->cbClockTimeInExportDir->isChecked());
@@ -442,6 +451,21 @@ void MainWindow::setRunPossible(bool enabled)
 {
     ui->actionRun->setEnabled(enabled && m_engine->exportDirIsValid());
     ui->actionRunTemp->setEnabled(enabled);
+
+    // override in case we are configured for a network run
+    auto netCtl = m_engine->netController();
+    if (netCtl->isListenerActive() && !netCtl->isControllerActive()) {
+        ui->actionRun->setEnabled(false);
+        ui->actionRunTemp->setEnabled(false);
+    }
+}
+
+void MainWindow::updateManualRunPossible()
+{
+    // never touch this state if we are running
+    if (m_engine->isActive())
+        return;
+    setRunPossible(true);
 }
 
 void MainWindow::setRunUiControlStates(bool engineRunning, bool stopPossible)
@@ -490,7 +514,7 @@ void MainWindow::setExperimenterSelectVisible(bool visible)
     ui->experimenterWidget->setVisible(visible);
 }
 
-void MainWindow::runActionTriggered()
+void MainWindow::runActionTriggered(const Uuid &recordIdOverride)
 {
     setRunPossible(false);
     ui->runWarnWidget->setVisible(false);
@@ -579,12 +603,17 @@ void MainWindow::runActionTriggered()
         ui->runWarnWidget->setVisible(false);
         LOG_INFO(m_log, "Finished interval run session");
     } else {
-        m_engine->run();
+        m_engine->run(recordIdOverride);
     }
 
     // we are stopped now
     setRunUiControlStates(false, false);
     setRunPossible(true);
+}
+
+void MainWindow::runActionTriggered()
+{
+    runActionTriggered({});
 }
 
 void MainWindow::temporaryRunActionTriggered()
@@ -620,6 +649,37 @@ void MainWindow::stopActionTriggered()
     showBusyIndicatorProcessing();
     QApplication::processEvents();
     m_engine->stop();
+}
+
+void MainWindow::onActionNetControllerToggled(bool checked)
+{
+    if (checked)
+        m_engine->netController()->startControllerMode();
+    else
+        m_engine->netController()->stopControllerMode();
+
+    updateManualRunPossible();
+}
+
+void MainWindow::onActionNetListenerToggled(bool checked)
+{
+    if (checked)
+        m_engine->netController()->startListenerMode();
+    else
+        m_engine->netController()->stopListenerMode();
+
+    updateManualRunPossible();
+}
+
+void MainWindow::onNetPrepareReceived(const Uuid &runId)
+{
+    runActionTriggered(runId);
+}
+
+void MainWindow::onNetStopReceived(const Uuid &runId)
+{
+    Q_UNUSED(runId)
+    stopActionTriggered();
 }
 
 bool MainWindow::saveConfiguration(const QString &fileName)
@@ -1056,11 +1116,15 @@ void MainWindow::setCurrentProjectFile(const QString &fileName)
         this->setWindowTitle(QStringLiteral("Syntalos"));
         if (!m_currentProjectFname.isEmpty())
             LOG_INFO(m_log, "Current board settings file reset.");
+
+        m_engine->netController()->setProjectId(QStringLiteral("new-project"));
         m_currentProjectFname = fileName;
     } else {
         m_currentProjectFname = fileName;
         QFileInfo fi(fileName);
         this->setWindowTitle(QStringLiteral("Syntalos – %2").arg(fi.completeBaseName()));
+
+        m_engine->netController()->setProjectId(fi.baseName());
         LOG_INFO(m_log, "Current board settings file: {}", m_currentProjectFname);
     }
 }
@@ -1272,7 +1336,7 @@ void MainWindow::moduleErrorReceived(AbstractModule *mod, const QString &message
     QMessageBox::critical(this, errorTitle, message);
 }
 
-void MainWindow::onEnginePreRunStart()
+void MainWindow::onEnginePreRunPrepare()
 {
     m_rtElapsedTimer->start();
     showBusyIndicatorProcessing();
@@ -1281,6 +1345,8 @@ void MainWindow::onEnginePreRunStart()
     ui->diskSpaceWarnWidget->setVisible(false);
     ui->memoryWarnWidget->setVisible(false);
     ui->cpuWarnWidget->setVisible(false);
+    ui->actionNetRunController->setEnabled(false);
+    ui->actionNetRunListener->setEnabled(false);
 
     // ensure the edge cache is cleared, it may be invalid
     m_portGraphEdgeCache.clear();
@@ -1304,7 +1370,7 @@ void MainWindow::onEngineRunStarted()
 
 void MainWindow::onEngineStopped()
 {
-    // do nothing if we are still in interval mode and will laucnh again
+    // do nothing if we are still in interval mode and will launch again
     if (m_isIntervalRun)
         return;
 
@@ -1317,6 +1383,8 @@ void MainWindow::onEngineStopped()
     ui->diskSpaceWarnWidget->setVisible(false);
     ui->memoryWarnWidget->setVisible(false);
     ui->cpuWarnWidget->setVisible(false);
+    ui->actionNetRunController->setEnabled(true);
+    ui->actionNetRunListener->setEnabled(true);
 
     // clear edge cache (used for faster edge heat updates)
     m_portGraphEdgeCache.clear();

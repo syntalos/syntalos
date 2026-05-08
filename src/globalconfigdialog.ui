@@ -198,12 +198,15 @@
              <item row="1" column="0">
               <widget class="QLabel" name="portLabel">
                <property name="text">
-                <string>Port</string>
+                <string>Control Port</string>
                </property>
               </widget>
              </item>
              <item row="1" column="1">
-              <widget class="QSpinBox" name="sbNetPort">
+              <widget class="QSpinBox" name="sbNetControlPort">
+               <property name="toolTip">
+                <string>Port for broadcasting run commands (controller binds here, listeners subscribe)</string>
+               </property>
                <property name="minimum">
                 <number>1024</number>
                </property>
@@ -212,6 +215,112 @@
                </property>
                <property name="value">
                 <number>5556</number>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="lblNetFeedbackPort">
+               <property name="text">
+                <string>Feedback Port</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1">
+              <widget class="QSpinBox" name="sbNetFeedbackPort">
+               <property name="toolTip">
+                <string>Port for receiving acknowledgments from listeners (controller binds here)</string>
+               </property>
+               <property name="minimum">
+                <number>1024</number>
+               </property>
+               <property name="maximum">
+                <number>65535</number>
+               </property>
+               <property name="value">
+                <number>5557</number>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="0">
+              <widget class="QLabel" name="lblNetHost">
+               <property name="text">
+                <string>Controller Host</string>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="1">
+              <widget class="QLineEdit" name="leNetHost">
+               <property name="toolTip">
+                <string>Hostname or IP of the network controller (used in listener mode only)</string>
+               </property>
+               <property name="placeholderText">
+                <string>localhost</string>
+               </property>
+              </widget>
+             </item>
+             <item row="4" column="0">
+              <widget class="QLabel" name="lblNetInstanceId">
+               <property name="text">
+                <string>Instance ID</string>
+               </property>
+              </widget>
+             </item>
+             <item row="4" column="1">
+              <widget class="QLineEdit" name="leNetInstanceId">
+               <property name="toolTip">
+                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Short unique identifier for this Syntalos instance used in network messages.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+               </property>
+              </widget>
+             </item>
+             <item row="5" column="0">
+              <widget class="QLabel" name="lblNetAckCount">
+               <property name="text">
+                <string>Expected Clients</string>
+               </property>
+              </widget>
+             </item>
+             <item row="5" column="1">
+              <widget class="QSpinBox" name="sbNetClientCount">
+               <property name="toolTip">
+                <string>Number of listener ACKs the controller must receive before proceeding (0 = fire-and-forget)</string>
+               </property>
+               <property name="minimum">
+                <number>0</number>
+               </property>
+               <property name="maximum">
+                <number>256</number>
+               </property>
+               <property name="value">
+                <number>0</number>
+               </property>
+              </widget>
+             </item>
+             <item row="6" column="0">
+              <widget class="QLabel" name="lblNetAckTimeout">
+               <property name="text">
+                <string>Timeout Delay</string>
+               </property>
+              </widget>
+             </item>
+             <item row="6" column="1">
+              <widget class="QSpinBox" name="sbNetTimeout">
+               <property name="toolTip">
+                <string>Maximum time to wait for listener ACKs before continuing or aborting (milliseconds)</string>
+               </property>
+               <property name="suffix">
+                <string> ms</string>
+               </property>
+               <property name="minimum">
+                <number>100</number>
+               </property>
+               <property name="maximum">
+                <number>120000</number>
+               </property>
+               <property name="singleStep">
+                <number>100</number>
+               </property>
+               <property name="value">
+                <number>6000</number>
                </property>
               </widget>
              </item>

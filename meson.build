@@ -285,6 +285,8 @@ gstreamer_dep = dependency('gstreamer-1.0')
 gstreamer_app_dep = dependency('gstreamer-app-1.0')
 gstreamer_video_dep = dependency('gstreamer-video-1.0')
 
+cppzmq_dep = dependency('cppzmq')
+
 python_dep = dependency('python3')
 python_embed_dep = dependency('python3-embed')
 pybind11_dep = dependency('pybind11', version: '>= 3.0')

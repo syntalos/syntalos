@@ -55,7 +55,12 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent)
     }
     ui->cbEmergencyOOMStop->setChecked(m_gc->emergencyOOMStop());
     ui->cbNetEnabled->setChecked(m_gc->netControlEnabled());
-    ui->sbNetPort->setValue(m_gc->netControlPort());
+    ui->sbNetControlPort->setValue(m_gc->netControlPort());
+    ui->sbNetFeedbackPort->setValue(m_gc->netFeedbackPort());
+    ui->leNetHost->setText(m_gc->netControlHost());
+    ui->leNetInstanceId->setText(m_gc->netInstanceId());
+    ui->sbNetClientCount->setValue(m_gc->netExpectedClientCount());
+    ui->sbNetTimeout->setValue(m_gc->netControlTimeoutMs());
 
     // advanced section
     ui->defaultNicenessSpinBox->setMaximum(20);
@@ -109,10 +114,40 @@ void GlobalConfigDialog::on_cbNetEnabled_toggled(bool checked)
         m_gc->setNetControlEnabled(checked);
 }
 
-void GlobalConfigDialog::on_sbNetPort_valueChanged(int arg1)
+void GlobalConfigDialog::on_sbNetControlPort_valueChanged(int arg1)
 {
     if (m_acceptChanges)
         m_gc->setNetControlPort(arg1);
+}
+
+void GlobalConfigDialog::on_sbNetFeedbackPort_valueChanged(int arg1)
+{
+    if (m_acceptChanges)
+        m_gc->setNetFeedbackPort(arg1);
+}
+
+void GlobalConfigDialog::on_leNetHost_textEdited(const QString &text)
+{
+    if (m_acceptChanges)
+        m_gc->setNetControlHost(text);
+}
+
+void GlobalConfigDialog::on_leNetInstanceId_textEdited(const QString &text)
+{
+    if (m_acceptChanges)
+        m_gc->setInstanceId(text);
+}
+
+void GlobalConfigDialog::on_sbNetClientCount_valueChanged(int arg1)
+{
+    if (m_acceptChanges)
+        m_gc->setNetExpectedClientCount(arg1);
+}
+
+void GlobalConfigDialog::on_sbNetTimeout_valueChanged(int arg1)
+{
+    if (m_acceptChanges)
+        m_gc->setNetControlTimeoutMs(arg1);
 }
 
 void GlobalConfigDialog::on_defaultNicenessSpinBox_valueChanged(int arg1)

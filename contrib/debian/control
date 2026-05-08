@@ -4,6 +4,7 @@ Priority: optional
 Maintainer: Matthias Klumpp <mak@debian.org>
 Build-Depends: debhelper-compat (= 13),
                cmake,
+               cppzmq-dev,
                gettext,
                git,
                gobject-introspection,

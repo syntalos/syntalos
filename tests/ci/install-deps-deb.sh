@@ -24,6 +24,7 @@ eatmydata apt-get install -yq --no-install-recommends \
     python3-pip \
     cmake \
     gettext \
+    cppzmq-dev \
     libaravis-dev \
     libavcodec-dev \
     libavformat-dev \
@@ -78,4 +79,5 @@ eatmydata apt-get install -yq --no-install-recommends \
     python3-pyqt6 \
     python3-virtualenv \
     python3-zarr \
+    python3-zmq \
     rtkit

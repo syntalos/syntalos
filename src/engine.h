@@ -22,11 +22,13 @@
 #include <QObject>
 #include <memory>
 
+#include "datactl/uuid.h"
 #include "exportdirutils.h"
 #include "moduleapi.h"
 #include "modulelibrary.h"
 #include "sysinfo.h"
 
+class NetworkController;
 class MLinkModule;
 
 namespace Syntalos
@@ -84,9 +86,35 @@ public:
     void setExportDirLayout(const QList<ExportPathComponent> &layout);
 
     QString exportDir() const;
+
+    /**
+     * True if we are actively running an experiment and have left the preflight stage.
+     */
     bool isRunning() const;
+
+    /**
+     * True if the engine is performing any action and is busy, be it preflight
+     * preparations or running an experiment.
+     */
     bool isActive() const;
+
+    /**
+     * True if stop() has been called and the engine is in the process of winding down.
+     * Useful for code that blocks on event-loop spinning (e.g. network barrier waits)
+     * and needs to detect an external stop request before the run fully terminates.
+     */
+    bool isStopRequested() const;
+
+    /**
+     * True if the run does not store any persistent data.
+     */
+    bool isRunEphemeral() const;
+
+    /**
+     * True if the last/current run has failed.
+     */
     bool hasFailed() const;
+
     milliseconds_t currentRunElapsedTime() const;
 
     void resetSuccessRunsCounter();
@@ -109,6 +137,12 @@ public:
      */
     void setRunComment(const QString &comment, const QString &runExportDir = nullptr);
 
+    symaster_timepoint runStartTime() const;
+
+    void addNextRunExtraAttrMetadata(const MetaStringMap &attrs);
+
+    NetworkController *netController() const;
+
     bool saveInternalDiagnostics() const;
     void setSaveInternalDiagnostics(bool save);
 
@@ -118,7 +152,7 @@ public slots:
     /**
      * @brief Run the current board, save all data
      */
-    bool run();
+    bool run(const Uuid &recordIdOverride = {});
 
     /**
      * @brief Run the current board, do not keep any experiment data
@@ -138,7 +172,20 @@ signals:
     void moduleInitDone();
 
     void statusMessage(const QString &message);
-    void preRunStart();
+
+    /**
+     * Emitted when a new run is initiated, but before modules
+     * begin being prepared and most of the preflight checks are done.
+     */
+    void preRunPrepare();
+
+    /**
+     * Emitted when all modules are prepared and the engine is about to start
+     * the master timer.  In listener mode, NetworkController uses this to send
+     * the prepare ACK to the controller ("I am ready to start").
+     */
+    void runReadyToStart();
+
     void runStarted();
     void runFailed(AbstractModule *mod, const QString &message);
     void runStopped();
@@ -147,7 +194,7 @@ signals:
     void connectionHeatChangedAtPort(VarStreamInputPort *iport, ConnectionHeatLevel hlevel);
 
 private slots:
-    void receiveModuleError(const QString &message);
+    void onModuleError(const QString &message);
 
     void onSynchronizerDetailsChanged(
         const std::string &id,
@@ -188,7 +235,7 @@ private:
     void allocateNicenessBudget(const ModuleRunOrder &modOrder, uint maxRtThreads, int defaultThreadNice);
     bool validateModuleNames(const ModuleRunOrder &modOrder);
     bool waitForModulesReady(const ModuleRunOrder &modOrder);
-    bool runInternal(const QString &exportDirPath);
+    bool runInternal(const QString &exportDirPath, const Uuid &recordingId = {});
     void makeFinalExperimentId();
     void refreshExportDirPath();
     void emitStatusMessage(const QString &message);

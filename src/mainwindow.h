@@ -25,6 +25,7 @@
 #include "engine.h"
 #include "entitylistmodels.h"
 #include "moduleapi.h"
+#include "networkcontroller.h"
 #include "utils/misc.h"
 
 #if !defined(DOXYGEN_SHOULD_SKIP_THIS)
@@ -104,8 +105,15 @@ public:
 
 private slots:
     void runActionTriggered();
+    void runActionTriggered(const Uuid &recordIdOverride);
     void temporaryRunActionTriggered();
     void stopActionTriggered();
+
+    void onActionNetControllerToggled(bool checked);
+    void onActionNetListenerToggled(bool checked);
+
+    void onNetPrepareReceived(const Uuid &runId);
+    void onNetStopReceived(const Uuid &runId);
 
     void openDataExportDirectory();
     void showExperimenterSelector(const QString &message);
@@ -121,7 +129,7 @@ private slots:
 
     void onModuleCreated(ModuleInfo *info, AbstractModule *mod);
     void moduleErrorReceived(AbstractModule *mod, const QString &message);
-    void onEnginePreRunStart();
+    void onEnginePreRunPrepare();
     void onEngineRunStarted();
     void onEngineStopped();
     void onEngineResourceWarningUpdate(Engine::SystemResource kind, bool resolved, const QString &message);
@@ -171,6 +179,7 @@ private:
     void changeExportDirLayout(const QList<ExportPathComponent> &layout);
 
     void setRunPossible(bool enabled);
+    void updateManualRunPossible();
     void setRunUiControlStates(bool engineRunning, bool stopPossible);
     void setConfigModifyAllowed(bool allowed);
     void setExperimenterSelectVisible(bool visible);

@@ -96,6 +96,21 @@ public:
     int netControlPort() const;
     void setNetControlPort(int port);
 
+    int netFeedbackPort() const;
+    void setNetFeedbackPort(int port);
+
+    QString netControlHost() const;
+    void setNetControlHost(const QString &host);
+
+    QString netInstanceId() const;
+    void setInstanceId(const QString &id);
+
+    int netExpectedClientCount() const;
+    void setNetExpectedClientCount(int count);
+
+    int netControlTimeoutMs() const;
+    void setNetControlTimeoutMs(int ms);
+
     QString lastProjectDir() const;
     void setLastProjectDir(const QString &dir);
 

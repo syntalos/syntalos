@@ -24,6 +24,7 @@
 #include <QSettings>
 #include <QStandardPaths>
 #include <QCoreApplication>
+#include <QSysInfo>
 
 #include "datactl/priv/rtkit.h"
 #include "utils/misc.h"
@@ -231,12 +232,68 @@ void GlobalConfig::setNetControlEnabled(bool enabled)
 
 int GlobalConfig::netControlPort() const
 {
-    return m_s->value("net_control/port", 5556).toInt();
+    return m_s->value("net_control/control_port", 5556).toInt();
 }
 
 void GlobalConfig::setNetControlPort(int port)
 {
-    m_s->setValue("net_control/port", port);
+    m_s->setValue("net_control/control_port", port);
+}
+
+int GlobalConfig::netFeedbackPort() const
+{
+    return m_s->value("net_control/feedback_port", 5557).toInt();
+}
+
+void GlobalConfig::setNetFeedbackPort(int port)
+{
+    m_s->setValue("net_control/feedback_port", port);
+}
+
+QString GlobalConfig::netControlHost() const
+{
+    return m_s->value("net_control/host", QStringLiteral("localhost")).toString();
+}
+
+void GlobalConfig::setNetControlHost(const QString &host)
+{
+    m_s->setValue("net_control/host", host);
+}
+
+QString GlobalConfig::netInstanceId() const
+{
+    auto id = m_s->value("instance_id").toString();
+    if (id.isEmpty()) {
+        id = QSysInfo::machineHostName();
+        if (id.isEmpty())
+            id = QStringLiteral("syntalos-instance");
+    }
+    return id;
+}
+
+void GlobalConfig::setInstanceId(const QString &id)
+{
+    m_s->setValue("instance_id", id);
+}
+
+int GlobalConfig::netExpectedClientCount() const
+{
+    return m_s->value("net_control/expected_client_count", 0).toInt();
+}
+
+void GlobalConfig::setNetExpectedClientCount(int count)
+{
+    m_s->setValue("net_control/expected_client_count", count);
+}
+
+int GlobalConfig::netControlTimeoutMs() const
+{
+    return m_s->value("net_control/timeout_ms", 6000).toInt();
+}
+
+void GlobalConfig::setNetControlTimeoutMs(int ms)
+{
+    m_s->setValue("net_control/timeout_ms", ms);
 }
 
 QString GlobalConfig::lastProjectDir() const
