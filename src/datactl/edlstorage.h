@@ -186,8 +186,8 @@ protected:
     std::expected<void, std::string> saveManifest();
     std::expected<void, std::string> saveAttributes();
 
-    std::string generatorId() const;
-    void setGeneratorId(const std::string &idString);
+    virtual std::string generatorId() const;
+    virtual void setGeneratorId(const std::string &idString);
 
 private:
     class Private;
@@ -323,14 +323,14 @@ private:
 class EDLCollection : public EDLGroup
 {
 public:
-    explicit EDLCollection(const std::string &name = {});
-    ~EDLCollection();
+    explicit EDLCollection(const std::string &name = {}, const Uuid &uuid = {});
+    ~EDLCollection() override;
 
     EDLCollection(const EDLCollection &) = delete;
     EDLCollection &operator=(const EDLCollection &) = delete;
 
-    std::string generatorId() const;
-    void setGeneratorId(const std::string &idString);
+    std::string generatorId() const override;
+    void setGeneratorId(const std::string &idString) override;
 
 private:
     class Private;

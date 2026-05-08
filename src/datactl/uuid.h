@@ -33,8 +33,8 @@ namespace Syntalos
 struct Uuid {
     std::array<uint8_t, 16> bytes{};
 
-    explicit Uuid() {};
-    explicit Uuid(const std::array<uint8_t, 16> &bytes)
+    constexpr Uuid() = default;
+    constexpr explicit Uuid(const std::array<uint8_t, 16> &bytes)
         : bytes(bytes)
     {
     }
@@ -48,9 +48,15 @@ struct Uuid {
     {
         return bytes[i];
     }
+
     const uint8_t &operator[](size_t i) const
     {
         return bytes[i];
+    }
+
+    [[nodiscard]] bool isEmpty() const
+    {
+        return bytes == std::array<uint8_t, 16>{};
     }
 
     /**

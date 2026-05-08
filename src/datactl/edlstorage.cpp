@@ -971,7 +971,7 @@ public:
     ~Private() = default;
 };
 
-EDLCollection::EDLCollection(const std::string &name)
+EDLCollection::EDLCollection(const std::string &name, const Uuid &uuid)
     : EDLGroup(nullptr),
       d(new EDLCollection::Private)
 {
@@ -982,8 +982,8 @@ EDLCollection::EDLCollection(const std::string &name)
         insertAttribute("collection_name", MetaValue{name});
     }
 
-    // A collection must have a unique ID to identify all nodes that belong to it.
-    EDLGroup::setCollectionId(newUuid7());
+    // a collection must have a unique ID to identify all nodes that belong to it
+    EDLGroup::setCollectionId(uuid.isEmpty() ? newUuid7() : uuid);
 }
 
 EDLCollection::~EDLCollection() = default;
