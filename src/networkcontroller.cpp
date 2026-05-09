@@ -373,7 +373,7 @@ public:
         const auto phase = obj.value(QStringLiteral("ack_for")).toString();
         const auto sender = obj.value(QStringLiteral("sender")).toString();
         const auto success = obj.value(QStringLiteral("success")).toBool(true);
-        const auto error = obj.value(QStringLiteral("error")).toString();
+        const auto error = obj.value(QStringLiteral("error")).toString(QStringLiteral("Error unknown"));
         const auto runIdOpt = Uuid::fromHex(obj.value(QStringLiteral("run_id")).toString().toStdString());
         if (!runIdOpt)
             return;
