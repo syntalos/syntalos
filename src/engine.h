@@ -76,6 +76,9 @@ public:
     bool simpleStorageNames() const;
     void setSimpleStorageNames(bool enabled);
 
+    bool useCollectionMoniker() const;
+    void setUseCollectionMoniker(bool enabled);
+
     bool clockTimeInExportDir() const;
     void setClockTimeInExportDir(bool enabled);
 

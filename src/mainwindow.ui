@@ -742,7 +742,13 @@
                <verstretch>0</verstretch>
               </sizepolicy>
              </property>
-             <layout class="QVBoxLayout" name="verticalLayout_5">
+             <layout class="QFormLayout" name="projectSettingsLayout">
+              <property name="horizontalSpacing">
+               <number>6</number>
+              </property>
+              <property name="verticalSpacing">
+               <number>6</number>
+              </property>
               <property name="leftMargin">
                <number>2</number>
               </property>
@@ -755,98 +761,102 @@
               <property name="bottomMargin">
                <number>2</number>
               </property>
-              <item>
-               <layout class="QFormLayout" name="projectSettingsLayout">
-                <property name="horizontalSpacing">
-                 <number>4</number>
+              <item row="0" column="0">
+               <widget class="QLabel" name="exportDirOrderLabel">
+                <property name="text">
+                 <string>Order of items in export path</string>
                 </property>
-                <property name="verticalSpacing">
-                 <number>4</number>
+               </widget>
+              </item>
+              <item row="0" column="1">
+               <widget class="ChipOrderWidget" name="exportDirOrderWidget" native="true">
+                <property name="enabled">
+                 <bool>true</bool>
                 </property>
-                <item row="0" column="0">
-                 <widget class="QLabel" name="exportDirOrderLabel">
-                  <property name="text">
-                   <string>Order of items in export path</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="0" column="1">
-                 <widget class="ChipOrderWidget" name="exportDirOrderWidget" native="true">
-                  <property name="enabled">
-                   <bool>true</bool>
-                  </property>
-                  <property name="sizePolicy">
-                   <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
-                    <horstretch>0</horstretch>
-                    <verstretch>0</verstretch>
-                   </sizepolicy>
-                  </property>
-                  <property name="minimumSize">
-                   <size>
-                    <width>0</width>
-                    <height>0</height>
-                   </size>
-                  </property>
-                  <property name="maximumSize">
-                   <size>
-                    <width>16777215</width>
-                    <height>30</height>
-                   </size>
-                  </property>
-                  <property name="toolTip">
-                   <string>Drag items to reorder the export directory path components.</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="2" column="0">
-                 <widget class="QLabel" name="addClockTimeToExportDirLabel">
-                  <property name="toolTip">
-                   <string/>
-                  </property>
-                  <property name="text">
-                   <string>Clock time in export path</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="2" column="1">
-                 <widget class="QCheckBox" name="cbClockTimeInExportDir">
-                  <property name="toolTip">
-                   <string>Include hours/minutes in export directory name, not just the current date</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="3" column="0">
-                 <widget class="QLabel" name="simplifiedStorageNamesLabel">
-                  <property name="toolTip">
-                   <string/>
-                  </property>
-                  <property name="text">
-                   <string>Use simplified dataset names</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="3" column="1">
-                 <widget class="QCheckBox" name="cbSimpleStorageNames">
-                  <property name="toolTip">
-                   <string>Simplify the names of datasets that are saved to disk, e.g. they will be lowercased, some characters may be replaced and no whitespaces will be used.</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="1" column="0">
-                 <widget class="QLabel" name="flatExportDirNameLabel">
-                  <property name="text">
-                   <string>Flat export directory name</string>
-                  </property>
-                 </widget>
-                </item>
-                <item row="1" column="1">
-                 <widget class="QCheckBox" name="cbFlatExportDirName">
-                  <property name="toolTip">
-                   <string>Do not create a hierarchical export directory structure, but just one folder instead</string>
-                  </property>
-                 </widget>
-                </item>
-               </layout>
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="minimumSize">
+                 <size>
+                  <width>0</width>
+                  <height>0</height>
+                 </size>
+                </property>
+                <property name="maximumSize">
+                 <size>
+                  <width>16777215</width>
+                  <height>30</height>
+                 </size>
+                </property>
+                <property name="toolTip">
+                 <string>Drag items to reorder the export directory path components.</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="0">
+               <widget class="QLabel" name="addClockTimeToExportDirLabel">
+                <property name="toolTip">
+                 <string/>
+                </property>
+                <property name="text">
+                 <string>Clock time in export path</string>
+                </property>
+               </widget>
+              </item>
+              <item row="2" column="1">
+               <widget class="QCheckBox" name="cbClockTimeInExportDir">
+                <property name="toolTip">
+                 <string>Include hours/minutes in export directory name, not just the current date</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="0">
+               <widget class="QLabel" name="simplifiedStorageNamesLabel">
+                <property name="toolTip">
+                 <string/>
+                </property>
+                <property name="text">
+                 <string>Use simplified dataset names</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="1">
+               <widget class="QCheckBox" name="cbSimpleStorageNames">
+                <property name="toolTip">
+                 <string>Simplify the names of datasets that are saved to disk, e.g. they will be lowercased, some characters may be replaced and no whitespaces will be used.</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="0">
+               <widget class="QLabel" name="flatExportDirNameLabel">
+                <property name="text">
+                 <string>Flat export directory name</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="1">
+               <widget class="QCheckBox" name="cbFlatExportDirName">
+                <property name="toolTip">
+                 <string>Do not create a hierarchical export directory structure, but just one folder instead</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="0">
+               <widget class="QLabel" name="addMonikerLabel">
+                <property name="text">
+                 <string>Add moniker to collection</string>
+                </property>
+               </widget>
+              </item>
+              <item row="4" column="1">
+               <widget class="QCheckBox" name="cbAddMoniker">
+                <property name="toolTip">
+                 <string>Add a short, human-readable moniker for the recording in addition to its machine-readable UUID</string>
+                </property>
+               </widget>
               </item>
              </layout>
             </widget>

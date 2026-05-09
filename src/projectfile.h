@@ -31,14 +31,18 @@ namespace Syntalos
 
 class Engine;
 
-struct ProjectStorageSettings {
+struct ProjectSettings {
     QList<ExportPathComponent> exportDirLayout{};
     bool clockTimeInDir{false};
     bool simpleNames{true};
     bool flatRoot{false};
+    bool addMoniker{false};
 
     QString exportBaseDir;
     QString experimentId;
+
+    bool netControlEnabled{false};
+    bool netListenerEnabled{false};
 };
 
 using StatusMessageFn = std::function<void(const QString &)>;
@@ -48,7 +52,7 @@ bool saveProjectConfiguration(
     FlowGraphView *graphView,
     TestSubjectListModel *subjectList,
     ExperimenterListModel *experimenterList,
-    const ProjectStorageSettings &storage,
+    const ProjectSettings &ps,
     const QString &fileName,
     StatusMessageFn statusFn = {});
 
@@ -57,7 +61,7 @@ bool loadProjectConfigurationInteractive(
     FlowGraphView *graphView,
     TestSubjectListModel *subjectList,
     ExperimenterListModel *experimenterList,
-    ProjectStorageSettings &outStorage,
+    ProjectSettings &outSettings,
     const QString &fileName,
     QWidget *parent = nullptr,
     std::function<void(void)> preLoadFn = {},

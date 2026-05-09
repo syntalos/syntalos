@@ -554,6 +554,7 @@ void MainWindow::runActionTriggered(const Uuid &recordIdOverride)
     m_engine->setClockTimeInExportDir(ui->cbClockTimeInExportDir->isChecked());
     m_engine->setFlatExportDir(ui->cbFlatExportDirName->isChecked());
     m_engine->setSimpleStorageNames(ui->cbSimpleStorageNames->isChecked());
+    m_engine->setUseCollectionMoniker(ui->cbAddMoniker->isChecked());
 
     if (m_isIntervalRun) {
         // run multiple times at set intervals
@@ -691,13 +692,16 @@ bool MainWindow::saveConfiguration(const QString &fileName)
         setConfigModifyAllowed(true);
     });
 
-    ProjectStorageSettings ss{
+    ProjectSettings ps{
         .exportDirLayout = exportDirLayoutFromUi(),
         .clockTimeInDir = ui->cbClockTimeInExportDir->isChecked(),
         .simpleNames = ui->cbSimpleStorageNames->isChecked(),
         .flatRoot = ui->cbFlatExportDirName->isChecked(),
+        .addMoniker = ui->cbAddMoniker->isChecked(),
         .exportBaseDir = m_engine->exportBaseDir(),
         .experimentId = ui->expIdEdit->text(),
+        .netControlEnabled = ui->actionNetRunController->isChecked(),
+        .netListenerEnabled = ui->actionNetRunListener->isChecked(),
     };
 
     const auto res = saveProjectConfiguration(
@@ -705,7 +709,7 @@ bool MainWindow::saveConfiguration(const QString &fileName)
         ui->graphForm->graphView(),
         m_subjectList,
         m_experimenterList,
-        ss,
+        ps,
         fileName,
         [this](const QString &msg) {
             setStatusText(msg);
@@ -738,7 +742,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         setConfigModifyAllowed(true);
     });
 
-    ProjectStorageSettings storageSettings;
+    ProjectSettings storageSettings;
     auto res = loadProjectConfigurationInteractive(
         m_engine,
         ui->graphForm->graphView(),
@@ -767,10 +771,15 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     ui->cbClockTimeInExportDir->setChecked(storageSettings.clockTimeInDir);
     ui->cbSimpleStorageNames->setChecked(storageSettings.simpleNames);
     ui->cbFlatExportDirName->setChecked(storageSettings.flatRoot);
+    ui->cbAddMoniker->setChecked(storageSettings.addMoniker);
 
     changeExportDirLayout(storageSettings.exportDirLayout);
-    setDataExportBaseDir(storageSettings.exportBaseDir);
+    m_engine->setExportBaseDir(storageSettings.exportBaseDir);
+    updateExportDirDisplay();
     ui->expIdEdit->setText(storageSettings.experimentId);
+
+    ui->actionNetRunController->setChecked(storageSettings.netControlEnabled);
+    ui->actionNetRunListener->setChecked(storageSettings.netListenerEnabled);
 
     setExperimenterSelectVisible(!m_experimenterList->isEmpty());
 

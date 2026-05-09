@@ -49,7 +49,7 @@ static bool saveProjectConfigInternal(
     TestSubjectListModel *subjectList,
     ExperimenterListModel *experimenterList,
     FlowGraphView *graphView,
-    const ProjectStorageSettings &storage,
+    const ProjectSettings &ps,
     QFileDevice *file,
     StatusMessageFn statusFn)
 {
@@ -71,18 +71,24 @@ static bool saveProjectConfigInternal(
     settings.insert("time_created", QDateTime::currentDateTime());
 
     settings.insert("export_base_dir", engine->exportBaseDir());
-    settings.insert("experiment_id", engine->experimentId().isEmpty() ? storage.experimentId : engine->experimentId());
+    settings.insert("experiment_id", engine->experimentId().isEmpty() ? ps.experimentId : engine->experimentId());
 
     QVariantHash storageSettings;
     QStringList exportDirOrder;
-    for (const auto &part : storage.exportDirLayout)
+    for (const auto &part : ps.exportDirLayout)
         exportDirOrder.append(exportDirPathComponentToKey(part));
     storageSettings.insert("order", exportDirOrder);
-    storageSettings.insert("clock_time_in_dir", storage.clockTimeInDir);
-    storageSettings.insert("simple_names", storage.simpleNames);
-    storageSettings.insert("flat_root", storage.flatRoot);
-
+    storageSettings.insert("clock_time_in_dir", ps.clockTimeInDir);
+    storageSettings.insert("simple_names", ps.simpleNames);
+    storageSettings.insert("flat_root", ps.flatRoot);
+    storageSettings.insert("add_moniker", ps.addMoniker);
     settings.insert("storage", storageSettings);
+
+    // network stuff
+    QVariantHash netSettings;
+    netSettings.insert("controller_enabled", ps.netControlEnabled);
+    netSettings.insert("listener_enabled", ps.netListenerEnabled);
+    settings.insert("network", netSettings);
 
     // basic configuration
     tar.writeFile("main.toml", qVariantHashToTomlData(settings));
@@ -149,7 +155,7 @@ bool saveProjectConfiguration(
     FlowGraphView *graphView,
     TestSubjectListModel *subjectList,
     ExperimenterListModel *experimenterList,
-    const ProjectStorageSettings &storage,
+    const ProjectSettings &ps,
     const QString &fileName,
     StatusMessageFn statusFn)
 {
@@ -167,8 +173,7 @@ bool saveProjectConfiguration(
     QTemporaryFile file(realFileName + ".XXXXXX.tmp");
     file.setAutoRemove(false);
 
-    if (!saveProjectConfigInternal(
-            engine, subjectList, experimenterList, graphView, storage, &file, std::move(statusFn))) {
+    if (!saveProjectConfigInternal(engine, subjectList, experimenterList, graphView, ps, &file, std::move(statusFn))) {
         return false;
     }
 
@@ -187,7 +192,7 @@ bool loadProjectConfigurationInteractive(
     FlowGraphView *graphView,
     TestSubjectListModel *subjectList,
     ExperimenterListModel *experimenterList,
-    ProjectStorageSettings &outStorage,
+    ProjectSettings &outSettings,
     const QString &fileName,
     QWidget *parent,
     std::function<void(void)> preLoadFn,
@@ -246,9 +251,10 @@ bool loadProjectConfigurationInteractive(
         preLoadFn();
 
     auto storageObj = rootObj.value("storage").toHash();
-    outStorage.clockTimeInDir = storageObj.value("clock_time_in_dir", false).toBool();
-    outStorage.simpleNames = storageObj.value("simple_names", true).toBool();
-    outStorage.flatRoot = storageObj.value("flat_root", false).toBool();
+    outSettings.clockTimeInDir = storageObj.value("clock_time_in_dir", false).toBool();
+    outSettings.simpleNames = storageObj.value("simple_names", true).toBool();
+    outSettings.flatRoot = storageObj.value("flat_root", false).toBool();
+    outSettings.addMoniker = storageObj.value("add_moniker", false).toBool();
 
     QList<ExportPathComponent> exportDirLayout;
     const auto exportDirLayoutValues = storageObj.value("order").toList();
@@ -257,10 +263,15 @@ bool loadProjectConfigurationInteractive(
         if (maybePart.has_value() && !exportDirLayout.contains(maybePart.value()))
             exportDirLayout.append(maybePart.value());
     }
-    outStorage.exportDirLayout = exportDirLayout;
+    outSettings.exportDirLayout = exportDirLayout;
 
-    outStorage.exportBaseDir = rootObj.value("export_base_dir").toString();
-    outStorage.experimentId = rootObj.value("experiment_id").toString();
+    outSettings.exportBaseDir = rootObj.value("export_base_dir").toString();
+    outSettings.experimentId = rootObj.value("experiment_id").toString();
+
+    // network stuff
+    auto netObj = rootObj.value("network").toHash();
+    outSettings.netControlEnabled = netObj.value("controller_enabled", false).toBool();
+    outSettings.netListenerEnabled = netObj.value("listener_enabled", false).toBool();
 
     // load list of subjects
     subjectList->clear();

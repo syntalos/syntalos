@@ -290,6 +290,7 @@ public:
     QString experimentIdTmpl;
     QString experimentIdFinal;
     bool simpleStorageNames;
+    bool useCollectionMoniker;
     bool clockTimeInExportDir;
     bool flatExportDirName;
     QList<ExportPathComponent> exportDirLayout;
@@ -558,6 +559,16 @@ bool Engine::simpleStorageNames() const
 void Engine::setSimpleStorageNames(bool enabled)
 {
     d->simpleStorageNames = enabled;
+}
+
+bool Engine::useCollectionMoniker() const
+{
+    return d->useCollectionMoniker;
+}
+
+void Engine::setUseCollectionMoniker(bool enabled)
+{
+    d->useCollectionMoniker = enabled;
 }
 
 bool Engine::clockTimeInExportDir() const
@@ -1922,6 +1933,7 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
     // all data modules generate in
     auto storageCollection = std::make_shared<EDLCollection>(d->exportName.toStdString(), recordingId);
     storageCollection->setPath(exportDirPath.toStdString());
+    storageCollection->setCollectionHasMoniker(d->useCollectionMoniker);
 
     // notify network controller that a run is being prepared (controller mode);
     // this call may block briefly to await ACKs from network listeners
