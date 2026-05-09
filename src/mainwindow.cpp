@@ -342,11 +342,11 @@ MainWindow::MainWindow(QWidget *parent)
         connect(netCtl, &NetworkController::prepareReceived, this, &MainWindow::onNetPrepareReceived);
         connect(netCtl, &NetworkController::stopReceived, this, &MainWindow::onNetStopReceived);
 
-        connect(ui->sbNetExpectedClients, qOverload<int>(&QSpinBox::valueChanged), this, [this](int v) {
-            m_engine->netController()->setExpectedClientCount(v);
+        connect(ui->sbNetExpectedClients, qOverload<int>(&QSpinBox::valueChanged), this, [this](int) {
+            applyNetControllerConfig();
         });
-        connect(ui->sbNetTimeout, qOverload<int>(&QSpinBox::valueChanged), this, [this](int v) {
-            m_engine->netController()->setControlTimeoutMs(v);
+        connect(ui->sbNetTimeout, qOverload<int>(&QSpinBox::valueChanged), this, [this](int) {
+            applyNetControllerConfig();
         });
     }
 
@@ -787,12 +787,13 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     updateExportDirDisplay();
     ui->expIdEdit->setText(ps.experimentId);
 
-    ui->actionNetRunController->setChecked(ps.netControlEnabled);
-    ui->actionNetRunListener->setChecked(ps.netListenerEnabled);
     ui->sbNetExpectedClients->setValue(ps.netExpectedClientCount);
     ui->sbNetTimeout->setValue(ps.netControlTimeoutMs);
-    m_engine->netController()->setExpectedClientCount(ps.netExpectedClientCount);
-    m_engine->netController()->setControlTimeoutMs(ps.netControlTimeoutMs);
+    // Push the full network config (ports, host, instance ID, project settings)
+    // before activating modes so the worker starts with the right settings.
+    applyNetControllerConfig();
+    ui->actionNetRunController->setChecked(ps.netControlEnabled);
+    ui->actionNetRunListener->setChecked(ps.netListenerEnabled);
 
     setExperimenterSelectVisible(!m_experimenterList->isEmpty());
 
@@ -1273,9 +1274,26 @@ void MainWindow::loadProjectFilename(const QString &fname)
 void MainWindow::setNetPortOverrides(int controlPort, int feedbackPort)
 {
     if (controlPort >= 0)
-        m_gconf->setNetControlPortTransient(controlPort);
+        m_netCtlPortOverride = controlPort;
     if (feedbackPort >= 0)
-        m_gconf->setNetFeedbackPortTransient(feedbackPort);
+        m_netFbPortOverride = feedbackPort;
+}
+
+NetworkControlConfig MainWindow::buildNetControlConfig() const
+{
+    NetworkControlConfig cfg;
+    cfg.controlPort = (m_netCtlPortOverride >= 0) ? m_netCtlPortOverride : m_gconf->netControlPort();
+    cfg.feedbackPort = (m_netFbPortOverride >= 0) ? m_netFbPortOverride : m_gconf->netFeedbackPort();
+    cfg.controlHost = m_gconf->netControlHost();
+    cfg.instanceId = m_gconf->netInstanceId();
+    cfg.expectedClientCount = ui->sbNetExpectedClients->value();
+    cfg.controlTimeoutMs = ui->sbNetTimeout->value();
+    return cfg;
+}
+
+void MainWindow::applyNetControllerConfig()
+{
+    m_engine->netController()->applyConfig(buildNetControlConfig());
 }
 
 void MainWindow::scheduleProjectAutorun(

@@ -12,6 +12,7 @@ This script runs tests based on TOML manifests.
 
 import sys
 import os
+import socket
 import subprocess
 import argparse
 import tempfile
@@ -33,6 +34,13 @@ class TermColor:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
+
+
+def find_free_port():
+    """Return an available TCP port on the local machine."""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(('', 0))
+        return s.getsockname()[1]
 
 
 def validate_toml_fields(file_path, required_fields):
@@ -292,6 +300,8 @@ def run_test(syntalos_bin, manifest_path):
     expected_stdout_contains = test_config.get("expected_stdout_contains", [])
     expected_stderr_contains = test_config.get("expected_stderr_contains", [])
     validator_script = test_config.get("validator_script")
+    use_dynamic_net_ports = test_config.get("use_dynamic_net_ports", False)
+    companion_cfg = test_config.get("companion_process")
 
     # Add expected datasets as simple file existence checks
     for dataset in expected_datasets:
@@ -309,6 +319,14 @@ def run_test(syntalos_bin, manifest_path):
         print(f"Error: Project file {project_path} not found.", file=sys.stderr)
         return False
 
+    # resolve dynamic network ports if requested
+    net_control_port = None
+    net_feedback_port = None
+    if use_dynamic_net_ports:
+        net_control_port = find_free_port()
+        net_feedback_port = find_free_port()
+        print(f"  Dynamic net ports: control={net_control_port}, feedback={net_feedback_port}")
+
     sytmp_prefix = "sytest_{}_".format(str(name).replace(" ", "").replace("/", "."))
     with tempfile.TemporaryDirectory(dir="/var/tmp", prefix=sytmp_prefix) as export_dir:
         cmd = [
@@ -319,8 +337,12 @@ def run_test(syntalos_bin, manifest_path):
             export_dir,
             "--run-for",
             str(run_duration),
-            project_path,
         ]
+        if net_control_port is not None:
+            cmd += ["--net-control-port", str(net_control_port)]
+        if net_feedback_port is not None:
+            cmd += ["--net-feedback-port", str(net_feedback_port)]
+        cmd.append(project_path)
 
         print(f"  Project: {project_file}")
         print(f"  Command: {' '.join(cmd)}")
@@ -330,7 +352,33 @@ def run_test(syntalos_bin, manifest_path):
             print(f"  Expected output files: {expected_output}")
 
         start_time = time.time()
+        companion_proc = None
+        companion_stdout = ""
+        companion_stderr = ""
+
         try:
+            # start companion process (e.g., an external network listener) before Syntalos
+            if companion_cfg:
+                companion_script = companion_cfg.get("script")
+                startup_wait = companion_cfg.get("startup_wait_sec", 1.0)
+                if not companion_script:
+                    print("  [!] companion_process.script not specified", file=sys.stderr)
+                    return False
+                companion_path = os.path.join(manifest_dir, companion_script)
+                if not os.path.exists(companion_path):
+                    print(f"  [!] Companion script not found: {companion_path}", file=sys.stderr)
+                    return False
+                companion_cmd = [sys.executable, companion_path]
+                if net_control_port is not None:
+                    companion_cmd += ["--cmd-port", str(net_control_port)]
+                if net_feedback_port is not None:
+                    companion_cmd += ["--fb-port", str(net_feedback_port)]
+                print(f"  Starting companion: {' '.join(companion_cmd)}")
+                companion_proc = subprocess.Popen(
+                    companion_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+                )
+                time.sleep(startup_wait)
+
             process = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
@@ -342,7 +390,22 @@ def run_test(syntalos_bin, manifest_path):
                 print(f"  [!] Test timed out after {timeout} seconds", file=sys.stderr)
                 process.kill()
                 process.communicate()
+                if companion_proc:
+                    companion_proc.kill()
+                    companion_proc.communicate()
                 return False
+
+            # wait for companion to finish after Syntalos exits
+            if companion_proc:
+                companion_remaining = max(5, timeout - int(time.time() - start_time))
+                try:
+                    companion_stdout, companion_stderr = companion_proc.communicate(
+                        timeout=companion_remaining
+                    )
+                except subprocess.TimeoutExpired:
+                    print("  [!] Companion process timed out - killing", file=sys.stderr)
+                    companion_proc.kill()
+                    companion_stdout, companion_stderr = companion_proc.communicate()
 
             runtime = time.time() - start_time
             print(f"  Finished in {runtime:.2f}s with exit code {exit_code}")
@@ -368,6 +431,29 @@ def run_test(syntalos_bin, manifest_path):
                         print(f"  [!] Expected text not found in STDERR: '{text}'", file=sys.stderr)
                         print_stdout_stderr(None, stderr_data)
                         return False
+
+            # validate companion process output
+            if companion_cfg:
+                companion_expected_stdout = companion_cfg.get("expected_stdout_contains", [])
+                if companion_proc and companion_proc.returncode != 0:
+                    print(
+                        f"  [!] Companion process exited with code {companion_proc.returncode}",
+                        file=sys.stderr,
+                    )
+                    print_stdout_stderr(companion_stdout, companion_stderr)
+                    return False
+                for text in companion_expected_stdout:
+                    if text not in companion_stdout:
+                        print(
+                            f"  [!] Expected text not found in companion STDOUT: '{text}'",
+                            file=sys.stderr,
+                        )
+                        print_stdout_stderr(companion_stdout, companion_stderr)
+                        return False
+                if companion_stdout:
+                    print("  Companion output:")
+                    for line in companion_stdout.splitlines():
+                        print(f"    {line}")
 
             if expected_output:
                 success, msg = check_expected_output(export_dir, expected_output)
@@ -408,6 +494,9 @@ def run_test(syntalos_bin, manifest_path):
 
         except Exception as e:
             print(f"  [!] Error running test: {e}", file=sys.stderr)
+            if companion_proc and companion_proc.poll() is None:
+                companion_proc.kill()
+                companion_proc.communicate()
             return False
 
 

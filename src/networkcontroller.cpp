@@ -66,9 +66,10 @@ public:
     ~Private() = default;
 
     QuillLogger *log{nullptr};
-    GlobalConfig *gconf{nullptr};
     Engine *engine{nullptr};
     NetworkController *self{nullptr};
+
+    NetworkControlConfig config;
 
     // mode flags (main-thread only)
     bool controllerActive{false};
@@ -85,10 +86,6 @@ public:
 
     // a (human-friendly) project name included in controller prepare broadcasts
     QString projectId;
-
-    // per-project settings
-    int expectedClientCount{0};
-    int controlTimeoutMs{6000};
 
     // ZMQ context shared across all sockets
     zmq::context_t ctx{1};
@@ -139,7 +136,7 @@ public:
         QJsonObject obj;
         obj[QStringLiteral("v")] = 1;
         obj[QStringLiteral("type")] = QStringLiteral("prepare");
-        obj[QStringLiteral("sender")] = gconf->netInstanceId();
+        obj[QStringLiteral("sender")] = config.instanceId;
         obj[QStringLiteral("run_id")] = QString::fromStdString(runId.toHex());
         obj[QStringLiteral("project")] = projectId;
         obj[QStringLiteral("subject_id")] = subjectId;
@@ -154,7 +151,7 @@ public:
         QJsonObject obj;
         obj[QStringLiteral("v")] = 1;
         obj[QStringLiteral("type")] = QStringLiteral("start");
-        obj[QStringLiteral("sender")] = gconf->netInstanceId();
+        obj[QStringLiteral("sender")] = config.instanceId;
         obj[QStringLiteral("run_id")] = QString::fromStdString(runId.toHex());
         obj[QStringLiteral("ts_start_us")] = startTimeUnixUs;
 
@@ -166,7 +163,7 @@ public:
         QJsonObject obj;
         obj[QStringLiteral("v")] = 1;
         obj[QStringLiteral("type")] = QStringLiteral("stop");
-        obj[QStringLiteral("sender")] = gconf->netInstanceId();
+        obj[QStringLiteral("sender")] = config.instanceId;
         obj[QStringLiteral("run_id")] = QString::fromStdString(runId.toHex());
         obj[QStringLiteral("success")] = success;
 
@@ -178,7 +175,7 @@ public:
         QJsonObject obj;
         obj[QStringLiteral("v")] = 1;
         obj[QStringLiteral("type")] = QStringLiteral("ack");
-        obj[QStringLiteral("sender")] = gconf->netInstanceId();
+        obj[QStringLiteral("sender")] = config.instanceId;
         obj[QStringLiteral("run_id")] = QString::fromStdString(runId.toHex());
         obj[QStringLiteral("ack_for")] = ackFor;
         obj[QStringLiteral("success")] = success;
@@ -197,10 +194,10 @@ public:
 
     void workerFunc(bool doController, bool doListener)
     {
-        const auto instanceId = gconf->netInstanceId().toStdString();
-        const int cmdPort = gconf->netControlPort();
-        const int fbPort = gconf->netFeedbackPort();
-        const auto host = gconf->netControlHost().toStdString();
+        const auto instanceId = config.instanceId.toStdString();
+        const int cmdPort = config.controlPort;
+        const int fbPort = config.feedbackPort;
+        const auto host = config.controlHost.toStdString();
 
         try {
             zmq::socket_t ctrlRecv(ctx, zmq::socket_type::pair);
@@ -595,13 +592,12 @@ public:
 };
 #pragma GCC diagnostic pop
 
-NetworkController::NetworkController(GlobalConfig *gconf, Engine *engine, QObject *parent)
+NetworkController::NetworkController(Engine *engine, QObject *parent)
     : QObject(parent),
       d(new NetworkController::Private)
 {
     d->self = this;
     d->log = getLogger("netctl");
-    d->gconf = gconf;
     d->engine = engine;
 
     // Connect to Engine signals for listener-side ACK sending
@@ -710,14 +706,18 @@ void NetworkController::setProjectId(const QString &id)
     d->projectId = id;
 }
 
-void NetworkController::setExpectedClientCount(int count)
+void NetworkController::applyConfig(const NetworkControlConfig &config)
 {
-    d->expectedClientCount = count;
-}
+    d->config = config;
 
-void NetworkController::setControlTimeoutMs(int ms)
-{
-    d->controlTimeoutMs = ms;
+    // If the worker is already running, restart it so the new ports / host take effect.
+    if (d->workerRunning.load()) {
+        const bool ctrl = d->controllerActive;
+        const bool lst = d->listenerActive;
+        d->stopWorker();
+        if (ctrl || lst)
+            d->startWorker();
+    }
 }
 
 bool NetworkController::broadcastPrepare(
@@ -739,23 +739,27 @@ bool NetworkController::broadcastPrepare(
     d->sendCtrlMsg(CommandKind::Broadcast, payload);
 
     LOG_INFO(
-        d->log, "Broadcasted 'Prepare' for {}/{}, waiting for {} participants", d->projectId, runId.toHex(), d->expectedClientCount);
-    if (d->expectedClientCount <= 0)
+        d->log,
+        "Broadcasted 'Prepare' for {}/{}, waiting for {} participants",
+        d->projectId,
+        runId.toHex(),
+        d->config.expectedClientCount);
+    if (d->config.expectedClientCount <= 0)
         return true;
 
     // Block (processing Qt events) until we have enough ACKs or time out
-    QDeadlineTimer deadline(d->controlTimeoutMs);
+    QDeadlineTimer deadline(d->config.controlTimeoutMs);
     while (!deadline.hasExpired()) {
-        if (d->pendingPrepareAckCount >= d->expectedClientCount)
+        if (d->pendingPrepareAckCount >= d->config.expectedClientCount)
             break;
         qApp->processEvents(QEventLoop::AllEvents, 50);
     }
 
-    if (d->pendingPrepareAckCount < d->expectedClientCount) {
+    if (d->pendingPrepareAckCount < d->config.expectedClientCount) {
         Q_EMIT errorMessage(
             QStringLiteral("Only %1 of expected %2 network participants confirmed finishing their preparations.")
                 .arg(d->pendingPrepareAckCount.load())
-                .arg(d->expectedClientCount));
+                .arg(d->config.expectedClientCount));
         return false;
     }
 
@@ -783,7 +787,7 @@ void NetworkController::broadcastStart(const Uuid &runId, qint64 startTimeUnixUs
     d->sendCtrlMsg(CommandKind::Broadcast, payload);
     LOG_INFO(d->log, "Broadcasted 'Start' for {}/{}", d->projectId, runId.toHex());
 
-    const int expected = d->expectedClientCount;
+    const int expected = d->config.expectedClientCount;
     if (expected <= 0)
         return;
 
@@ -792,7 +796,7 @@ void NetworkController::broadcastStart(const Uuid &runId, qint64 startTimeUnixUs
 
     // Passively collect start ACKs; if not enough arrive within the timeout, stop the run.
     // We never block here - the run has already started.
-    QTimer::singleShot(d->controlTimeoutMs, this, [this, runId, expected]() {
+    QTimer::singleShot(d->config.controlTimeoutMs, this, [this, runId, expected]() {
         if (d->currentRunId != runId)
             return; // run already finished or superseded
         const int got = d->pendingStartAckCount.load();

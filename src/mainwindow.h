@@ -103,6 +103,8 @@ public:
         bool noninteractive,
         int runDurationSec = 0);
 
+    void setNetPortOverrides(int controlPort, int feedbackPort);
+
 private slots:
     void runActionTriggered();
     void runActionTriggered(const Uuid &recordIdOverride);
@@ -187,6 +189,9 @@ private:
     bool saveConfiguration(const QString &fileName);
     bool loadConfiguration(const QString &fileName);
 
+    NetworkControlConfig buildNetControlConfig() const;
+    void applyNetControllerConfig();
+
     Ui::MainWindow *ui;
     QuillLogger *m_log;
 
@@ -197,6 +202,8 @@ private:
     bool m_isIntervalRun;
     bool m_configLoadInProgress;
     seconds_t m_runMaxDuration;
+    int m_netCtlPortOverride{-1};
+    int m_netFbPortOverride{-1};
 
     QLabel *m_statusBarLabel;
     QSvgWidget *m_busyIndicator;

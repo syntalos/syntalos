@@ -26,7 +26,6 @@
 #include <QString>
 
 #include "datactl/uuid.h"
-#include "fabric/globalconfig.h"
 
 namespace Syntalos
 {
@@ -43,25 +42,33 @@ class Engine;
  * In listener mode incoming commands are applied to the Engine
  * (subject override, attribute injection) and the MainWindow is notified
  * via signals to trigger / stop runs.
- *
- * Protocol:
- *   Commands  - PUB (controller binds cmd_port) / SUB (listener connects)
- *   Feedback  - PULL (controller binds fb_port) / PUSH (listener connects)
- *
- * ACK timing (listener side):
- *   "prepare" ACK -> sent after Engine::runReadyToStart (or on Engine::runFailed);
- *                    this tells the controller "I am prepared and waiting for START".
- *   "stop"    ACK -> sent after Engine::runStopped
- *   "start"   is informational only — ACKed immediately on receipt; listener stores
- *                    the controller's timestamps in EDL for cross-device alignment.
  */
+
+/**
+ * All network-control settings for one Syntalos instance.
+ */
+struct NetworkControlConfig {
+    int controlPort{5556};
+    int feedbackPort{5557};
+    QString controlHost{QStringLiteral("localhost")};
+    QString instanceId;
+    int expectedClientCount{0};
+    int controlTimeoutMs{6000};
+};
+
 class NetworkController : public QObject
 {
     Q_OBJECT
 
 public:
-    explicit NetworkController(Syntalos::GlobalConfig *gconf, Syntalos::Engine *engine, QObject *parent = nullptr);
+    explicit NetworkController(Syntalos::Engine *engine, QObject *parent = nullptr);
     ~NetworkController() override;
+
+    /**
+     * Push a new config.  If modes are active the worker is restarted so the
+     * new ports / settings take effect immediately.
+     */
+    void applyConfig(const NetworkControlConfig &config);
 
     bool startControllerMode();
     void stopControllerMode();
@@ -125,9 +132,9 @@ public:
     // Set project name (if we have any) to include in PREPARE broadcast
     void setProjectId(const QString &id);
 
-    // Per-project network run settings
-    void setExpectedClientCount(int count);
-    void setControlTimeoutMs(int ms);
+    // Transient port overrides (CLI / test use, not persisted)
+    void setControlPortOverride(int port);
+    void setFeedbackPortOverride(int port);
 
 signals:
     // Listener received a "prepare" command; Engine state (subject, experiment,

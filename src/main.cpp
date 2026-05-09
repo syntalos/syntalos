@@ -119,6 +119,18 @@ int main(int argc, char *argv[])
             "Try to reduce GUI user interactions when auto-running a project file, print to stderr instead."));
     parser.addOption(optnNonInteractive);
 
+    QCommandLineOption optnNetControlPort(
+        QStringList() << "net-control-port",
+        QStringLiteral("Override the ZMQ controller/command port for this run (does not persist)."),
+        "port");
+    parser.addOption(optnNetControlPort);
+
+    QCommandLineOption optnNetFeedbackPort(
+        QStringList() << "net-feedback-port",
+        QStringLiteral("Override the ZMQ feedback/ACK port for this run (does not persist)."),
+        "port");
+    parser.addOption(optnNetFeedbackPort);
+
     parser.process(app);
 
     // fetch project filename to open
@@ -138,7 +150,20 @@ int main(int argc, char *argv[])
 
     // launch Syntalos with the provided options
     auto w = std::make_unique<MainWindow>();
+
+    // apply transient network port overrides before show(), so that
+    // restoreState() in showEvent does not start the network worker
+    // with stale default ports (by setting the net action states)
+    {
+        const int netCtlPort = parser.isSet(optnNetControlPort) ? parser.value(optnNetControlPort).toInt() : -1;
+        const int netFbPort = parser.isSet(optnNetFeedbackPort) ? parser.value(optnNetFeedbackPort).toInt() : -1;
+        if (netCtlPort >= 0 || netFbPort >= 0)
+            w->setNetPortOverrides(netCtlPort, netFbPort);
+    }
+
+    // we can show the main window now
     w->show();
+
     if (autoRun) {
         // automation-specific options
         const auto overrideExportDir = parser.value(optnExportDir);

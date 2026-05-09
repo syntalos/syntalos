@@ -399,7 +399,7 @@ Engine::Engine(QWidget *parentWidget)
         d->usbEventsTimer->start();
     }
 
-    d->netCtl = new NetworkController(d->gconf, this, this);
+    d->netCtl = new NetworkController(this, this);
     connect(d->netCtl, &NetworkController::statusMessage, this, &Engine::statusMessage);
     connect(d->netCtl, &NetworkController::errorMessage, this, [this](const QString &msg) {
         onModuleError(msg);

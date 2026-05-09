@@ -124,6 +124,7 @@ test_manifests = [
     'scenarios/ipc-test-complex.toml',
     'scenarios/zarr-writer-test.toml',
     'scenarios/disabled-inputs-test.toml',
+    'scenarios/net-control-test.toml',
 ]
 
 if get_option('gui-tests')
