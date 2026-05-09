@@ -143,10 +143,7 @@ std::mt19937_64 &threadRng()
 
 } // namespace
 
-namespace
-{
-
-std::string makeAnimalMonikerFromRng(std::mt19937_64 &rng)
+static std::string makeAnimalMonikerFromRng(std::mt19937_64 &rng)
 {
     auto &adj = adjectives();
     auto &ani = animals();
@@ -166,23 +163,7 @@ std::string makeAnimalMonikerFromRng(std::mt19937_64 &rng)
     return out;
 }
 
-} // namespace
-
-std::string makeAnimalMoniker()
-{
-    return makeAnimalMonikerFromRng(threadRng());
-}
-
-std::string makeAnimalMonikerForString(const std::string &source)
-{
-    std::mt19937_64 rng(XXH3_64bits(source.data(), source.size()));
-    return makeAnimalMonikerFromRng(rng);
-}
-
-namespace
-{
-
-std::string makeMonikerFromSeed(uint64_t seed)
+static std::string makeMonikerFromSeed(uint64_t seed)
 {
     std::mt19937_64 rng(seed);
 
@@ -212,7 +193,16 @@ std::string makeMonikerFromSeed(uint64_t seed)
     return out;
 }
 
-} // namespace
+std::string makeAnimalMoniker()
+{
+    return makeAnimalMonikerFromRng(threadRng());
+}
+
+std::string makeAnimalMonikerForString(const std::string &source)
+{
+    std::mt19937_64 rng(XXH3_64bits(source.data(), source.size()));
+    return makeAnimalMonikerFromRng(rng);
+}
 
 std::string makeMonikerForUuid(const Uuid &uuid)
 {
