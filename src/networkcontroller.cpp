@@ -30,10 +30,10 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QTimer>
-#include <QUuid>
 
 #include "engine.h"
 #include "fabric/logging.h"
+#include "fabric/utils/misc.h"
 #include "datactl/syclock.h"
 #include "datactl/streammeta.h"
 
@@ -354,7 +354,7 @@ public:
         }
 
         workerRunning = false;
-        LOG_DEBUG(log, "NetworkController: worker thread exited");
+        LOG_DEBUG(log, "Worker thread exited");
     }
 
     void handleAck(const QByteArray &data)
@@ -564,9 +564,8 @@ public:
 
     void stopWorker()
     {
-        if (!workerRunning.load())
-            return;
-        sendCtrlMsg(CommandKind::Shutdown);
+        if (workerRunning.load())
+            sendCtrlMsg(CommandKind::Shutdown);
         if (workerThread.joinable())
             workerThread.join();
         ctrlSend.reset();
@@ -574,6 +573,10 @@ public:
 
     void startWorker()
     {
+        // Generate a fresh endpoint each time to avoid "address already in use"
+        // errors when inproc sockets from a previous worker are still cleaning up.
+        ctrlEndpoint = "inproc://sy-netctl-" + createRandomString(10).toStdString();
+
         ctrlSend.emplace(ctx, zmq::socket_type::pair);
         ctrlSend->set(zmq::sockopt::linger, 0);
         ctrlSend->bind(ctrlEndpoint);
@@ -596,8 +599,6 @@ NetworkController::NetworkController(GlobalConfig *gconf, Engine *engine, QObjec
     d->log = getLogger("netctl");
     d->gconf = gconf;
     d->engine = engine;
-
-    d->ctrlEndpoint = "inproc://sy-netctl-" + QUuid::createUuid().toString(QUuid::Id128).toStdString();
 
     // Connect to Engine signals for listener-side ACK sending
     connect(engine, &Engine::runReadyToStart, this, &NetworkController::onListenerRunReadyToStart);
