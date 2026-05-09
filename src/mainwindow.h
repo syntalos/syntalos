@@ -89,8 +89,6 @@ public:
      * the application, without any user interaction.
      *
      * @param projectFname       The project file to load and run.
-     * @param overrideExportDir  If non-empty, overrides the export base
-     *                           directory stored in the project file.
      * @param ephemeral          If true, the run will be ephemeral, meaning that
      * @param noninteractive     If true, try to reduce GUI interactions.
      * @param runDurationSec     If > 0, stop the run automatically after this
@@ -98,12 +96,17 @@ public:
      */
     void scheduleProjectAutorun(
         const QString &projectFname,
-        const QString &overrideExportDir,
         bool ephemeral,
         bool noninteractive,
         int runDurationSec = 0);
 
     void setNetPortOverrides(int controlPort, int feedbackPort);
+
+    /**
+     * If non-empty, overrides the export base directory stored in
+     * the project file that is loaded next.
+     */
+    void setExportDirOverride(const QString &dir);
 
 private slots:
     void runActionTriggered();
@@ -202,8 +205,10 @@ private:
     bool m_isIntervalRun;
     bool m_configLoadInProgress;
     seconds_t m_runMaxDuration;
+
     int m_netCtlPortOverride{-1};
     int m_netFbPortOverride{-1};
+    QString m_exportDirOverride;
 
     QLabel *m_statusBarLabel;
     QSvgWidget *m_busyIndicator;

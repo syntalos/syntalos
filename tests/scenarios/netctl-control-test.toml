@@ -1,13 +1,13 @@
 [test]
-name = "Network Control Test"
-project_file = "projects/net-control-test.syct"
-run_duration_sec = 8
-timeout_sec = 60
+name = "NetControl - Control Test"
+project_file = "projects/netctl-controller.syct"
+run_duration_sec = 4
+timeout_sec = 30
 expected_exit_code = 0
 use_dynamic_net_ports = true
 
 [test.companion_process]
-script = "validators/net_ctl_listener.py"
+script = "validators/netctl_listener.py"
 startup_wait_sec = 1.5
 expected_stdout_contains = [
     "Received: prepare",

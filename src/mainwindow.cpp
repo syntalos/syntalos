@@ -784,6 +784,9 @@ bool MainWindow::loadConfiguration(const QString &fileName)
 
     changeExportDirLayout(ps.exportDirLayout);
     m_engine->setExportBaseDir(ps.exportBaseDir);
+    // Apply any export-dir override that was registered before this project loaded
+    if (!m_exportDirOverride.isEmpty())
+        setDataExportBaseDir(m_exportDirOverride);
     updateExportDirDisplay();
     ui->expIdEdit->setText(ps.experimentId);
 
@@ -1279,6 +1282,11 @@ void MainWindow::setNetPortOverrides(int controlPort, int feedbackPort)
         m_netFbPortOverride = feedbackPort;
 }
 
+void MainWindow::setExportDirOverride(const QString &dir)
+{
+    m_exportDirOverride = dir;
+}
+
 NetworkControlConfig MainWindow::buildNetControlConfig() const
 {
     NetworkControlConfig cfg;
@@ -1298,7 +1306,6 @@ void MainWindow::applyNetControllerConfig()
 
 void MainWindow::scheduleProjectAutorun(
     const QString &projectFname,
-    const QString &overrideExportDir,
     bool ephemeral,
     bool noninteractive,
     int runDurationSec)
@@ -1308,17 +1315,13 @@ void MainWindow::scheduleProjectAutorun(
         m_runMaxDuration = seconds_t(runDurationSec);
 
     // defer until the main application has loaded.
-    QTimer::singleShot(0, [this, projectFname, overrideExportDir, ephemeral, noninteractive]() {
+    QTimer::singleShot(0, [this, projectFname, ephemeral, noninteractive]() {
         // load requested project file
         if (!loadConfiguration(projectFname)) {
             shutdown(SY_EXIT_LOAD_ERROR);
             return;
         }
         qApp->processEvents();
-
-        // override export directory if requested
-        if (!overrideExportDir.isEmpty())
-            setDataExportBaseDir(overrideExportDir);
 
         // check if we can actually run
         if (!m_engine->exportDirIsValid() && noninteractive) {

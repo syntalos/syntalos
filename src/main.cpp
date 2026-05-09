@@ -175,10 +175,16 @@ int main(int argc, char *argv[])
                 << "No project filename specified, despite requesting autorun. Please specify a project file to run.";
             return SY_EXIT_LOAD_ERROR;
         }
-        w->scheduleProjectAutorun(projectFname, overrideExportDir, ephemeralRun, nonInteractive, runForSecs);
+        if (!overrideExportDir.isEmpty())
+            w->setExportDirOverride(overrideExportDir);
+        w->scheduleProjectAutorun(projectFname, ephemeralRun, nonInteractive, runForSecs);
     } else {
-        if (!projectFname.isEmpty())
+        if (!projectFname.isEmpty()) {
+            const auto overrideExportDir = parser.value(optnExportDir);
+            if (!overrideExportDir.isEmpty())
+                w->setExportDirOverride(overrideExportDir);
             w->loadProjectFilename(projectFname);
+        }
     }
 
     // run application

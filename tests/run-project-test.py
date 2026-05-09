@@ -302,6 +302,9 @@ def run_test(syntalos_bin, manifest_path):
     validator_script = test_config.get("validator_script")
     use_dynamic_net_ports = test_config.get("use_dynamic_net_ports", False)
     companion_cfg = test_config.get("companion_process")
+    # companion_triggers_run: companion starts AFTER Syntalos (reversed order),
+    # drives the run, and Syntalos is terminated once the companion finishes.
+    companion_triggers_run = test_config.get("companion_triggers_run", False)
 
     # Add expected datasets as simple file existence checks
     for dataset in expected_datasets:
@@ -329,15 +332,10 @@ def run_test(syntalos_bin, manifest_path):
 
     sytmp_prefix = "sytest_{}_".format(str(name).replace(" ", "").replace("/", "."))
     with tempfile.TemporaryDirectory(dir="/var/tmp", prefix=sytmp_prefix) as export_dir:
-        cmd = [
-            syntalos_bin,
-            "--verbose",
-            "--non-interactive",
-            "--export-dir",
-            export_dir,
-            "--run-for",
-            str(run_duration),
-        ]
+        cmd = [syntalos_bin, "--verbose", "--non-interactive", "--export-dir", export_dir]
+        if not companion_triggers_run:
+            # Normal mode: Syntalos controls its own run duration
+            cmd += ["--run-for", str(run_duration)]
         if net_control_port is not None:
             cmd += ["--net-control-port", str(net_control_port)]
         if net_feedback_port is not None:
@@ -357,46 +355,103 @@ def run_test(syntalos_bin, manifest_path):
         companion_stderr = ""
 
         try:
-            # start companion process (e.g., an external network listener) before Syntalos
-            if companion_cfg:
+
+            def build_companion_cmd():
                 companion_script = companion_cfg.get("script")
-                startup_wait = companion_cfg.get("startup_wait_sec", 1.0)
                 if not companion_script:
-                    print("  [!] companion_process.script not specified", file=sys.stderr)
-                    return False
+                    return None, "companion_process.script not specified"
                 companion_path = os.path.join(manifest_dir, companion_script)
                 if not os.path.exists(companion_path):
-                    print(f"  [!] Companion script not found: {companion_path}", file=sys.stderr)
-                    return False
-                companion_cmd = [sys.executable, companion_path]
+                    return None, f"Companion script not found: {companion_path}"
+                c_cmd = [sys.executable, companion_path]
                 if net_control_port is not None:
-                    companion_cmd += ["--cmd-port", str(net_control_port)]
+                    c_cmd += ["--cmd-port", str(net_control_port)]
                 if net_feedback_port is not None:
-                    companion_cmd += ["--fb-port", str(net_feedback_port)]
+                    c_cmd += ["--fb-port", str(net_feedback_port)]
+                return c_cmd, None
+
+            startup_wait = companion_cfg.get("startup_wait_sec", 1.0) if companion_cfg else 0
+
+            if companion_cfg and not companion_triggers_run:
+                # Normal order: companion starts first, then Syntalos
+                companion_cmd, err = build_companion_cmd()
+                if err:
+                    print(f"  [!] {err}", file=sys.stderr)
+                    return False
                 print(f"  Starting companion: {' '.join(companion_cmd)}")
                 companion_proc = subprocess.Popen(
                     companion_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
                 )
                 time.sleep(startup_wait)
 
+            # Start Syntalos
             process = subprocess.Popen(
                 cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
             )
 
-            try:
-                stdout_data, stderr_data = process.communicate(timeout=timeout)
-                exit_code = process.returncode
-            except subprocess.TimeoutExpired:
-                print(f"  [!] Test timed out after {timeout} seconds", file=sys.stderr)
-                process.kill()
-                process.communicate()
-                if companion_proc:
-                    companion_proc.kill()
-                    companion_proc.communicate()
-                return False
+            if companion_cfg and companion_triggers_run:
+                # Reversed order: Syntalos starts first; companion drives the run
+                companion_cmd, err = build_companion_cmd()
+                if err:
+                    print(f"  [!] {err}", file=sys.stderr)
+                    process.kill()
+                    process.communicate()
+                    return False
+                time.sleep(startup_wait)
+                print(f"  Starting companion controller: {' '.join(companion_cmd)}")
+                companion_proc = subprocess.Popen(
+                    companion_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True
+                )
 
-            # wait for companion to finish after Syntalos exits
-            if companion_proc:
+            if companion_triggers_run:
+                # Wait for the companion to finish, then terminate Syntalos
+                companion_remaining = timeout
+                try:
+                    companion_stdout, companion_stderr = companion_proc.communicate(
+                        timeout=companion_remaining
+                    )
+                except subprocess.TimeoutExpired:
+                    print(f"  [!] Companion controller timed out", file=sys.stderr)
+                    companion_proc.kill()
+                    companion_stdout, companion_stderr = companion_proc.communicate()
+                    process.kill()
+                    process.communicate()
+                    return False
+
+                if companion_proc.returncode != 0:
+                    print(
+                        f"  [!] Companion controller failed with exit code {companion_proc.returncode}",
+                        file=sys.stderr,
+                    )
+                    print_stdout_stderr(companion_stdout, companion_stderr)
+                    process.kill()
+                    process.communicate()
+                    return False
+
+                # Give Syntalos a moment to finalize data, then terminate it
+                time.sleep(2.0)
+                process.terminate()
+                try:
+                    stdout_data, stderr_data = process.communicate(timeout=10)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    stdout_data, stderr_data = process.communicate()
+                exit_code = 0  # exit code not meaningful when we terminate Syntalos
+            else:
+                try:
+                    stdout_data, stderr_data = process.communicate(timeout=timeout)
+                    exit_code = process.returncode
+                except subprocess.TimeoutExpired:
+                    print(f"  [!] Test timed out after {timeout} seconds", file=sys.stderr)
+                    process.kill()
+                    process.communicate()
+                    if companion_proc:
+                        companion_proc.kill()
+                        companion_proc.communicate()
+                    return False
+
+            # wait for companion to finish after Syntalos exits (normal order only)
+            if companion_proc and not companion_triggers_run:
                 companion_remaining = max(5, timeout - int(time.time() - start_time))
                 try:
                     companion_stdout, companion_stderr = companion_proc.communicate(

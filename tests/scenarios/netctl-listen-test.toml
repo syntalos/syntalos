@@ -1,0 +1,25 @@
+[test]
+name = "NetControl - Listener Test"
+project_file = "projects/netctl-listener.syct"
+run_duration_sec = 12
+timeout_sec = 60
+use_dynamic_net_ports = true
+companion_triggers_run = true
+
+[test.companion_process]
+script = "validators/netctl_controller.py"
+startup_wait_sec = 2.0
+expected_stdout_contains = [
+    "Sent: prepare",
+    "Sent: start",
+    "Sent: stop",
+    "Received ACK: prepare",
+]
+
+[[test.expected_output_files]]
+path = "attributes.toml"
+toml_fields = ["machine_node", "success"]
+
+[[test.expected_output_files]]
+path = "manifest.toml"
+toml_fields = ["collection_id", "format_version", "time_created", "type", "generator"]
