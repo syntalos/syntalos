@@ -1,5 +1,7 @@
 # Build definitions for vendored 3rd-party code
 
+if 'plot' in get_option('modules')
+
 #
 # ImGUI
 #
@@ -56,3 +58,36 @@ implot_dep = declare_dependency(
   link_with: implot_lib,
   include_directories: implot_inc,
 )
+
+endif # 'plot' in get_option('modules')
+
+if 'open-ephys-acq' in get_option('modules')
+
+#
+# liboni
+#
+if not fs.is_file('liboni/api/liboni/oni.h')
+    error('liboni submodule is missing. Did you run `git submodule update --init`?')
+endif
+liboni_inc = include_directories('liboni/api/liboni')
+liboni_src = files(
+    'liboni/api/liboni/oni.c',
+    'liboni/api/liboni/onix.c',
+    'liboni/api/liboni/onidriverloader.c',
+)
+liboni_lib = shared_library(
+    'oni',
+    liboni_src,
+    include_directories: liboni_inc,
+    c_args: ['-Wall', '-W', '-O3', '-Wno-error=shadow'],
+    dependencies: [c_compiler.find_library('dl', required: true)],
+    soversion: '1',
+    install: true,
+    install_dir: sy_libdir,
+)
+liboni_dep = declare_dependency(
+    link_with: liboni_lib,
+    include_directories: liboni_inc,
+)
+
+endif # 'open-ephys-acq' in get_option('modules')

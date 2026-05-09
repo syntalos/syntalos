@@ -11,6 +11,7 @@ project('Syntalos', 'c', 'cpp',
 
 bug_report_url = 'https://github.com/syntalos/syntalos/issues'
 
+c_compiler = meson.get_compiler('c')
 cpp_compiler = meson.get_compiler('cpp')
 source_root = meson.project_source_root()
 
@@ -370,10 +371,14 @@ cpp_compiler.has_header('CL/cl.h', required: true)
 # sed binary for some file manipulation
 sed_prog = find_program('sed')
 
+#
+# Configure files
+#
+sy_libdir = get_option('prefix') / get_option('libdir') / 'syntalos'
+sy_modules_dir = sy_libdir / 'modules'
+
 # vendored 3rd-party code
-if 'plot' in get_option('modules')
-    subdir('vendor')
-endif
+subdir('vendor')
 
 #
 # Options
@@ -383,14 +388,6 @@ if udevdir == ''
     udev = dependency('udev')
     udevdir = udev.get_variable(pkgconfig: 'udevdir')
 endif
-
-#
-# Configure files
-#
-sy_libdir = join_paths(get_option('prefix'),
-                       get_option('libdir'),
-                       'syntalos')
-sy_modules_dir = join_paths(sy_libdir, 'modules')
 
 conf = configuration_data()
 conf.set('SY_MAJOR_VERSION_CONF', sy_major_version)

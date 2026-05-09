@@ -15,7 +15,7 @@ $CXX --version
 
 # intan-rhx only builds on amd64
 if [ "$(uname -m)" = "x86_64" ]; then
-    extra_modules=",intan-rhx"
+    extra_modules=",intan-rhx,open-ephys-acq"
 else
     extra_modules=""
 fi

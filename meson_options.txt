@@ -4,18 +4,20 @@
 option('modules',
        type: 'array',
        choices: [
-           'camera-arv',   # Module for GenICam camera support via Aravis
-           'camera-flir',  # FLIR camera module using the Spinnaker API
-           'camera-tis',   # Camera module for The Imaging Source cameras
-           'camera-ueye',  # uEye camera module
-           'intan-rhx',    # Intan RHX DAQ module
-           'miniscope',    # UCLA Miniscope module
-           'plot',         # Plotting modules using ImGui
+           'camera-arv',     # Module for GenICam camera support via Aravis
+           'camera-flir',    # FLIR camera module using the Spinnaker API
+           'camera-tis',     # Camera module for The Imaging Source cameras
+           'camera-ueye',    # uEye camera module
+           'intan-rhx',      # Intan RHX DAQ module
+           'miniscope',      # UCLA Miniscope module
+           'open-ephys-acq', # Open Ephys Acquisition Board module
+           'plot',           # Plotting modules using ImGui
        ],
        value : [
            'camera-arv',
            'intan-rhx',
            'miniscope',
+           'open-ephys-acq',
            'plot',
        ],
        description: 'Select modules to enable.'
