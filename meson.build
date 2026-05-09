@@ -35,6 +35,19 @@ python = import('python').find_installation('python3', modules: ['numpy'])
 cmake  = import('cmake')
 
 #
+# Compiler version check
+#
+if cpp_compiler.get_id() == 'gcc' and cpp_compiler.version().version_compare('<14.0')
+    error('GCC 14 or newer is required to build Syntalos. Please upgrade your compiler.')
+elif cpp_compiler.get_id() == 'clang' and cpp_compiler.version().version_compare('<19')
+    error('Clang 19 or newer is required to build Syntalos. Please upgrade your compiler.')
+else
+    warning('Using ' + cpp_compiler.get_id() + ' ' + cpp_compiler.version() + ' to build Syntalos. ' +
+            'This compiler version is not officially supported, but may work. ' +
+            'If you encounter build or runtime issues, please try upgrading to a supported compiler version.')
+endif
+
+#
 # Custom compile flags
 #
 if get_option('maintainer')
@@ -157,19 +170,6 @@ if build_machine.cpu_family() == 'x86_64' and not get_option('optimize-native')
             message('Tuning for x86-64-v3 base microarchitecture level')
             o_flags = ['-mtune=x86-64-v3']
         endif
-    endif
-endif
-
-# vectoization helps a tiny bit for some loops, so we enable it (especially for the Intan module)
-# NOTE: This has only been properly tested with GCC >= 10.x, and GCC 12
-# enables this already at -O2, so we limit setting the flags to older GCC versions.
-if cpp_compiler.get_id() == 'gcc' and cpp_compiler.version().version_compare('<12')
-    message('Vectorization enabled explicitly (very-cheap cost model)')
-    o_flags += ['-ftree-vectorize']
-    if cpp_compiler.has_argument('-fvect-cost-model=very-cheap')
-        o_flags += ['-fvect-cost-model=very-cheap']
-    else
-        o_flags += ['-fvect-cost-model=cheap']
     endif
 endif
 
