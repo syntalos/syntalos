@@ -1376,6 +1376,16 @@ void MainWindow::scheduleProjectAutorun(
         // if we disconnected the failure event before in noninteractive mode, reconnect it again
         if (noninteractive)
             connect(m_engine, &Engine::runFailed, this, &MainWindow::moduleErrorReceived);
+
+        // If the run failed before it could start (e.g. network prepare timeout), the
+        // runStopped signal is never emitted, so the SingleShotConnection above will not
+        // fire and the process would hang.  Detect this and shut down explicitly.
+        if (!m_engine->isRunning() && !m_engine->isActive() && m_engine->hasFailed() && m_runMaxDuration.count() > 0) {
+            QTimer::singleShot(0, this, [this]() {
+                shutdown(SY_EXIT_RUN_FAILED);
+            });
+            return;
+        }
     });
 }
 

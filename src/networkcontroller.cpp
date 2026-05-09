@@ -218,6 +218,13 @@ public:
                 pullSock->set(zmq::sockopt::linger, 0);
                 pullSock->bind(std::string("tcp://*:") + std::to_string(fbPort));
 
+                // Allow any pre-existing subscribers time to re-establish their TCP
+                // connections and send their SUBSCRIBE control frames before the first
+                // broadcast.  Without this sleep the first PUB message can be lost
+                // (ZMQ "slow joiner" problem) when a subscriber was already waiting
+                // on the port before we bound.
+                std::this_thread::sleep_for(std::chrono::milliseconds(600));
+
                 LOG_INFO(log, "Controller mode active - cmd:{} fb:{}", cmdPort, fbPort);
             }
 

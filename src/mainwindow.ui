@@ -900,7 +900,7 @@
                  <item row="0" column="0">
                   <widget class="QLabel" name="lblNetExpectedClients">
                    <property name="text">
-                    <string>Expected network clients</string>
+                    <string>Expected client count</string>
                    </property>
                   </widget>
                  </item>
@@ -923,7 +923,7 @@
                  <item row="1" column="0">
                   <widget class="QLabel" name="lblNetTimeout">
                    <property name="text">
-                    <string>Network timeout</string>
+                    <string>Timeout delay</string>
                    </property>
                   </widget>
                  </item>
