@@ -7,6 +7,7 @@
 
 #include "datactl/edlstorage.h"
 #include "datactl/edlutils.h"
+#include "datactl/monikers.h"
 #include "utils/tomlutils.h"
 
 using namespace Syntalos;
@@ -231,6 +232,59 @@ private slots:
         QVERIFY(tsMs <= (afterMs + 1));
 
         QCOMPARE(Uuid::fromHex(uuidStr.toStdString()).value(), uuid);
+    }
+
+    void runMonikerTest()
+    {
+        // makeAnimalMoniker is random - verify only the shape.
+        const QRegularExpression animalRe(QStringLiteral("^[a-z0-9]+-[a-z0-9]+$"));
+        for (int i = 0; i < 16; ++i) {
+            const auto m = QString::fromStdString(makeAnimalMoniker());
+            QVERIFY2(animalRe.match(m).hasMatch(), qPrintable(m));
+        }
+
+        // The deterministic moniker functions are stable across runs
+        const auto u1 = Uuid::fromHex("12345678-1234-7abc-8def-0123456789ab").value();
+        const auto u2 = Uuid::fromHex("fedcba98-7654-7321-8fed-cba987654321").value();
+        QCOMPARE(makeMonikerForUuid(u1), std::string("inter-chuck-tar"));
+        QCOMPARE(makeMonikerForUuid(u2), std::string("functioning-nay"));
+
+        QCOMPARE(makeMonikerForString("hello world"), std::string("insulting-eggplant"));
+        QCOMPARE(makeMonikerForString("hello worle"), std::string("remedial-reincarnation"));
+        QCOMPARE(makeMonikerForString(""), std::string("merry-pothole"));
+    }
+
+    void runCollectionMonikerTest()
+    {
+        const auto fixedUuid = Uuid::fromHex("12345678-1234-7abc-8def-0123456789ab").value();
+        std::unique_ptr<EDLCollection> collection(new EDLCollection("moniker-experiment", fixedUuid));
+
+        // No moniker by default.
+        QVERIFY(collection->collectionMoniker().empty());
+
+        collection->setCollectionHasMoniker(true);
+        QCOMPARE(collection->collectionMoniker(), std::string("inter-chuck-tar"));
+
+        // Disabling clears it again.
+        collection->setCollectionHasMoniker(false);
+        QVERIFY(collection->collectionMoniker().empty());
+
+        // Re-enable and verify it round-trips into the manifest.
+        collection->setCollectionHasMoniker(true);
+
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        collection->setRootPath(dir.path().toStdString());
+
+        auto res = collection->save();
+        if (!res.has_value())
+            QFAIL(res.error().c_str());
+
+        const auto manifestPath = QString::fromStdString(collection->path()) + QStringLiteral("/manifest.toml");
+        QString err;
+        const auto manifest = parseTomlFile(manifestPath, err);
+        QVERIFY2(err.isEmpty(), qPrintable(err));
+        QCOMPARE(manifest.value("collection_moniker").toString(), QStringLiteral("inter-chuck-tar"));
     }
 };
 

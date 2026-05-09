@@ -27,6 +27,7 @@
 #include <QSysInfo>
 
 #include "datactl/priv/rtkit.h"
+#include "datactl/monikers.h"
 #include "utils/misc.h"
 
 using namespace Syntalos;
@@ -264,9 +265,11 @@ QString GlobalConfig::netInstanceId() const
 {
     auto id = m_s->value("instance_id").toString();
     if (id.isEmpty()) {
-        id = QSysInfo::machineHostName();
-        if (id.isEmpty())
-            id = QStringLiteral("syntalos-instance");
+        auto uniqId = QSysInfo::machineUniqueId();
+        if (uniqId.isEmpty())
+            uniqId = QSysInfo::machineHostName().toUtf8();
+
+        id = qstr(makeAnimalMonikerForString(uniqId.toStdString()));
     }
     return id;
 }

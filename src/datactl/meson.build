@@ -23,6 +23,7 @@ sy_datactl_pub_hdr = [
 sy_datactl_priv_hdr = [
     'edlutils.h',
     'loginternal.h',
+    'monikers.h',
 
     'priv/rtkit.h',
     'priv/cpuaffinity.h',
@@ -33,6 +34,7 @@ sy_datactl_src = [
     'edlstorage.cpp',
     'edlutils.cpp',
     'logging.cpp',
+    'monikers.cpp',
     'streammeta.cpp',
     'syclock.cpp',
     'timesync.cpp',
@@ -59,6 +61,9 @@ syntalos_datactl_lib = shared_library('syntalos-datactl',
     include_directories: [
         root_include_dir,
         include_directories('../'),
+    ],
+    cpp_args: [
+        '--embed-dir=' + source_root / 'data',
     ],
     install: true,
     install_rpath: sy_libdir,

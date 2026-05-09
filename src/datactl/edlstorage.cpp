@@ -33,6 +33,7 @@
 
 #include "edlutils.h"
 #include "loginternal.h"
+#include "monikers.h"
 
 SY_DEFINE_LOG_CATEGORY(logEdl, "edl");
 
@@ -142,7 +143,7 @@ public:
     EDLUnit *parent = nullptr;
 
     Uuid collectionId{};
-    bool collectionIdSet = false;
+    std::string collectionMoniker{};
     std::optional<EdlDateTime> timeCreated;
     std::string generatorId;
     std::vector<EDLAuthor> authors;
@@ -257,13 +258,12 @@ void EDLUnit::setCollectionId(const Uuid &uuid)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     d->collectionId = uuid;
-    d->collectionIdSet = true;
 }
 
 std::string EDLUnit::collectionShortTag() const
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
-    if (!d->collectionIdSet)
+    if (d->collectionId.isEmpty())
         return {};
 
     // we need to take from the right, because we use UUIDv7 and to get a varying tag
@@ -386,8 +386,10 @@ std::string EDLUnit::serializeManifest()
     document.insert("type", objectKindString());
     document.insert("time_created", edl::toToml(*d->timeCreated));
 
-    if (d->collectionIdSet)
+    if (!d->collectionId.isEmpty())
         document.insert("collection_id", d->collectionId.toHex());
+    if (!d->collectionMoniker.empty())
+        document.insert("collection_moniker", d->collectionMoniker);
     if (!d->generatorId.empty())
         document.insert("generator", d->generatorId);
 
@@ -489,6 +491,18 @@ void EDLUnit::setGeneratorId(const std::string &idString)
 {
     const std::lock_guard<std::mutex> lock(d->mutex);
     d->generatorId = idString;
+}
+
+void EDLUnit::setCollectionMoniker(const std::string &moniker)
+{
+    const std::lock_guard<std::mutex> lock(d->mutex);
+    d->collectionMoniker = moniker;
+}
+
+std::string EDLUnit::collectionMoniker() const
+{
+    const std::lock_guard<std::mutex> lock(d->mutex);
+    return d->collectionMoniker;
 }
 
 // ============================================================
@@ -996,4 +1010,19 @@ std::string EDLCollection::generatorId() const
 void EDLCollection::setGeneratorId(const std::string &idString)
 {
     EDLUnit::setGeneratorId(idString);
+}
+
+std::string EDLCollection::collectionMoniker() const
+{
+    return EDLUnit::collectionMoniker();
+}
+
+void EDLCollection::setCollectionHasMoniker(bool useMoniker)
+{
+    if (!useMoniker) {
+        setCollectionMoniker({});
+        return;
+    }
+
+    setCollectionMoniker(makeMonikerForUuid(collectionId()));
 }

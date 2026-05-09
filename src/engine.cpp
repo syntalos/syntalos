@@ -2293,7 +2293,7 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
         // waiting on the start condition so they can exit, and fall through to
         // teardown - which will join them and clean up.
         if (d->failed) {
-           startWaitCondition->wakeAll();
+            startWaitCondition->wakeAll();
             d->running = false;
         } else {
             // broadcast start time to network listeners
@@ -2330,7 +2330,9 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
             startWaitCondition->wakeAll();
 
             LOG_DEBUG(
-                d->log, "Threaded/evented module startup completed, took {} msec", d->timer->timeSinceStartMsec().count());
+                d->log,
+                "Threaded/evented module startup completed, took {} msec",
+                d->timer->timeSinceStartMsec().count());
             lastPhaseTimepoint = d->timer->currentTimePoint();
 
             // tell all non-threaded modules individually now that we started

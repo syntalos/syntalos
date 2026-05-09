@@ -189,6 +189,9 @@ protected:
     virtual std::string generatorId() const;
     virtual void setGeneratorId(const std::string &idString);
 
+    void setCollectionMoniker(const std::string &moniker);
+    std::string collectionMoniker() const;
+
 private:
     class Private;
     std::unique_ptr<Private> d;
@@ -331,6 +334,9 @@ public:
 
     std::string generatorId() const override;
     void setGeneratorId(const std::string &idString) override;
+
+    std::string collectionMoniker() const;
+    void setCollectionHasMoniker(bool useMoniker);
 
 private:
     class Private;
