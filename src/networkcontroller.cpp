@@ -86,6 +86,10 @@ public:
     // a (human-friendly) project name included in controller prepare broadcasts
     QString projectId;
 
+    // per-project settings
+    int expectedClientCount{0};
+    int controlTimeoutMs{6000};
+
     // ZMQ context shared across all sockets
     zmq::context_t ctx{1};
     // inproc endpoint for main->worker commands; unique per instance
@@ -706,6 +710,16 @@ void NetworkController::setProjectId(const QString &id)
     d->projectId = id;
 }
 
+void NetworkController::setExpectedClientCount(int count)
+{
+    d->expectedClientCount = count;
+}
+
+void NetworkController::setControlTimeoutMs(int ms)
+{
+    d->controlTimeoutMs = ms;
+}
+
 bool NetworkController::broadcastPrepare(
     const Uuid &runId,
     const QString &subjectId,
@@ -724,27 +738,24 @@ bool NetworkController::broadcastPrepare(
     const auto payload = d->buildPrepareJson(runId, subjectId, subjectGroup, experimentId);
     d->sendCtrlMsg(CommandKind::Broadcast, payload);
 
-    const int expected = d->gconf->netExpectedClientCount();
-    const int timeoutMs = d->gconf->netControlTimeoutMs();
-
     LOG_INFO(
-        d->log, "Broadcasted 'Prepare' for {}/{}, waiting for {} participants", d->projectId, runId.toHex(), expected);
-    if (expected <= 0)
+        d->log, "Broadcasted 'Prepare' for {}/{}, waiting for {} participants", d->projectId, runId.toHex(), d->expectedClientCount);
+    if (d->expectedClientCount <= 0)
         return true;
 
     // Block (processing Qt events) until we have enough ACKs or time out
-    QDeadlineTimer deadline(timeoutMs);
+    QDeadlineTimer deadline(d->controlTimeoutMs);
     while (!deadline.hasExpired()) {
-        if (d->pendingPrepareAckCount >= expected)
+        if (d->pendingPrepareAckCount >= d->expectedClientCount)
             break;
         qApp->processEvents(QEventLoop::AllEvents, 50);
     }
 
-    if (d->pendingPrepareAckCount < expected) {
+    if (d->pendingPrepareAckCount < d->expectedClientCount) {
         Q_EMIT errorMessage(
             QStringLiteral("Only %1 of expected %2 network participants confirmed finishing their preparations.")
                 .arg(d->pendingPrepareAckCount.load())
-                .arg(expected));
+                .arg(d->expectedClientCount));
         return false;
     }
 
@@ -772,7 +783,7 @@ void NetworkController::broadcastStart(const Uuid &runId, qint64 startTimeUnixUs
     d->sendCtrlMsg(CommandKind::Broadcast, payload);
     LOG_INFO(d->log, "Broadcasted 'Start' for {}/{}", d->projectId, runId.toHex());
 
-    const int expected = d->gconf->netExpectedClientCount();
+    const int expected = d->expectedClientCount;
     if (expected <= 0)
         return;
 
@@ -781,7 +792,7 @@ void NetworkController::broadcastStart(const Uuid &runId, qint64 startTimeUnixUs
 
     // Passively collect start ACKs; if not enough arrive within the timeout, stop the run.
     // We never block here - the run has already started.
-    QTimer::singleShot(d->gconf->netControlTimeoutMs(), this, [this, runId, expected]() {
+    QTimer::singleShot(d->controlTimeoutMs, this, [this, runId, expected]() {
         if (d->currentRunId != runId)
             return; // run already finished or superseded
         const int got = d->pendingStartAckCount.load();

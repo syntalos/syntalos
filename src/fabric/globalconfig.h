@@ -105,12 +105,6 @@ public:
     QString netInstanceId() const;
     void setInstanceId(const QString &id);
 
-    int netExpectedClientCount() const;
-    void setNetExpectedClientCount(int count);
-
-    int netControlTimeoutMs() const;
-    void setNetControlTimeoutMs(int ms);
-
     QString lastProjectDir() const;
     void setLastProjectDir(const QString &dir);
 

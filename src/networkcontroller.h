@@ -125,6 +125,10 @@ public:
     // Set project name (if we have any) to include in PREPARE broadcast
     void setProjectId(const QString &id);
 
+    // Per-project network run settings
+    void setExpectedClientCount(int count);
+    void setControlTimeoutMs(int ms);
+
 signals:
     // Listener received a "prepare" command; Engine state (subject, experiment,
     // extra attributes) has already been updated.  MainWindow should call

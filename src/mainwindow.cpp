@@ -341,6 +341,13 @@ MainWindow::MainWindow(QWidget *parent)
         connect(ui->actionNetRunListener, &QAction::toggled, this, &MainWindow::onActionNetListenerToggled);
         connect(netCtl, &NetworkController::prepareReceived, this, &MainWindow::onNetPrepareReceived);
         connect(netCtl, &NetworkController::stopReceived, this, &MainWindow::onNetStopReceived);
+
+        connect(ui->sbNetExpectedClients, qOverload<int>(&QSpinBox::valueChanged), this, [this](int v) {
+            m_engine->netController()->setExpectedClientCount(v);
+        });
+        connect(ui->sbNetTimeout, qOverload<int>(&QSpinBox::valueChanged), this, [this](int v) {
+            m_engine->netController()->setControlTimeoutMs(v);
+        });
     }
 
     // keep the export directory preview in sync with the optional hour/minute suffix setting
@@ -702,6 +709,8 @@ bool MainWindow::saveConfiguration(const QString &fileName)
         .experimentId = ui->expIdEdit->text(),
         .netControlEnabled = ui->actionNetRunController->isChecked(),
         .netListenerEnabled = ui->actionNetRunListener->isChecked(),
+        .netExpectedClientCount = ui->sbNetExpectedClients->value(),
+        .netControlTimeoutMs = ui->sbNetTimeout->value(),
     };
 
     const auto res = saveProjectConfiguration(
@@ -742,13 +751,13 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         setConfigModifyAllowed(true);
     });
 
-    ProjectSettings storageSettings;
+    ProjectSettings ps;
     auto res = loadProjectConfigurationInteractive(
         m_engine,
         ui->graphForm->graphView(),
         m_subjectList,
         m_experimenterList,
-        storageSettings,
+        ps,
         fileName,
         this,
         [this]() {
@@ -768,18 +777,22 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     // project was loaded successfully!
     setCurrentProjectFile(fileName);
 
-    ui->cbClockTimeInExportDir->setChecked(storageSettings.clockTimeInDir);
-    ui->cbSimpleStorageNames->setChecked(storageSettings.simpleNames);
-    ui->cbFlatExportDirName->setChecked(storageSettings.flatRoot);
-    ui->cbAddMoniker->setChecked(storageSettings.addMoniker);
+    ui->cbClockTimeInExportDir->setChecked(ps.clockTimeInDir);
+    ui->cbSimpleStorageNames->setChecked(ps.simpleNames);
+    ui->cbFlatExportDirName->setChecked(ps.flatRoot);
+    ui->cbAddMoniker->setChecked(ps.addMoniker);
 
-    changeExportDirLayout(storageSettings.exportDirLayout);
-    m_engine->setExportBaseDir(storageSettings.exportBaseDir);
+    changeExportDirLayout(ps.exportDirLayout);
+    m_engine->setExportBaseDir(ps.exportBaseDir);
     updateExportDirDisplay();
-    ui->expIdEdit->setText(storageSettings.experimentId);
+    ui->expIdEdit->setText(ps.experimentId);
 
-    ui->actionNetRunController->setChecked(storageSettings.netControlEnabled);
-    ui->actionNetRunListener->setChecked(storageSettings.netListenerEnabled);
+    ui->actionNetRunController->setChecked(ps.netControlEnabled);
+    ui->actionNetRunListener->setChecked(ps.netListenerEnabled);
+    ui->sbNetExpectedClients->setValue(ps.netExpectedClientCount);
+    ui->sbNetTimeout->setValue(ps.netControlTimeoutMs);
+    m_engine->netController()->setExpectedClientCount(ps.netExpectedClientCount);
+    m_engine->netController()->setControlTimeoutMs(ps.netControlTimeoutMs);
 
     setExperimenterSelectVisible(!m_experimenterList->isEmpty());
 
@@ -1255,6 +1268,14 @@ void MainWindow::loadProjectFilename(const QString &fname)
     QTimer::singleShot(0, [&]() {
         loadConfiguration(fname);
     });
+}
+
+void MainWindow::setNetPortOverrides(int controlPort, int feedbackPort)
+{
+    if (controlPort >= 0)
+        m_gconf->setNetControlPortTransient(controlPort);
+    if (feedbackPort >= 0)
+        m_gconf->setNetFeedbackPortTransient(feedbackPort);
 }
 
 void MainWindow::scheduleProjectAutorun(

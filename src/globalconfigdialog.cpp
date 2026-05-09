@@ -59,8 +59,6 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent)
     ui->sbNetFeedbackPort->setValue(m_gc->netFeedbackPort());
     ui->leNetHost->setText(m_gc->netControlHost());
     ui->leNetInstanceId->setText(m_gc->netInstanceId());
-    ui->sbNetClientCount->setValue(m_gc->netExpectedClientCount());
-    ui->sbNetTimeout->setValue(m_gc->netControlTimeoutMs());
 
     // advanced section
     ui->defaultNicenessSpinBox->setMaximum(20);
@@ -136,18 +134,6 @@ void GlobalConfigDialog::on_leNetInstanceId_textEdited(const QString &text)
 {
     if (m_acceptChanges)
         m_gc->setInstanceId(text);
-}
-
-void GlobalConfigDialog::on_sbNetClientCount_valueChanged(int arg1)
-{
-    if (m_acceptChanges)
-        m_gc->setNetExpectedClientCount(arg1);
-}
-
-void GlobalConfigDialog::on_sbNetTimeout_valueChanged(int arg1)
-{
-    if (m_acceptChanges)
-        m_gc->setNetControlTimeoutMs(arg1);
 }
 
 void GlobalConfigDialog::on_defaultNicenessSpinBox_valueChanged(int arg1)

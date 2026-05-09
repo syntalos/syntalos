@@ -279,26 +279,6 @@ void GlobalConfig::setInstanceId(const QString &id)
     m_s->setValue("instance_id", id);
 }
 
-int GlobalConfig::netExpectedClientCount() const
-{
-    return m_s->value("net_control/expected_client_count", 0).toInt();
-}
-
-void GlobalConfig::setNetExpectedClientCount(int count)
-{
-    m_s->setValue("net_control/expected_client_count", count);
-}
-
-int GlobalConfig::netControlTimeoutMs() const
-{
-    return m_s->value("net_control/timeout_ms", 6000).toInt();
-}
-
-void GlobalConfig::setNetControlTimeoutMs(int ms)
-{
-    m_s->setValue("net_control/timeout_ms", ms);
-}
-
 QString GlobalConfig::lastProjectDir() const
 {
     return m_s->value("project/last_project_dir", QStandardPaths::writableLocation(QStandardPaths::HomeLocation))

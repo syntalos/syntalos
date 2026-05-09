@@ -88,6 +88,8 @@ static bool saveProjectConfigInternal(
     QVariantHash netSettings;
     netSettings.insert("controller_enabled", ps.netControlEnabled);
     netSettings.insert("listener_enabled", ps.netListenerEnabled);
+    netSettings.insert("expected_listener_count", ps.netExpectedClientCount);
+    netSettings.insert("timeout_ms", ps.netControlTimeoutMs);
     settings.insert("network", netSettings);
 
     // basic configuration
@@ -272,6 +274,8 @@ bool loadProjectConfigurationInteractive(
     auto netObj = rootObj.value("network").toHash();
     outSettings.netControlEnabled = netObj.value("controller_enabled", false).toBool();
     outSettings.netListenerEnabled = netObj.value("listener_enabled", false).toBool();
+    outSettings.netExpectedClientCount = netObj.value("expected_listener_count", 0).toInt();
+    outSettings.netControlTimeoutMs = netObj.value("timeout_ms", 6000).toInt();
 
     // load list of subjects
     subjectList->clear();
