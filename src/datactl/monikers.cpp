@@ -19,6 +19,7 @@
 
 #include "monikers.h"
 
+#include <algorithm>
 #include <chrono>
 #include <mutex>
 #include <random>
@@ -155,6 +156,9 @@ std::string makeAnimalMonikerFromRng(std::mt19937_64 &rng)
     std::string out;
     out.reserve(a.size() + 1 + n.size());
     out.append(a).append("-").append(n);
+
+    // Word entries may contain spaces (e.g. "guinea pig"); flatten them.
+    std::replace(out.begin(), out.end(), ' ', '-');
     return out;
 }
 
@@ -200,6 +204,7 @@ std::string makeMonikerFromSeed(uint64_t seed)
         out.append(m).append("-");
     out.append(n);
 
+    std::replace(out.begin(), out.end(), ' ', '-');
     return out;
 }
 
