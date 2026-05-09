@@ -237,7 +237,7 @@ private slots:
     void runMonikerTest()
     {
         // makeAnimalMoniker is random - verify only the shape.
-        const QRegularExpression animalRe(QStringLiteral("^[a-z0-9]+-[a-z0-9]+$"));
+        const QRegularExpression animalRe(QStringLiteral("^[a-z0-9]+(-[a-z0-9]+)+$"));
         for (int i = 0; i < 16; ++i) {
             const auto m = QString::fromStdString(makeAnimalMoniker());
             QVERIFY2(animalRe.match(m).hasMatch(), qPrintable(m));

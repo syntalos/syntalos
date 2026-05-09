@@ -39,6 +39,7 @@ namespace
 // We avoid building a compile-time table of string_views (which would bake
 // ~16 bytes per entry into the binary) and instead build a compact uint32_t
 // offset table lazily on first use.
+#ifdef __has_embed
 constexpr unsigned char adjectives_data[] = {
 #embed "words/adjectives.txt"
 };
@@ -51,6 +52,9 @@ constexpr unsigned char intermediate_data[] = {
 constexpr unsigned char nouns_data[] = {
 #embed "words/nouns.txt"
 };
+#else
+#include "words_embed.h"
+#endif
 
 class WordList
 {
