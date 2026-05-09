@@ -64,6 +64,7 @@
 #include "modulelibrary.h"
 #include "mlinkmodule.h"
 #include "sysinfo.h"
+#include "syscopeguard.h"
 #include "datactl/syclock.h"
 #include "datactl/edlstorage.h"
 #include "datactl/priv/cpuaffinity.h"
@@ -1870,14 +1871,15 @@ bool Engine::waitForModulesReady(const ModuleRunOrder &modOrder)
  */
 bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
 {
-    // Cleanup for any abort path that returns early from this function before
-    // the normal teardown is reached. Without this, listener-side state
-    // (runOriginRemote, pending ACKs) and engine-injected metadata can leak
-    // into the next run.
-    auto cleanupAbortedRun = [this]() {
+    // Cleanup that must happen on every exit path. Without this, listener-side
+    // state (runOriginRemote, pending ACKs) and engine-injected metadata can
+    // leak into the next run. The normal teardown below also performs the
+    // equivalent work via broadcastStop()/finalizeExperimentMetadata(), so this
+    // guard is idempotent and primarily covers early-abort paths.
+    auto runStateCleanup = syScopeGuard([this]() {
         d->extraRunAttrs.clear();
         d->netCtl->resetListenerRunState();
-    };
+    });
 
     QDir edlDir(exportDirPath);
     if (edlDir.exists()) {
@@ -1888,14 +1890,19 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
                 "Directory '%1' was expected to be nonexistent, but the directory exists. "
                 "Stopped run to prevent potential data loss. This condition should never happen.")
                 .arg(exportDirPath));
-        cleanupAbortedRun();
         return false;
     }
 
-    if (!makeDirectory(exportDirPath)) {
-        cleanupAbortedRun();
+    if (!makeDirectory(exportDirPath))
         return false;
-    }
+
+    // If we abort before successfully finalizing the run, remove the export
+    // directory so we don't litter the filesystem with empty/broken EDLs.
+    // Dismissed once the manifest has been written below.
+    auto failedRunDirCleanup = syScopeGuard([this, &edlDir]() {
+        emitStatusMessage(QStringLiteral("Removing broken data..."));
+        edlDir.removeRecursively();
+    });
 
     // ensure error queue is clean
     d->pendingErrors.clear();
@@ -1903,9 +1910,14 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
     // a fresh run starts un-stopped
     d->stopRequested = false;
 
-    // the engine is actively doing stuff with modules now
+    // the engine is actively doing stuff with modules now;
+    // pause USB hotplug dispatch for the duration of this run
     d->active = true;
     d->usbEventsTimer->stop();
+    auto engineActiveCleanup = syScopeGuard([this]() {
+        d->active = false;
+        d->usbEventsTimer->start();
+    });
 
     // reset failure reason, in case one was set from a previous run
     d->runFailedReason = QString();
@@ -1922,6 +1934,10 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
 
     // set main thread default niceness for the current run
     setCurrentThreadNiceness(defaultThreadNice);
+    auto mainThreadNicenessCleanup = syScopeGuard([]() {
+        // reset main thread niceness, we are not important anymore if no experiment is running
+        setCurrentThreadNiceness(0);
+    });
 
     // set CPU core affinities base setting
     if (d->gconf->explicitCoreAffinities())
@@ -1939,10 +1955,7 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
     // this call may block briefly to await ACKs from network listeners
     if (!d->netCtl->broadcastPrepare(
             storageCollection->collectionId(), d->testSubject.id, d->testSubject.group, d->experimentIdFinal)) {
-        d->active = false;
         d->failed = true;
-        d->usbEventsTimer->start();
-        cleanupAbortedRun();
         return false;
     }
 
@@ -1968,18 +1981,20 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
 
     // perform module name sanity check
     if (!validateModuleNames(modOrder)) {
-        d->active = false;
         d->failed = true;
-        d->usbEventsTimer->start();
         // listeners that ACKed the prepare above are now waiting for START - tell
         // them to abort, otherwise they would only unblock at the 30 s timeout.
         d->netCtl->broadcastStop(storageCollection->collectionId(), false);
-        cleanupAbortedRun();
         return false;
     }
 
     // prevent the system from sleeping or shutdown
     const int sleepInhibitorLockFd = obtainSleepShutdownIdleInhibitor();
+    auto sleepInhibitorCleanup = syScopeGuard([sleepInhibitorLockFd]() {
+        // release system sleep inhibitor lock when we are done
+        if (sleepInhibitorLockFd >= 0)
+            ::close(sleepInhibitorLockFd);
+    });
     if (sleepInhibitorLockFd < 0)
         LOG_WARNING(d->log, "Could not inhibit system sleep/idle/shutdown for this run.");
     else
@@ -2103,6 +2118,10 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
 
     // suspend input to and output from to all inactive modules
     setInactiveModulePortsSuspended(modOrder, true);
+    auto inactivePortsResume = syScopeGuard([this, &modOrder]() {
+        // unsuspend input/output ports on modules that were inactive this run
+        setInactiveModulePortsSuspended(modOrder, false);
+    });
 
     // exporter for streams so out-of-process mlink modules can access them
     auto streamExporter = std::make_unique<StreamExporter>();
@@ -2259,6 +2278,7 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
     // Meanwhile, threaded modules may have failed, so let's check again if we are still
     // good on initialization
     if (initSuccessful) {
+        d->running = false;
         emitStatusMessage(QStringLiteral("Launch setup completed."));
 
         // collect modules which have an explicit UI callback method
@@ -2271,8 +2291,14 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
             }
         }
 
-        // start monitoring resource issues during this run
+        // start monitoring resource issues during this run; the matching stop is
+        // a scope guard so that an aborted start barrier (network timeout, user
+        // stop, etc.) below cannot leave the monitoring timers running.
         startResourceMonitoring(modOrder.start, exportDirPath);
+        auto resourceMonitoringStop = syScopeGuard([this]() {
+            // stop resource watcher timers
+            stopResourceMonitoring();
+        });
 
         // signal that all modules are prepared and we are about to start the timer;
         // in listener mode, NetworkController uses this to send the prepare ACK to
@@ -2294,20 +2320,22 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
         if (d->stopRequested)
             d->failed = true;
 
-        if (netStartWall.has_value())
-            d->timer->startAtWallTime(*netStartWall);
-        else
-            d->timer->start();
-        d->running = true;
-
         // If the start barrier was aborted (network timeout, user stop), do not
         // actually start any modules or emit runStarted. Just wake any threads
         // waiting on the start condition so they can exit, and fall through to
         // teardown - which will join them and clean up.
         if (d->failed) {
+            d->timer->start();
             startWaitCondition->wakeAll();
-            d->running = false;
         } else {
+
+            // start the master timer
+            if (netStartWall.has_value())
+                d->timer->startAtWallTime(*netStartWall);
+            else
+                d->timer->start();
+            d->running = true;
+
             // broadcast start time to network listeners
             d->netCtl->broadcastStart(
                 storageCollection->collectionId(),
@@ -2398,9 +2426,6 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
                 if (d->failed)
                     break;
             }
-
-            // stop resource watcher timers
-            stopResourceMonitoring();
         }
     }
 
@@ -2618,27 +2643,14 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
             tsw->close();
     }
 
-    if (!initSuccessful) {
-        // if we failed to prepare this run, don't save the manifest and also
-        // remove any data that we might have already created, as well as the
-        // export directory.
-        emitStatusMessage(QStringLiteral("Removing broken data..."));
-        edlDir.removeRecursively();
-    } else {
+    if (initSuccessful) {
         finalizeExperimentMetadata(storageCollection, finishTimestamp, modOrder.start);
         LOG_INFO(
             d->log, "Manifest and additional data saved in {} msec", timeDiffToNowMsec(lastPhaseTimepoint).count());
+        // we made it: keep the export directory around (the failed-run guard
+        // installed at the top of this function would otherwise wipe it).
+        failedRunDirCleanup.dismiss();
     }
-
-    // unsuspend input/output ports on modules that were inactive this run
-    setInactiveModulePortsSuspended(modOrder, false);
-
-    // release system sleep inhibitor lock
-    if (sleepInhibitorLockFd != -1)
-        ::close(sleepInhibitorLockFd);
-
-    // reset main thread niceness, we are not important anymore of no experiment is running
-    setCurrentThreadNiceness(0);
 
     // ensure main thread CPU affinity is cleared
     thread_clear_affinity(pthread_self());
@@ -2653,11 +2665,14 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
     if (!d->failed)
         d->runCount++;
 
-    // we have stopped doing things with modules
-    d->active = false;
-
-    // notify modules about any deferred USB events again
-    d->usbEventsTimer->start();
+    // Run the order-sensitive cleanup guards now, before broadcastStop/runStopped
+    // are emitted. Slots connected to runStopped (e.g. MainWindow::shutdown() ->
+    // removeAllModules()) read d->active and expect input ports to be unsuspended,
+    // so this state must be settled before any listener observes the signal.
+    inactivePortsResume.commit();
+    sleepInhibitorCleanup.commit();
+    mainThreadNicenessCleanup.commit();
+    engineActiveCleanup.commit();
 
 #ifdef SY_HAS_LSAN
     // Trigger an explicit LSan report now that all module threads are joined and
