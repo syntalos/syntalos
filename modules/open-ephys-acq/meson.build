@@ -1,11 +1,22 @@
 # Build definitions for module: open-ephys-acq
 
 module_hdr = [
-    'oeacqmodule.h'
+    'oeacqmodule.h',
+    'devices/AcquisitionBoard.h',
+    'devices/Headstage.h',
+    'devices/ImpedanceMeter.h',
+    'devices/simulated/AcqBoardSim.h',
+    'devices/simulated/HeadstageSim.h',
+    'devices/simulated/ImpedanceMeterSim.h',
+    'devices/simulated/SimulatedData.h',
 ]
 module_moc_hdr = []
 
-module_src = []
+module_src = [
+    'devices/simulated/AcqBoardSim.cpp',
+    'devices/simulated/HeadstageSim.cpp',
+    'devices/simulated/ImpedanceMeterSim.cpp',
+]
 module_moc_src = [
     'oeacqmodule.cpp',
 ]
