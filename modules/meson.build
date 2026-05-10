@@ -66,6 +66,9 @@ subdir('upy-workbench')
 if 'intan-rhx' in modules_enabled
     subdir('intan-rhx')
 endif
+if 'open-ephys-acq' in modules_enabled
+    subdir('open-ephys-acq')
+endif
 
 # Misc
 subdir('jsonwriter')
