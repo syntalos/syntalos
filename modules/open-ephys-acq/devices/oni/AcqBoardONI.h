@@ -1,8 +1,7 @@
 /*
     ------------------------------------------------------------------
-
-    This file is part of the Open Ephys GUI
     Copyright (C) 2024 Open Ephys
+    Copyright (C) 2026 Syntalos Project
 
     ------------------------------------------------------------------
 
@@ -20,353 +19,196 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef __ACQBOARDONI_H_2C4CBD67__
-#define __ACQBOARDONI_H_2C4CBD67__
+#pragma once
 
 #include "../AcquisitionBoard.h"
 #include "HeadstageONI.h"
 #include "ImpedanceMeterONI.h"
 
-#include "rhythm-api/okFrontPanelDLL.h"
 #include "rhythm-api/rhd2000ONIboard.h"
 #include "rhythm-api/rhd2000ONIdatablock.h"
 #include "rhythm-api/rhd2000ONIregisters.h"
 
-#define CHIP_ID_RHD2132 1
-#define CHIP_ID_RHD2216 2
-#define CHIP_ID_RHD2164 4
+#include "fabric/logging.h"
+
+#include <array>
+#include <atomic>
+#include <cstdint>
+#include <memory>
+#include <mutex>
+#include <vector>
+
+#define CHIP_ID_RHD2132   1
+#define CHIP_ID_RHD2216   2
+#define CHIP_ID_RHD2164   4
 #define CHIP_ID_RHD2164_B 1000
-#define REGISTER_59_MISO_A 53
-#define REGISTER_59_MISO_B 58
+#define REGISTER_59_MISO_A  53
+#define REGISTER_59_MISO_B  58
 #define RHD2132_16CH_OFFSET 8
 
-#define MAX_NUM_CHANNELS MAX_NUM_DATA_STREAMS_USB3 * 35 + 16
+#define MAX_NUM_CHANNELS (MAX_NUM_DATA_STREAMS_USB3 * 35 + 16)
 
 /**
-    Background thread with progress window for scanning ports
-*/
-class PortScanner : public ThreadWithProgressWindow
-{
-public:
-    PortScanner (AcqBoardONI* board_) : ThreadWithProgressWindow ("Scanning ports...", true, false),
-                                        board (board_)
-    {
-    }
-
-    ~PortScanner()
-    {
-        signalThreadShouldExit();
-        waitForThreadToExit (1000);
-    }
-
-    void run() override;
-
-private:
-    AcqBoardONI* board;
-};
-
-/**
-    Background thread with progress window for initializing the board
-*/
-class InitializerThread : public juce::ThreadWithProgressWindow
-{
-public:
-    InitializerThread (AcqBoardONI* board_)
-        : ThreadWithProgressWindow ("Initializing ONI Acquisition Board...", true, false), board (board_)
-    {
-    }
-
-    ~InitializerThread()
-    {
-        signalThreadShouldExit();
-        waitForThreadToExit (1000);
-    }
-
-    void run() override;
-
-private:
-    AcqBoardONI* board;
-};
-
-/**
-    Interface for Open Ephys Acquisition Board with an Open Ephys FPGA
-
-    https://open-ephys.org/acq-board
-
-    @see DataThread, SourceNode
-*/
-
+ * Open Ephys Acquisition Board with the Open Ephys ONI FPGA bitstream.
+ *
+ * https://open-ephys.org/acq-board
+ */
 class AcqBoardONI : public AcquisitionBoard
 {
     friend class ImpedanceMeterONI;
 
 public:
-    /** Constructor */
     AcqBoardONI();
+    ~AcqBoardONI() override;
 
-    /** Destructor */
-    virtual ~AcqBoardONI();
-
-    /** Detects whether a board is present */
     bool detectBoard() override;
-
-    /** Initializes board after successful detection */
     bool initializeBoard() override;
-
-    /** Initializes board in background thread */
-    bool initializeBoardInThread();
-
-    /** Returns true if the device is connected */
     bool foundInputSource() const override;
 
-    /** Returns an array of connected headstages for this board */
-    Array<const Headstage*> getHeadstages();
+    std::vector<const Headstage *> getHeadstages() override;
+    std::vector<int> getAvailableSampleRates() override;
 
-    /** Returns available sample rates */
-    Array<int> getAvailableSampleRates();
+    void setSampleRate(int sampleRateHz) override;
+    float getSampleRate() const override;
 
-    /** Set sample rate */
-    void setSampleRate (int sampleRateHz) override;
+    void scanPorts() override;
 
-    /** Get current sample rate */
-    float getSampleRate() const;
-
-    /** Checks for connected headstages */
-    void scanPorts();
-
-    /** Checks for connected headstages in background thread */
-    void scanPortsInThread();
-
-    /** Checks cable delays after sample rate update */
+    /** After a sample-rate change, re-evaluate optimum cable delays. */
     void checkAllCableDelays();
 
-    /** Enables AUX channel out */
-    void enableAuxChannels (bool enabled);
+    void enableAuxChannels(bool enabled) override;
+    bool areAuxChannelsEnabled() const override;
+    void enableAdcChannels(bool enabled) override;
+    bool areAdcChannelsEnabled() const override;
 
-    /** Checks whether AUX channels are enabled */
-    bool areAuxChannelsEnabled() const;
+    float getBitVolts(ChannelKind kind) const override;
 
-    /** Enables ADC channel out */
-    void enableAdcChannels (bool enabled);
+    void measureImpedances() override;
+    void impedanceMeasurementFinished() override;
+    void saveImpedances(const std::filesystem::path &file) override;
 
-    /** Checks whether ADC channels are enabled */
-    bool areAdcChannelsEnabled() const;
-
-    /** Returns bitVolts scaling value for each channel type */
-    float getBitVolts (ContinuousChannel::Type) const;
-
-    /** Measures impedance of each channel */
-    void measureImpedances();
-
-    /**  Called when impedance measurement is complete */
-    void impedanceMeasurementFinished();
-
-    /** Save impedance measurements to XML*/
-    void saveImpedances (File& file);
-
-    /** Sets the method for determining channel names*/
-    void setNamingScheme (ChannelNamingScheme scheme);
-
-    /** Gets the method for determining channel names*/
-    ChannelNamingScheme getNamingScheme();
+    void setNamingScheme(ChannelNamingScheme scheme) override;
+    ChannelNamingScheme getNamingScheme() override;
 
     bool isReady() override;
+    bool startAcquisition() override;
+    bool stopAcquisition() override;
 
-    /** Initializes data transfer*/
-    bool startAcquisition();
+    bool pumpSamples(std::span<AcqSampleChunk> sinks) override;
 
-    /** Stops data transfer */
-    bool stopAcquisition();
+    double setUpperBandwidth(double upperBandwidth) override;
+    double setLowerBandwidth(double lowerBandwidth) override;
+    double setDspCutoffFreq(double freq) override;
+    double getDspCutoffFreq() const override;
+    void setDspOffset(bool enabled) override;
+    void setTTLOutputMode(bool enabled) override;
+    void setDAChpf(float cutoff, bool enabled) override;
+    void setFastTTLSettle(bool state, int channel) override;
+    int setNoiseSlicerLevel(int level) override;
+    void enableBoardLeds(bool enabled) override;
+    int setClockDivider(int divide_ratio) override;
+    void connectHeadstageChannelToDAC(int headstageChannelIndex, int dacChannelIndex) override;
+    void setDACTriggerThreshold(int dacChannelIndex, float threshold) override;
 
-    /** Sets analog filter upper limit; returns actual value */
-    double setUpperBandwidth (double upperBandwidth);
+    bool isHeadstageEnabled(int hsNum) const override;
+    void setNumHeadstageChannels(int headstageIndex, int channelCount) override;
+    int getActiveChannelsInHeadstage(int hsNum) const override;
+    int getChannelsInHeadstage(int hsNum) const override;
+    int getNumDataOutputs(ChannelKind kind) override;
 
-    /** Sets analog filter lower limit; returns actual value */
-    double setLowerBandwidth (double lowerBandwidth);
-
-    /** Sets DSP cutoff frequency; returns actual value */
-    double setDspCutoffFreq (double freq);
-
-    /** Returns the current DSP cutoff frequency */
-    double getDspCutoffFreq() const;
-
-    /** Sets whether DSP offset is enabled */
-    void setDspOffset (bool enabled);
-
-    /** Sets whether TTL output mode is enabled */
-    void setTTLOutputMode (bool enabled);
-
-    /** Sets whether DAC highpass filter is enabled, and set the cutoff freq */
-    void setDAChpf (float cutoff, bool enabled);
-
-    /** Sets whether fast TTL settle is enabled, and set the trigger channel */
-    void setFastTTLSettle (bool state, int channel);
-
-    /** Sets level of noise slicer on DAC channels */
-    int setNoiseSlicerLevel (int level);
-
-    /** Turns LEDs on or off */
-    void enableBoardLeds (bool enabled);
-
-    /** Sets divider on clock output */
-    int setClockDivider (int divide_ratio);
-
-    /** Connects a headstage channel to a DAC */
-    void connectHeadstageChannelToDAC (int headstageChannelIndex, int dacChannelIndex);
-
-    /** Sets trigger threshold for DAC channel (if TTL output mode is enabled) */
-    void setDACTriggerThreshold (int dacChannelIndex, float threshold);
-
-    /** Returns true if a headstage is enabled */
-    bool isHeadstageEnabled (int hsNum) const;
-
-    /** Returns the active number of channels in a headstage */
-    int getActiveChannelsInHeadstage (int hsNum) const;
-
-    /** Returns the total number of channels in a headstage */
-    int getChannelsInHeadstage (int hsNum) const;
-
-    /** Returns the number of BNO devices attached */
+    /** Number of BNO IMU devices currently attached. */
     int getNumBnos() const;
 
-    /** Returns total number of outputs per channel type */
-    int getNumDataOutputs (ContinuousChannel::Type);
-
-    /** Sets the number of channels to use in a headstage */
-    void setNumHeadstageChannels (int headstageIndex, int channelCount);
-
-    /** Creates buffers for custom streams if the acquisition board type has them */
-    void createCustomStreams (OwnedArray<DataBuffer>& otherBuffers) override;
-
-    /** Create stream and channel structures is the acquisition board type has custom streams and updates the buffers */
-    void updateCustomStreams (OwnedArray<DataStream>& otherStreams, OwnedArray<ContinuousChannel>& otherChannels) override;
-
-    /** Gets whether or not the firmware version fully supports memory monitor data */
+    /** True if the board firmware reports memory-monitor support. */
     bool getMemoryMonitorSupport() const;
 
 private:
-    /** Sets sample rate and updates delays*/
-    void setSampleRate (int sampleRateHz, bool reScanDelays);
-
-    /**Check board memory status */
+    void setSampleRate(int sampleRateHz, bool reScanDelays);
     bool checkBoardMem() const;
 
-    /** Fills data buffer */
-    void run();
+    void scanPortsInThread();
+    bool initializeBoardInThread();
 
-    /** Updates registers to modify settings */
     void updateRegisters();
-
-    /** Updates board streams after scanning ports */
     void updateBoardStreams();
 
-    /** Returns the device ID for an Intan chip*/
-    int getIntanChipId (Rhd2000ONIDataBlock* dataBlock, int stream, int& register59Value);
+    int getIntanChipId(Rhd2000ONIDataBlock *dataBlock, int stream, int &register59Value);
+    void setCableLength(int hsNum, float length);
+    bool enableHeadstage(int hsNum, bool enabled, int nStr = 1, int strChans = 32, bool hasBno = false);
 
-    /** Sets the cable length for a particular headstage */
-    void setCableLength (int hsNum, float length);
+    int getChannelFromHeadstage(int headstageIndex, int channelIndex);
+    int getHeadstageChannel(int &headstageIndex, int channelIndex) const;
 
-    /** Enables or disables a given headstage */
-    bool enableHeadstage (int hsNum, bool enabled, int nStr = 1, int strChans = 32, bool hasBno = false);
+    static bool CheckSemVer(int major, int minor, int patch, int targetMajor, int targetMinor, int targetPatch);
+    static void ShowFirmwareUpdateMessage(std::string message);
 
-    /**Returns the global channel index for a local headstage channel */
-    int getChannelFromHeadstage (int headstageIndex, int channelIndex);
-
-    /** ??? Returns the global channel index for a local headstage channel */
-    int getHeadstageChannel (int& headstageIndex, int channelIndex) const;
-
-    /** Adds the given frame to the corresponding BNO buffer */
-    void addBnoDataToBuffer (oni_frame_t*, DataBuffer*, int64) const;
-
-    /** Rhythm API classes*/
+    /** Rhythm API objects. */
     std::unique_ptr<Rhd2000ONIBoard> evalBoard;
     Rhd2000ONIRegisters chipRegisters;
     std::unique_ptr<Rhd2000ONIDataBlock> dataBlock;
-    Array<Rhd2000ONIBoard::BoardDataSource> enabledStreams;
+    std::vector<Rhd2000ONIBoard::BoardDataSource> enabledStreams;
 
-    /** USB blocks to read on each callback */
-    int numUsbBlocksToRead;
+    int numUsbBlocksToRead = 0;
+    unsigned int blockSize = 0;
 
-    /** Size of the incoming data block */
-    unsigned int blockSize;
-
-    /** Holds incoming sample data */
+    /** Holds incoming sample data while interleaving into chunks. */
     float thisSample[MAX_NUM_CHANNELS];
     float auxBuffer[MAX_NUM_CHANNELS];
     float auxSamples[MAX_NUM_DATA_STREAMS_USB3][3];
 
-    /** Headstages */
-    OwnedArray<HeadstageONI> headstages;
+    std::vector<std::unique_ptr<HeadstageONI>> headstages;
 
-    /** Holds the number of channels per data stream */
-    Array<int> numChannelsPerDataStream;
+    std::vector<int> numChannelsPerDataStream;
 
-    /** Maximum number of expected headstages and data streams*/
-    int MAX_NUM_HEADSTAGES;
-    int MAX_NUM_DATA_STREAMS;
+    int MAX_NUM_HEADSTAGES = 0;
+    int MAX_NUM_DATA_STREAMS = 0;
 
-    /** Impedance meter */
-    std::unique_ptr<ImpedanceMeterONI> impedanceMeter;
+    std::vector<int> dacChannels;
+    std::vector<int> dacStream;
+    std::vector<int> dacThresholds;
+    std::vector<bool> dacChannelsToUpdate;
 
-    /** Storing values for DAC channels */
-    Array<int> dacChannels;
-    Array<int> dacStream;
-    Array<int> dacThresholds;
-    Array<bool> dacChannelsToUpdate;
+    std::vector<int> chipId;
 
-    /** Storing values for chip identifiers*/
-    Array<int> chipId;
+    int TTL_OUTPUT_STATE[16] = {0};
 
-    /** Holds state of digital output lines */
-    int TTL_OUTPUT_STATE[16];
-
-    /** True if physical device is connected */
     bool deviceFound = false;
+    bool isTransmitting = false;
 
-    /** True if acquisition is active */
-    bool isTransmitting;
+    std::mutex oniLock;
 
-    /** Lock for interacting with board */
-    CriticalSection oniLock;
-
-    /** Hold the current device ID.Used to determine which version of the acquisition board this is */
     int deviceId = 0;
 
     static constexpr int DEVICE_ID_V2 = 0x0100;
     static constexpr int DEVICE_ID_V3 = 0x0102;
-
-    static constexpr double v3AdcBitVal = double ((((1.25 * (1 + 84.5 / 51)) / (1 << 12)) * (10 / (1.25 * (1 + 84.5 / 51)))) / 16);
+    static constexpr double v3AdcBitVal =
+        ((((1.25 * (1 + 84.5 / 51)) / (1 << 12)) * (10 / (1.25 * (1 + 84.5 / 51)))) / 16);
 
     static constexpr int NUMBER_OF_PORTS = 4;
     static constexpr int BNO_CHANNELS = 3 + 3 + 4 + 3 + 1 + 4;
     static constexpr int MEMORY_MONITOR_FS = 100;
 
-    static constexpr double eulerAngleScale = 1.0f / 16;
-    static constexpr double quaternionScale = 1.0f / (1 << 14);
-    static constexpr double accelerationScale = 1.0f / 100;
+    static constexpr double eulerAngleScale = 1.0 / 16;
+    static constexpr double quaternionScale = 1.0 / (1 << 14);
+    static constexpr double accelerationScale = 1.0 / 100;
 
-    int regOffset;
+    int regOffset = 0;
     bool varSampleRateCapable = false;
     bool commonCommandsSet = false;
     bool initialScan = true;
-    bool hasBNO[NUMBER_OF_PORTS]; // Tracks if there is a BNO on any of the available ports
-    bool hasI2c[NUMBER_OF_PORTS]; // Tracks if there is an I2C-capable device on any of the available ports
-    uint32_t headstageId[NUMBER_OF_PORTS];
+
+    std::array<bool, NUMBER_OF_PORTS> hasBNO{};
+    std::array<bool, NUMBER_OF_PORTS> hasI2c{};
+    std::array<uint32_t, NUMBER_OF_PORTS> headstageId{};
     bool hasI2cSupport = false;
     bool hasMemoryMonitorSupport = false;
 
-    uint32_t acquisitionClockHz;
-    uint32_t totalMemory;
+    uint32_t acquisitionClockHz = 0;
+    uint32_t totalMemory = 0;
 
-    int64 dataSampleNumber = 0;
-    int64 memorySampleNumber = 0;
-    std::array<int64, NUMBER_OF_PORTS> bnoSampleNumbers = { 0, 0, 0, 0 };
+    int64_t dataSampleNumber = 0;
+    int64_t memorySampleNumber = 0;
+    std::array<int64_t, NUMBER_OF_PORTS> bnoSampleNumbers{0, 0, 0, 0};
 
-    DataBuffer* memBuffer = nullptr;
-    Array<DataBuffer*, juce::DummyCriticalSection, NUMBER_OF_PORTS> bnoBuffers;
-
-    static bool CheckSemVer (int major, int minor, int patch, int targetMajor, int targetMinor, int targetPatch);
-    static void ShowFirmwareUpdateMessage (std::string message);
+    Syntalos::QuillLogger *m_log;
 };
-
-#endif

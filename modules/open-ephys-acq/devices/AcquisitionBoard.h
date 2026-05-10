@@ -60,7 +60,8 @@ struct DigitalOutputCommand {
  * transpose into its IntSignalBlock if needed).
  */
 struct AcqSampleChunk {
-    int groupIndex = -1;          ///< headstage / stream index
+    int groupIndex = -1;          ///< headstage / stream index, or -1 for board-wide kinds
+    ChannelKind kind = ChannelKind::Electrode; ///< what kind of channels this chunk carries
     int channelsPerSample = 0;    ///< columns in @c samples
     int numSamples = 0;           ///< rows in @c samples (set by the board)
     std::vector<uint16_t> samples;

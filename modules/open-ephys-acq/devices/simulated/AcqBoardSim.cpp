@@ -193,10 +193,24 @@ bool AcqBoardSim::pumpSamples(std::span<AcqSampleChunk> sinks)
     const float sampleRate = settings.boardSampleRate > 0.0f ? settings.boardSampleRate : 30000.0f;
     constexpr int N = SAMPLES_PER_PUMP;
 
-    const int availableHeadstageSamples = static_cast<int>(data.spikes.size());
+    const int availableSpikeSamples = static_cast<int>(data.spikes.size());
+    const int availableSineSamples = static_cast<int>(data.sine_wave.size());
+    const int availableAdcSamples = static_cast<int>(data.adc.size());
     const int skip = std::max(1, static_cast<int>(30000.0f / sampleRate));
 
+    // Decide once per pump whether the optional channel kinds will produce
+    // data, so disabled chunks can be left empty.
+    const auto wantAux = settings.acquireAux;
+    const auto wantAdc = settings.acquireAdc;
+
     for (auto &sink : sinks) {
+        const bool active = (sink.kind == ChannelKind::Electrode)
+                            || (sink.kind == ChannelKind::Aux && wantAux)
+                            || (sink.kind == ChannelKind::Adc && wantAdc);
+        if (!active) {
+            sink.numSamples = 0;
+            continue;
+        }
         sink.numSamples = N;
         const std::size_t needed =
             static_cast<std::size_t>(N) * static_cast<std::size_t>(sink.channelsPerSample);
@@ -208,14 +222,36 @@ bool AcqBoardSim::pumpSamples(std::span<AcqSampleChunk> sinks)
 
     for (int s = 0; s < N; ++s) {
         const uint64_t idx = sampleNumber + static_cast<uint64_t>(s);
-        const float spike = data.spikes[(idx * skip) % availableHeadstageSamples];
-        const uint16_t spikeCount = uvToCount(spike);
+
+        // Pre-pull one value per source for this sample tick.
+        const float spikeUv = data.spikes[(idx * skip) % availableSpikeSamples];
+        const uint16_t spikeCount = uvToCount(spikeUv);
+        const float sineSample = data.sine_wave[(idx * skip) % availableSineSamples] * 0.01f;
+        const uint16_t sineCount = uvToCount(sineSample);
+        const float adcSample = data.adc[(idx * skip) % availableAdcSamples];
+        const uint16_t adcCount = uvToCount(adcSample);
 
         for (auto &sink : sinks) {
+            if (sink.numSamples != N)
+                continue;
             sink.sampleIndices[s] = idx;
-            uint16_t *row = sink.samples.data() + static_cast<std::size_t>(s) * sink.channelsPerSample;
-            for (int c = 0; c < sink.channelsPerSample; ++c)
-                row[c] = spikeCount;
+            uint16_t *row =
+                sink.samples.data() + static_cast<std::size_t>(s) * sink.channelsPerSample;
+            const int cps = sink.channelsPerSample;
+            switch (sink.kind) {
+            case ChannelKind::Electrode:
+                for (int c = 0; c < cps; ++c)
+                    row[c] = spikeCount;
+                break;
+            case ChannelKind::Aux:
+                for (int c = 0; c < cps; ++c)
+                    row[c] = sineCount;
+                break;
+            case ChannelKind::Adc:
+                for (int c = 0; c < cps; ++c)
+                    row[c] = adcCount;
+                break;
+            }
         }
     }
     sampleNumber += N;

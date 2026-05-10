@@ -1,8 +1,7 @@
 /*
     ------------------------------------------------------------------
-
-    This file is part of the Open Ephys GUI
     Copyright (C) 2024 Open Ephys
+    Copyright (C) 2026 Syntalos Project
 
     ------------------------------------------------------------------
 
@@ -20,51 +19,38 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef __IMPEDANCEMETERONI_H_2C4CBD67__
-#define __IMPEDANCEMETERONI_H_2C4CBD67__
+#pragma once
 
 #include "../ImpedanceMeter.h"
 
-#include <array>
-#include <atomic>
-#include <stdio.h>
-#include <string.h>
-
-#include "rhythm-api/okFrontPanelDLL.h"
-#include "rhythm-api/rhd2000ONIdatablock.h"
 #include "rhythm-api/rhd2000ONIboard.h"
+#include "rhythm-api/rhd2000ONIdatablock.h"
 #include "rhythm-api/rhd2000ONIregisters.h"
+
+#include "fabric/logging.h"
+
+#include <queue>
+#include <vector>
+
+class AcqBoardONI;
 
 class ImpedanceMeterONI : public ImpedanceMeter
 {
 public:
-    /** Constructor*/
-    ImpedanceMeterONI (class AcqBoardONI*);
+    explicit ImpedanceMeterONI(AcqBoardONI *board);
+    ~ImpedanceMeterONI() override;
 
-    /** Destructor*/
-    ~ImpedanceMeterONI();
-
-    /** Interrupt impedance measurement thread*/
-    void stopThreadSafely() override;
-
-    /** Wait for thread to finish*/
-    void waitSafely() override;
-
-    /** Calculates impedance values for all channels*/
-    void runImpedanceMeasurement (Impedances& impedances);
+    /** Synchronously calculate impedance values for all channels. */
+    void runImpedanceMeasurement(Impedances &impedances) override;
 
 private:
-    /** Runs the impedance measurement in a thread */
-    void run() override;
-
-    /** Restores settings of device*/
     void restoreBoardSettings();
 
     /** Returns the magnitude and phase (in degrees) of a selected frequency component (in Hz)
 	        for a selected amplifier channel on the selected USB data stream.*/
-    void measureComplexAmplitude (
-        std::vector<std::vector<std::vector<double>>>& measuredMagnitude,
-        std::vector<std::vector<std::vector<double>>>& measuredPhase,
+    void measureComplexAmplitude(
+        std::vector<std::vector<std::vector<double>>> &measuredMagnitude,
+        std::vector<std::vector<std::vector<double>>> &measuredPhase,
         int capIndex,
         int stream,
         int chipChannel,
@@ -75,10 +61,10 @@ private:
 
     /** Returns the real and imaginary amplitudes of a selected frequency component in the vector
 		    data, between a start index and end index. */
-    void amplitudeOfFreqComponent (
-        double& realComponent,
-        double& imagComponent,
-        const std::vector<double>& data,
+    void amplitudeOfFreqComponent(
+        double &realComponent,
+        double &imagComponent,
+        const std::vector<double> &data,
         int startIndex,
         int endIndex,
         double sampleRate,
@@ -88,9 +74,9 @@ private:
 		    with a parasitic capacitance (i.e., due to the amplifier input capacitance and other
 		    capacitances associated with the chip bondpads), this function factors out the effect of the
 		    parasitic capacitance to return the acutal electrode impedance. */
-    void factorOutParallelCapacitance (
-        double& impedanceMagnitude,
-        double& impedancePhase,
+    void factorOutParallelCapacitance(
+        double &impedanceMagnitude,
+        double &impedancePhase,
         double frequency,
         double parasiticCapacitance);
 
@@ -100,33 +86,27 @@ private:
 		    2-pole lowpass filter.  This function attempts to somewhat correct for this, but a better
 		    solution is to always run impedance measurements at 20 kS/s, where they seem to be most
 		    accurate. */
-    void empiricalResistanceCorrection (
-        double& impedanceMagnitude,
-        double& impedancePhase,
+    void empiricalResistanceCorrection(
+        double &impedanceMagnitude,
+        double &impedancePhase,
         double boardSampleRate);
 
     /** Updates electrode impedance measurement frequency, after checking that
 		    requested test frequency lies within acceptable ranges based on the
 		    amplifier bandwidth and the sampling rate.  See impedancefreqdialog.cpp
 			for more information.*/
-    float updateImpedanceFrequency (
-        float desiredImpedanceFreq,
-        bool& impedanceFreqValid);
+    float updateImpedanceFrequency(float desiredImpedanceFreq, bool &impedanceFreqValid);
 
     /** Reads numBlocks blocks of raw USB data stored in a queue of Rhd2000DataBlock
             objects, loads this data into this SignalProcessor object, scaling the raw
 			data to generate waveforms with units of volts or microvolts.*/
-    int loadAmplifierData (
-        std::queue<Rhd2000ONIDataBlock>& dataQueue,
+    int loadAmplifierData(
+        std::queue<Rhd2000ONIDataBlock> &dataQueue,
         int numBlocks,
         int numDataStreams);
 
     std::vector<std::vector<std::vector<double>>> amplifierPreFilter;
 
-private:
-    class AcqBoardONI* acquisitionBoard;
-
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (ImpedanceMeterONI);
+    AcqBoardONI *acquisitionBoard;
+    Syntalos::QuillLogger *m_log;
 };
-
-#endif // __IMPEDANCEMETERONI_H_2C4CBD67__

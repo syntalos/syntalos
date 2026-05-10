@@ -9,8 +9,13 @@ module_hdr = [
     'devices/simulated/HeadstageSim.h',
     'devices/simulated/ImpedanceMeterSim.h',
     'devices/simulated/SimulatedData.h',
+    'devices/oni/AcqBoardONI.h',
+    'devices/oni/HeadstageONI.h',
+    'devices/oni/ImpedanceMeterONI.h',
 ]
-module_moc_hdr = []
+module_moc_hdr = [
+    'oeacqsettingsdialog.h',
+]
 
 module_src = [
     'devices/simulated/AcqBoardSim.cpp',
@@ -19,6 +24,7 @@ module_src = [
 ]
 module_moc_src = [
     'oeacqmodule.cpp',
+    'oeacqsettingsdialog.cpp',
 ]
 
 module_ui = []

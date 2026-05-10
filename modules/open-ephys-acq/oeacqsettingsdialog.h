@@ -1,0 +1,87 @@
+/*
+ * Copyright (C) 2025-2026 Matthias Klumpp <matthias@tenstral.net>
+ *
+ * Licensed under the GNU Lesser General Public License Version 3
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the license, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+#include "devices/Headstage.h"
+
+#include <QDialog>
+#include <QVector>
+#include <vector>
+
+class QCheckBox;
+class QComboBox;
+class QLabel;
+class QPushButton;
+
+/**
+ * Settings dialog for the Open Ephys Acquisition Board module.
+ *
+ * The dialog is a passive widget over a settings struct: it emits change
+ * signals when the user touches a control. The owning module is responsible
+ * for applying the values to the live board.
+ */
+class OeAcqSettingsDialog : public QDialog
+{
+    Q_OBJECT
+
+public:
+    explicit OeAcqSettingsDialog(QWidget *parent = nullptr);
+    ~OeAcqSettingsDialog() override = default;
+
+    /** Populate the sample-rate combo. Call once after the board is detected. */
+    void setAvailableSampleRates(const std::vector<int> &ratesHz);
+
+    /** Update the read-only "detected headstages" panel. */
+    void setHeadstageSummary(const std::vector<const Headstage *> &headstages);
+
+    int sampleRateHz() const;
+    void setSampleRateHz(int rate);
+
+    bool acquireAux() const;
+    void setAcquireAux(bool enabled);
+
+    bool acquireAdc() const;
+    void setAcquireAdc(bool enabled);
+
+    ChannelNamingScheme namingScheme() const;
+    void setNamingScheme(ChannelNamingScheme scheme);
+
+    /** Disable interactive controls while a run is active. */
+    void setRunActive(bool active);
+
+signals:
+    void sampleRateChanged(int rateHz);
+    void acquireAuxChanged(bool enabled);
+    void acquireAdcChanged(bool enabled);
+    void namingSchemeChanged(int scheme);
+    void rescanRequested();
+
+private:
+    void buildUi();
+
+    QComboBox *m_sampleRateCombo = nullptr;
+    QCheckBox *m_acquireAuxCheck = nullptr;
+    QCheckBox *m_acquireAdcCheck = nullptr;
+    QComboBox *m_namingCombo = nullptr;
+    QLabel *m_headstageLabel = nullptr;
+    QPushButton *m_scanButton = nullptr;
+
+    bool m_emitSignals = true;
+};
