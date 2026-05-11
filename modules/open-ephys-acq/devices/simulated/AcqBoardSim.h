@@ -31,6 +31,7 @@
 #include <cstdint>
 #include <memory>
 #include <vector>
+#include <filesystem>
 
 class AcqBoardSim : public AcquisitionBoard
 {
@@ -59,7 +60,6 @@ public:
 
     void measureImpedances() override;
     void impedanceMeasurementFinished() override;
-    void saveImpedances(const std::filesystem::path &file) override;
 
     void setNamingScheme(ChannelNamingScheme scheme) override;
     ChannelNamingScheme getNamingScheme() override;

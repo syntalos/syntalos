@@ -85,7 +85,6 @@ public:
 
     void measureImpedances() override;
     void impedanceMeasurementFinished() override;
-    void saveImpedances(const std::filesystem::path &file) override;
 
     void setNamingScheme(ChannelNamingScheme scheme) override;
     ChannelNamingScheme getNamingScheme() override;
@@ -140,7 +139,6 @@ private:
     int getHeadstageChannel(int &headstageIndex, int channelIndex) const;
 
     static bool CheckSemVer(int major, int minor, int patch, int targetMajor, int targetMinor, int targetPatch);
-    static void ShowFirmwareUpdateMessage(std::string message);
 
     /** Rhythm API objects. */
     std::unique_ptr<Rhd2000ONIBoard> evalBoard;
@@ -209,6 +207,9 @@ private:
     int64_t dataSampleNumber = 0;
     int64_t memorySampleNumber = 0;
     std::array<int64_t, NUMBER_OF_PORTS> bnoSampleNumbers{0, 0, 0, 0};
+
+    /** Last memory-monitor percentage we reported up to the module, to avoid spamming setStatusMessage. */
+    float m_lastReportedMemPct = -1.0f;
 
     Syntalos::QuillLogger *m_log;
 };

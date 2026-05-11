@@ -15,16 +15,24 @@ module_hdr = [
 ]
 module_moc_hdr = [
     'oeacqsettingsdialog.h',
+    'oeacqimpedancedialog.h',
 ]
 
 module_src = [
     'devices/simulated/AcqBoardSim.cpp',
     'devices/simulated/HeadstageSim.cpp',
     'devices/simulated/ImpedanceMeterSim.cpp',
+    'devices/oni/AcqBoardONI.cpp',
+    'devices/oni/HeadstageONI.cpp',
+    'devices/oni/ImpedanceMeterONI.cpp',
+    'devices/oni/rhythm-api/rhd2000ONIboard.cpp',
+    'devices/oni/rhythm-api/rhd2000ONIdatablock.cpp',
+    'devices/oni/rhythm-api/rhd2000ONIregisters.cpp',
 ]
 module_moc_src = [
     'oeacqmodule.cpp',
     'oeacqsettingsdialog.cpp',
+    'oeacqimpedancedialog.cpp',
 ]
 
 module_ui = []
@@ -35,6 +43,17 @@ module_deps = [
 
 module_data = [
     'open-ephys-acq.svg',
+]
+
+# The Open Ephys rhythm-api vendor sources under devices/oni/rhythm-api/ trip a
+# handful of warnings (sign-compare, enum-enum arithmetic, the occasional
+# unused variable) that Syntalos otherwise treats as errors. Vendor code is
+# kept as-is, so we relax these specific diagnostics for this module only.
+module_args = [
+    '-Wno-error=sign-compare',
+    '-Wno-error=deprecated-enum-enum-conversion',
+    '-Wno-error=unused-variable',
+    '-Wno-error=unused-but-set-variable',
 ]
 
 #

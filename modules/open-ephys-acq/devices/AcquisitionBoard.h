@@ -23,7 +23,7 @@
 
 #include <chrono>
 #include <cstdint>
-#include <filesystem>
+#include <functional>
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -82,6 +82,27 @@ public:
         ONI = 3
     };
 
+    /** Severity hint for messages bubbled up to the host module. */
+    enum class MessageSeverity {
+        Info,    ///< informational; can be shown as status / a friendly notification
+        Warning, ///< user attention warranted (e.g. firmware should be updated)
+        Error,   ///< operation failed or will fail; module should raiseError()
+    };
+
+    /**
+     * Callback the module installs so the board can surface human-facing
+     * messages (firmware notes, status updates, errors). The string may
+     * contain a URL on a separate line. Always invoked from the thread that
+     * triggered the underlying board call — the module is responsible for
+     * marshaling onto the GUI thread if needed.
+     */
+    using MessageCallback = std::function<void(MessageSeverity, const std::string &)>;
+
+    void setMessageCallback(MessageCallback cb)
+    {
+        m_messageCb = std::move(cb);
+    }
+
     AcquisitionBoard() = default;
     virtual ~AcquisitionBoard() = default;
 
@@ -125,8 +146,25 @@ public:
     virtual void measureImpedances() = 0;
     virtual void impedanceMeasurementFinished() = 0;
 
-    /** Save impedance measurements as XML to the given filesystem path. */
-    virtual void saveImpedances(const std::filesystem::path &file) = 0;
+    /** Forward a progress callback to the underlying impedance meter, if any. */
+    void setImpedanceProgressCallback(ImpedanceMeter::ProgressCallback cb)
+    {
+        if (impedanceMeter)
+            impedanceMeter->setProgressCallback(std::move(cb));
+    }
+
+    /** Ask any in-progress impedance scan to abort at the next safe point. */
+    void requestImpedanceStop()
+    {
+        if (impedanceMeter)
+            impedanceMeter->requestStop();
+    }
+
+    /** Latest impedance measurement result (only meaningful after a successful run). */
+    const Impedances &getImpedances() const
+    {
+        return impedances;
+    }
 
     virtual void setNamingScheme(ChannelNamingScheme scheme) = 0;
     virtual ChannelNamingScheme getNamingScheme() = 0;
@@ -296,6 +334,12 @@ protected:
 
     BoardType boardType = BoardType::None;
 
+    void emitMessage(MessageSeverity sev, const std::string &message) const
+    {
+        if (m_messageCb)
+            m_messageCb(sev, message);
+    }
+
 private:
     struct DigitalDeadline {
         int ttlLine;
@@ -304,4 +348,6 @@ private:
 
     std::mutex m_digitalMutex;
     std::vector<DigitalDeadline> m_digitalDeadlines;
+
+    MessageCallback m_messageCb;
 };

@@ -149,11 +149,6 @@ void AcqBoardSim::measureImpedances()
 
 void AcqBoardSim::impedanceMeasurementFinished() {}
 
-void AcqBoardSim::saveImpedances(const std::filesystem::path & /*file*/)
-{
-    // Sim board has no real impedance data to save.
-}
-
 void AcqBoardSim::setNamingScheme(ChannelNamingScheme scheme)
 {
     channelNamingScheme = scheme;

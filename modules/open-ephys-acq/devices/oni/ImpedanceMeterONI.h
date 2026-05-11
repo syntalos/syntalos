@@ -44,6 +44,9 @@ public:
     void runImpedanceMeasurement(Impedances &impedances) override;
 
 private:
+    /** Algorithm body executed with the board pre-configured for impedance. */
+    void runImpedanceMeasurementInternal(Impedances &impedances);
+
     void restoreBoardSettings();
 
     /** Returns the magnitude and phase (in degrees) of a selected frequency component (in Hz)

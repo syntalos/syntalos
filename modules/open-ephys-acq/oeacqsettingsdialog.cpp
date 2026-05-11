@@ -40,9 +40,31 @@ void OeAcqSettingsDialog::buildUi()
 {
     auto *root = new QVBoxLayout(this);
 
+    // ---------- backend group ----------
+    auto *backendGroup = new QGroupBox(tr("Backend"), this);
+    auto *backendForm = new QFormLayout(backendGroup);
+
+    m_backendCombo = new QComboBox(backendGroup);
+    m_backendCombo->addItem(
+        tr("Auto-detect (use device if connected)"), static_cast<int>(BackendAuto));
+    m_backendCombo->addItem(
+        tr("Open Ephys Acquisition Board"), static_cast<int>(BackendDevice));
+    m_backendCombo->addItem(tr("Simulated"), static_cast<int>(BackendSimulated));
+    backendForm->addRow(tr("Backend:"), m_backendCombo);
+
+    auto activeRow = new QHBoxLayout;
+    m_activeBackendLabel = new QLabel(tr("(not yet initialised)"), backendGroup);
+    m_activeBackendLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
+    activeRow->addWidget(m_activeBackendLabel, 1);
+    m_reconnectButton = new QPushButton(tr("Reconnect"), backendGroup);
+    activeRow->addWidget(m_reconnectButton);
+    backendForm->addRow(tr("Active:"), activeRow);
+
+    root->addWidget(backendGroup);
+
     // ---------- acquisition group ----------
-    auto *acqGroup = new QGroupBox(tr("Acquisition"), this);
-    auto *acqForm = new QFormLayout(acqGroup);
+    auto acqGroup = new QGroupBox(tr("Acquisition"), this);
+    auto acqForm = new QFormLayout(acqGroup);
 
     m_sampleRateCombo = new QComboBox(acqGroup);
     acqForm->addRow(tr("Sample rate:"), m_sampleRateCombo);
@@ -68,8 +90,13 @@ void OeAcqSettingsDialog::buildUi()
     m_headstageLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     hsLayout->addWidget(m_headstageLabel);
 
+    auto *hsBtnRow = new QHBoxLayout;
     m_scanButton = new QPushButton(tr("Rescan headstages"), hsGroup);
-    hsLayout->addWidget(m_scanButton, 0, Qt::AlignLeft);
+    hsBtnRow->addWidget(m_scanButton);
+    m_impedanceButton = new QPushButton(tr("Measure impedances…"), hsGroup);
+    hsBtnRow->addWidget(m_impedanceButton);
+    hsBtnRow->addStretch(1);
+    hsLayout->addLayout(hsBtnRow);
 
     root->addWidget(hsGroup);
 
@@ -105,6 +132,19 @@ void OeAcqSettingsDialog::buildUi()
         emit namingSchemeChanged(m_namingCombo->currentData().toInt());
     });
     connect(m_scanButton, &QPushButton::clicked, this, &OeAcqSettingsDialog::rescanRequested);
+    connect(
+        m_impedanceButton,
+        &QPushButton::clicked,
+        this,
+        &OeAcqSettingsDialog::measureImpedancesRequested);
+
+    connect(m_backendCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int) {
+        if (!m_emitSignals)
+            return;
+        emit backendChoiceChanged(m_backendCombo->currentData().toInt());
+    });
+    connect(
+        m_reconnectButton, &QPushButton::clicked, this, &OeAcqSettingsDialog::reconnectRequested);
 }
 
 void OeAcqSettingsDialog::setAvailableSampleRates(const std::vector<int> &ratesHz)
@@ -133,7 +173,7 @@ void OeAcqSettingsDialog::setHeadstageSummary(const std::vector<const Headstage 
     for (const auto *hs : headstages) {
         if (hs == nullptr || !hs->isConnected())
             continue;
-        lines << tr("• %1 — %2 channels")
+        lines << tr("• %1 – %2 channels")
                      .arg(QString::fromStdString(hs->getStreamPrefix()))
                      .arg(hs->getNumActiveChannels());
     }
@@ -205,4 +245,26 @@ void OeAcqSettingsDialog::setRunActive(bool active)
     m_acquireAdcCheck->setEnabled(!active);
     m_namingCombo->setEnabled(!active);
     m_scanButton->setEnabled(!active);
+    m_impedanceButton->setEnabled(!active);
+    m_backendCombo->setEnabled(!active);
+    m_reconnectButton->setEnabled(!active);
+}
+
+void OeAcqSettingsDialog::setActiveBackendLabel(const QString &text)
+{
+    m_activeBackendLabel->setText(text);
+}
+
+int OeAcqSettingsDialog::backendChoice() const
+{
+    return m_backendCombo->currentData().toInt();
+}
+
+void OeAcqSettingsDialog::setBackendChoice(int choice)
+{
+    const QSignalBlocker block(m_backendCombo);
+    int idx = m_backendCombo->findData(choice);
+    if (idx < 0)
+        idx = 0;
+    m_backendCombo->setCurrentIndex(idx);
 }

@@ -25,10 +25,16 @@
 #include "datactl/timesync.h"
 
 #include "devices/AcquisitionBoard.h"
+#include "devices/oni/AcqBoardONI.h"
 #include "devices/simulated/AcqBoardSim.h"
+#include "oeacqimpedancedialog.h"
 #include "oeacqsettingsdialog.h"
 
+#include <QByteArray>
+#include <QMessageBox>
+#include <QSet>
 #include <QStringList>
+#include <QXmlStreamWriter>
 #include <chrono>
 #include <memory>
 #include <vector>
@@ -96,32 +102,10 @@ public:
 
     bool initialize() override
     {
-        // For now we only have a working simulated backend. The ONI backend
-        // will replace / be selected ahead of this once its .cpp port lands.
-        m_board = std::make_unique<AcqBoardSim>();
-
-        if (!m_board->detectBoard()) {
-            raiseError(QStringLiteral("No Open Ephys Acquisition Board detected."));
+        // Bring up whichever backend the user picked (or whatever auto-detect
+        // finds). On failure, setupBackend() raiseError()s and we abort.
+        if (!setupBackend(/*reconnectingFromUi=*/false))
             return false;
-        }
-        if (!m_board->initializeBoard()) {
-            raiseError(QStringLiteral("Failed to initialize the Open Ephys Acquisition Board."));
-            return false;
-        }
-
-        // Synchronously scan the ports so we know which headstages are
-        // attached before prepare() runs.
-        m_board->scanPorts();
-        LOG_INFO(
-            m_log,
-            "Open Ephys Acquisition Board ready (board type: {}, headstages: {}).",
-            static_cast<int>(m_board->getBoardType()),
-            m_board->getHeadstages().size());
-
-        // Register one output port per detected headstage so the user can
-        // wire connections at design time. The actual signal-block size is
-        // (re)assigned per run inside prepare().
-        rebuildOutputPorts();
 
         // Register a TTL trigger input port. Upstream modules can push
         // FirmataControl::WRITE_DIGITAL_PULSE events here to fire one of the
@@ -137,6 +121,8 @@ public:
         m_settingsDlg->setAcquireAux(m_acquireAux);
         m_settingsDlg->setAcquireAdc(m_acquireAdc);
         m_settingsDlg->setNamingScheme(m_namingScheme);
+        m_settingsDlg->setBackendChoice(m_backendChoice);
+        m_settingsDlg->setActiveBackendLabel(activeBackendDescription());
         m_settingsDlg->setHeadstageSummary(m_board->getHeadstages());
 
         connect(m_settingsDlg, &OeAcqSettingsDialog::sampleRateChanged, this, [this](int hz) {
@@ -169,6 +155,28 @@ public:
             rebuildOutputPorts();
             m_settingsDlg->setHeadstageSummary(m_board->getHeadstages());
         });
+        connect(m_settingsDlg, &OeAcqSettingsDialog::backendChoiceChanged, this, [this](int c) {
+            m_backendChoice = c;
+            setupBackend(/*reconnectingFromUi=*/true);
+        });
+        connect(m_settingsDlg, &OeAcqSettingsDialog::reconnectRequested, this, [this]() {
+            setupBackend(/*reconnectingFromUi=*/true);
+        });
+
+        connect(
+            m_settingsDlg,
+            &OeAcqSettingsDialog::measureImpedancesRequested,
+            this,
+            [this]() {
+                if (!m_board || m_running)
+                    return;
+                OeAcqImpedanceDialog dlg(m_board.get(), m_settingsDlg);
+                dlg.exec();
+                // Refresh the headstage summary — channel impedance values
+                // changed on each Headstage, the textual summary doesn't, but
+                // a future dialog may want to surface "scan ran at <time>".
+                m_settingsDlg->setHeadstageSummary(m_board->getHeadstages());
+            });
 
         addSettingsWindow(m_settingsDlg);
         return true;
@@ -355,12 +363,16 @@ public:
         setSettingsRunLock(false);
     }
 
-    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
+    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &extraData) override
     {
         settings.insert(QStringLiteral("sample_rate"), m_sampleRateHz);
         settings.insert(QStringLiteral("acquire_aux"), m_acquireAux);
         settings.insert(QStringLiteral("acquire_adc"), m_acquireAdc);
         settings.insert(QStringLiteral("naming_scheme"), static_cast<int>(m_namingScheme));
+        settings.insert(QStringLiteral("backend"), m_backendChoice);
+
+        // Persist the latest impedance scan (if any) as XML
+        extraData = serializeImpedancesXml();
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
@@ -370,17 +382,218 @@ public:
         m_acquireAdc = settings.value(QStringLiteral("acquire_adc"), false).toBool();
         m_namingScheme = static_cast<ChannelNamingScheme>(
             settings.value(QStringLiteral("naming_scheme"), static_cast<int>(GLOBAL_INDEX)).toInt());
+        m_backendChoice = settings
+                              .value(
+                                  QStringLiteral("backend"),
+                                  static_cast<int>(OeAcqSettingsDialog::BackendAuto))
+                              .toInt();
 
         if (m_settingsDlg) {
             m_settingsDlg->setSampleRateHz(m_sampleRateHz);
             m_settingsDlg->setAcquireAux(m_acquireAux);
             m_settingsDlg->setAcquireAdc(m_acquireAdc);
             m_settingsDlg->setNamingScheme(m_namingScheme);
+            m_settingsDlg->setBackendChoice(m_backendChoice);
         }
+        // Note: we don't reload impedance results from extraData. They're
+        // hardware-specific to the run that produced them; subsequent runs
+        // produce their own. The XML is preserved in the project archive.
         return true;
     }
 
 private:
+    /**
+     * Bring up the acquisition board backend per @c m_backendChoice. Tears
+     * down any previously-active board, instantiates the requested one (or
+     * auto-detects), runs detect/initialize/scanPorts, rebuilds the output
+     * port set, and updates the settings-dialog status. Refuses to do any of
+     * this while a recording is running.
+     *
+     * @param reconnectingFromUi  true when triggered from the settings
+     *                            dialog (Reconnect button or backend combo
+     *                            change); false during initial @c
+     *                            initialize().
+     * @return true on success, false if even the simulated fallback fails.
+     */
+    bool setupBackend(bool reconnectingFromUi)
+    {
+        if (m_running) {
+            // Should not be reachable — settings dialog disables these
+            // controls during a run — but defend anyway.
+            LOG_WARNING(m_log, "Refusing to switch backend while a run is active.");
+            return m_board != nullptr;
+        }
+
+        const int choice = m_backendChoice;
+        const bool wantDevice = (choice == OeAcqSettingsDialog::BackendAuto
+                                 || choice == OeAcqSettingsDialog::BackendDevice);
+        const bool deviceMandatory = (choice == OeAcqSettingsDialog::BackendDevice);
+
+        // Drop the previous board (if any) so its FT600/USB resources are
+        // released before we open a new one.
+        const auto previousIds = collectCurrentPortIds();
+        m_board.reset();
+
+        std::unique_ptr<AcquisitionBoard> next;
+
+        if (wantDevice) {
+            auto oni = std::make_unique<AcqBoardONI>();
+            oni->setMessageCallback([this](AcquisitionBoard::MessageSeverity sev, const std::string &msg) {
+            handleBoardMessage(sev, msg);
+        });
+            if (oni->detectBoard()) {
+                next = std::move(oni);
+                LOG_INFO(m_log, "Using ONI Acquisition Board backend.");
+            } else if (deviceMandatory) {
+                LOG_WARNING(
+                    m_log,
+                    "Device backend was requested but no Open Ephys Acquisition Board "
+                    "was detected. Falling back to the simulated backend; press "
+                    "\"Reconnect\" once the board is plugged in.");
+            } else {
+                LOG_INFO(
+                    m_log,
+                    "No ONI Acquisition Board detected; using simulated backend.");
+            }
+        }
+
+        if (!next) {
+            // Either user explicitly chose Simulated, or device probe failed.
+            auto sim = std::make_unique<AcqBoardSim>();
+            sim->setMessageCallback([this](AcquisitionBoard::MessageSeverity sev, const std::string &msg) {
+            handleBoardMessage(sev, msg);
+        });
+            if (!sim->detectBoard()) {
+                if (!reconnectingFromUi)
+                    raiseError(QStringLiteral(
+                        "No Open Ephys Acquisition Board detected and the simulated "
+                        "backend failed to initialise."));
+                return false;
+            }
+            next = std::move(sim);
+        }
+
+        if (!next->initializeBoard()) {
+            if (!reconnectingFromUi)
+                raiseError(
+                    QStringLiteral("Failed to initialize the Open Ephys Acquisition Board."));
+            return false;
+        }
+        next->scanPorts();
+        m_board = std::move(next);
+
+        LOG_INFO(
+            m_log,
+            "Open Ephys Acquisition Board ready (board type: {}, headstages: {}).",
+            static_cast<int>(m_board->getBoardType()),
+            m_board->getHeadstages().size());
+
+        // Rebuild ports against the new backend. Surviving ids keep their
+        // subscriptions; the rest are pruned.
+        rebuildOutputPorts();
+
+        // If this run came from a UI request, ports we no longer need to
+        // expose (e.g. headstages that disappeared) have already been
+        // dropped by rebuildOutputPorts; previousIds is unused here but
+        // kept around for future "tell the user which connections broke"
+        // diagnostics.
+        (void)previousIds;
+
+        if (m_settingsDlg) {
+            // Sample rate set may differ between backends.
+            m_settingsDlg->setAvailableSampleRates(m_board->getAvailableSampleRates());
+            m_settingsDlg->setSampleRateHz(m_sampleRateHz);
+            m_settingsDlg->setActiveBackendLabel(activeBackendDescription());
+            m_settingsDlg->setHeadstageSummary(m_board->getHeadstages());
+        }
+        return true;
+    }
+
+    QString activeBackendDescription() const
+    {
+        if (!m_board)
+            return tr("(not initialised)");
+        switch (m_board->getBoardType()) {
+        case AcquisitionBoard::BoardType::ONI:
+            return tr("Open Ephys Acquisition Board (ONI)");
+        case AcquisitionBoard::BoardType::Simulated:
+            return tr("Simulated");
+        case AcquisitionBoard::BoardType::None:
+            break;
+        }
+        return tr("(unknown)");
+    }
+
+    /** Snapshot the current output-port id set; used to diff across reconnects. */
+    QSet<QString> collectCurrentPortIds() const
+    {
+        QSet<QString> out;
+        out.reserve(static_cast<int>(m_groups.size()));
+        for (const auto &g : m_groups)
+            out.insert(g.portId);
+        return out;
+    }
+
+    /**
+     * Surface a message coming from the device layer to the user. Info
+     * messages of the form "buffer:NN.N%" become live status; warnings open a
+     * QMessageBox; errors raise the module error state.
+     *
+     * Always dispatched onto the GUI thread - the device layer can call
+     * this from acquisition threads.
+     */
+    void handleBoardMessage(AcquisitionBoard::MessageSeverity sev, const std::string &msgIn)
+    {
+        const QString msg = QString::fromStdString(msgIn);
+        QMetaObject::invokeMethod(
+            this,
+            [this, sev, msg]() {
+                if (sev == AcquisitionBoard::MessageSeverity::Info) {
+                    if (msg.startsWith(QStringLiteral("buffer:"))) {
+                        bool ok = false;
+                        const float pct = msg.mid(7).chopped(1).toFloat(&ok);
+                        if (ok)
+                            updateBufferStatus(pct);
+                    } else {
+                        setStatusMessage(msg);
+                    }
+                    return;
+                }
+
+                if (sev == AcquisitionBoard::MessageSeverity::Error) {
+                    raiseError(msg);
+                    return;
+                }
+
+                QMessageBox box(
+                    QMessageBox::Warning,
+                    name(),
+                    msg,
+                    QMessageBox::Ok,
+                    m_settingsDlg);
+                box.setTextFormat(Qt::RichText);
+                box.setTextInteractionFlags(Qt::TextBrowserInteraction);
+                box.exec();
+            },
+            Qt::QueuedConnection);
+    }
+
+    /** Reflect the current ONI on-board buffer fill % in the module status line. */
+    void updateBufferStatus(float pct)
+    {
+        // Soft / hard thresholds: above 50% the buffer is filling; above 75%
+        // the host can't keep up and data loss is imminent.
+        const QString fmt =
+            pct < 50.0f
+                ? QStringLiteral("Buffer: %1%")
+            : pct < 75.0f
+                ? QStringLiteral("<html><font color=\"#aa6500\">Buffer:</font> %1%")
+                : QStringLiteral(
+                      "<html><font color=\"red\">Buffer:</font> %1% <small>"
+                      "<font color=\"red\">— host falling behind</font></small>");
+        setStatusMessage(fmt.arg(pct, 0, 'f', 1));
+    }
+
     /**
      * Build the per-headstage stream layout for the currently-connected
      * headstages and (re)register an output port for each. Called from
@@ -389,9 +602,25 @@ private:
      */
     void rebuildOutputPorts()
     {
-        m_groups.clear();
-        if (!m_board)
+        if (!m_board) {
+            // No board — drop everything we registered earlier.
+            for (const auto &g : m_groups)
+                removeOutPortById(g.portId);
+            m_groups.clear();
             return;
+        }
+
+        // Snapshot the previous port-id set so we can prune ones that
+        // disappeared in this rescan. registerOutputPort() already returns
+        // the existing port if the id is reused, so live subscriptions on
+        // ports that survive don't break.
+        QSet<QString> previousIds;
+        previousIds.reserve(static_cast<int>(m_groups.size()));
+        for (const auto &g : m_groups)
+            previousIds.insert(g.portId);
+
+        m_groups.clear();
+        QSet<QString> currentIds;
 
         const auto headstages = m_board->getHeadstages();
         m_groups.reserve(headstages.size() * 2 + 1);
@@ -424,6 +653,7 @@ private:
                     g.channelNames.push_back(hs->getChannelName(c));
 
                 g.block = std::make_shared<IntSignalBlock>(0, chanCount);
+                currentIds.insert(g.portId);
                 m_groups.push_back(std::move(g));
             }
 
@@ -445,6 +675,7 @@ private:
                 };
 
                 g.block = std::make_shared<IntSignalBlock>(0, kHeadstageAuxChannels);
+                currentIds.insert(g.portId);
                 m_groups.push_back(std::move(g));
             }
         }
@@ -463,7 +694,17 @@ private:
                 g.channelNames.push_back("ADC" + std::to_string(c + 1));
 
             g.block = std::make_shared<IntSignalBlock>(0, kBoardAdcChannels);
+            currentIds.insert(g.portId);
             m_groups.push_back(std::move(g));
+        }
+
+        // Drop any ports that existed before this rescan but weren't
+        // re-registered in the current pass. Surviving ports kept their
+        // identity (registerOutputPort recycles by id), so any subscriptions
+        // wired to them are unaffected.
+        for (const auto &oldId : previousIds) {
+            if (!currentIds.contains(oldId))
+                removeOutPortById(oldId);
         }
     }
 
@@ -481,6 +722,53 @@ private:
                 dlg->setRunActive(active);
             },
             Qt::QueuedConnection);
+    }
+
+    /**
+     * Serialize the latest impedance scan to an XML byte buffer suitable for
+     * stuffing into @c serializeSettings()'s @c extraData. Empty buffer if no
+     * scan has been performed yet.
+     */
+    QByteArray serializeImpedancesXml() const
+    {
+        if (!m_board)
+            return {};
+        const auto &imps = m_board->getImpedances();
+        if (!imps.valid)
+            return {};
+
+        QByteArray out;
+        QXmlStreamWriter w(&out);
+        w.setAutoFormatting(true);
+        w.writeStartDocument();
+        w.writeStartElement(QStringLiteral("IMPEDANCES"));
+
+        int globalChannelNumber = -1;
+        const auto headstages = m_board->getHeadstages();
+        for (const auto *hs : headstages) {
+            if (!hs || !hs->isConnected())
+                continue;
+            w.writeStartElement(QStringLiteral("HEADSTAGE"));
+            w.writeAttribute(
+                QStringLiteral("name"), QString::fromStdString(hs->getStreamPrefix()));
+            for (int ch = 0; ch < hs->getNumActiveChannels(); ch++) {
+                globalChannelNumber++;
+                w.writeStartElement(QStringLiteral("CHANNEL"));
+                w.writeAttribute(
+                    QStringLiteral("name"), QString::fromStdString(hs->getChannelName(ch)));
+                w.writeAttribute(QStringLiteral("number"), QString::number(globalChannelNumber));
+                w.writeAttribute(
+                    QStringLiteral("magnitude"), QString::number(hs->getImpedanceMagnitude(ch)));
+                w.writeAttribute(
+                    QStringLiteral("phase"), QString::number(hs->getImpedancePhase(ch)));
+                w.writeEndElement(); // CHANNEL
+            }
+            w.writeEndElement(); // HEADSTAGE
+        }
+
+        w.writeEndElement(); // IMPEDANCES
+        w.writeEndDocument();
+        return out;
     }
 
     /** Push current sample rate / bit-volts / channel names onto each port. */
@@ -522,6 +810,7 @@ private:
     bool m_acquireAux = false;
     bool m_acquireAdc = false;
     ChannelNamingScheme m_namingScheme = GLOBAL_INDEX;
+    int m_backendChoice = OeAcqSettingsDialog::BackendAuto;
 };
 
 QString OpenEphysAcqModuleInfo::id() const

@@ -66,12 +66,28 @@ public:
     /** Disable interactive controls while a run is active. */
     void setRunActive(bool active);
 
+    /** Update the read-only "Active backend:" label. */
+    void setActiveBackendLabel(const QString &text);
+
+    /** Backend selection. Stable integer values, persisted via serializeSettings. */
+    enum BackendChoice {
+        BackendAuto = 0,
+        BackendDevice = 1,
+        BackendSimulated = 2,
+    };
+
+    int backendChoice() const;
+    void setBackendChoice(int choice);
+
 signals:
     void sampleRateChanged(int rateHz);
     void acquireAuxChanged(bool enabled);
     void acquireAdcChanged(bool enabled);
     void namingSchemeChanged(int scheme);
     void rescanRequested();
+    void measureImpedancesRequested();
+    void backendChoiceChanged(int choice);
+    void reconnectRequested();
 
 private:
     void buildUi();
@@ -82,6 +98,10 @@ private:
     QComboBox *m_namingCombo = nullptr;
     QLabel *m_headstageLabel = nullptr;
     QPushButton *m_scanButton = nullptr;
+    QPushButton *m_impedanceButton = nullptr;
+    QComboBox *m_backendCombo = nullptr;
+    QPushButton *m_reconnectButton = nullptr;
+    QLabel *m_activeBackendLabel = nullptr;
 
     bool m_emitSignals = true;
 };
