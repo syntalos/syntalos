@@ -84,10 +84,48 @@ liboni_lib = shared_library(
     soversion: '1',
     install: true,
     install_dir: sy_libdir,
+    # liboni dlopen()s libonidriver_<backend>.so by bare basename at runtime.
+    # Stamp a runpath so the loader finds libonidriver_ft600.so next to
+    # liboni.so without the user having to set LD_LIBRARY_PATH.
+    build_rpath: meson.current_build_dir(),
+    install_rpath: '$ORIGIN',
 )
 liboni_dep = declare_dependency(
     link_with: liboni_lib,
     include_directories: liboni_inc,
+)
+
+# libonidriver_ft600 - dynamically loaded by liboni at runtime
+ft600_src = files(
+    'liboni/api/liboni/drivers/ft600/onidriver_ft600.c',
+    'liboni/api/liboni/drivers/ft600/circbuffer.c',
+)
+ft600_inc = include_directories('liboni/api/liboni/drivers/ft600/ft3dxx/linux')
+ft3dxx_static = meson.current_source_dir() / 'liboni/api/liboni/drivers/ft600/ft3dxx/linux/libftd3xx-static.a'
+libonidriver_ft600 = shared_library(
+    'onidriver_ft600',
+    ft600_src,
+    include_directories: [liboni_inc, ft600_inc],
+    c_args: [
+        '-Wall', '-W', '-O2',
+        '-Wno-error=missing-prototypes',
+        '-Wno-error=missing-declarations',
+        '-Wno-error=shadow',
+        '-Wno-error=sign-compare',
+        '-Wno-error=unused-variable',
+        '-Wno-error=unused-but-set-variable',
+        '-Wno-error=unused-function',
+        '-Wno-error=incompatible-pointer-types',
+        '-Wno-error=int-conversion',
+    ],
+    link_args: [ft3dxx_static, '-lstdc++'],
+    dependencies: [
+        c_compiler.find_library('dl', required: true),
+        c_compiler.find_library('pthread', required: true),
+    ],
+    soversion: '1',
+    install: true,
+    install_dir: sy_libdir,
 )
 
 endif # 'open-ephys-acq' in get_option('modules')
