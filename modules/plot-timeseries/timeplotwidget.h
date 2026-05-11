@@ -30,12 +30,12 @@ class PlotSeriesSettings
 {
 public:
     PlotSeriesSettings()
-        : isVisible(true),
+        : isVisible(false),
           isDigital(false)
     {
     }
 
-    explicit PlotSeriesSettings(const QString &signalName, bool visible = true)
+    explicit PlotSeriesSettings(const QString &signalName, bool visible = false)
         : name(signalName),
           isVisible(visible),
           isDigital(false)
@@ -48,7 +48,7 @@ public:
     PlotSeriesSettings(PlotSeriesSettings &&other) noexcept = default;
     PlotSeriesSettings &operator=(PlotSeriesSettings &&other) noexcept = default;
 
-    QString name;
+    QString name{};
     bool isVisible;
     bool isDigital;
 };

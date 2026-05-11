@@ -1420,7 +1420,7 @@ void AbstractModule::setEphemeralRun(bool isEphemeral)
 
 void AbstractModule::setStatusMessage(const QString &message)
 {
-    emit statusMessage(message);
+    Q_EMIT statusMessage(message);
 }
 
 void AbstractModule::setTimer(std::shared_ptr<SyncTimer> timer)

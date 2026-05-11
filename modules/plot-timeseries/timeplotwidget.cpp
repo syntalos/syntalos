@@ -190,7 +190,7 @@ void TimePlotWidget::setBufferSize(size_t size)
 
 int TimePlotWidget::addSeries(const QString &seriesName, const PlotSeriesSettings &settings)
 {
-    d->xdata.push_back(RingBuffer<double>(d->bufferSize));
+    d->xdata.emplace_back(d->bufferSize);
 
     auto sc = PlotSeriesSettings(settings);
     sc.name = seriesName;

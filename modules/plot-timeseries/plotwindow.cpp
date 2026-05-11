@@ -134,8 +134,6 @@ void PlotWindow::updatePortLists()
 
 void PlotWindow::setSignalsForPort(const QString &portId, const QStringList &signalNames)
 {
-    bool signalsVisible = m_plotWidgets.contains(portId);
-
     // update the settings map
     QSet<QString> removeEntries;
     for (const auto &name : m_signalDetails[portId].keys())
@@ -143,7 +141,7 @@ void PlotWindow::setSignalsForPort(const QString &portId, const QStringList &sig
 
     for (const auto &name : signalNames) {
         if (!m_signalDetails[portId].contains(name))
-            m_signalDetails[portId].insert(name, PlotSeriesSettings(name, signalsVisible));
+            m_signalDetails[portId].insert(name, PlotSeriesSettings(name, false));
         removeEntries.remove(name);
     }
 

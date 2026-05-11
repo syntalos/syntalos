@@ -304,8 +304,8 @@ public:
             for (const auto &varSigSet : varPortSigSettings.value(portId, QVariantList()).toList()) {
                 const auto sigSet = varSigSet.toHash();
                 PlotSeriesSettings pss(sigSet.value("name").toString());
-                pss.isVisible = sigSet.value("is_visible").toBool();
-                pss.isDigital = sigSet.value("is_digital").toBool();
+                pss.isVisible = sigSet.value("is_visible", false).toBool();
+                pss.isDigital = sigSet.value("is_digital", false).toBool();
 
                 m_plotWindow->setSignalPlotSettings(portId, pss);
             }
