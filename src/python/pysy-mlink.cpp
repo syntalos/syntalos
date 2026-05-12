@@ -717,7 +717,7 @@ struct PyHwOutputLine {
     {
     }
 
-    LineCommand send_register()
+    LineCommand send_mode()
     {
         LineCommand cmd(LineCommandKind::SET_MODE, _lineId);
         cmd.flags = LineModeFlag::IS_OUTPUT;
@@ -778,7 +778,7 @@ struct PyHwInputLine {
     {
     }
 
-    LineCommand send_register()
+    LineCommand send_mode()
     {
         LineCommand cmd(LineCommandKind::SET_MODE, _lineId);
         cmd.flags = LineModeFlag::IS_INPUT;
@@ -1185,7 +1185,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
         "Handle for a hardware output line (Firmata pin, DAQ channel, TTL line, ...).\n"
         "\n"
         "Construction captures the port and line identity but emits no command. Call\n"
-        ":meth:`send_register` at the start of every run to configure the line on the\n"
+        ":meth:`send_mode` at the start of every run to configure the line on the\n"
         "downstream device.")
         .def(
             py::init<OutputPort, int, bool>(),
@@ -1199,8 +1199,8 @@ PYBIND11_MODULE(syntalos_mlink, m)
             ":param analog: ``True`` if this is an analog DAC output, ``False`` for digital (default).")
         .def_readonly("line_id", &PyHwOutputLine::_lineId, "The hardware line ID this handle refers to.")
         .def(
-            "send_register",
-            &PyHwOutputLine::send_register,
+            "send_mode",
+            &PyHwOutputLine::send_mode,
             py::return_value_policy::move,
             "Emit the SET_MODE command that configures the line as an output.\n"
             "\n"
@@ -1260,8 +1260,8 @@ PYBIND11_MODULE(syntalos_mlink, m)
             ":param pullup: ``True`` to enable the input pull-up resistor (default: ``False``).")
         .def_readonly("line_id", &PyHwInputLine::_lineId, "The hardware line ID this handle refers to.")
         .def(
-            "send_register",
-            &PyHwInputLine::send_register,
+            "send_mode",
+            &PyHwInputLine::send_mode,
             py::return_value_policy::move,
             "Emit the SET_MODE command that configures the line as an input.\n"
             "\n"
