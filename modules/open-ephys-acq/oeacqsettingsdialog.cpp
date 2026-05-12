@@ -22,10 +22,14 @@
 #include <QCheckBox>
 #include <QComboBox>
 #include <QFormLayout>
+#include <QFrame>
+#include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
+#include <QMap>
 #include <QPushButton>
+#include <QScrollArea>
 #include <QSignalBlocker>
 #include <QVBoxLayout>
 
@@ -98,6 +102,44 @@ void OeAcqSettingsDialog::buildUi()
 
     root->addWidget(hsGroup);
 
+    // ---------- channel selection group ----------
+    m_channelsGroup = new QGroupBox("Channels", this);
+    auto channelsOuter = new QVBoxLayout(m_channelsGroup);
+
+    auto channelsToolbar = new QHBoxLayout;
+    m_enableAllButton = new QPushButton("Enable all", m_channelsGroup);
+    m_disableAllButton = new QPushButton("Disable all", m_channelsGroup);
+    channelsToolbar->addWidget(m_enableAllButton);
+    channelsToolbar->addWidget(m_disableAllButton);
+    channelsToolbar->addStretch(1);
+    channelsOuter->addLayout(channelsToolbar);
+
+    auto channelsScroll = new QScrollArea(m_channelsGroup);
+    channelsScroll->setWidgetResizable(true);
+    channelsScroll->setMinimumHeight(240);
+    m_channelsHost = new QWidget(channelsScroll);
+    m_channelsLayout = new QVBoxLayout(m_channelsHost);
+    m_channelsLayout->setContentsMargins(4, 4, 4, 4);
+    m_channelsLayout->addStretch(1);
+    channelsScroll->setWidget(m_channelsHost);
+    channelsOuter->addWidget(channelsScroll, 1);
+
+    root->addWidget(m_channelsGroup, 1);
+
+    connect(m_enableAllButton, &QPushButton::clicked, this, [this]() {
+        for (const auto &e : m_channelEntries) {
+            auto cb = m_channelChecks.value(e.id);
+            if (cb && !cb->isChecked() && cb->isEnabled())
+                cb->setChecked(true);
+        }
+    });
+    connect(m_disableAllButton, &QPushButton::clicked, this, [this]() {
+        for (const auto &e : m_channelEntries) {
+            auto *cb = m_channelChecks.value(e.id);
+            if (cb && cb->isChecked() && cb->isEnabled())
+                cb->setChecked(false);
+        }
+    });
     // ---------- close button row ----------
     auto btnRow = new QHBoxLayout;
     btnRow->addStretch(1);
@@ -135,7 +177,7 @@ void OeAcqSettingsDialog::buildUi()
     connect(m_backendCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int) {
         if (!m_emitSignals)
             return;
-        emit backendChoiceChanged(m_backendCombo->currentData().toInt());
+        emit backendChoiceChanged(static_cast<BackendChoice>(m_backendCombo->currentData().toInt()));
     });
     connect(m_reconnectButton, &QPushButton::clicked, this, &OeAcqSettingsDialog::reconnectRequested);
 }
@@ -241,6 +283,97 @@ void OeAcqSettingsDialog::setRunActive(bool active)
     m_impedanceButton->setEnabled(!active);
     m_backendCombo->setEnabled(!active);
     m_reconnectButton->setEnabled(!active);
+
+    // Bulk-toggle buttons are dangerous during a run (would flip many
+    // currently-checked boxes off, which we don't want as a single click).
+    m_enableAllButton->setEnabled(!active);
+    m_disableAllButton->setEnabled(!active);
+    // Run rules: channels that started this run enabled stay clickable —
+    // unchecking mid-run zero-fills the column, re-checking resumes samples.
+    // Channels that started the run disabled have no column in the matrix,
+    // so we lock their checkboxes off until the run stops.
+    for (auto it = m_channelChecks.cbegin(); it != m_channelChecks.cend(); ++it) {
+        QCheckBox *cb = it.value();
+        if (!cb)
+            continue;
+        if (active)
+            cb->setEnabled(cb->isChecked());
+        else
+            cb->setEnabled(true);
+    }
+}
+
+void OeAcqSettingsDialog::setChannelInventory(const std::vector<ChannelEntry> &entries)
+{
+    m_channelEntries = entries;
+    rebuildChannelPanelControls();
+}
+
+void OeAcqSettingsDialog::rebuildChannelPanelControls()
+{
+    // Tear down existing per-group children of m_channelsHost.
+    QLayoutItem *item;
+    while ((item = m_channelsLayout->takeAt(0)) != nullptr) {
+        if (item->widget())
+            item->widget()->deleteLater();
+        delete item;
+    }
+    m_channelChecks.clear();
+
+    if (m_channelEntries.empty()) {
+        auto placeholder = new QLabel(
+            "No channels available. Connect a headstage or enable Board ADC and rescan.",
+            m_channelsHost);
+        placeholder->setWordWrap(true);
+        m_channelsLayout->addWidget(placeholder);
+        m_channelsLayout->addStretch(1);
+        return;
+    }
+
+    // Preserve insertion order of groups while bucketing entries.
+    QStringList groupOrder;
+    QMap<QString, std::vector<const ChannelEntry *>> buckets;
+    for (const auto &e : m_channelEntries) {
+        if (!buckets.contains(e.group)) {
+            buckets[e.group] = {};
+            groupOrder << e.group;
+        }
+        buckets[e.group].push_back(&e);
+    }
+
+    for (const auto &groupName : groupOrder) {
+        auto gb = new QGroupBox(groupName, m_channelsHost);
+        auto grid = new QGridLayout(gb);
+        grid->setHorizontalSpacing(8);
+        grid->setVerticalSpacing(4);
+
+        const auto &bucket = buckets[groupName];
+        constexpr int kCols = 8;
+        int col = 0;
+        int row = 0;
+        for (const auto ePtr : bucket) {
+            const ChannelEntry &e = *ePtr;
+            auto *cb = new QCheckBox(e.label, gb);
+            cb->setChecked(e.enabled);
+            m_channelChecks.insert(e.id, cb);
+
+            const QString id = e.id;
+            connect(cb, &QCheckBox::toggled, this, [this, id](bool on) {
+                if (!m_emitSignals)
+                    return;
+                Q_EMIT channelEnabledChanged(id, on);
+            });
+
+            grid->addWidget(cb, row, col);
+            ++col;
+            if (col >= kCols) {
+                col = 0;
+                ++row;
+            }
+        }
+        m_channelsLayout->addWidget(gb);
+    }
+    m_channelsLayout->addStretch(1);
 }
 
 void OeAcqSettingsDialog::setActiveBackendLabel(const QString &text)
@@ -248,15 +381,15 @@ void OeAcqSettingsDialog::setActiveBackendLabel(const QString &text)
     m_activeBackendLabel->setText(text);
 }
 
-int OeAcqSettingsDialog::backendChoice() const
+OeAcqSettingsDialog::BackendChoice OeAcqSettingsDialog::backendChoice() const
 {
-    return m_backendCombo->currentData().toInt();
+    return static_cast<BackendChoice>(m_backendCombo->currentData().toInt());
 }
 
-void OeAcqSettingsDialog::setBackendChoice(int choice)
+void OeAcqSettingsDialog::setBackendChoice(BackendChoice choice)
 {
     const QSignalBlocker block(m_backendCombo);
-    int idx = m_backendCombo->findData(choice);
+    int idx = m_backendCombo->findData(static_cast<int>(choice));
     if (idx < 0)
         idx = 0;
     m_backendCombo->setCurrentIndex(idx);

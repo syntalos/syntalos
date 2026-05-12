@@ -22,13 +22,17 @@
 #include "devices/Headstage.h"
 
 #include <QDialog>
-#include <QVector>
+#include <QHash>
+#include <QString>
 #include <vector>
 
 class QCheckBox;
 class QComboBox;
+class QGroupBox;
 class QLabel;
 class QPushButton;
+class QVBoxLayout;
+class QWidget;
 
 /**
  * Settings dialog for the Open Ephys Acquisition Board module.
@@ -66,18 +70,29 @@ public:
     /** Disable interactive controls while a run is active. */
     void setRunActive(bool active);
 
-    /** Update the read-only "Active backend:" label. */
+    /** Update the "Active backend:" label. */
     void setActiveBackendLabel(const QString &text);
 
-    /** Backend selection. Stable integer values, persisted via serializeSettings. */
+    /** Backend selection. */
     enum BackendChoice {
         BackendAuto = 0,
         BackendDevice = 1,
         BackendSimulated = 2,
     };
 
-    int backendChoice() const;
-    void setBackendChoice(int choice);
+    BackendChoice backendChoice() const;
+    void setBackendChoice(BackendChoice choice);
+
+    /** One row of the per-channel selector. */
+    struct ChannelEntry {
+        QString id;             /// canonical channel ID
+        QString label;          /// display label
+        QString group;          /// sub-group label, e.g. "Headstage A1" or "Board ADC"
+        bool enabled = true;    /// checked state
+    };
+
+    /** Rebuild the channel panel from the given inventory. */
+    void setChannelInventory(const std::vector<ChannelEntry> &entries);
 
 signals:
     void sampleRateChanged(int rateHz);
@@ -86,11 +101,13 @@ signals:
     void namingSchemeChanged(int scheme);
     void rescanRequested();
     void measureImpedancesRequested();
-    void backendChoiceChanged(int choice);
+    void backendChoiceChanged(BackendChoice choice);
     void reconnectRequested();
+    void channelEnabledChanged(const QString &channelId, bool enabled);
 
 private:
     void buildUi();
+    void rebuildChannelPanelControls();
 
     QComboBox *m_sampleRateCombo = nullptr;
     QCheckBox *m_acquireAuxCheck = nullptr;
@@ -102,6 +119,15 @@ private:
     QComboBox *m_backendCombo = nullptr;
     QPushButton *m_reconnectButton = nullptr;
     QLabel *m_activeBackendLabel = nullptr;
+
+    // Channels panel
+    QGroupBox *m_channelsGroup = nullptr;
+    QWidget *m_channelsHost = nullptr; /// widget inside the scroll area
+    QVBoxLayout *m_channelsLayout = nullptr;
+    QPushButton *m_enableAllButton = nullptr;
+    QPushButton *m_disableAllButton = nullptr;
+    QHash<QString, QCheckBox *> m_channelChecks;
+    std::vector<ChannelEntry> m_channelEntries;
 
     bool m_emitSignals = true;
 };

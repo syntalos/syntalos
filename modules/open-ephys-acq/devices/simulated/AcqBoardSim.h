@@ -89,6 +89,14 @@ public:
     int getActiveChannelsInHeadstage(int hsNum) const override;
     int getChannelsInHeadstage(int hsNum) const override;
     int getNumDataOutputs(ChannelKind kind) override;
+    int getAuxChannelsPerHeadstage() const override
+    {
+        return 3;
+    }
+    int getNumAdcChannels() const override
+    {
+        return 8;
+    }
 
     static constexpr int MAX_NUM_HEADSTAGES = 8;
     static constexpr int SAMPLES_PER_PUMP = 128;

@@ -21,6 +21,8 @@
 
 #include "HeadstageSim.h"
 
+#include <format>
+
 HeadstageSim::HeadstageSim(int port_index)
     : Headstage(port_index),
       numChannels(0)
@@ -68,11 +70,11 @@ void HeadstageSim::generateChannelNames(ChannelNamingScheme scheme)
     switch (scheme) {
     case GLOBAL_INDEX:
         for (int i = 0; i < getNumActiveChannels(); i++)
-            channelNames.push_back("CH" + std::to_string(firstChannelIndex + i + 1));
+            channelNames.push_back(std::format("CH{:02}", firstChannelIndex + i + 1));
         break;
     case STREAM_INDEX:
         for (int i = 0; i < getNumActiveChannels(); i++)
-            channelNames.push_back(prefix + "_CH" + std::to_string(i + 1));
+            channelNames.push_back(std::format("{}_CH{:02}", prefix, i + 1));
         break;
     }
 }

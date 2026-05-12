@@ -37,52 +37,80 @@
 #include <chrono>
 #include <memory>
 #include <vector>
+#include <atomic>
 
 using namespace Syntalos;
 
 SYNTALOS_MODULE(OpenEphysAcqModule)
 
-namespace
-{
 struct GroupStream {
     int groupIndex = -1;
     ChannelKind kind = ChannelKind::Electrode;
     QString portId;
     QString streamPrefix;
+    /** Hardware-fixed number of columns the board fills per sample. */
+    int rawChannelsPerSample = 0;
+    /** Width of the published IntSignalBlock (mask-filtered). */
     int channelsPerSample = 0;
+    /** Map from output column index -> raw column index. */
+    std::vector<int> enabledLocalIndices;
+    /** Canonical channel ID for each output column (see makeChannelId). */
+    QStringList outChannelIds;
+
+    /** Per-output-column zero-fill flag. Written by the GUI thread when the
+     *  user toggles a checkbox during a run; read by the run thread on every
+     *  sample copy. */
+    std::unique_ptr<std::atomic_bool[]> mutedOutputColumns;
     std::shared_ptr<DataStream<IntSignalBlock>> stream;
     std::shared_ptr<IntSignalBlock> block;
+    /** Names of enabled channels only. */
     std::vector<std::string> channelNames;
 };
 
-constexpr int kBoardAdcChannels = 8;
-constexpr int kHeadstageAuxChannels = 3;
+/**
+ * Build a canonical channel ID stable across rescans.
+ *   Electrode -> "<prefix>:E<i>"
+ *   Aux       -> "<prefix>:AUX<i>"
+ *   ADC       -> "ADC:<i>"
+ */
+static QString makeChannelId(const QString &portPrefix, ChannelKind kind, int idx)
+{
+    switch (kind) {
+    case ChannelKind::Electrode:
+        return QStringLiteral("%1:E%2").arg(portPrefix).arg(idx, 2, 10, '0');
+    case ChannelKind::Aux:
+        return QStringLiteral("%1:AUX%2").arg(portPrefix).arg(idx, 2, 10, '0');
+    case ChannelKind::Adc:
+        return QStringLiteral("ADC:%1").arg(idx, 2, 10, '0');
+    }
+    return {};
+}
 
-QString headstagePortTitle(const std::string &prefix, int chanCount)
+static QString headstagePortTitle(const std::string &prefix, int chanCount)
 {
     return QStringLiteral("Headstage %1 - %2 ch").arg(QString::fromStdString(prefix)).arg(chanCount);
 }
 
-QString auxPortTitle(const std::string &prefix)
+static QString auxPortTitle(const std::string &prefix, int auxCount)
 {
-    return QStringLiteral("Headstage %1 - AUX (3 ch)").arg(QString::fromStdString(prefix));
+    return QStringLiteral("Headstage %1 - AUX (%2 ch)").arg(QString::fromStdString(prefix)).arg(auxCount);
 }
 
-QString adcPortTitle()
+static QString adcPortTitle(int adcCount)
 {
-    return QStringLiteral("Board ADC (8 ch)");
+    return QStringLiteral("Board ADC (%1 ch)").arg(adcCount);
 }
-} // namespace
 
 class OpenEphysAcqModule : public AbstractModule
 {
     Q_OBJECT
 
 public:
-    explicit OpenEphysAcqModule(QObject *parent = nullptr)
-        : AbstractModule(parent),
-          m_log(Syntalos::getLogger("oeacq.module"))
+    explicit OpenEphysAcqModule(OpenEphysAcqModuleInfo *info, QObject *parent = nullptr)
+        : AbstractModule(parent)
     {
+        m_settingsDlg = new OeAcqSettingsDialog;
+        m_settingsDlg->setWindowIcon(info->icon());
     }
 
     ~OpenEphysAcqModule() override = default;
@@ -99,19 +127,14 @@ public:
 
     bool initialize() override
     {
-        // Bring up whichever backend the user picked (or whatever auto-detect
-        // finds). On failure, setupBackend() raiseError()s and we abort.
-        if (!setupBackend(/*reconnectingFromUi=*/false))
-            return false;
+        // Load the simulation backend initially, so some backend is always available
+        setupBackend();
 
         // Register a TTL trigger input port. Upstream modules can push
-        // LineCommand WriteDigitalPulse events here to fire one of the
-        // board's digital output lines for the given duration. Other
-        // command kinds are accepted but only pulses are honored.
+        // LineCommand events here to fire one of the board's digital output lines.
         m_ttlIn = registerInputPort<LineCommand>(QStringLiteral("ttl-in"), QStringLiteral("TTL Triggers"));
 
         // Build the settings dialog once we know what the board can offer.
-        m_settingsDlg = new OeAcqSettingsDialog;
         m_settingsDlg->setAvailableSampleRates(m_board->getAvailableSampleRates());
         m_settingsDlg->setSampleRateHz(m_sampleRateHz);
         m_settingsDlg->setAcquireAux(m_acquireAux);
@@ -151,12 +174,12 @@ public:
             rebuildOutputPorts();
             m_settingsDlg->setHeadstageSummary(m_board->getHeadstages());
         });
-        connect(m_settingsDlg, &OeAcqSettingsDialog::backendChoiceChanged, this, [this](int c) {
+        connect(m_settingsDlg, &OeAcqSettingsDialog::backendChoiceChanged, this, [this](auto c) {
             m_backendChoice = c;
-            setupBackend(/*reconnectingFromUi=*/true);
+            setupBackend();
         });
         connect(m_settingsDlg, &OeAcqSettingsDialog::reconnectRequested, this, [this]() {
-            setupBackend(/*reconnectingFromUi=*/true);
+            setupBackend();
         });
 
         connect(m_settingsDlg, &OeAcqSettingsDialog::measureImpedancesRequested, this, [this]() {
@@ -170,12 +193,58 @@ public:
             m_settingsDlg->setHeadstageSummary(m_board->getHeadstages());
         });
 
+        connect(
+            m_settingsDlg,
+            &OeAcqSettingsDialog::channelEnabledChanged,
+            this,
+            [this](const QString &id, bool enabled) {
+                handleChannelToggle(id, enabled);
+            });
+
+        // Reflect current mask state in the dialog now that it exists.
+        refreshChannelInventoryFromBoard();
+
         addSettingsWindow(m_settingsDlg);
         return true;
     }
 
+    /**
+     * Handle a checkbox toggle from the channel panel. Behavior differs
+     * depending on whether a run is active.
+     */
+    void handleChannelToggle(const QString &id, bool enabled)
+    {
+        if (enabled)
+            m_disabledChannels.remove(id);
+        else
+            m_disabledChannels.insert(id);
+
+        if (m_running) {
+            // The dialog locks unchecked boxes off during a run, so this
+            // signal only fires for channels with an output column.
+            for (auto &g : m_groups) {
+                const int idx = g.outChannelIds.indexOf(id);
+                if (idx >= 0) {
+                    g.mutedOutputColumns[idx].store(!enabled, std::memory_order_relaxed);
+                    break;
+                }
+            }
+            return;
+        }
+
+        // if we aren't running, we can truly disable stuff instead of just muting it
+        rebuildOutputPorts();
+    }
+
     bool prepare(const TestSubject &) override
     {
+        // Lock the settings UI for the duration of the run. Live changes
+        // would reconfigure the board behind the run loop and crash.
+        setSettingsRunActive(true);
+        auto cleanupOnFailure = qScopeGuard([this] {
+            setSettingsRunActive(false);
+        });
+
         if (!m_board) {
             raiseError(QStringLiteral("Acquisition board has not been initialized."));
             return false;
@@ -200,8 +269,7 @@ public:
         }
 
         // Refresh per-port metadata against the current settings (sample rate,
-        // bit volts, channel names). The port set itself is owned by
-        // initialize() / rebuildOutputPorts().
+        // bit volts, channel names).
         refreshGroupMetadata();
 
         if (m_groups.empty()) {
@@ -212,10 +280,8 @@ public:
         for (auto &port : outPorts())
             port->startStream();
 
-        // Time synchronization: align device sample-counter timestamps to the
-        // master clock. WRITE_TSYNCFILE intentionally not enabled here - the
-        // settings dialog (Task 7) will hook a dataset basename in once it
-        // exists.
+        // FIXME: Do proper time synchronization!
+        // THIS IS A PLACEHOLDER!
         m_clockSync = initCounterSynchronizer(static_cast<double>(m_board->getSampleRate()));
         if (m_clockSync) {
             m_clockSync->setTolerance(std::chrono::microseconds(1400));
@@ -225,10 +291,7 @@ public:
             }
         }
 
-        // Lock the settings UI for the duration of the run. Live changes
-        // would reconfigure the board behind the run loop and crash.
-        setSettingsRunLock(true);
-
+        cleanupOnFailure.dismiss();
         return true;
     }
 
@@ -237,15 +300,23 @@ public:
         if (!m_board || m_groups.empty())
             return;
 
+        // Reset mute atomics at run start: every column starts un-muted.
+        for (auto &g : m_groups) {
+            for (int oc = 0; oc < g.channelsPerSample; ++oc)
+                g.mutedOutputColumns[oc].store(false, std::memory_order_relaxed);
+        }
+
         // Build the per-pump chunk vector (one entry per group). The board
         // fills numSamples / samples / sampleIndices in place every call.
+        // chunk.channelsPerSample is the HARDWARE width (rawChannelsPerSample),
+        // not the masked output width.
         std::vector<AcqSampleChunk> chunks;
         chunks.reserve(m_groups.size());
         for (const auto &g : m_groups) {
             AcqSampleChunk c;
             c.groupIndex = g.groupIndex;
             c.kind = g.kind;
-            c.channelsPerSample = g.channelsPerSample;
+            c.channelsPerSample = g.rawChannelsPerSample;
             chunks.push_back(std::move(c));
         }
 
@@ -260,6 +331,7 @@ public:
             if (!m_board->pumpSamples(std::span<AcqSampleChunk>(chunks.data(), chunks.size())))
                 break;
 
+            // FIXME: Perform proper time synchronization!
             const auto blockRecvTime = m_syTimer->timeSinceStartUsec();
 
             for (size_t gi = 0; gi < chunks.size(); ++gi) {
@@ -269,24 +341,32 @@ public:
                     continue;
 
                 const int n = chunk.numSamples;
-                const int cps = chunk.channelsPerSample;
+                const int rawCps = chunk.channelsPerSample; // hardware width
+                const int outCps = g.channelsPerSample;     // masked width
 
-                g.block->data.resize(n, cps);
+                g.block->data.resize(n, outCps);
                 g.block->timestamps.resize(n);
 
-                // Row-major copy: chunk.samples and IntSignalBlock::data are
-                // both row-major (samples × channels), so this is an int32
-                // widen on every cell.
+                // Row-major copy with mask: pick enabledLocalIndices[outCol]
+                // from each raw row, widen uint16 -> int32, and zero-fill any
+                // column the user disabled mid-run.
                 for (int s = 0; s < n; ++s) {
-                    const uint16_t *row = chunk.samples.data() + static_cast<size_t>(s) * cps;
-                    for (int c = 0; c < cps; ++c)
-                        g.block->data(s, c) = static_cast<int32_t>(row[c]);
+                    const uint16_t *row = chunk.samples.data() + static_cast<size_t>(s) * rawCps;
+                    for (int oc = 0; oc < outCps; ++oc) {
+                        if (g.mutedOutputColumns[oc].load(std::memory_order_relaxed))
+                            g.block->data(s, oc) = 0;
+                        else
+                            g.block->data(s, oc) = static_cast<int32_t>(row[g.enabledLocalIndices[oc]]);
+                    }
                     g.block->timestamps(s) = chunk.sampleIndices[s];
                 }
 
                 if (m_clockSync) {
-                    m_clockSync
-                        ->processTimestamps(blockRecvTime, /* blockIndex */ 0, /* blockCount */ 1, g.block->timestamps);
+                    m_clockSync->processTimestamps(
+                        blockRecvTime,
+                        0, // blockIndex
+                        1, // blockCount
+                        g.block->timestamps);
                 }
 
                 g.stream->push(*g.block);
@@ -326,7 +406,7 @@ public:
             break;
         }
         case LineCommandKind::WRITE_DIGITAL:
-            LOG_WARNING(
+            LOG_INFO(
                 m_log,
                 "TTL line-level command on line {} ignored: only WriteDigitalPulse is "
                 "supported by the Open Ephys AcqBoard module.",
@@ -345,8 +425,9 @@ public:
             const auto last = m_clockSync->lastMasterAssumedAcqTS();
             safeStopSynchronizer(m_clockSync, last);
         }
+
         AbstractModule::stop();
-        setSettingsRunLock(false);
+        setSettingsRunActive(false);
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
@@ -356,6 +437,13 @@ public:
         settings.insert(QStringLiteral("acquire_adc"), m_acquireAdc);
         settings.insert(QStringLiteral("naming_scheme"), static_cast<int>(m_namingScheme));
         settings.insert(QStringLiteral("backend"), m_backendChoice);
+
+        QStringList disabled;
+        disabled.reserve(m_disabledChannels.size());
+        for (const auto &id : m_disabledChannels)
+            disabled << id;
+        disabled.sort();
+        settings.insert(QStringLiteral("disabled_channels"), disabled);
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
@@ -365,8 +453,12 @@ public:
         m_acquireAdc = settings.value(QStringLiteral("acquire_adc"), false).toBool();
         m_namingScheme = static_cast<ChannelNamingScheme>(
             settings.value(QStringLiteral("naming_scheme"), static_cast<int>(GLOBAL_INDEX)).toInt());
-        m_backendChoice = settings.value(QStringLiteral("backend"), static_cast<int>(OeAcqSettingsDialog::BackendAuto))
-                              .toInt();
+        m_backendChoice = static_cast<OeAcqSettingsDialog::BackendChoice>(
+            settings.value(QStringLiteral("backend"), OeAcqSettingsDialog::BackendAuto).toInt());
+
+        const auto savedList = settings.value(QStringLiteral("disabled_channels")).toStringList();
+        m_disabledChannels = QSet<QString>(savedList.cbegin(), savedList.cend());
+        rebuildOutputPorts();
 
         if (m_settingsDlg) {
             m_settingsDlg->setSampleRateHz(m_sampleRateHz);
@@ -387,13 +479,9 @@ private:
      * port set, and updates the settings-dialog status. Refuses to do any of
      * this while a recording is running.
      *
-     * @param reconnectingFromUi  true when triggered from the settings
-     *                            dialog (Reconnect button or backend combo
-     *                            change); false during initial @c
-     *                            initialize().
      * @return true on success, false if even the simulated fallback fails.
      */
-    bool setupBackend(bool reconnectingFromUi)
+    bool setupBackend()
     {
         if (m_running) {
             // Should not be reachable — settings dialog disables these
@@ -409,7 +497,6 @@ private:
 
         // Drop the previous board (if any) so its FT600/USB resources are
         // released before we open a new one.
-        const auto previousIds = collectCurrentPortIds();
         m_board.reset();
 
         std::unique_ptr<AcquisitionBoard> next;
@@ -440,18 +527,16 @@ private:
                 handleBoardMessage(sev, msg);
             });
             if (!sim->detectBoard()) {
-                if (!reconnectingFromUi)
-                    raiseError(QStringLiteral(
-                        "No Open Ephys Acquisition Board detected and the simulated "
-                        "backend failed to initialise."));
+                raiseError(QStringLiteral(
+                    "No Open Ephys Acquisition Board detected and the simulated "
+                    "backend failed to initialise."));
                 return false;
             }
             next = std::move(sim);
         }
 
         if (!next->initializeBoard()) {
-            if (!reconnectingFromUi)
-                raiseError(QStringLiteral("Failed to initialize the Open Ephys Acquisition Board."));
+            raiseError(QStringLiteral("Failed to initialize the Open Ephys Acquisition Board."));
             return false;
         }
         next->scanPorts();
@@ -467,13 +552,6 @@ private:
         // subscriptions; the rest are pruned.
         rebuildOutputPorts();
 
-        // If this run came from a UI request, ports we no longer need to
-        // expose (e.g. headstages that disappeared) have already been
-        // dropped by rebuildOutputPorts; previousIds is unused here but
-        // kept around for future "tell the user which connections broke"
-        // diagnostics.
-        (void)previousIds;
-
         if (m_settingsDlg) {
             // Sample rate set may differ between backends.
             m_settingsDlg->setAvailableSampleRates(m_board->getAvailableSampleRates());
@@ -481,6 +559,7 @@ private:
             m_settingsDlg->setActiveBackendLabel(activeBackendDescription());
             m_settingsDlg->setHeadstageSummary(m_board->getHeadstages());
         }
+
         return true;
     }
 
@@ -562,20 +641,38 @@ private:
     }
 
     /**
+     * Like registerOutputPort but silently returns the existing port's stream
+     * if one was already registered with that ID.
+     */
+    std::shared_ptr<DataStream<IntSignalBlock>> getOrRegisterOutPort(const QString &id, const QString &title)
+    {
+        if (auto existing = outPortById(id))
+            return existing->stream<IntSignalBlock>();
+        return registerOutputPort<IntSignalBlock>(id, title);
+    }
+
+    /**
      * Build the per-headstage stream layout for the currently-connected
-     * headstages and (re)register an output port for each. Called from
-     * @ref initialize() so the canvas sees ports at design time and saved
-     * subscriptions can re-attach.
+     * headstages and (re)register an output port for each.
      */
     void rebuildOutputPorts()
     {
         if (!m_board) {
-            // No board — drop everything we registered earlier.
+            // No board - drop everything we registered earlier.
             for (const auto &g : m_groups)
                 removeOutPortById(g.portId);
             m_groups.clear();
+            refreshChannelInventoryFromBoard();
             return;
         }
+
+        // m_disabledChannels may contain ids for channels that aren't currently
+        // detected (headstage unplugged, etc.). We deliberately keep those
+        // entries so the user's preference survives a replug; they're harmless
+        // here because we only consult the set by id.
+
+        const int auxPerHs = m_board->getAuxChannelsPerHeadstage();
+        const int adcCount = m_board->getNumAdcChannels();
 
         // Snapshot the previous port-id set so we can prune ones that
         // disappeared in this rescan. registerOutputPort() already returns
@@ -610,59 +707,83 @@ private:
                 g.groupIndex = static_cast<int>(i);
                 g.kind = ChannelKind::Electrode;
                 g.streamPrefix = prefix;
-                g.channelsPerSample = chanCount;
+                g.rawChannelsPerSample = chanCount;
                 g.portId = QStringLiteral("hs-%1").arg(prefixLower);
-                g.stream = registerOutputPort<IntSignalBlock>(
+
+                for (int c = 0; c < chanCount; ++c) {
+                    const auto id = makeChannelId(prefix, ChannelKind::Electrode, c);
+                    if (!m_disabledChannels.contains(id)) {
+                        g.enabledLocalIndices.push_back(c);
+                        g.outChannelIds.append(id);
+                        g.channelNames.push_back(hs->getChannelName(c));
+                    }
+                }
+                g.channelsPerSample = static_cast<int>(g.enabledLocalIndices.size());
+                if (g.channelsPerSample <= 0)
+                    continue; // skip empty port
+                g.mutedOutputColumns = std::make_unique<std::atomic_bool[]>(g.channelsPerSample);
+
+                g.stream = getOrRegisterOutPort(
                     g.portId,
-                    headstagePortTitle(hs->getStreamPrefix(), chanCount));
-
-                g.channelNames.reserve(chanCount);
-                for (int c = 0; c < chanCount; ++c)
-                    g.channelNames.push_back(hs->getChannelName(c));
-
-                g.block = std::make_shared<IntSignalBlock>(0, chanCount);
+                    headstagePortTitle(hs->getStreamPrefix(), g.channelsPerSample));
+                g.block = std::make_shared<IntSignalBlock>(0, g.channelsPerSample);
                 currentIds.insert(g.portId);
                 m_groups.push_back(std::move(g));
             }
 
-            // ---- aux group (always registered; fed only when AUX enabled) ----
+            // ---- aux group ----
             {
                 GroupStream g;
                 g.groupIndex = static_cast<int>(i);
                 g.kind = ChannelKind::Aux;
                 g.streamPrefix = prefix;
-                g.channelsPerSample = kHeadstageAuxChannels;
+                g.rawChannelsPerSample = auxPerHs;
                 g.portId = QStringLiteral("hs-%1-aux").arg(prefixLower);
-                g.stream = registerOutputPort<IntSignalBlock>(g.portId, auxPortTitle(hs->getStreamPrefix()));
 
-                g.channelNames = {
-                    hs->getStreamPrefix() + "_AUX1",
-                    hs->getStreamPrefix() + "_AUX2",
-                    hs->getStreamPrefix() + "_AUX3",
-                };
+                for (int c = 0; c < auxPerHs; ++c) {
+                    const auto id = makeChannelId(prefix, ChannelKind::Aux, c);
+                    if (!m_disabledChannels.contains(id)) {
+                        g.enabledLocalIndices.push_back(c);
+                        g.outChannelIds.append(id);
+                        g.channelNames.push_back(hs->getStreamPrefix() + "_AUX" + std::to_string(c + 1));
+                    }
+                }
+                g.channelsPerSample = static_cast<int>(g.enabledLocalIndices.size());
+                if (g.channelsPerSample <= 0)
+                    continue;
+                g.mutedOutputColumns = std::make_unique<std::atomic_bool[]>(g.channelsPerSample);
 
-                g.block = std::make_shared<IntSignalBlock>(0, kHeadstageAuxChannels);
+                g.stream = getOrRegisterOutPort(g.portId, auxPortTitle(hs->getStreamPrefix(), auxPerHs));
+                g.block = std::make_shared<IntSignalBlock>(0, g.channelsPerSample);
                 currentIds.insert(g.portId);
                 m_groups.push_back(std::move(g));
             }
         }
 
-        // ---- board ADC (always registered; fed only when ADC enabled) ----
+        // ---- board ADC ----
         {
             GroupStream g;
             g.groupIndex = -1;
             g.kind = ChannelKind::Adc;
-            g.channelsPerSample = kBoardAdcChannels;
+            g.rawChannelsPerSample = adcCount;
             g.portId = QStringLiteral("adc");
-            g.stream = registerOutputPort<IntSignalBlock>(g.portId, adcPortTitle());
 
-            g.channelNames.reserve(kBoardAdcChannels);
-            for (int c = 0; c < kBoardAdcChannels; ++c)
-                g.channelNames.push_back("ADC" + std::to_string(c + 1));
-
-            g.block = std::make_shared<IntSignalBlock>(0, kBoardAdcChannels);
-            currentIds.insert(g.portId);
-            m_groups.push_back(std::move(g));
+            for (int c = 0; c < adcCount; ++c) {
+                const auto id = makeChannelId(QStringLiteral("ADC"), ChannelKind::Adc, c);
+                if (!m_disabledChannels.contains(id)) {
+                    g.enabledLocalIndices.push_back(c);
+                    g.outChannelIds.append(id);
+                    g.channelNames.push_back("ADC" + std::to_string(c + 1));
+                }
+            }
+            g.channelsPerSample = static_cast<int>(g.enabledLocalIndices.size());
+            if (g.channelsPerSample > 0) {
+                g.mutedOutputColumns = std::make_unique<std::atomic_bool[]>(g.channelsPerSample);
+                g.stream = getOrRegisterOutPort(g.portId, adcPortTitle(adcCount));
+                g.block = std::make_shared<IntSignalBlock>(0, g.channelsPerSample);
+                currentIds.insert(g.portId);
+                m_groups.push_back(std::move(g));
+            }
         }
 
         // Drop any ports that existed before this rescan but weren't
@@ -673,13 +794,66 @@ private:
             if (!currentIds.contains(oldId))
                 removeOutPortById(oldId);
         }
+
+        refreshChannelInventoryFromBoard();
+    }
+
+    /** Push the current detected-channel set into the settings dialog. */
+    void refreshChannelInventoryFromBoard()
+    {
+        if (!m_settingsDlg)
+            return;
+
+        std::vector<OeAcqSettingsDialog::ChannelEntry> entries;
+        if (!m_board) {
+            m_settingsDlg->setChannelInventory(entries);
+            return;
+        }
+
+        const int auxPerHs = m_board->getAuxChannelsPerHeadstage();
+        const int adcCount = m_board->getNumAdcChannels();
+        const auto headstages = m_board->getHeadstages();
+        for (const auto *hs : headstages) {
+            if (!hs->isConnected())
+                continue;
+            const auto prefix = QString::fromStdString(hs->getStreamPrefix());
+            const auto group = tr("Headstage %1").arg(prefix);
+            for (int c = 0; c < hs->getNumActiveChannels(); ++c) {
+                OeAcqSettingsDialog::ChannelEntry e;
+                e.id = makeChannelId(prefix, ChannelKind::Electrode, c);
+                e.label = QString::fromStdString(hs->getChannelName(c));
+                if (e.label.isEmpty())
+                    e.label = QStringLiteral("CH%1").arg(c + 1);
+                e.group = group;
+                e.enabled = !m_disabledChannels.contains(e.id);
+                entries.push_back(std::move(e));
+            }
+            for (int c = 0; c < auxPerHs; ++c) {
+                OeAcqSettingsDialog::ChannelEntry e;
+                e.id = makeChannelId(prefix, ChannelKind::Aux, c);
+                e.label = QStringLiteral("AUX%1").arg(c + 1);
+                e.group = group;
+                e.enabled = !m_disabledChannels.contains(e.id);
+                entries.push_back(std::move(e));
+            }
+        }
+        const auto adcGroup = tr("Board ADC");
+        for (int c = 0; c < adcCount; ++c) {
+            OeAcqSettingsDialog::ChannelEntry e;
+            e.id = makeChannelId(QStringLiteral("ADC"), ChannelKind::Adc, c);
+            e.label = QStringLiteral("ADC%1").arg(c + 1);
+            e.group = adcGroup;
+            e.enabled = !m_disabledChannels.contains(e.id);
+            entries.push_back(std::move(e));
+        }
+        m_settingsDlg->setChannelInventory(entries);
     }
 
     /**
      * Toggle the settings dialog's run-locked state. Safe to call from any
      * thread - the actual widget update is dispatched onto the GUI thread.
      */
-    void setSettingsRunLock(bool active)
+    void setSettingsRunActive(bool active)
     {
         if (!m_settingsDlg)
             return;
@@ -719,7 +893,6 @@ private:
     std::unique_ptr<AcquisitionBoard> m_board;
     std::vector<GroupStream> m_groups;
     std::unique_ptr<FreqCounterSynchronizer> m_clockSync;
-    Syntalos::QuillLogger *m_log;
     OeAcqSettingsDialog *m_settingsDlg = nullptr;
 
     std::shared_ptr<StreamInputPort<LineCommand>> m_ttlIn;
@@ -728,8 +901,13 @@ private:
     int m_sampleRateHz = 30000;
     bool m_acquireAux = false;
     bool m_acquireAdc = false;
-    ChannelNamingScheme m_namingScheme = GLOBAL_INDEX;
-    int m_backendChoice = OeAcqSettingsDialog::BackendAuto;
+    ChannelNamingScheme m_namingScheme{GLOBAL_INDEX};
+    OeAcqSettingsDialog::BackendChoice m_backendChoice{OeAcqSettingsDialog::BackendAuto};
+
+    // Channels the user has explicitly turned off.
+    // Entries for currently-unplugged channels are kept on purpose:
+    // the preference persists across replug.
+    QSet<QString> m_disabledChannels;
 };
 
 QString OpenEphysAcqModuleInfo::id() const
@@ -763,7 +941,7 @@ ModuleCategories OpenEphysAcqModuleInfo::categories() const
 
 AbstractModule *OpenEphysAcqModuleInfo::createModule(QObject *parent)
 {
-    return new OpenEphysAcqModule(parent);
+    return new OpenEphysAcqModule(this, parent);
 }
 
 #include "oeacqmodule.moc"

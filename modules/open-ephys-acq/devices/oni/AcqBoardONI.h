@@ -114,6 +114,15 @@ public:
     int getActiveChannelsInHeadstage(int hsNum) const override;
     int getChannelsInHeadstage(int hsNum) const override;
     int getNumDataOutputs(ChannelKind kind) override;
+    int getAuxChannelsPerHeadstage() const override
+    {
+        return 3;
+    }
+
+    int getNumAdcChannels() const override
+    {
+        return 8;
+    }
 
     /** Number of BNO IMU devices currently attached. */
     int getNumBnos() const;

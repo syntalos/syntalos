@@ -219,6 +219,12 @@ public:
     /** Total number of continuous channels of the given kind across all headstages. */
     virtual int getNumDataOutputs(ChannelKind kind) = 0;
 
+    /** Hardware-fixed AUX channel count per headstage. */
+    virtual int getAuxChannelsPerHeadstage() const = 0;
+
+    /** Hardware-fixed board-wide ADC channel count. */
+    virtual int getNumAdcChannels() const = 0;
+
     int getNumChannels()
     {
         return getNumDataOutputs(ChannelKind::Electrode) + getNumDataOutputs(ChannelKind::Aux)
