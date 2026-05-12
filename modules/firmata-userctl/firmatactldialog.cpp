@@ -26,7 +26,7 @@
 #include <QSpinBox>
 
 FirmataOutputWidget::FirmataOutputWidget(
-    std::shared_ptr<DataStream<FirmataControl>> fmCtlStream,
+    std::shared_ptr<DataStream<LineCommand>> fmCtlStream,
     bool analog,
     QWidget *parent)
     : QWidget(parent),
@@ -92,14 +92,14 @@ FirmataOutputWidget::FirmataOutputWidget(
     setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Minimum);
 
     connect(m_btnSend, &QPushButton::clicked, [&] {
-        FirmataControl ctl;
-        ctl.pinId = m_sbPinId->value();
+        LineCommand ctl;
+        ctl.lineId = static_cast<uint16_t>(m_sbPinId->value());
 
         if (m_isAnalog) {
-            ctl.command = FirmataCommandKind::WRITE_ANALOG;
+            ctl.kind = LineCommandKind::WriteAnalog;
             ctl.value = m_sbValue->value();
         } else {
-            ctl.command = FirmataCommandKind::WRITE_DIGITAL;
+            ctl.kind = LineCommandKind::WriteDigital;
             ctl.value = m_btnSend->isChecked() ? 1 : 0;
             m_btnSend->setText(m_btnSend->isChecked() ? QStringLiteral("On") : QStringLiteral("Off"));
         }
@@ -110,10 +110,11 @@ FirmataOutputWidget::FirmataOutputWidget(
     connect(m_btnPulse, &QPushButton::clicked, [&] {
         m_btnSend->setChecked(false);
         m_btnSend->setText(QStringLiteral("Off"));
-        FirmataControl ctl;
-        ctl.pinId = m_sbPinId->value();
-        ctl.command = FirmataCommandKind::WRITE_DIGITAL_PULSE;
+        LineCommand ctl;
+        ctl.lineId = static_cast<uint16_t>(m_sbPinId->value());
+        ctl.kind = LineCommandKind::WriteDigitalPulse;
         ctl.value = 1;
+        ctl.duration = std::chrono::duration_cast<microseconds_t>(milliseconds_t(50));
         m_fmCtlStream->push(ctl);
     });
 
@@ -138,12 +139,10 @@ void FirmataOutputWidget::setPinId(int pinId)
 
 void FirmataOutputWidget::submitNewPinCommand()
 {
-    // New output pin
-    FirmataControl newPinCtl;
-    newPinCtl.pinId = m_sbPinId->value();
-    newPinCtl.isOutput = true;
-    newPinCtl.command = m_isAnalog ? FirmataCommandKind::NEW_ANA_PIN : FirmataCommandKind::NEW_DIG_PIN;
-    m_fmCtlStream->push(newPinCtl);
+    // Configure pin as output
+    LineCommand pinModeCmd(LineCommandKind::SetMode, static_cast<uint16_t>(m_sbPinId->value()));
+    pinModeCmd.flags = LineModeFlags::IsOutput;
+    m_fmCtlStream->push(pinModeCmd);
 }
 
 int FirmataOutputWidget::value() const
@@ -162,7 +161,7 @@ void FirmataOutputWidget::onPinIdChange(int)
 }
 
 FirmataInputWidget::FirmataInputWidget(
-    std::shared_ptr<DataStream<FirmataControl>> fmCtlStream,
+    std::shared_ptr<DataStream<LineCommand>> fmCtlStream,
     bool analog,
     QWidget *parent)
     : QWidget(parent),
@@ -240,12 +239,10 @@ void FirmataInputWidget::setValue(int value)
 
 void FirmataInputWidget::submitNewPinCommand()
 {
-    // New input pin
-    FirmataControl newPinCtl;
-    newPinCtl.pinId = m_sbPinId->value();
-    newPinCtl.isOutput = false;
-    newPinCtl.command = m_isAnalog ? FirmataCommandKind::NEW_ANA_PIN : FirmataCommandKind::NEW_DIG_PIN;
-    m_fmCtlStream->push(newPinCtl);
+    // Configure pin as input
+    LineCommand pinModeCmd(LineCommandKind::SetMode, static_cast<uint16_t>(m_sbPinId->value()));
+    pinModeCmd.flags = LineModeFlags::IsInput;
+    m_fmCtlStream->push(pinModeCmd);
 }
 
 void FirmataInputWidget::onPinIdChange(int)
@@ -253,7 +250,7 @@ void FirmataInputWidget::onPinIdChange(int)
     submitNewPinCommand();
 }
 
-FirmataCtlDialog::FirmataCtlDialog(std::shared_ptr<DataStream<FirmataControl>> fmCtlStream, QWidget *parent)
+FirmataCtlDialog::FirmataCtlDialog(std::shared_ptr<DataStream<LineCommand>> fmCtlStream, QWidget *parent)
     : QDialog(parent),
       ui(new Ui::FirmataCtlDialog),
       m_lastPinId(0),
@@ -285,14 +282,14 @@ void FirmataCtlDialog::initializeAllPins()
     }
 }
 
-void FirmataCtlDialog::pinValueChanged(const FirmataData &data)
+void FirmataCtlDialog::pinValueChanged(const LineReading &data)
 {
     for (const auto w : ui->saInputContents->children()) {
         const auto iw = qobject_cast<FirmataInputWidget *>(w);
         if (iw == nullptr)
             continue;
-        if (iw->pinId() == data.pinId) {
-            iw->setValue(data.value);
+        if (iw->pinId() == data.lineId) {
+            iw->setValue(static_cast<int>(data.value));
             return;
         }
     }

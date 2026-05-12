@@ -27,19 +27,19 @@ SYNTALOS_MODULE(FirmataUserCtlModule)
 class FirmataUserCtlModule : public AbstractModule
 {
 private:
-    std::shared_ptr<StreamInputPort<FirmataData>> m_fmInPort;
-    std::shared_ptr<DataStream<FirmataControl>> m_fmCtlStream;
+    std::shared_ptr<StreamInputPort<LineReading>> m_fmInPort;
+    std::shared_ptr<DataStream<LineCommand>> m_fmCtlStream;
     FirmataCtlDialog *m_ctlDialog;
     QTimer *m_evTimer;
-    std::shared_ptr<StreamSubscription<FirmataData>> m_fmInSub;
+    std::shared_ptr<StreamSubscription<LineReading>> m_fmInSub;
 
 public:
     explicit FirmataUserCtlModule(QObject *parent = nullptr)
         : AbstractModule(parent)
     {
-        m_fmInPort = registerInputPort<FirmataData>(QStringLiteral("firmata-in"), QStringLiteral("Firmata Input"));
-        m_fmCtlStream = registerOutputPort<FirmataControl>(
-            QStringLiteral("firmata-out"), QStringLiteral("Firmata Control"));
+        m_fmInPort = registerInputPort<LineReading>(QStringLiteral("firmata-in"), QStringLiteral("Line Readings"));
+        m_fmCtlStream = registerOutputPort<LineCommand>(
+            QStringLiteral("firmata-out"), QStringLiteral("Line Control"));
         m_ctlDialog = new FirmataCtlDialog(m_fmCtlStream);
         addDisplayWindow(m_ctlDialog);
 
@@ -48,7 +48,7 @@ public:
         connect(m_evTimer, &QTimer::timeout, this, &FirmataUserCtlModule::readFirmataEvents);
     }
 
-    ~FirmataUserCtlModule() override {}
+    ~FirmataUserCtlModule() override = default;
 
     ModuleFeatures features() const override
     {

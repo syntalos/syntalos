@@ -112,8 +112,8 @@ public:
         ControlCommand,
         TableRow,
         Frame,
-        FirmataControl,
-        FirmataData,
+        LineCommand,
+        LineReading,
         IntSignalBlock,
         FloatSignalBlock,
         Last
@@ -142,10 +142,10 @@ public:
             return "TableRow";
         case Frame:
             return "Frame";
-        case FirmataControl:
-            return "FirmataControl";
-        case FirmataData:
-            return "FirmataData";
+        case LineCommand:
+            return "LineCommand";
+        case LineReading:
+            return "LineReading";
         case IntSignalBlock:
             return "IntSignalBlock";
         case FloatSignalBlock:
@@ -165,10 +165,10 @@ public:
             return TypeId::TableRow;
         if (str == "Frame")
             return TypeId::Frame;
-        if (str == "FirmataControl")
-            return TypeId::FirmataControl;
-        if (str == "FirmataData")
-            return TypeId::FirmataData;
+        if (str == "LineCommand")
+            return TypeId::LineCommand;
+        if (str == "LineReading")
+            return TypeId::LineReading;
         if (str == "IntSignalBlock")
             return TypeId::IntSignalBlock;
         if (str == "FloatSignalBlock")
@@ -395,61 +395,90 @@ struct TableRow : BaseDataType {
 };
 
 /**
- * @brief The FirmataCommandKind enum
+ * @brief The LineCommandKind enum
  *
- * Type of change to be be made on a Firmata interface.
+ * Type of operation requested on a hardware signal line / channel / pin.
  */
-enum class FirmataCommandKind {
-    UNKNOWN,
-    NEW_DIG_PIN,
-    NEW_ANA_PIN,
-    IO_MODE,
-    WRITE_ANALOG,
-    WRITE_DIGITAL,
-    WRITE_DIGITAL_PULSE,
-    SYSEX /// not implemented
+enum class LineCommandKind {
+    Unknown,
+    SetMode,            /// Configure line direction / mode
+    WriteDigital,       /// Set a digital line to a value (0/1)
+    WriteAnalog,        /// Set an analog line to a value
+    WriteDigitalPulse,  /// Pulse a digital line for `duration` (value = level during pulse)
+    WriteAnalogPulse,   /// Drive an analog line at `value` for `duration` (for stim devices)
+    DeviceSpecific      /// Arbitrary device-defined payload carried in `extra`
 };
 
 /**
- * @brief Control command for a Firmata device.
+ * @brief Mode flags for LineCommandKind::SetMode.
+ *
+ * Composable bit flags describing how a line should be configured.
+ * Only meaningful for SetMode; ignored for other command kinds.
  */
-struct FirmataControl : BaseDataType {
-    SY_DEFINE_DATA_TYPE(FirmataControl)
+enum class LineModeFlags : uint32_t {
+    None     = 0,
+    IsInput  = 1u << 0,  /// Line is an input
+    IsOutput = 1u << 1,  /// Line is an output 
+    PullUp   = 1u << 2   /// Input pull-up enabled (inputs only)
+};
 
-    FirmataCommandKind command;
-    uint8_t pinId{0};
-    std::string pinName;
-    bool isOutput{false};
-    bool isPullUp{false};
-    uint16_t value;
+constexpr LineModeFlags operator|(LineModeFlags a, LineModeFlags b)
+{
+    return static_cast<LineModeFlags>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
+}
+constexpr LineModeFlags operator&(LineModeFlags a, LineModeFlags b)
+{
+    return static_cast<LineModeFlags>(static_cast<uint32_t>(a) & static_cast<uint32_t>(b));
+}
+constexpr LineModeFlags operator~(LineModeFlags a)
+{
+    return static_cast<LineModeFlags>(~static_cast<uint32_t>(a));
+}
+constexpr LineModeFlags &operator|=(LineModeFlags &a, LineModeFlags b)
+{
+    return a = a | b;
+}
+constexpr LineModeFlags &operator&=(LineModeFlags &a, LineModeFlags b)
+{
+    return a = a & b;
+}
+constexpr bool hasFlag(LineModeFlags v, LineModeFlags f)
+{
+    return (static_cast<uint32_t>(v) & static_cast<uint32_t>(f)) != 0;
+}
 
-    explicit FirmataControl()
-        : command(FirmataCommandKind::UNKNOWN),
-          value(0)
+/**
+ * @brief Command issued to a hardware signal line / channel / pin.
+ *
+ * Generic, protocol-agnostic outbound control message.
+ */
+struct LineCommand : BaseDataType {
+    SY_DEFINE_DATA_TYPE(LineCommand)
+
+    LineCommandKind kind{LineCommandKind::Unknown};
+    uint16_t lineId{0};                          /// Hardware line/channel/pin number
+    uint32_t value{0};                           /// Digital: 0/1; analog: DAC code
+    microseconds_t duration{};                   /// Pulse duration for *Pulse kinds
+    LineModeFlags flags{LineModeFlags::None};    /// SetMode only
+    ByteVector extra;                            /// DeviceSpecific payload
+
+    explicit LineCommand() = default;
+
+    explicit LineCommand(LineCommandKind k)
+        : kind(k)
     {
     }
 
-    explicit FirmataControl(FirmataCommandKind cmd)
-        : command(cmd),
-          isPullUp(false),
-          value(0)
+    LineCommand(LineCommandKind k, uint16_t line)
+        : kind(k),
+          lineId(line)
     {
     }
 
-    FirmataControl(FirmataCommandKind kind, int pinId, std::string name = std::string())
-        : command(kind),
-          pinId(pinId),
-          pinName(std::move(name)),
-          isPullUp(false),
-          value(0)
-    {
-    }
-
-    FirmataControl(FirmataCommandKind kind, std::string name)
-        : command(kind),
-          pinName(std::move(name)),
-          isPullUp(false),
-          value(0)
+    LineCommand(LineCommandKind k, uint16_t line, uint32_t v)
+        : kind(k),
+          lineId(line),
+          value(v)
     {
     }
 
@@ -457,69 +486,71 @@ struct FirmataControl : BaseDataType {
     {
         BinaryStreamWriter stream(output);
 
-        stream.write(command);
-        stream.write(pinId);
-        stream.write(pinName);
-        stream.write(isOutput);
-        stream.write(isPullUp);
+        stream.write(kind);
+        stream.write(lineId);
         stream.write(value);
+        stream.write(static_cast<int64_t>(duration.count()));
+        stream.write(static_cast<uint32_t>(flags));
+        stream.write(extra);
 
         return true;
     }
 
-    static FirmataControl fromMemory(const void *memory, size_t size)
+    static LineCommand fromMemory(const void *memory, size_t size)
     {
-        FirmataControl obj;
+        LineCommand obj;
         BinaryStreamReader stream(memory, size);
 
-        stream.read(obj.command);
-        stream.read(obj.pinId);
-        stream.read(obj.pinName);
-        stream.read(obj.isOutput);
-        stream.read(obj.isPullUp);
+        int64_t durationUs;
+        uint32_t flagsRaw;
+        stream.read(obj.kind);
+        stream.read(obj.lineId);
         stream.read(obj.value);
+        stream.read(durationUs);
+        stream.read(flagsRaw);
+        stream.read(obj.extra);
+        obj.duration = microseconds_t(durationUs);
+        obj.flags = static_cast<LineModeFlags>(flagsRaw);
 
         return obj;
     }
 };
 
 /**
- * @brief Data received from a Firmata device.
+ * @brief Scalar reading from a hardware signal line at a moment in time.
+ *
+ * Inbound counterpart to LineCommand. Used for single timestamped
+ * observations from a hardware line; bulk multi-channel acquisitions
+ * should use {Int,Float}SignalBlock instead.
  */
-struct FirmataData : BaseDataType {
-    SY_DEFINE_DATA_TYPE(FirmataData)
+struct LineReading : BaseDataType {
+    SY_DEFINE_DATA_TYPE(LineReading)
 
-    uint8_t pinId{};
-    std::string pinName;
-    uint16_t value{};
-    bool isDigital{};
+    uint16_t lineId{0};
+    uint32_t value{0};
     microseconds_t time{};
 
-    explicit FirmataData() = default;
+    explicit LineReading() = default;
 
     bool toBytes(ByteVector &output) const override
     {
         BinaryStreamWriter stream(output);
 
-        stream.write(pinId);
-        stream.write(pinName);
+        stream.write(lineId);
         stream.write(value);
-        stream.write(isDigital);
         stream.write(static_cast<int64_t>(time.count()));
 
         return true;
     }
 
-    static FirmataData fromMemory(const void *memory, size_t size)
+    static LineReading fromMemory(const void *memory, size_t size)
     {
-        FirmataData obj;
+        LineReading obj;
         BinaryStreamReader stream(memory, size);
 
         int64_t timeUs;
-        stream.read(obj.pinId);
-        stream.read(obj.pinName);
+        stream.read(obj.lineId);
         stream.read(obj.value);
-        stream.read(obj.isDigital);
         stream.read(timeUs);
         obj.time = microseconds_t(timeUs);
 

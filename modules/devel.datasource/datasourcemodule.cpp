@@ -34,7 +34,7 @@ class DataSourceModule : public AbstractModule
 private:
     std::shared_ptr<DataStream<Frame>> m_frameOut;
     std::shared_ptr<DataStream<TableRow>> m_rowsOut;
-    std::shared_ptr<DataStream<FirmataControl>> m_fctlOut;
+    std::shared_ptr<DataStream<LineCommand>> m_fctlOut;
 
     std::shared_ptr<DataStream<FloatSignalBlock>> m_floatOut;
     std::shared_ptr<DataStream<IntSignalBlock>> m_intOut;
@@ -57,7 +57,7 @@ public:
     {
         m_frameOut = registerOutputPort<Frame>(QStringLiteral("frames-out"), QStringLiteral("Frames"));
         m_rowsOut = registerOutputPort<TableRow>(QStringLiteral("rows-out"), QStringLiteral("Table Rows"));
-        m_fctlOut = registerOutputPort<FirmataControl>(QStringLiteral("fctl-out"), QStringLiteral("Firmata Control"));
+        m_fctlOut = registerOutputPort<LineCommand>(QStringLiteral("fctl-out"), QStringLiteral("Line Control"));
         m_floatOut = registerOutputPort<FloatSignalBlock>(QStringLiteral("float-out"), QStringLiteral("Sines"));
         m_intOut = registerOutputPort<IntSignalBlock>(QStringLiteral("int-out"), QStringLiteral("Numbers"));
     }
@@ -145,13 +145,9 @@ public:
             const auto usec = m_syTimer->timeSinceStartUsec().count();
             const auto msec = m_syTimer->timeSinceStartMsec().count();
             if (((msec / 1000) % 3) == 0) {
-                FirmataControl fctl;
-
-                fctl.command = FirmataCommandKind::WRITE_DIGITAL;
-                fctl.pinId = 2;
-                fctl.pinName = "custom-pin-name";
-                fctl.value = ((msec / 1000) % 2 == 0) ? 1 : 0;
-                m_fctlOut->push(fctl);
+                LineCommand lcmd(LineCommandKind::WriteDigital, 2);
+                lcmd.value = ((msec / 1000) % 2 == 0) ? 1 : 0;
+                m_fctlOut->push(lcmd);
             }
 
             if ((usec > m_prevTimeSData) && (msec % 2) == 0) {

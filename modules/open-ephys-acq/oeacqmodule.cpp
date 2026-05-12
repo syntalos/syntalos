@@ -108,10 +108,10 @@ public:
             return false;
 
         // Register a TTL trigger input port. Upstream modules can push
-        // FirmataControl::WRITE_DIGITAL_PULSE events here to fire one of the
-        // board's digital output lines for `value` ms. Other Firmata commands
-        // are accepted but only pulses are honored against the board.
-        m_ttlIn = registerInputPort<FirmataControl>(
+        // LineCommand WriteDigitalPulse events here to fire one of the
+        // board's digital output lines for the given duration. Other
+        // command kinds are accepted but only pulses are honored.
+        m_ttlIn = registerInputPort<LineCommand>(
             QStringLiteral("ttl-in"), QStringLiteral("TTL Triggers"));
 
         // Build the settings dialog once we know what the board can offer.
@@ -316,19 +316,19 @@ public:
     }
 
     /**
-     * Translate one Firmata control command into a board digital output
-     * action. Only WRITE_DIGITAL_PULSE is supported today; other variants
-     * log a warning and are ignored.
+     * Translate one line command into a board digital output action.
+     * Only WriteDigitalPulse is honored; other kinds are ignored.
      */
-    void dispatchTtlEvent(const FirmataControl &fc)
+    void dispatchTtlEvent(const LineCommand &fc)
     {
         if (!m_board)
             return;
 
-        switch (fc.command) {
-        case FirmataCommandKind::WRITE_DIGITAL_PULSE: {
-            const int line = static_cast<int>(fc.pinId);
-            const int durMs = std::max(1, static_cast<int>(fc.value));
+        switch (fc.kind) {
+        case LineCommandKind::WriteDigitalPulse: {
+            const int line = static_cast<int>(fc.lineId);
+            const auto durMs = std::max<int64_t>(
+                1, std::chrono::duration_cast<milliseconds_t>(fc.duration).count());
             if (line < 0 || line >= 16) {
                 LOG_WARNING(
                     m_log,
@@ -336,18 +336,18 @@ public:
                     line);
                 return;
             }
-            m_board->triggerDigitalOutput(line, durMs);
+            m_board->triggerDigitalOutput(line, static_cast<int>(durMs));
             break;
         }
-        case FirmataCommandKind::WRITE_DIGITAL:
+        case LineCommandKind::WriteDigital:
             LOG_WARNING(
                 m_log,
-                "TTL line-level command on pin {} ignored: only WRITE_DIGITAL_PULSE is "
+                "TTL line-level command on line {} ignored: only WriteDigitalPulse is "
                 "supported by the Open Ephys AcqBoard module.",
-                static_cast<int>(fc.pinId));
+                static_cast<int>(fc.lineId));
             break;
         default:
-            // Pin-mode setup, analog writes, etc. are not relevant to a
+            // SetMode, analog writes, etc. are not relevant to a
             // digital trigger output. Silently skip.
             break;
         }
@@ -803,8 +803,8 @@ private:
     Syntalos::QuillLogger *m_log;
     OeAcqSettingsDialog *m_settingsDlg = nullptr;
 
-    std::shared_ptr<StreamInputPort<FirmataControl>> m_ttlIn;
-    std::shared_ptr<StreamSubscription<FirmataControl>> m_ttlSub;
+    std::shared_ptr<StreamInputPort<LineCommand>> m_ttlIn;
+    std::shared_ptr<StreamSubscription<LineCommand>> m_ttlSub;
 
     int m_sampleRateHz = 30000;
     bool m_acquireAux = false;

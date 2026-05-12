@@ -27,20 +27,20 @@ class LatencyTestModule : public AbstractModule
 {
     Q_OBJECT
 private:
-    std::shared_ptr<StreamInputPort<FirmataData>> m_fmDataInPort;
-    std::shared_ptr<StreamSubscription<FirmataData>> m_fmDataSub;
+    std::shared_ptr<StreamInputPort<LineReading>> m_lrInPort;
+    std::shared_ptr<StreamSubscription<LineReading>> m_lrSub;
 
     std::shared_ptr<DataStream<TableRow>> m_tabStream;
-    std::shared_ptr<DataStream<FirmataControl>> m_fmCtlStream;
+    std::shared_ptr<DataStream<LineCommand>> m_lcStream;
 
 public:
     explicit LatencyTestModule(QObject *parent = nullptr)
         : AbstractModule(parent)
     {
-        m_fmDataInPort = registerInputPort<FirmataData>(QStringLiteral("firmata-in"), QStringLiteral("Firmata Data"));
+        m_lrInPort = registerInputPort<LineReading>(QStringLiteral("firmata-in"), QStringLiteral("Line Readings"));
         m_tabStream = registerOutputPort<TableRow>(QStringLiteral("table-out"), QStringLiteral("Table Rows"));
-        m_fmCtlStream = registerOutputPort<FirmataControl>(
-            QStringLiteral("firmata-out"), QStringLiteral("Firmata Control"));
+        m_lcStream = registerOutputPort<LineCommand>(
+            QStringLiteral("firmata-out"), QStringLiteral("Line Control"));
     }
 
     ~LatencyTestModule() override {}
@@ -62,25 +62,28 @@ public:
         m_tabStream->setMetadataValue("data_name_proposal", "events/table");
         m_tabStream->start();
 
-        m_fmCtlStream->start();
+        m_lcStream->start();
 
-        if (m_fmDataInPort->hasSubscription())
-            m_fmDataSub = m_fmDataInPort->subscription();
+        if (m_lrInPort->hasSubscription())
+            m_lrSub = m_lrInPort->subscription();
         else
             setStateDormant();
 
         return true;
     }
 
+    static constexpr uint16_t kTestInLine = 7;
+    static constexpr uint16_t kTestOutLine = 8;
+
     void start() final
     {
-        auto ctl = FirmataControl(FirmataCommandKind::NEW_DIG_PIN, 7, "testIn");
-        ctl.isOutput = false;
-        m_fmCtlStream->push(ctl);
+        LineCommand inSetup(LineCommandKind::SetMode, kTestInLine);
+        inSetup.flags = LineModeFlags::IsInput;
+        m_lcStream->push(inSetup);
 
-        ctl = FirmataControl(FirmataCommandKind::NEW_DIG_PIN, 8, "testOut");
-        ctl.isOutput = true;
-        m_fmCtlStream->push(ctl);
+        LineCommand outSetup(LineCommandKind::SetMode, kTestOutLine);
+        outSetup.flags = LineModeFlags::IsOutput;
+        m_lcStream->push(outSetup);
 
         AbstractModule::start();
     }
@@ -90,26 +93,25 @@ public:
         startWaitCondition->wait(this);
 
         // do nothing if we have no connection
-        if (!m_fmDataSub) {
+        if (!m_lrSub) {
             setStateDormant();
             return;
         }
 
-        uint16_t lastValue = 0;
+        uint32_t lastValue = 0;
         while (m_running) {
-            const auto data = m_fmDataSub->next();
+            const auto data = m_lrSub->next();
             if (!data.has_value())
-                continue;
-            if (!data->isDigital)
                 continue;
             if (lastValue == data->value)
                 continue;
-            if (data->pinName != "testIn")
+            if (data->lineId != kTestInLine)
                 continue;
 
             if (data->value) {
-                auto ctl = FirmataControl(FirmataCommandKind::WRITE_DIGITAL_PULSE, "testOut");
-                m_fmCtlStream->push(ctl);
+                LineCommand ctl(LineCommandKind::WriteDigitalPulse, kTestOutLine, 1);
+                ctl.duration = std::chrono::duration_cast<microseconds_t>(milliseconds_t(50));
+                m_lcStream->push(ctl);
             }
 
             m_tabStream->push(TableRow(

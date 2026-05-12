@@ -110,11 +110,11 @@ struct InputPort {
                 case syDataTypeId<Frame>():
                     _on_data_cb(py::cast(Frame::fromMemory(data, size)));
                     break;
-                case syDataTypeId<FirmataControl>():
-                    _on_data_cb(py::cast(FirmataControl::fromMemory(data, size)));
+                case syDataTypeId<LineCommand>():
+                    _on_data_cb(py::cast(LineCommand::fromMemory(data, size)));
                     break;
-                case syDataTypeId<FirmataData>():
-                    _on_data_cb(py::cast(FirmataData::fromMemory(data, size)));
+                case syDataTypeId<LineReading>():
+                    _on_data_cb(py::cast(LineReading::fromMemory(data, size)));
                     break;
                 case syDataTypeId<IntSignalBlock>():
                     _on_data_cb(py::cast(IntSignalBlock::fromMemory(data, size)));
@@ -178,10 +178,10 @@ struct OutputPort {
         }
         case syDataTypeId<Frame>():
             return slink->submitOutput(_oport, py::cast<const Frame &>(pyObj));
-        case syDataTypeId<FirmataControl>():
-            return slink->submitOutput(_oport, py::cast<const FirmataControl &>(pyObj));
-        case syDataTypeId<FirmataData>():
-            return slink->submitOutput(_oport, py::cast<const FirmataData &>(pyObj));
+        case syDataTypeId<LineCommand>():
+            return slink->submitOutput(_oport, py::cast<const LineCommand &>(pyObj));
+        case syDataTypeId<LineReading>():
+            return slink->submitOutput(_oport, py::cast<const LineReading &>(pyObj));
         case syDataTypeId<IntSignalBlock>():
             return slink->submitOutput(_oport, py::cast<const IntSignalBlock &>(pyObj));
         case syDataTypeId<FloatSignalBlock>():
@@ -275,40 +275,29 @@ struct OutputPort {
         _set_metadata_value_private(key, MetaSize(seq[0].cast<int32_t>(), seq[1].cast<int32_t>()));
     }
 
-    FirmataControl firmata_register_digital_pin(
-        int pinId,
-        const std::string &name,
-        bool isOutput,
-        bool isPullUp = false)
+    LineCommand register_digital_line(int lineId, bool isOutput, bool isPullUp = false)
     {
-        FirmataControl ctl;
-        ctl.command = FirmataCommandKind::NEW_DIG_PIN;
-        ctl.pinName = name;
-        ctl.pinId = pinId;
-        ctl.isOutput = isOutput;
-        ctl.isPullUp = isPullUp;
+        LineCommand ctl(LineCommandKind::SetMode, static_cast<uint16_t>(lineId));
+        ctl.flags = isOutput ? LineModeFlags::IsOutput : LineModeFlags::IsInput;
+        if (!isOutput && isPullUp)
+            ctl.flags |= LineModeFlags::PullUp;
 
         _submit_typed_or_throw(ctl);
         return ctl;
     }
 
-    FirmataControl firmata_submit_digital_value(const std::string &name, bool value)
+    LineCommand submit_digital_value(int lineId, bool value)
     {
-        FirmataControl ctl;
-        ctl.command = FirmataCommandKind::WRITE_DIGITAL;
-        ctl.pinName = name;
-        ctl.value = value;
+        LineCommand ctl(LineCommandKind::WriteDigital, static_cast<uint16_t>(lineId), value ? 1u : 0u);
 
         _submit_typed_or_throw(ctl);
         return ctl;
     }
 
-    FirmataControl firmata_submit_digital_pulse(const std::string &name, int duration_msec = 50)
+    LineCommand submit_digital_pulse(int lineId, int duration_msec = 50)
     {
-        FirmataControl ctl;
-        ctl.command = FirmataCommandKind::WRITE_DIGITAL_PULSE;
-        ctl.pinName = name;
-        ctl.value = duration_msec;
+        LineCommand ctl(LineCommandKind::WriteDigitalPulse, static_cast<uint16_t>(lineId), 1u);
+        ctl.duration = std::chrono::duration_cast<microseconds_t>(milliseconds_t(duration_msec));
 
         _submit_typed_or_throw(ctl);
         return ctl;
@@ -846,19 +835,9 @@ static std::optional<OutputPort> get_output_port(const std::string &id)
     return OutputPort(res);
 }
 
-static FirmataControl new_firmatactl_with_id_name(FirmataCommandKind kind, int pinId, const std::string &name)
+static LineCommand new_line_command(LineCommandKind kind, int lineId, uint32_t value = 0)
 {
-    return {kind, pinId, name};
-}
-
-static FirmataControl new_firmatactl_with_id(FirmataCommandKind kind, int pinId)
-{
-    return {kind, pinId};
-}
-
-static FirmataControl new_firmatactl_with_name(FirmataCommandKind kind, const std::string &name)
-{
-    return {kind, name};
+    return {kind, static_cast<uint16_t>(lineId), value};
 }
 
 static PySyLinkManager *init_link_impl(const ModuleInitOptions &optn, SyntalosLink *slink = nullptr)
@@ -955,8 +934,8 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .value("ControlCommand", BaseDataType::TypeId::ControlCommand, "Module control command.")
         .value("TableRow", BaseDataType::TypeId::TableRow, "A row of tabular data.")
         .value("Frame", BaseDataType::TypeId::Frame, "A video frame.")
-        .value("FirmataControl", BaseDataType::TypeId::FirmataControl, "Firmata device control message.")
-        .value("FirmataData", BaseDataType::TypeId::FirmataData, "Data received from a Firmata device.")
+        .value("LineCommand", BaseDataType::TypeId::LineCommand, "Outbound command to a hardware signal line.")
+        .value("LineReading", BaseDataType::TypeId::LineReading, "Timestamped reading from a hardware signal line.")
         .value("IntSignalBlock", BaseDataType::TypeId::IntSignalBlock, "A block of integer signal samples.")
         .value("FloatSignalBlock", BaseDataType::TypeId::FloatSignalBlock, "A block of float signal samples.");
 
@@ -986,46 +965,56 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "command", &ControlCommand::command, "Custom command string (used when ``kind`` is ``CUSTOM``).");
 
     /**
-     ** Firmata
+     ** Line I/O (hardware signal lines)
      **/
 
-    py::enum_<FirmataCommandKind>(m, "FirmataCommandKind", "Type of change to be made on a Firmata interface.")
-        .value("UNKNOWN", FirmataCommandKind::UNKNOWN)
-        .value("NEW_DIG_PIN", FirmataCommandKind::NEW_DIG_PIN, "Register a new digital pin.")
-        .value("NEW_ANA_PIN", FirmataCommandKind::NEW_ANA_PIN, "Register a new analog pin.")
-        .value("IO_MODE", FirmataCommandKind::IO_MODE, "Change a pin's I/O mode.")
-        .value("WRITE_ANALOG", FirmataCommandKind::WRITE_ANALOG, "Write an analog value to a pin.")
-        .value("WRITE_DIGITAL", FirmataCommandKind::WRITE_DIGITAL, "Write a digital value to a pin.")
-        .value("WRITE_DIGITAL_PULSE", FirmataCommandKind::WRITE_DIGITAL_PULSE, "Emit a digital pulse on a pin.")
-        .value("SYSEX", FirmataCommandKind::SYSEX, "Send a raw SysEx message.");
+    py::enum_<LineCommandKind>(m, "LineCommandKind", "Type of operation requested on a hardware signal line.")
+        .value("UNKNOWN", LineCommandKind::Unknown)
+        .value("SET_MODE", LineCommandKind::SetMode, "Configure a line's direction / mode (uses ``flags``).")
+        .value("WRITE_DIGITAL", LineCommandKind::WriteDigital, "Set a digital line to a value (True/False).")
+        .value("WRITE_ANALOG", LineCommandKind::WriteAnalog, "Set an analog line to a value.")
+        .value("WRITE_DIGITAL_PULSE", LineCommandKind::WriteDigitalPulse, "Pulse a digital line for ``duration``.")
+        .value("WRITE_ANALOG_PULSE", LineCommandKind::WriteAnalogPulse, "Drive an analog line for ``duration``.")
+        .value("DEVICE_SPECIFIC", LineCommandKind::DeviceSpecific, "Device-defined payload carried in ``extra``.");
 
-    py::class_<FirmataControl>(m, "FirmataControl", "Control command for a Firmata device.")
-        .def(py::init<>())
-        .def(py::init<FirmataCommandKind>())
-        .def_readwrite("command", &FirmataControl::command, "The :class:`FirmataCommandKind` to execute.")
-        .def_readwrite("pin_id", &FirmataControl::pinId, "Numeric pin identifier.")
-        .def_readwrite("pin_name", &FirmataControl::pinName, "Registered name of the pin.")
-        .def_readwrite("is_output", &FirmataControl::isOutput, "``True`` if the pin is configured as output.")
-        .def_readwrite("is_pullup", &FirmataControl::isPullUp, "``True`` if the internal pull-up resistor is enabled.")
-        .def_readwrite("value", &FirmataControl::value, "Value to write, or pulse duration in ms.");
+    py::enum_<LineModeFlags>(m, "LineModeFlags", py::arithmetic(), "Composable mode flags for :class:`LineCommandKind.SET_MODE`.")
+        .value("NONE", LineModeFlags::None)
+        .value("IS_INPUT", LineModeFlags::IsInput, "Line is an input.")
+        .value("IS_OUTPUT", LineModeFlags::IsOutput, "Line is an output.")
+        .value("PULL_UP", LineModeFlags::PullUp, "Input pull-up resistor enabled (inputs only).");
 
-    py::class_<FirmataData>(m, "FirmataData", "Data received from a Firmata device.")
+    py::class_<LineCommand>(m, "LineCommand", "Command issued to a hardware signal line.")
         .def(py::init<>())
-        .def_readwrite("pin_id", &FirmataData::pinId, "Numeric pin identifier.")
-        .def_readwrite("pin_name", &FirmataData::pinName, "Registered name of the pin.")
-        .def_readwrite("value", &FirmataData::value, "Received pin value.")
-        .def_readwrite("is_digital", &FirmataData::isDigital, "``True`` if the value is digital, ``False`` if analog.")
-        .def_readwrite("time", &FirmataData::time, "Time when the data was acquired, as a duration.")
-        // Convenience helpers
+        .def(py::init<LineCommandKind>())
+        .def_readwrite("kind", &LineCommand::kind, "The :class:`LineCommandKind` to execute.")
+        .def_readwrite("line_id", &LineCommand::lineId, "Hardware line / channel / pin number.")
+        .def_readwrite("value", &LineCommand::value, "Digital: 0/1; analog: DAC code.")
+        .def_property(
+            "duration_usec",
+            [](const LineCommand &c) {
+                return c.duration.count();
+            },
+            [](LineCommand &c, int64_t v) {
+                c.duration = microseconds_t(v);
+            },
+            "Pulse duration for ``*_PULSE`` kinds, in microseconds.")
+        .def_readwrite("flags", &LineCommand::flags, "Mode flags (used by :class:`LineCommandKind.SET_MODE`).")
+        .def_readwrite("extra", &LineCommand::extra, "Optional device-specific payload (used by ``DEVICE_SPECIFIC``).");
+
+    py::class_<LineReading>(m, "LineReading", "Timestamped scalar reading from a hardware signal line.")
+        .def(py::init<>())
+        .def_readwrite("line_id", &LineReading::lineId, "Hardware line / channel / pin number.")
+        .def_readwrite("value", &LineReading::value, "Sampled value.")
+        .def_readwrite("time", &LineReading::time, "Time when the reading was acquired, as a duration.")
         .def_property(
             "time_usec",
-            [](const FirmataData &fm) {
-                return fm.time.count();
+            [](const LineReading &r) {
+                return r.time.count();
             },
-            [](FirmataData &fm, uint64_t v) {
-                fm.time = microseconds_t(v);
+            [](LineReading &r, uint64_t v) {
+                r.time = microseconds_t(v);
             },
-            "Time when the data was acquired, as an integer in µs.");
+            "Time when the reading was acquired, as an integer in µs.");
 
     /**
      ** Signal Blocks
@@ -1117,48 +1106,43 @@ PYBIND11_MODULE(syntalos_mlink, m)
 
         // convenience functions
         .def(
-            "firmata_register_digital_pin",
-            &OutputPort::firmata_register_digital_pin,
+            "register_digital_line",
+            &OutputPort::register_digital_line,
             py::return_value_policy::move,
-            py::arg("pin_id"),
-            py::arg("name"),
+            py::arg("line_id"),
             py::arg("is_output"),
             py::arg("is_pullup") = false,
-            "Register a named digital pin on the connected Firmata device and submit the command immediately.\n"
+            "Configure a hardware digital line and submit the SET_MODE command immediately.\n"
             "\n"
-            "The pin can subsequently be referenced by ``name`` in :meth:`firmata_submit_digital_value`\n"
-            "and :meth:`firmata_submit_digital_pulse`.\n"
-            "\n"
-            ":param pin_id: Numeric pin identifier on the device.\n"
-            ":param name: Human-readable name to register for this pin.\n"
-            ":param is_output: ``True`` to configure the pin as output, ``False`` for input.\n"
-            ":param is_pullup: ``True`` to enable the internal pull-up resistor (default: ``False``).\n"
-            ":return: The :class:`FirmataControl` command that was submitted.\n"
-            ":rtype: FirmataControl")
+            ":param line_id: Hardware line / channel / pin number.\n"
+            ":param is_output: ``True`` to configure the line as output, ``False`` for input.\n"
+            ":param is_pullup: ``True`` to enable the input pull-up resistor (inputs only; default: ``False``).\n"
+            ":return: The :class:`LineCommand` that was submitted.\n"
+            ":rtype: LineCommand")
         .def(
-            "firmata_submit_digital_value",
-            &OutputPort::firmata_submit_digital_value,
+            "submit_digital_value",
+            &OutputPort::submit_digital_value,
             py::return_value_policy::move,
-            py::arg("name"),
+            py::arg("line_id"),
             py::arg("value"),
-            "Write a digital value to a previously registered pin.\n"
+            "Write a digital value to a hardware line.\n"
             "\n"
-            ":param name: Registered pin name.\n"
+            ":param line_id: Hardware line number.\n"
             ":param value: ``True`` / ``1`` for HIGH, ``False`` / ``0`` for LOW.\n"
-            ":return: The :class:`FirmataControl` command that was submitted.\n"
-            ":rtype: FirmataControl")
+            ":return: The :class:`LineCommand` that was submitted.\n"
+            ":rtype: LineCommand")
         .def(
-            "firmata_submit_digital_pulse",
-            &OutputPort::firmata_submit_digital_pulse,
+            "submit_digital_pulse",
+            &OutputPort::submit_digital_pulse,
             py::return_value_policy::move,
-            py::arg("name"),
+            py::arg("line_id"),
             py::arg("duration_msec") = 50,
-            "Emit a digital pulse on a previously registered pin.\n"
+            "Emit a digital pulse on a hardware line.\n"
             "\n"
-            ":param name: Registered pin name.\n"
+            ":param line_id: Hardware line number.\n"
             ":param duration_msec: Pulse duration in milliseconds (default: 50).\n"
-            ":return: The :class:`FirmataControl` command that was submitted.\n"
-            ":rtype: FirmataControl");
+            ":return: The :class:`LineCommand` that was submitted.\n"
+            ":rtype: LineCommand");
 
     /**
      ** Additional Functions
@@ -1281,51 +1265,23 @@ PYBIND11_MODULE(syntalos_mlink, m)
         "    wait until the module is no longer in ``RUNNING`` state.");
 
     /**
-     ** Firmata helpers
+     ** Line I/O helpers
      **/
 
     m.def(
-        "new_firmatactl_with_id_name",
-        new_firmatactl_with_id_name,
+        "new_line_command",
+        new_line_command,
         py::return_value_policy::move,
         py::arg("kind"),
-        py::arg("pin_id"),
-        py::arg("name"),
-        "Create a :class:`FirmataControl` command identified by both numeric ID and name.\n"
+        py::arg("line_id"),
+        py::arg("value") = 0,
+        "Create a :class:`LineCommand` for the given line.\n"
         "\n"
-        ":param kind: The :class:`FirmataCommandKind` to execute.\n"
-        ":param pin_id: Numeric pin identifier.\n"
-        ":param name: Registered pin name.\n"
-        ":return: A new :class:`FirmataControl` instance.\n"
-        ":rtype: FirmataControl");
-
-    m.def(
-        "new_firmatactl_with_id",
-        new_firmatactl_with_id,
-        py::return_value_policy::move,
-        py::arg("kind"),
-        py::arg("pin_id"),
-        "Create a :class:`FirmataControl` command identified by numeric pin ID only.\n"
-        "\n"
-        ":param kind: The :class:`FirmataCommandKind` to execute.\n"
-        ":param pin_id: Numeric pin identifier.\n"
-        ":return: A new :class:`FirmataControl` instance.\n"
-        ":rtype: FirmataControl");
-
-    m.def(
-        "new_firmatactl_with_name",
-        new_firmatactl_with_name,
-        py::return_value_policy::move,
-        py::arg("kind"),
-        py::arg("name"),
-        "Create a :class:`FirmataControl` command identified by a registered pin name.\n"
-        "\n"
-        "The pin must have been previously registered with :meth:`OutputPort.firmata_register_digital_pin`.\n"
-        "\n"
-        ":param kind: The :class:`FirmataCommandKind` to execute.\n"
-        ":param name: Registered pin name.\n"
-        ":return: A new :class:`FirmataControl` instance.\n"
-        ":rtype: FirmataControl");
+        ":param kind: The :class:`LineCommandKind` to execute.\n"
+        ":param line_id: Hardware line / channel / pin number.\n"
+        ":param value: Optional numeric value (digital: 0/1; analog: DAC code).\n"
+        ":return: A new :class:`LineCommand` instance.\n"
+        ":rtype: LineCommand");
 
     /**
      * EDL Storage (for standalone Python modules)

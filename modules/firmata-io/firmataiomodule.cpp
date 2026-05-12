@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU General Public License Version 3
  *
@@ -38,9 +38,9 @@ enum class PinKind {
 };
 
 struct FmPin {
-    PinKind kind;
-    bool output;
-    uint8_t id;
+    PinKind kind{PinKind::Unknown};
+    bool output{false};
+    uint8_t id{0};
 };
 
 class FirmataIOModule : public AbstractModule
@@ -51,12 +51,11 @@ private:
     FirmataSettingsDialog *m_settingsDialog;
     std::atomic_bool m_stopped;
 
-    QHash<std::string, FmPin> m_namePinMap;
-    QHash<int, std::string> m_pinNameMap;
+    QHash<int, FmPin> m_pinMap;
 
-    std::shared_ptr<StreamInputPort<FirmataControl>> m_inFmCtl;
-    std::shared_ptr<DataStream<FirmataData>> m_fmStream;
-    std::shared_ptr<StreamSubscription<FirmataControl>> m_fmCtlSub;
+    std::shared_ptr<StreamInputPort<LineCommand>> m_inLineCtl;
+    std::shared_ptr<DataStream<LineReading>> m_outStream;
+    std::shared_ptr<StreamSubscription<LineCommand>> m_lineCtlSub;
 
 public:
     explicit FirmataIOModule(QObject *parent = nullptr)
@@ -68,8 +67,8 @@ public:
         addSettingsWindow(m_settingsDialog);
         m_settingsDialog->setWindowTitle(QStringLiteral("%1 - Settings").arg(name()));
 
-        m_inFmCtl = registerInputPort<FirmataControl>(QStringLiteral("fmctl"), QStringLiteral("Firmata Control"));
-        m_fmStream = registerOutputPort<FirmataData>(QStringLiteral("fmdata"), QStringLiteral("Firmata Data"));
+        m_inLineCtl = registerInputPort<LineCommand>(QStringLiteral("fmctl"), QStringLiteral("Line Control"));
+        m_outStream = registerOutputPort<LineReading>(QStringLiteral("fmdata"), QStringLiteral("Line Readings"));
     }
 
     ~FirmataIOModule() override {}
@@ -94,14 +93,13 @@ public:
     bool prepare(const TestSubject &) final
     {
         // cleanup
-        m_namePinMap.clear();
-        m_pinNameMap.clear();
+        m_pinMap.clear();
 
         // start event stream and see if we should listen to control commands
-        m_fmStream->start();
-        m_fmCtlSub.reset();
-        if (m_inFmCtl->hasSubscription())
-            m_fmCtlSub = m_inFmCtl->subscription();
+        m_outStream->start();
+        m_lineCtlSub.reset();
+        if (m_inLineCtl->hasSubscription())
+            m_lineCtlSub = m_inLineCtl->subscription();
 
         return true;
     }
@@ -164,11 +162,11 @@ public:
 
         // trigger if we have new input data
         std::unique_ptr<SubscriptionNotifier> notifier;
-        if (m_fmCtlSub) {
-            notifier = std::make_unique<SubscriptionNotifier>(m_fmCtlSub);
+        if (m_lineCtlSub) {
+            notifier = std::make_unique<SubscriptionNotifier>(m_lineCtlSub);
             connect(notifier.get(), &SubscriptionNotifier::dataReceived, [&loop, &firmata, this]() {
                 for (uint i = 0; i < 4; i++) {
-                    if (!checkFirmataControlCmdReceived(firmata.get()))
+                    if (!checkLineCommandReceived(firmata.get()))
                         break;
                 }
 
@@ -195,60 +193,58 @@ public:
         // run our internal event loop
         loop.exec();
 
-        m_fmCtlSub->disableNotify();
+        m_lineCtlSub->disableNotify();
         m_stopped = true;
     }
 
-    bool checkFirmataControlCmdReceived(SerialFirmata *firmata)
+    bool checkLineCommandReceived(SerialFirmata *firmata)
     {
-        const auto maybeCtl = m_fmCtlSub->peekNext();
+        const auto maybeCtl = m_lineCtlSub->peekNext();
         if (!maybeCtl.has_value())
             return false;
         const auto &ctl = maybeCtl.value();
-        switch (ctl.command) {
-        case FirmataCommandKind::NEW_DIG_PIN:
-            newDigitalPin(firmata, ctl.pinId, ctl.pinName, ctl.isOutput, ctl.isPullUp);
-            if (ctl.pinName.empty())
-                pinSetValue(firmata, ctl.pinId, ctl.value);
-            else
-                pinSetValue(firmata, ctl.pinName, ctl.value);
+        switch (ctl.kind) {
+        case LineCommandKind::SetMode:
+            configureDigitalPin(firmata, ctl.lineId, ctl.flags);
             break;
-        case FirmataCommandKind::WRITE_DIGITAL:
-            if (ctl.pinName.empty())
-                pinSetValue(firmata, ctl.pinId, ctl.value);
-            else
-                pinSetValue(firmata, ctl.pinName, ctl.value);
+        case LineCommandKind::WriteDigital:
+            pinSetValue(firmata, ctl.lineId, ctl.value != 0);
             break;
-        case FirmataCommandKind::WRITE_DIGITAL_PULSE:
-            if (ctl.pinName.empty())
-                pinSignalPulse(firmata, ctl.pinId, ctl.value);
-            else
-                pinSignalPulse(firmata, ctl.pinName, ctl.value);
+        case LineCommandKind::WriteDigitalPulse: {
+            const auto durMs =
+                std::chrono::duration_cast<milliseconds_t>(ctl.duration).count();
+            pinSignalPulse(firmata, ctl.lineId, static_cast<int>(durMs));
             break;
+        }
         default:
             LOG_WARNING(
-                m_log, "Received not-implemented Firmata instruction of type: {}", static_cast<int>(ctl.command));
+                m_log,
+                "Received unsupported LineCommand kind for Firmata: {}",
+                static_cast<int>(ctl.kind));
             break;
         }
 
         return true;
     }
 
-    void newDigitalPin(SerialFirmata *firmata, int pinId, const std::string &pinName, bool output, bool pullUp)
+    void configureDigitalPin(SerialFirmata *firmata, int lineId, LineModeFlags flags)
     {
+        const bool isOutput = hasFlag(flags, LineModeFlags::IsOutput);
+        const bool isPullUp = hasFlag(flags, LineModeFlags::PullUp);
+
         FmPin pin;
         pin.kind = PinKind::Digital;
-        pin.id = static_cast<uint8_t>(pinId);
-        pin.output = output;
+        pin.id = static_cast<uint8_t>(lineId);
+        pin.output = isOutput;
 
         if (pin.output) {
             // initialize output pin
             firmata->setPinMode(pin.id, IoMode::Output);
             firmata->writeDigitalPin(pin.id, false);
-            LOG_INFO(m_log, "Firmata: Pin {} set as output", pinId);
+            LOG_INFO(m_log, "Firmata: Pin {} set as output", lineId);
         } else {
             // connect input pin
-            if (pullUp)
+            if (isPullUp)
                 firmata->setPinMode(pin.id, IoMode::PullUp);
             else
                 firmata->setPinMode(pin.id, IoMode::Input);
@@ -256,39 +252,15 @@ public:
             uint8_t port = pin.id >> 3;
             firmata->reportDigitalPort(port, true);
 
-            LOG_INFO(m_log, "Firmata: Pin {} set as input", pinId);
+            LOG_INFO(m_log, "Firmata: Pin {} set as input", lineId);
         }
 
-        auto pname = pinName;
-        if (pname.empty())
-            pname = QStringLiteral("pin-%1").arg(pinId).toStdString();
-
-        m_namePinMap.insert(pname, pin);
-        m_pinNameMap.insert(pin.id, pname);
-    }
-
-    FmPin findPin(const std::string &pinName)
-    {
-        auto pin = m_namePinMap.value(pinName);
-        if (pin.kind == PinKind::Unknown)
-            LOG_ERROR(
-                m_log,
-                "Unable to deliver message to pin '{}' (pin does not exist, it needs to be registered first)",
-                pinName);
-        return pin;
+        m_pinMap.insert(lineId, pin);
     }
 
     void pinSetValue(SerialFirmata *firmata, int pinId, bool value)
     {
         firmata->writeDigitalPin(pinId, value);
-    }
-
-    void pinSetValue(SerialFirmata *firmata, const std::string &pinName, bool value)
-    {
-        auto pin = findPin(pinName);
-        if (pin.kind == PinKind::Unknown)
-            return;
-        pinSetValue(firmata, pin.id, value);
     }
 
     void pinSignalPulse(SerialFirmata *firmata, int pinId, int pulseDuration = 0)
@@ -300,14 +272,6 @@ public:
         pinSetValue(firmata, pinId, true);
         delay(pulseDuration);
         pinSetValue(firmata, pinId, false);
-    }
-
-    void pinSignalPulse(SerialFirmata *firmata, const std::string &pinName, int pulseDuration = 0)
-    {
-        auto pin = findPin(pinName);
-        if (pin.kind == PinKind::Unknown)
-            return;
-        pinSignalPulse(firmata, pin.id, pulseDuration);
     }
 
     void stop() final
@@ -333,24 +297,22 @@ public:
     void recvDigitalRead(uint8_t port, uint8_t value)
     {
         // WARNING: This method is called from a different thread!
+        const auto timestamp = m_syTimer->timeSinceStartUsec();
 
         // value of a digital port changed: 8 possible pin changes
         const int first = port * 8;
         const int last = first + 7;
-        const auto timestamp = m_syTimer->timeSinceStartUsec();
 
         LOG_DEBUG(m_log, "Digital port read: {} ({} - {})", value, first, last);
-        for (const FmPin &p : m_namePinMap.values()) {
+        for (const FmPin &p : m_pinMap.values()) {
             if ((!p.output) && (p.kind != PinKind::Unknown)) {
                 if ((p.id >= first) && (p.id <= last)) {
-                    FirmataData fdata;
-                    fdata.time = timestamp;
-                    fdata.isDigital = true;
-                    fdata.pinId = p.id;
-                    fdata.pinName = m_pinNameMap.value(p.id);
-                    fdata.value = (value & (1 << (p.id - first))) ? 1 : 0;
+                    LineReading r;
+                    r.time = timestamp;
+                    r.lineId = p.id;
+                    r.value = (value & (1 << (p.id - first))) ? 1 : 0;
 
-                    m_fmStream->push(fdata);
+                    m_outStream->push(r);
                 }
             }
         }
@@ -359,20 +321,20 @@ public:
     void recvDigitalPinRead(uint8_t pin, bool value)
     {
         // WARNING: This method is called from a different thread!
+        const auto timestamp = m_syTimer->timeSinceStartUsec();
 
-        FirmataData fdata;
-        fdata.time = m_syTimer->timeSinceStartUsec();
-        fdata.isDigital = true;
-        fdata.pinId = pin;
-        fdata.pinName = m_pinNameMap.value(pin);
-        fdata.value = value;
-        if (fdata.pinName.empty()) {
-            LOG_WARNING(m_log, "Received state change for unknown pin: {}", pin);
+        if (!m_pinMap.contains(pin)) {
+            LOG_WARNING(m_log, "Received state change for unregistered pin: {}", pin);
             return;
         }
 
+        LineReading r;
+        r.time = timestamp;
+        r.lineId = pin;
+        r.value = value ? 1 : 0;
+
         LOG_DEBUG(m_log, "Digital pin read: {}={}", pin, value);
-        m_fmStream->push(fdata);
+        m_outStream->push(r);
     }
 };
 

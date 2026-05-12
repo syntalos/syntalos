@@ -33,7 +33,7 @@ class FirmataOutputWidget : public QWidget
 
 public:
     explicit FirmataOutputWidget(
-        std::shared_ptr<DataStream<FirmataControl>> fmCtlStream,
+        std::shared_ptr<DataStream<LineCommand>> fmCtlStream,
         bool analog,
         QWidget *parent = nullptr);
 
@@ -58,7 +58,7 @@ private:
     QSpinBox *m_sbValue;
     QPushButton *m_btnPulse;
     QPushButton *m_btnSend;
-    std::shared_ptr<DataStream<FirmataControl>> m_fmCtlStream;
+    std::shared_ptr<DataStream<LineCommand>> m_fmCtlStream;
 };
 
 class FirmataInputWidget : public QWidget
@@ -67,7 +67,7 @@ class FirmataInputWidget : public QWidget
 
 public:
     explicit FirmataInputWidget(
-        std::shared_ptr<DataStream<FirmataControl>> fmCtlStream,
+        std::shared_ptr<DataStream<LineCommand>> fmCtlStream,
         bool analog,
         QWidget *parent = nullptr);
 
@@ -90,7 +90,7 @@ private:
     QSpinBox *m_sbPinId;
 
     QLabel *m_lblValue;
-    std::shared_ptr<DataStream<FirmataControl>> m_fmCtlStream;
+    std::shared_ptr<DataStream<LineCommand>> m_fmCtlStream;
 };
 
 namespace Ui
@@ -103,11 +103,11 @@ class FirmataCtlDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit FirmataCtlDialog(std::shared_ptr<DataStream<FirmataControl>> fmCtlStream, QWidget *parent = nullptr);
+    explicit FirmataCtlDialog(std::shared_ptr<DataStream<LineCommand>> fmCtlStream, QWidget *parent = nullptr);
     ~FirmataCtlDialog();
 
     void initializeAllPins();
-    void pinValueChanged(const FirmataData &data);
+    void pinValueChanged(const LineReading &data);
 
     QVariantHash serializeSettings();
     void restoreFromSettings(const QVariantHash &settings);
@@ -120,5 +120,5 @@ private:
     Ui::FirmataCtlDialog *ui;
 
     int m_lastPinId;
-    std::shared_ptr<DataStream<FirmataControl>> m_fmCtlStream;
+    std::shared_ptr<DataStream<LineCommand>> m_fmCtlStream;
 };
