@@ -85,10 +85,10 @@ public:
 
     /** One row of the per-channel selector. */
     struct ChannelEntry {
-        QString id;             /// canonical channel ID
-        QString label;          /// display label
-        QString group;          /// sub-group label, e.g. "Headstage A1" or "Board ADC"
-        bool enabled = true;    /// checked state
+        QString id;          /// canonical channel ID
+        QString label;       /// display label
+        QString group;       /// sub-group label, e.g. "Headstage A1" or "Board ADC"
+        bool enabled = true; /// checked state
     };
 
     /** Rebuild the channel panel from the given inventory. */
