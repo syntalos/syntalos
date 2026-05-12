@@ -413,7 +413,7 @@ private:
 
         // Syntalos matrices are row-major, but just in case we get a column-major Eigen matrix,
         // we convert it, since Zarr expects row-major order
-        const Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> rmMtx = block.data;
+        const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> rmMtx = block.data;
         m_dataArray->appendBytes(rmMtx.data(), rmMtx.rows());
     }
 

@@ -32,11 +32,13 @@ namespace Syntalos
 typedef Eigen::Matrix<int32_t, Eigen::Dynamic, 1> VectorXsi;
 typedef Eigen::Matrix<uint64_t, Eigen::Dynamic, 1> VectorXul;
 typedef Eigen::Matrix<int64_t, Eigen::Dynamic, 1> VectorXsl;
+typedef Eigen::Matrix<float, Eigen::Dynamic, 1> VectorXf;
 typedef Eigen::Matrix<double, Eigen::Dynamic, 1> VectorXd;
 
 // Our default matrices are row-major, as this is beneficial for common operations done within Syntalos
 // (like appending, writing to most file formats, or iterating over them).
 typedef Eigen::Matrix<int32_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> MatrixXsi;
+typedef Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> MatrixXf;
 typedef Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> MatrixXd;
 
 template<typename T>

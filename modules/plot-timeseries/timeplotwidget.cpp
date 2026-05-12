@@ -199,7 +199,7 @@ int TimePlotWidget::addSeries(const QString &seriesName, const PlotSeriesSetting
     return d->xdata.size() - 1;
 }
 
-void TimePlotWidget::addToSeriesF(int seriesIndex, const Eigen::RowVectorXd &vec)
+void TimePlotWidget::addToSeriesF(int seriesIndex, const Eigen::RowVectorXf &vec)
 {
     const std::lock_guard<std::mutex> lock(d->dataMutex);
 

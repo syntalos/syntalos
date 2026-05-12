@@ -551,10 +551,7 @@ enum class SignalDataType {
 };
 
 /**
- * @brief A block of integer signal data from a data source
- *
- * This signal data block contains data for up to 16 channels. It contains
- * data as integers and is usually used for digital inputs.
+ * @brief A block of 32-bit signed integer signal data with timestamps.
  */
 struct IntSignalBlock : BaseDataType {
     SY_DEFINE_DATA_TYPE(IntSignalBlock)
@@ -607,10 +604,7 @@ struct IntSignalBlock : BaseDataType {
 };
 
 /**
- * @brief A block of floating-point signal data from an analog data source
- *
- * This signal data block contains data for up to 16 channels. It usually contains
- * possibly preprocessed / prefiltered analog data.
+ * @brief A block of 32-bit floating-point timestamped signal data.
  */
 struct FloatSignalBlock : BaseDataType {
     SY_DEFINE_DATA_TYPE(FloatSignalBlock)
@@ -646,7 +640,7 @@ struct FloatSignalBlock : BaseDataType {
     }
 
     VectorXul timestamps;
-    MatrixXd data;
+    MatrixXf data;
 
     bool toBytes(ByteVector &output) const override
     {
@@ -664,7 +658,7 @@ struct FloatSignalBlock : BaseDataType {
         BinaryStreamReader stream(memory, size);
 
         obj.timestamps = deserializeEigen<VectorXul>(stream);
-        obj.data = deserializeEigen<MatrixXd>(stream);
+        obj.data = deserializeEigen<MatrixXf>(stream);
 
         return obj;
     }

@@ -71,7 +71,7 @@ public:
     void setBufferSize(size_t size);
 
     int addSeries(const QString &seriesName, const PlotSeriesSettings &settings = PlotSeriesSettings());
-    void addToSeriesF(int seriesIndex, const Eigen::RowVectorXd &vec);
+    void addToSeriesF(int seriesIndex, const Eigen::RowVectorXf &vec);
     void addToSeriesI(int seriesIndex, const Eigen::RowVectorXi &vec);
     void addToTimeseries(const VectorXul &vec, double divisor);
 
