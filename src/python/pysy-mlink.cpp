@@ -736,15 +736,20 @@ struct PyHwOutputLine {
         return cmd;
     }
 
-    LineCommand pulse(int duration_msec)
+    LineCommand pulse(int duration_usec)
     {
         if (_analog)
             throw SyntalosPyError(
                 "pulse() is only valid for digital OutputLine; line " + std::to_string(_lineId) + " is analog.");
         LineCommand cmd(LineCommandKind::WRITE_DIGITAL_PULSE, _lineId, 1u);
-        cmd.duration = std::chrono::duration_cast<microseconds_t>(milliseconds_t(duration_msec));
+        cmd.duration = microseconds_t(duration_usec);
         _port._submit_typed_or_throw(cmd);
         return cmd;
+    }
+
+    LineCommand pulse_msec(int duration_msec)
+    {
+        return pulse(duration_msec * US_PER_MS);
     }
 
     LineCommand set_analog_value(uint32_t value)
@@ -1222,6 +1227,17 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .def(
             "pulse",
             &PyHwOutputLine::pulse,
+            py::return_value_policy::move,
+            py::arg("duration_usec") = 2500,
+            "Emit a digital pulse on the line (digital lines only).\n"
+            "\n"
+            ":param duration_msec: Pulse duration in microseconds (default: 2500).\n"
+            ":raises SyntalosPyError: If this is an analog line.\n"
+            ":return: The :class:`LineCommand` that was submitted.\n"
+            ":rtype: LineCommand")
+        .def(
+            "pulse_msec",
+            &PyHwOutputLine::pulse_msec,
             py::return_value_policy::move,
             py::arg("duration_msec") = 50,
             "Emit a digital pulse on the line (digital lines only).\n"
