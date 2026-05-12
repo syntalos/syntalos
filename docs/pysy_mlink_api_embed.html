@@ -229,9 +229,9 @@ syntalos_mlink    </h1>
 
 <p>Frame : A video frame.</p>
 
-<p>FirmataControl : Firmata device control message.</p>
+<p>LineCommand : Outbound command to a hardware signal line.</p>
 
-<p>FirmataData : Data received from a Firmata device.</p>
+<p>LineReading : Timestamped reading from a hardware signal line.</p>
 
 <p>IntSignalBlock : A block of integer signal samples.</p>
 
@@ -258,28 +258,6 @@ syntalos_mlink    </h1>
 
 </div>
 <a class="headerlink" href="#DataType.ControlCommand"></a>
-
-
-
-</div>
-<div id="DataType.FirmataControl" class="classattr">
-<div class="attr variable">
-<span class="name">FirmataControl</span><span class="annotation">: ClassVar[<a href="#DataType">DataType</a>]</span>
-
-
-</div>
-<a class="headerlink" href="#DataType.FirmataControl"></a>
-
-
-
-</div>
-<div id="DataType.FirmataData" class="classattr">
-<div class="attr variable">
-<span class="name">FirmataData</span><span class="annotation">: ClassVar[<a href="#DataType">DataType</a>]</span>
-
-
-</div>
-<a class="headerlink" href="#DataType.FirmataData"></a>
 
 
 
@@ -313,6 +291,28 @@ syntalos_mlink    </h1>
 
 </div>
 <a class="headerlink" href="#DataType.IntSignalBlock"></a>
+
+
+
+</div>
+<div id="DataType.LineCommand" class="classattr">
+<div class="attr variable">
+<span class="name">LineCommand</span><span class="annotation">: ClassVar[<a href="#DataType">DataType</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#DataType.LineCommand"></a>
+
+
+
+</div>
+<div id="DataType.LineReading" class="classattr">
+<div class="attr variable">
+<span class="name">LineReading</span><span class="annotation">: ClassVar[<a href="#DataType">DataType</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#DataType.LineReading"></a>
 
 
 
@@ -351,356 +351,213 @@ syntalos_mlink    </h1>
 
 </div>
 </section>
-<section id="FirmataCommandKind">
+<section id="EdlDataset">
 <div class="attr class">
 
 <span class="def">class</span>
-<span class="name">FirmataCommandKind</span>:
+<span class="name">EdlDataset</span>:
 
 
 </div>
-<a class="headerlink" href="#FirmataCommandKind"></a>
+<a class="headerlink" href="#EdlDataset"></a>
 
-<div class="docstring"><p>Type of change to be made on a Firmata interface.</p>
-
-<p>Members:</p>
-
-<p>UNKNOWN</p>
-
-<p>NEW_DIG_PIN : Register a new digital pin.</p>
-
-<p>NEW_ANA_PIN : Register a new analog pin.</p>
-
-<p>IO_MODE : Change a pin's I/O mode.</p>
-
-<p>WRITE_ANALOG : Write an analog value to a pin.</p>
-
-<p>WRITE_DIGITAL : Write a digital value to a pin.</p>
-
-<p>WRITE_DIGITAL_PULSE : Emit a digital pulse on a pin.</p>
-
-<p>SYSEX : Send a raw SysEx message.</p>
+<div class="docstring"><p>An EDL dataset that holds data files for a modality.</p>
 </div>
 
 
-<div id="FirmataCommandKind.__init__" class="classattr">
+<div id="EdlDataset.add_aux_file" class="classattr">
 <div class="attr function">
 
-<span class="name">FirmataCommandKind</span><span class="signature pdoc-code condensed">(<span class="param">value: &lt;class &#x27;SupportsInt&#x27;&gt;</span>)</span>
+<span class="def">def</span>
+<span class="name">add_aux_file</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	<span class="n">file_name</span><span class="p">:</span> <span class="nb">str</span>,</span><span class="param">	<span class="n">key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>,</span><span class="param">	<span class="n">summary</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>,</span><span class="param">	<span class="n">scan</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span></span><span class="return-annotation">) -> <span class="n">pathlib</span><span class="o">.</span><span class="n">_local</span><span class="o">.</span><span class="n">Path</span>:</span></span>
 
 
 </div>
-<a class="headerlink" href="#FirmataCommandKind.__init__"></a>
+<a class="headerlink" href="#EdlDataset.add_aux_file"></a>
 
+<div class="docstring"><p>Register an auxiliary data file (or scan pattern).</p>
+
+<p>Returns the path where the data should be written (pathlib.Path).</p>
+</div>
 
 
 </div>
-<div id="FirmataCommandKind.IO_MODE" class="classattr">
+<div id="EdlDataset.path_for_basename" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">path_for_basename</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">basename</span><span class="p">:</span> <span class="nb">str</span></span><span class="return-annotation">) -> <span class="n">pathlib</span><span class="o">.</span><span class="n">_local</span><span class="o">.</span><span class="n">Path</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#EdlDataset.path_for_basename"></a>
+
+<div class="docstring"><p>Return the path for a data file with the given basename (pathlib.Path).</p>
+
+<p>The file is <em>not</em> registered. Use a scan pattern to include it in the manifest.</p>
+</div>
+
+
+</div>
+<div id="EdlDataset.set_attribute" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">set_attribute</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">key</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">value</span><span class="p">:</span> <span class="n">Any</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#EdlDataset.set_attribute"></a>
+
+<div class="docstring"><p>Set an attribute on this dataset.</p>
+</div>
+
+
+</div>
+<div id="EdlDataset.set_data_file" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">set_data_file</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	<span class="n">file_name</span><span class="p">:</span> <span class="nb">str</span>,</span><span class="param">	<span class="n">summary</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>,</span><span class="param">	<span class="n">scan</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span></span><span class="return-annotation">) -> <span class="n">pathlib</span><span class="o">.</span><span class="n">_local</span><span class="o">.</span><span class="n">Path</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#EdlDataset.set_data_file"></a>
+
+<div class="docstring"><p>Register the primary data file (or a scan pattern).</p>
+
+<p>Returns the path where the data should be written (pathlib.Path).</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>scan</strong>:  If True, treat <code>file_name</code> as a glob pattern scanned at save time.</li>
+</ul>
+</div>
+
+
+</div>
+<div id="EdlDataset.is_empty" class="classattr">
 <div class="attr variable">
-<span class="name">IO_MODE</span><span class="annotation">: ClassVar[<a href="#FirmataCommandKind">FirmataCommandKind</a>]</span>
+<span class="name">is_empty</span><span class="annotation">: bool</span>
 
 
 </div>
-<a class="headerlink" href="#FirmataCommandKind.IO_MODE"></a>
+<a class="headerlink" href="#EdlDataset.is_empty"></a>
 
+<div class="docstring"><p>True if no data file has been registered yet.</p>
+</div>
 
 
 </div>
-<div id="FirmataCommandKind.NEW_ANA_PIN" class="classattr">
-<div class="attr variable">
-<span class="name">NEW_ANA_PIN</span><span class="annotation">: ClassVar[<a href="#FirmataCommandKind">FirmataCommandKind</a>]</span>
-
-
-</div>
-<a class="headerlink" href="#FirmataCommandKind.NEW_ANA_PIN"></a>
-
-
-
-</div>
-<div id="FirmataCommandKind.NEW_DIG_PIN" class="classattr">
-<div class="attr variable">
-<span class="name">NEW_DIG_PIN</span><span class="annotation">: ClassVar[<a href="#FirmataCommandKind">FirmataCommandKind</a>]</span>
-
-
-</div>
-<a class="headerlink" href="#FirmataCommandKind.NEW_DIG_PIN"></a>
-
-
-
-</div>
-<div id="FirmataCommandKind.SYSEX" class="classattr">
-<div class="attr variable">
-<span class="name">SYSEX</span><span class="annotation">: ClassVar[<a href="#FirmataCommandKind">FirmataCommandKind</a>]</span>
-
-
-</div>
-<a class="headerlink" href="#FirmataCommandKind.SYSEX"></a>
-
-
-
-</div>
-<div id="FirmataCommandKind.UNKNOWN" class="classattr">
-<div class="attr variable">
-<span class="name">UNKNOWN</span><span class="annotation">: ClassVar[<a href="#FirmataCommandKind">FirmataCommandKind</a>]</span>
-
-
-</div>
-<a class="headerlink" href="#FirmataCommandKind.UNKNOWN"></a>
-
-
-
-</div>
-<div id="FirmataCommandKind.WRITE_ANALOG" class="classattr">
-<div class="attr variable">
-<span class="name">WRITE_ANALOG</span><span class="annotation">: ClassVar[<a href="#FirmataCommandKind">FirmataCommandKind</a>]</span>
-
-
-</div>
-<a class="headerlink" href="#FirmataCommandKind.WRITE_ANALOG"></a>
-
-
-
-</div>
-<div id="FirmataCommandKind.WRITE_DIGITAL" class="classattr">
-<div class="attr variable">
-<span class="name">WRITE_DIGITAL</span><span class="annotation">: ClassVar[<a href="#FirmataCommandKind">FirmataCommandKind</a>]</span>
-
-
-</div>
-<a class="headerlink" href="#FirmataCommandKind.WRITE_DIGITAL"></a>
-
-
-
-</div>
-<div id="FirmataCommandKind.WRITE_DIGITAL_PULSE" class="classattr">
-<div class="attr variable">
-<span class="name">WRITE_DIGITAL_PULSE</span><span class="annotation">: ClassVar[<a href="#FirmataCommandKind">FirmataCommandKind</a>]</span>
-
-
-</div>
-<a class="headerlink" href="#FirmataCommandKind.WRITE_DIGITAL_PULSE"></a>
-
-
-
-</div>
-<div id="FirmataCommandKind.name" class="classattr">
+<div id="EdlDataset.name" class="classattr">
 <div class="attr variable">
 <span class="name">name</span><span class="annotation">: str</span>
 
 
 </div>
-<a class="headerlink" href="#FirmataCommandKind.name"></a>
+<a class="headerlink" href="#EdlDataset.name"></a>
 
+<div class="docstring"><p>Name of this dataset (str).</p>
+</div>
 
 
 </div>
-<div id="FirmataCommandKind.value" class="classattr">
+<div id="EdlDataset.path" class="classattr">
 <div class="attr variable">
-<span class="name">value</span><span class="annotation">: int</span>
+<span class="name">path</span><span class="annotation">: pathlib._local.Path</span>
 
 
 </div>
-<a class="headerlink" href="#FirmataCommandKind.value"></a>
+<a class="headerlink" href="#EdlDataset.path"></a>
 
+<div class="docstring"><p>Filesystem path of this dataset's directory (pathlib.Path).</p>
+</div>
 
 
 </div>
 </section>
-<section id="FirmataControl">
+<section id="EdlGroup">
 <div class="attr class">
 
 <span class="def">class</span>
-<span class="name">FirmataControl</span>:
+<span class="name">EdlGroup</span>:
 
 
 </div>
-<a class="headerlink" href="#FirmataControl"></a>
+<a class="headerlink" href="#EdlGroup"></a>
 
-<div class="docstring"><p>Control command for a Firmata device.</p>
+<div class="docstring"><p>An EDL group that can contain datasets and sub-groups.</p>
 </div>
 
 
-<div id="FirmataControl.__init__" class="classattr">
+<div id="EdlGroup.create_dataset" class="classattr">
 <div class="attr function">
 
-<span class="name">FirmataControl</span><span class="signature pdoc-code condensed">(<span class="param"><span class="o">**</span><span class="n">kwds</span></span>)</span>
+<span class="def">def</span>
+<span class="name">create_dataset</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">name</span><span class="p">:</span> <span class="nb">str</span></span><span class="return-annotation">) -> <span class="n"><a href="#EdlDataset">EdlDataset</a></span>:</span></span>
 
 
 </div>
-<a class="headerlink" href="#FirmataControl.__init__"></a>
+<a class="headerlink" href="#EdlGroup.create_dataset"></a>
 
-<div class="docstring"><p>Helper for @overload to raise when called.</p>
+<div class="docstring"><p>Create a dataset with the given name (MUST_CREATE semantics).</p>
 </div>
 
 
 </div>
-<div id="FirmataControl.command" class="classattr">
+<div id="EdlGroup.create_group" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">create_group</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">name</span><span class="p">:</span> <span class="nb">str</span></span><span class="return-annotation">) -> <span class="n"><a href="#EdlGroup">EdlGroup</a></span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#EdlGroup.create_group"></a>
+
+<div class="docstring"><p>Create (or open) a sub-group with the given name.</p>
+</div>
+
+
+</div>
+<div id="EdlGroup.set_attribute" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">set_attribute</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">key</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">value</span><span class="p">:</span> <span class="n">Any</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#EdlGroup.set_attribute"></a>
+
+<div class="docstring"><p>Set an attribute on this group.</p>
+</div>
+
+
+</div>
+<div id="EdlGroup.name" class="classattr">
 <div class="attr variable">
-<span class="name">command</span><span class="annotation">: <a href="#FirmataCommandKind">FirmataCommandKind</a></span>
+<span class="name">name</span><span class="annotation">: str</span>
 
 
 </div>
-<a class="headerlink" href="#FirmataControl.command"></a>
+<a class="headerlink" href="#EdlGroup.name"></a>
 
-<div class="docstring"><p>The <code><a href="#FirmataCommandKind">FirmataCommandKind</a></code> to execute.</p>
+<div class="docstring"><p>Name of this group (str).</p>
 </div>
 
 
 </div>
-<div id="FirmataControl.is_output" class="classattr">
+<div id="EdlGroup.path" class="classattr">
 <div class="attr variable">
-<span class="name">is_output</span><span class="annotation">: bool</span>
+<span class="name">path</span><span class="annotation">: pathlib._local.Path</span>
 
 
 </div>
-<a class="headerlink" href="#FirmataControl.is_output"></a>
+<a class="headerlink" href="#EdlGroup.path"></a>
 
-<div class="docstring"><p><code>True</code> if the pin is configured as output.</p>
-</div>
-
-
-</div>
-<div id="FirmataControl.is_pullup" class="classattr">
-<div class="attr variable">
-<span class="name">is_pullup</span><span class="annotation">: bool</span>
-
-
-</div>
-<a class="headerlink" href="#FirmataControl.is_pullup"></a>
-
-<div class="docstring"><p><code>True</code> if the internal pull-up resistor is enabled.</p>
-</div>
-
-
-</div>
-<div id="FirmataControl.pin_id" class="classattr">
-<div class="attr variable">
-<span class="name">pin_id</span><span class="annotation">: int</span>
-
-
-</div>
-<a class="headerlink" href="#FirmataControl.pin_id"></a>
-
-<div class="docstring"><p>Numeric pin identifier.</p>
-</div>
-
-
-</div>
-<div id="FirmataControl.pin_name" class="classattr">
-<div class="attr variable">
-<span class="name">pin_name</span><span class="annotation">: str</span>
-
-
-</div>
-<a class="headerlink" href="#FirmataControl.pin_name"></a>
-
-<div class="docstring"><p>Registered name of the pin.</p>
-</div>
-
-
-</div>
-<div id="FirmataControl.value" class="classattr">
-<div class="attr variable">
-<span class="name">value</span><span class="annotation">: int</span>
-
-
-</div>
-<a class="headerlink" href="#FirmataControl.value"></a>
-
-<div class="docstring"><p>Value to write, or pulse duration in ms.</p>
-</div>
-
-
-</div>
-</section>
-<section id="FirmataData">
-<div class="attr class">
-
-<span class="def">class</span>
-<span class="name">FirmataData</span>:
-
-
-</div>
-<a class="headerlink" href="#FirmataData"></a>
-
-<div class="docstring"><p>Data received from a Firmata device.</p>
-</div>
-
-
-<div id="FirmataData.is_digital" class="classattr">
-<div class="attr variable">
-<span class="name">is_digital</span><span class="annotation">: bool</span>
-
-
-</div>
-<a class="headerlink" href="#FirmataData.is_digital"></a>
-
-<div class="docstring"><p><code>True</code> if the value is digital, <code>False</code> if analog.</p>
-</div>
-
-
-</div>
-<div id="FirmataData.pin_id" class="classattr">
-<div class="attr variable">
-<span class="name">pin_id</span><span class="annotation">: int</span>
-
-
-</div>
-<a class="headerlink" href="#FirmataData.pin_id"></a>
-
-<div class="docstring"><p>Numeric pin identifier.</p>
-</div>
-
-
-</div>
-<div id="FirmataData.pin_name" class="classattr">
-<div class="attr variable">
-<span class="name">pin_name</span><span class="annotation">: str</span>
-
-
-</div>
-<a class="headerlink" href="#FirmataData.pin_name"></a>
-
-<div class="docstring"><p>Registered name of the pin.</p>
-</div>
-
-
-</div>
-<div id="FirmataData.time" class="classattr">
-<div class="attr variable">
-<span class="name">time</span><span class="annotation">: datetime.timedelta</span>
-
-
-</div>
-<a class="headerlink" href="#FirmataData.time"></a>
-
-<div class="docstring"><p>Time when the data was acquired, as a duration.</p>
-</div>
-
-
-</div>
-<div id="FirmataData.time_usec" class="classattr">
-<div class="attr variable">
-<span class="name">time_usec</span><span class="annotation">: int</span>
-
-
-</div>
-<a class="headerlink" href="#FirmataData.time_usec"></a>
-
-<div class="docstring"><p>Time when the data was acquired, as an integer in µs.</p>
-</div>
-
-
-</div>
-<div id="FirmataData.value" class="classattr">
-<div class="attr variable">
-<span class="name">value</span><span class="annotation">: int</span>
-
-
-</div>
-<a class="headerlink" href="#FirmataData.value"></a>
-
-<div class="docstring"><p>Received pin value.</p>
+<div class="docstring"><p>Filesystem path of this group (pathlib.Path).</p>
 </div>
 
 
@@ -848,6 +705,257 @@ syntalos_mlink    </h1>
 <a class="headerlink" href="#Frame.time_usec"></a>
 
 <div class="docstring"><p>Time when the frame was recorded, as an integer in µs.</p>
+</div>
+
+
+</div>
+</section>
+<section id="HwInputLine">
+<div class="attr class">
+
+<span class="def">class</span>
+<span class="name">HwInputLine</span>:
+
+
+</div>
+<a class="headerlink" href="#HwInputLine"></a>
+
+<div class="docstring"><p>Handle for a hardware input line. Use this to configure an input on the
+downstream device; subsequent readings arrive as <code><a href="#LineReading">LineReading</a></code> messages
+on the consuming module's input port, matched by <code><a href="#HwInputLine.line_id">line_id</a></code>.</p>
+</div>
+
+
+<div id="HwInputLine.__init__" class="classattr">
+<div class="attr function">
+
+<span class="name">HwInputLine</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="n">port</span><span class="p">:</span> <span class="n"><a href="#OutputPort">OutputPort</a></span>,</span><span class="param">	line_id: &lt;class &#x27;SupportsInt&#x27;&gt;,</span><span class="param">	<span class="n">pullup</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span></span>)</span>
+
+
+</div>
+<a class="headerlink" href="#HwInputLine.__init__"></a>
+
+<div class="docstring"><p>Construct an input-line handle.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>port</strong>:  The <code><a href="#OutputPort">OutputPort</a></code> carrying <code><a href="#LineCommand">LineCommand</a></code> messages.</li>
+<li><strong>line_id</strong>:  Hardware line / channel / pin number.</li>
+<li><strong>pullup: <code>True</code> to enable the input pull-up resistor (default</strong>:  <code>False</code>).</li>
+</ul>
+</div>
+
+
+</div>
+<div id="HwInputLine.send_register" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">send_register</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span></span><span class="return-annotation">) -> <span class="n"><a href="#LineCommand">LineCommand</a></span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#HwInputLine.send_register"></a>
+
+<div class="docstring"><p>Emit the SET_MODE command that configures the line as an input.</p>
+
+<p>Call this at the start of every run.</p>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>The <code><a href="#LineCommand">LineCommand</a></code> that was submitted.</p>
+</blockquote>
+</div>
+
+
+</div>
+<div id="HwInputLine.line_id" class="classattr">
+<div class="attr variable">
+<span class="name">line_id</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#HwInputLine.line_id"></a>
+
+<div class="docstring"><p>The hardware line ID this handle refers to.</p>
+</div>
+
+
+</div>
+</section>
+<section id="HwOutputLine">
+<div class="attr class">
+
+<span class="def">class</span>
+<span class="name">HwOutputLine</span>:
+
+
+</div>
+<a class="headerlink" href="#HwOutputLine"></a>
+
+<div class="docstring"><p>Handle for a hardware output line (Firmata pin, DAQ channel, TTL line, ...).</p>
+
+<p>Construction captures the port and line identity but emits no command. Call
+<code><a href="#HwOutputLine.send_register">send_register()</a></code> at the start of every run to configure the line on the
+downstream device.</p>
+</div>
+
+
+<div id="HwOutputLine.__init__" class="classattr">
+<div class="attr function">
+
+<span class="name">HwOutputLine</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="n">port</span><span class="p">:</span> <span class="n"><a href="#OutputPort">OutputPort</a></span>,</span><span class="param">	line_id: &lt;class &#x27;SupportsInt&#x27;&gt;,</span><span class="param">	<span class="n">analog</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span></span>)</span>
+
+
+</div>
+<a class="headerlink" href="#HwOutputLine.__init__"></a>
+
+<div class="docstring"><p>Construct an output-line handle.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>port</strong>:  The <code><a href="#OutputPort">OutputPort</a></code> carrying <code><a href="#LineCommand">LineCommand</a></code> messages.</li>
+<li><strong>line_id</strong>:  Hardware line / channel / pin number.</li>
+<li><strong>analog</strong>:  <code>True</code> if this is an analog DAC output, <code>False</code> for digital (default).</li>
+</ul>
+</div>
+
+
+</div>
+<div id="HwOutputLine.pulse" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">pulse</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	duration_msec: &lt;class &#x27;SupportsInt&#x27;&gt; = 50</span><span class="return-annotation">) -> <span class="n"><a href="#LineCommand">LineCommand</a></span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#HwOutputLine.pulse"></a>
+
+<div class="docstring"><p>Emit a digital pulse on the line (digital lines only).</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>duration_msec: Pulse duration in milliseconds (default</strong>:  50).</li>
+</ul>
+
+<h6 id="raises">Raises</h6>
+
+<ul>
+<li><strong>SyntalosPyError</strong>:  If this is an analog line.</li>
+</ul>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>The <code><a href="#LineCommand">LineCommand</a></code> that was submitted.</p>
+</blockquote>
+</div>
+
+
+</div>
+<div id="HwOutputLine.send_register" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">send_register</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span></span><span class="return-annotation">) -> <span class="n"><a href="#LineCommand">LineCommand</a></span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#HwOutputLine.send_register"></a>
+
+<div class="docstring"><p>Emit the SET_MODE command that configures the line as an output.</p>
+
+<p>Call this at the start of every run.</p>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>The <code><a href="#LineCommand">LineCommand</a></code> that was submitted.</p>
+</blockquote>
+</div>
+
+
+</div>
+<div id="HwOutputLine.set_analog_value" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">set_analog_value</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param">value: &lt;class &#x27;SupportsInt&#x27;&gt;</span><span class="return-annotation">) -> <span class="n"><a href="#LineCommand">LineCommand</a></span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#HwOutputLine.set_analog_value"></a>
+
+<div class="docstring"><p>Write an analog DAC value to the line (analog lines only).</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>value</strong>:  DAC code (interpretation is device-specific).</li>
+</ul>
+
+<h6 id="raises">Raises</h6>
+
+<ul>
+<li><strong>SyntalosPyError</strong>:  If this is a digital line.</li>
+</ul>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>The <code><a href="#LineCommand">LineCommand</a></code> that was submitted.</p>
+</blockquote>
+</div>
+
+
+</div>
+<div id="HwOutputLine.set_value" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">set_value</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">value</span><span class="p">:</span> <span class="nb">bool</span></span><span class="return-annotation">) -> <span class="n"><a href="#LineCommand">LineCommand</a></span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#HwOutputLine.set_value"></a>
+
+<div class="docstring"><p>Write a digital value to the line (digital lines only).</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>value</strong>:  <code>True</code> / <code>1</code> for HIGH, <code>False</code> / <code>0</code> for LOW.</li>
+</ul>
+
+<h6 id="raises">Raises</h6>
+
+<ul>
+<li><strong>SyntalosPyError</strong>:  If this is an analog line.</li>
+</ul>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>The <code><a href="#LineCommand">LineCommand</a></code> that was submitted.</p>
+</blockquote>
+</div>
+
+
+</div>
+<div id="HwOutputLine.line_id" class="classattr">
+<div class="attr variable">
+<span class="name">line_id</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#HwOutputLine.line_id"></a>
+
+<div class="docstring"><p>The hardware line ID this handle refers to.</p>
 </div>
 
 
@@ -1018,6 +1126,425 @@ syntalos_mlink    </h1>
 
 </div>
 </section>
+<section id="LineCommand">
+<div class="attr class">
+
+<span class="def">class</span>
+<span class="name">LineCommand</span>:
+
+
+</div>
+<a class="headerlink" href="#LineCommand"></a>
+
+<div class="docstring"><p>Command issued to a hardware signal line.</p>
+</div>
+
+
+<div id="LineCommand.__init__" class="classattr">
+<div class="attr function">
+
+<span class="name">LineCommand</span><span class="signature pdoc-code condensed">(<span class="param"><span class="o">**</span><span class="n">kwds</span></span>)</span>
+
+
+</div>
+<a class="headerlink" href="#LineCommand.__init__"></a>
+
+<div class="docstring"><p>Helper for @overload to raise when called.</p>
+</div>
+
+
+</div>
+<div id="LineCommand.duration_usec" class="classattr">
+<div class="attr variable">
+<span class="name">duration_usec</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#LineCommand.duration_usec"></a>
+
+<div class="docstring"><p>Pulse duration for <code>*_PULSE</code> kinds, in microseconds.</p>
+</div>
+
+
+</div>
+<div id="LineCommand.extra" class="classattr">
+<div class="attr variable">
+<span class="name">extra</span><span class="annotation">: bytes</span>
+
+
+</div>
+<a class="headerlink" href="#LineCommand.extra"></a>
+
+<div class="docstring"><p>Optional device-specific payload (used by <code>DEVICE_SPECIFIC</code>).</p>
+</div>
+
+
+</div>
+<div id="LineCommand.flags" class="classattr">
+<div class="attr variable">
+<span class="name">flags</span><span class="annotation">: <a href="#LineModeFlags">LineModeFlags</a></span>
+
+
+</div>
+<a class="headerlink" href="#LineCommand.flags"></a>
+
+<div class="docstring"><p>Mode flags (used by <code><a href="#LineCommandKind.SET_MODE">LineCommandKind.SET_MODE</a></code>).</p>
+</div>
+
+
+</div>
+<div id="LineCommand.kind" class="classattr">
+<div class="attr variable">
+<span class="name">kind</span><span class="annotation">: <a href="#LineCommandKind">LineCommandKind</a></span>
+
+
+</div>
+<a class="headerlink" href="#LineCommand.kind"></a>
+
+<div class="docstring"><p>The <code><a href="#LineCommandKind">LineCommandKind</a></code> to execute.</p>
+</div>
+
+
+</div>
+<div id="LineCommand.line_id" class="classattr">
+<div class="attr variable">
+<span class="name">line_id</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#LineCommand.line_id"></a>
+
+<div class="docstring"><p>Hardware line / channel / pin number.</p>
+</div>
+
+
+</div>
+<div id="LineCommand.value" class="classattr">
+<div class="attr variable">
+<span class="name">value</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#LineCommand.value"></a>
+
+<div class="docstring"><p>Digital: 0/1; analog: DAC code.</p>
+</div>
+
+
+</div>
+</section>
+<section id="LineCommandKind">
+<div class="attr class">
+
+<span class="def">class</span>
+<span class="name">LineCommandKind</span>:
+
+
+</div>
+<a class="headerlink" href="#LineCommandKind"></a>
+
+<div class="docstring"><p>Type of operation requested on a hardware signal line.</p>
+
+<p>Members:</p>
+
+<p>UNKNOWN</p>
+
+<p>SET_MODE : Configure a line's direction / mode (uses <code>flags</code>).</p>
+
+<p>WRITE_DIGITAL : Set a digital line to a value (True/False).</p>
+
+<p>WRITE_ANALOG : Set an analog line to a value.</p>
+
+<p>WRITE_DIGITAL_PULSE : Pulse a digital line for <code>duration</code>.</p>
+
+<p>WRITE_ANALOG_PULSE : Drive an analog line for <code>duration</code>.</p>
+
+<p>DEVICE_SPECIFIC : Device-defined payload carried in <code>extra</code>.</p>
+</div>
+
+
+<div id="LineCommandKind.__init__" class="classattr">
+<div class="attr function">
+
+<span class="name">LineCommandKind</span><span class="signature pdoc-code condensed">(<span class="param">value: &lt;class &#x27;SupportsInt&#x27;&gt;</span>)</span>
+
+
+</div>
+<a class="headerlink" href="#LineCommandKind.__init__"></a>
+
+
+
+</div>
+<div id="LineCommandKind.DEVICE_SPECIFIC" class="classattr">
+<div class="attr variable">
+<span class="name">DEVICE_SPECIFIC</span><span class="annotation">: ClassVar[<a href="#LineCommandKind">LineCommandKind</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#LineCommandKind.DEVICE_SPECIFIC"></a>
+
+
+
+</div>
+<div id="LineCommandKind.SET_MODE" class="classattr">
+<div class="attr variable">
+<span class="name">SET_MODE</span><span class="annotation">: ClassVar[<a href="#LineCommandKind">LineCommandKind</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#LineCommandKind.SET_MODE"></a>
+
+
+
+</div>
+<div id="LineCommandKind.UNKNOWN" class="classattr">
+<div class="attr variable">
+<span class="name">UNKNOWN</span><span class="annotation">: ClassVar[<a href="#LineCommandKind">LineCommandKind</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#LineCommandKind.UNKNOWN"></a>
+
+
+
+</div>
+<div id="LineCommandKind.WRITE_ANALOG" class="classattr">
+<div class="attr variable">
+<span class="name">WRITE_ANALOG</span><span class="annotation">: ClassVar[<a href="#LineCommandKind">LineCommandKind</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#LineCommandKind.WRITE_ANALOG"></a>
+
+
+
+</div>
+<div id="LineCommandKind.WRITE_ANALOG_PULSE" class="classattr">
+<div class="attr variable">
+<span class="name">WRITE_ANALOG_PULSE</span><span class="annotation">: ClassVar[<a href="#LineCommandKind">LineCommandKind</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#LineCommandKind.WRITE_ANALOG_PULSE"></a>
+
+
+
+</div>
+<div id="LineCommandKind.WRITE_DIGITAL" class="classattr">
+<div class="attr variable">
+<span class="name">WRITE_DIGITAL</span><span class="annotation">: ClassVar[<a href="#LineCommandKind">LineCommandKind</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#LineCommandKind.WRITE_DIGITAL"></a>
+
+
+
+</div>
+<div id="LineCommandKind.WRITE_DIGITAL_PULSE" class="classattr">
+<div class="attr variable">
+<span class="name">WRITE_DIGITAL_PULSE</span><span class="annotation">: ClassVar[<a href="#LineCommandKind">LineCommandKind</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#LineCommandKind.WRITE_DIGITAL_PULSE"></a>
+
+
+
+</div>
+<div id="LineCommandKind.name" class="classattr">
+<div class="attr variable">
+<span class="name">name</span><span class="annotation">: str</span>
+
+
+</div>
+<a class="headerlink" href="#LineCommandKind.name"></a>
+
+
+
+</div>
+<div id="LineCommandKind.value" class="classattr">
+<div class="attr variable">
+<span class="name">value</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#LineCommandKind.value"></a>
+
+
+
+</div>
+</section>
+<section id="LineModeFlags">
+<div class="attr class">
+
+<span class="def">class</span>
+<span class="name">LineModeFlags</span>:
+
+
+</div>
+<a class="headerlink" href="#LineModeFlags"></a>
+
+<div class="docstring"><p>Composable mode flags for <code><a href="#LineCommandKind.SET_MODE">LineCommandKind.SET_MODE</a></code>.</p>
+
+<p>Members:</p>
+
+<p>NONE</p>
+
+<p>IS_INPUT : Line is an input.</p>
+
+<p>IS_OUTPUT : Line is an output.</p>
+
+<p>PULL_UP : Input pull-up resistor enabled (inputs only).</p>
+</div>
+
+
+<div id="LineModeFlags.__init__" class="classattr">
+<div class="attr function">
+
+<span class="name">LineModeFlags</span><span class="signature pdoc-code condensed">(<span class="param">value: &lt;class &#x27;SupportsInt&#x27;&gt;</span>)</span>
+
+
+</div>
+<a class="headerlink" href="#LineModeFlags.__init__"></a>
+
+
+
+</div>
+<div id="LineModeFlags.IS_INPUT" class="classattr">
+<div class="attr variable">
+<span class="name">IS_INPUT</span><span class="annotation">: ClassVar[<a href="#LineModeFlags">LineModeFlags</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#LineModeFlags.IS_INPUT"></a>
+
+
+
+</div>
+<div id="LineModeFlags.IS_OUTPUT" class="classattr">
+<div class="attr variable">
+<span class="name">IS_OUTPUT</span><span class="annotation">: ClassVar[<a href="#LineModeFlags">LineModeFlags</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#LineModeFlags.IS_OUTPUT"></a>
+
+
+
+</div>
+<div id="LineModeFlags.NONE" class="classattr">
+<div class="attr variable">
+<span class="name">NONE</span><span class="annotation">: ClassVar[<a href="#LineModeFlags">LineModeFlags</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#LineModeFlags.NONE"></a>
+
+
+
+</div>
+<div id="LineModeFlags.PULL_UP" class="classattr">
+<div class="attr variable">
+<span class="name">PULL_UP</span><span class="annotation">: ClassVar[<a href="#LineModeFlags">LineModeFlags</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#LineModeFlags.PULL_UP"></a>
+
+
+
+</div>
+<div id="LineModeFlags.name" class="classattr">
+<div class="attr variable">
+<span class="name">name</span><span class="annotation">: str</span>
+
+
+</div>
+<a class="headerlink" href="#LineModeFlags.name"></a>
+
+
+
+</div>
+<div id="LineModeFlags.value" class="classattr">
+<div class="attr variable">
+<span class="name">value</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#LineModeFlags.value"></a>
+
+
+
+</div>
+</section>
+<section id="LineReading">
+<div class="attr class">
+
+<span class="def">class</span>
+<span class="name">LineReading</span>:
+
+
+</div>
+<a class="headerlink" href="#LineReading"></a>
+
+<div class="docstring"><p>Timestamped scalar reading from a hardware signal line.</p>
+</div>
+
+
+<div id="LineReading.line_id" class="classattr">
+<div class="attr variable">
+<span class="name">line_id</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#LineReading.line_id"></a>
+
+<div class="docstring"><p>Hardware line / channel / pin number.</p>
+</div>
+
+
+</div>
+<div id="LineReading.time" class="classattr">
+<div class="attr variable">
+<span class="name">time</span><span class="annotation">: datetime.timedelta</span>
+
+
+</div>
+<a class="headerlink" href="#LineReading.time"></a>
+
+<div class="docstring"><p>Time when the reading was acquired, as a duration.</p>
+</div>
+
+
+</div>
+<div id="LineReading.time_usec" class="classattr">
+<div class="attr variable">
+<span class="name">time_usec</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#LineReading.time_usec"></a>
+
+<div class="docstring"><p>Time when the reading was acquired, as an integer in µs.</p>
+</div>
+
+
+</div>
+<div id="LineReading.value" class="classattr">
+<div class="attr variable">
+<span class="name">value</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#LineReading.value"></a>
+
+<div class="docstring"><p>Sampled value.</p>
+</div>
+
+
+</div>
+</section>
 <section id="MetaSize">
 <div class="attr class">
 
@@ -1089,95 +1616,6 @@ syntalos_mlink    </h1>
 </div>
 
 
-<div id="OutputPort.firmata_register_digital_pin" class="classattr">
-<div class="attr function">
-
-<span class="def">def</span>
-<span class="name">firmata_register_digital_pin</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	pin_id: &lt;class &#x27;SupportsInt&#x27;&gt;,</span><span class="param">	<span class="n">name</span><span class="p">:</span> <span class="nb">str</span>,</span><span class="param">	<span class="n">is_output</span><span class="p">:</span> <span class="nb">bool</span>,</span><span class="param">	<span class="n">is_pullup</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span></span><span class="return-annotation">) -> <span class="n"><a href="#FirmataControl">FirmataControl</a></span>:</span></span>
-
-
-</div>
-<a class="headerlink" href="#OutputPort.firmata_register_digital_pin"></a>
-
-<div class="docstring"><p>Register a named digital pin on the connected Firmata device and submit the command immediately.</p>
-
-<p>The pin can subsequently be referenced by <code><a href="#OutputPort.name">name</a></code> in <code><a href="#OutputPort.firmata_submit_digital_value">firmata_submit_digital_value()</a></code>
-and <code><a href="#OutputPort.firmata_submit_digital_pulse">firmata_submit_digital_pulse()</a></code>.</p>
-
-<h6 id="parameters">Parameters</h6>
-
-<ul>
-<li><strong>pin_id</strong>:  Numeric pin identifier on the device.</li>
-<li><strong>name</strong>:  Human-readable name to register for this pin.</li>
-<li><strong>is_output</strong>:  <code>True</code> to configure the pin as output, <code>False</code> for input.</li>
-<li><strong>is_pullup: <code>True</code> to enable the internal pull-up resistor (default</strong>:  <code>False</code>).</li>
-</ul>
-
-<h6 id="returns">Returns</h6>
-
-<blockquote>
-<p>The <code><a href="#FirmataControl">FirmataControl</a></code> command that was submitted.</p>
-</blockquote>
-</div>
-
-
-</div>
-<div id="OutputPort.firmata_submit_digital_pulse" class="classattr">
-<div class="attr function">
-
-<span class="def">def</span>
-<span class="name">firmata_submit_digital_pulse</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	<span class="n">name</span><span class="p">:</span> <span class="nb">str</span>,</span><span class="param">	duration_msec: &lt;class &#x27;SupportsInt&#x27;&gt; = 50</span><span class="return-annotation">) -> <span class="n"><a href="#FirmataControl">FirmataControl</a></span>:</span></span>
-
-
-</div>
-<a class="headerlink" href="#OutputPort.firmata_submit_digital_pulse"></a>
-
-<div class="docstring"><p>Emit a digital pulse on a previously registered pin.</p>
-
-<h6 id="parameters">Parameters</h6>
-
-<ul>
-<li><strong>name</strong>:  Registered pin name.</li>
-<li><strong>duration_msec: Pulse duration in milliseconds (default</strong>:  50).</li>
-</ul>
-
-<h6 id="returns">Returns</h6>
-
-<blockquote>
-<p>The <code><a href="#FirmataControl">FirmataControl</a></code> command that was submitted.</p>
-</blockquote>
-</div>
-
-
-</div>
-<div id="OutputPort.firmata_submit_digital_value" class="classattr">
-<div class="attr function">
-
-<span class="def">def</span>
-<span class="name">firmata_submit_digital_value</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">name</span><span class="p">:</span> <span class="nb">str</span>, </span><span class="param"><span class="n">value</span><span class="p">:</span> <span class="nb">bool</span></span><span class="return-annotation">) -> <span class="n"><a href="#FirmataControl">FirmataControl</a></span>:</span></span>
-
-
-</div>
-<a class="headerlink" href="#OutputPort.firmata_submit_digital_value"></a>
-
-<div class="docstring"><p>Write a digital value to a previously registered pin.</p>
-
-<h6 id="parameters">Parameters</h6>
-
-<ul>
-<li><strong>name</strong>:  Registered pin name.</li>
-<li><strong>value</strong>:  <code>True</code> / <code>1</code> for HIGH, <code>False</code> / <code>0</code> for LOW.</li>
-</ul>
-
-<h6 id="returns">Returns</h6>
-
-<blockquote>
-<p>The <code><a href="#FirmataControl">FirmataControl</a></code> command that was submitted.</p>
-</blockquote>
-</div>
-
-
-</div>
 <div id="OutputPort.set_metadata_value" class="classattr">
 <div class="attr function">
 
@@ -1333,6 +1771,91 @@ or <code>list</code> of <code>int</code>/<code>str</code> values.</li>
 <ul>
 <li><strong>event_fn</strong>:  Optional zero-argument callable, invoked regularly to pump an external event loop.</li>
 </ul>
+</div>
+
+
+</div>
+<div id="SyntalosLink.create_dataset_in_group" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">create_dataset_in_group</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	<span class="n">group</span><span class="p">:</span> <span class="n"><a href="#EdlGroup">EdlGroup</a></span>,</span><span class="param">	<span class="n">name</span><span class="p">:</span> <span class="nb">str</span></span><span class="return-annotation">) -> <span class="n"><a href="#EdlDataset">EdlDataset</a></span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.create_dataset_in_group"></a>
+
+<div class="docstring"><p>Create a new dataset inside the given group with MUST_CREATE semantics.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>group</strong>:  Parent <code><a href="#EdlGroup">EdlGroup</a></code>.</li>
+<li><strong>name</strong>:  Dataset name.</li>
+</ul>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>The new <code><a href="#EdlDataset">EdlDataset</a></code>.</p>
+</blockquote>
+</div>
+
+
+</div>
+<div id="SyntalosLink.create_default_dataset" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">create_default_dataset</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">preferred_name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span></span><span class="return-annotation">) -> <span class="n"><a href="#EdlDataset">EdlDataset</a></span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.create_default_dataset"></a>
+
+<div class="docstring"><p>Create the default dataset for this module under the assigned EDL root group.</p>
+
+<p>Uses MUST_CREATE semantics: fails if a dataset with the same name already exists.
+Must be called inside <code><a href="#SyntalosLink.on_prepare">on_prepare</a></code>.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>preferred_name</strong>:  Dataset name; defaults to the module's group name.</li>
+</ul>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>The new <code><a href="#EdlDataset">EdlDataset</a></code>.</p>
+</blockquote>
+</div>
+
+
+</div>
+<div id="SyntalosLink.create_storage_group" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">create_storage_group</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">name</span><span class="p">:</span> <span class="nb">str</span></span><span class="return-annotation">) -> <span class="n"><a href="#EdlGroup">EdlGroup</a></span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.create_storage_group"></a>
+
+<div class="docstring"><p>Create (or open) a sub-group under the module's assigned EDL root group.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>name</strong>:  Group name.</li>
+</ul>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>The <code><a href="#EdlGroup">EdlGroup</a></code>.</p>
+</blockquote>
 </div>
 
 
@@ -1572,6 +2095,32 @@ bytes-like payload (<code>bytes</code> or <code>bytearray</code>). If not regist
 
 
 </div>
+<div id="SyntalosLink.root_group" class="classattr">
+<div class="attr variable">
+<span class="name">root_group</span><span class="annotation">: <a href="#EdlGroup">EdlGroup</a></span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.root_group"></a>
+
+<div class="docstring"><p>The local EDL root group (<code><a href="#EdlGroup">EdlGroup</a></code>). Available after prepare().</p>
+</div>
+
+
+</div>
+<div id="SyntalosLink.run_uuid" class="classattr">
+<div class="attr variable">
+<span class="name">run_uuid</span><span class="annotation">: bytes</span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.run_uuid"></a>
+
+<div class="docstring"><p>The run's collection UUID as 16 raw bytes (UUIDv7). Available after prepare().</p>
+</div>
+
+
+</div>
 </section>
 <section id="SyntalosPyError">
 <div class="attr class">
@@ -1671,7 +2220,7 @@ wait until the module is no longer in <code>RUNNING</code> state.</li>
 <div class="attr function">
 
 <span class="def">def</span>
-<span class="name">init_link</span><span class="signature pdoc-code condensed">(<span class="return-annotation">) -> <span class="n"><a href="#SyntalosLink">SyntalosLink</a></span>:</span></span>
+<span class="name">init_link</span><span class="signature pdoc-code condensed">(<span class="param"><span class="o">*</span>, </span><span class="param"><span class="n">rename_process</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span></span><span class="return-annotation">) -> <span class="n"><a href="#SyntalosLink">SyntalosLink</a></span>:</span></span>
 
 
 </div>
@@ -1682,11 +2231,11 @@ wait until the module is no longer in <code>RUNNING</code> state.</li>
 <p>This function must be called only once at program startup, before invoking any
 other methods on this module.</p>
 
-<h6 id="returns">Returns</h6>
+<h6 id="parameters">Parameters</h6>
 
-<blockquote>
-<p>The active <code><a href="#SyntalosLink">SyntalosLink</a></code> registry object.</p>
-</blockquote>
+<ul>
+<li><strong>rename_process: Rename the current process to match the module identifier.:return</strong>:  The active <code><a href="#SyntalosLink">SyntalosLink</a></code> registry object.</li>
+</ul>
 </div>
 
 
@@ -1725,88 +2274,30 @@ other methods on this module.</p>
 
 
 </section>
-<section id="new_firmatactl_with_id">
+<section id="new_line_command">
 <div class="attr function">
 
 <span class="def">def</span>
-<span class="name">new_firmatactl_with_id</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="n">kind</span><span class="p">:</span> <span class="n"><a href="#FirmataCommandKind">FirmataCommandKind</a></span>,</span><span class="param">	pin_id: &lt;class &#x27;SupportsInt&#x27;&gt;</span><span class="return-annotation">) -> <span class="n"><a href="#FirmataControl">FirmataControl</a></span>:</span></span>
+<span class="name">new_line_command</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="n">kind</span><span class="p">:</span> <span class="n"><a href="#LineCommandKind">LineCommandKind</a></span>,</span><span class="param">	line_id: &lt;class &#x27;SupportsInt&#x27;&gt;,</span><span class="param">	value: &lt;class &#x27;SupportsInt&#x27;&gt; = 0</span><span class="return-annotation">) -> <span class="n"><a href="#LineCommand">LineCommand</a></span>:</span></span>
 
 
 </div>
-<a class="headerlink" href="#new_firmatactl_with_id"></a>
+<a class="headerlink" href="#new_line_command"></a>
 
-<div class="docstring"><p>Create a <code><a href="#FirmataControl">FirmataControl</a></code> command identified by numeric pin ID only.</p>
+<div class="docstring"><p>Create a <code><a href="#LineCommand">LineCommand</a></code> for the given line.</p>
 
 <h6 id="parameters">Parameters</h6>
 
 <ul>
-<li><strong>kind</strong>:  The <code><a href="#FirmataCommandKind">FirmataCommandKind</a></code> to execute.</li>
-<li><strong>pin_id</strong>:  Numeric pin identifier.</li>
+<li><strong>kind</strong>:  The <code><a href="#LineCommandKind">LineCommandKind</a></code> to execute.</li>
+<li><strong>line_id</strong>:  Hardware line / channel / pin number.</li>
+<li><strong>value: Optional numeric value (digital: 0/1; analog</strong>:  DAC code).</li>
 </ul>
 
 <h6 id="returns">Returns</h6>
 
 <blockquote>
-<p>A new <code><a href="#FirmataControl">FirmataControl</a></code> instance.</p>
-</blockquote>
-</div>
-
-
-</section>
-<section id="new_firmatactl_with_id_name">
-<div class="attr function">
-
-<span class="def">def</span>
-<span class="name">new_firmatactl_with_id_name</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="n">kind</span><span class="p">:</span> <span class="n"><a href="#FirmataCommandKind">FirmataCommandKind</a></span>,</span><span class="param">	pin_id: &lt;class &#x27;SupportsInt&#x27;&gt;,</span><span class="param">	<span class="n">name</span><span class="p">:</span> <span class="nb">str</span></span><span class="return-annotation">) -> <span class="n"><a href="#FirmataControl">FirmataControl</a></span>:</span></span>
-
-
-</div>
-<a class="headerlink" href="#new_firmatactl_with_id_name"></a>
-
-<div class="docstring"><p>Create a <code><a href="#FirmataControl">FirmataControl</a></code> command identified by both numeric ID and name.</p>
-
-<h6 id="parameters">Parameters</h6>
-
-<ul>
-<li><strong>kind</strong>:  The <code><a href="#FirmataCommandKind">FirmataCommandKind</a></code> to execute.</li>
-<li><strong>pin_id</strong>:  Numeric pin identifier.</li>
-<li><strong>name</strong>:  Registered pin name.</li>
-</ul>
-
-<h6 id="returns">Returns</h6>
-
-<blockquote>
-<p>A new <code><a href="#FirmataControl">FirmataControl</a></code> instance.</p>
-</blockquote>
-</div>
-
-
-</section>
-<section id="new_firmatactl_with_name">
-<div class="attr function">
-
-<span class="def">def</span>
-<span class="name">new_firmatactl_with_name</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="n">kind</span><span class="p">:</span> <span class="n"><a href="#FirmataCommandKind">FirmataCommandKind</a></span>,</span><span class="param">	<span class="n">name</span><span class="p">:</span> <span class="nb">str</span></span><span class="return-annotation">) -> <span class="n"><a href="#FirmataControl">FirmataControl</a></span>:</span></span>
-
-
-</div>
-<a class="headerlink" href="#new_firmatactl_with_name"></a>
-
-<div class="docstring"><p>Create a <code><a href="#FirmataControl">FirmataControl</a></code> command identified by a registered pin name.</p>
-
-<p>The pin must have been previously registered with <code><a href="#OutputPort.firmata_register_digital_pin">OutputPort.firmata_register_digital_pin()</a></code>.</p>
-
-<h6 id="parameters">Parameters</h6>
-
-<ul>
-<li><strong>kind</strong>:  The <code><a href="#FirmataCommandKind">FirmataCommandKind</a></code> to execute.</li>
-<li><strong>name</strong>:  Registered pin name.</li>
-</ul>
-
-<h6 id="returns">Returns</h6>
-
-<blockquote>
-<p>A new <code><a href="#FirmataControl">FirmataControl</a></code> instance.</p>
+<p>A new <code><a href="#LineCommand">LineCommand</a></code> instance.</p>
 </blockquote>
 </div>
 
