@@ -23,6 +23,7 @@
 #include <memory>
 #include <type_traits>
 
+#include "datactl/flags.h"
 #include "datactl/uuid.h"
 #include "datactl/eigenaux.h"
 #include "datactl/syclock.h"
@@ -63,68 +64,7 @@ enum class TimeSyncStrategy {
         1 << 3 /// Do not directly adjust timestamps, but write a time-sync file to correct for errors in postprocessing
 };
 
-class TimeSyncStrategies
-{
-    using Int = std::underlying_type_t<TimeSyncStrategy>;
-
-public:
-    constexpr TimeSyncStrategies() noexcept
-        : m_value(0)
-    {
-    }
-    constexpr TimeSyncStrategies(TimeSyncStrategy strategy) noexcept
-        : m_value(static_cast<Int>(strategy))
-    {
-    }
-    explicit constexpr TimeSyncStrategies(Int raw) noexcept
-        : m_value(raw)
-    {
-    }
-
-    constexpr TimeSyncStrategies operator|(TimeSyncStrategies rhs) const noexcept
-    {
-        return TimeSyncStrategies(m_value | rhs.m_value);
-    }
-    constexpr TimeSyncStrategies operator&(TimeSyncStrategies rhs) const noexcept
-    {
-        return TimeSyncStrategies(m_value & rhs.m_value);
-    }
-
-    constexpr TimeSyncStrategies &operator|=(TimeSyncStrategies rhs) noexcept
-    {
-        m_value |= rhs.m_value;
-        return *this;
-    }
-
-    constexpr bool testFlag(TimeSyncStrategy strategy) const noexcept
-    {
-        const auto bit = static_cast<Int>(strategy);
-        return bit != 0 && (m_value & bit) == bit;
-    }
-
-    constexpr TimeSyncStrategies &setFlag(TimeSyncStrategy strategy, bool enabled = true) noexcept
-    {
-        const auto bit = static_cast<Int>(strategy);
-        if (enabled)
-            m_value |= bit;
-        else
-            m_value &= ~bit;
-        return *this;
-    }
-
-    constexpr Int toInt() const noexcept
-    {
-        return m_value;
-    }
-
-private:
-    Int m_value;
-};
-
-constexpr TimeSyncStrategies operator|(TimeSyncStrategy lhs, TimeSyncStrategy rhs) noexcept
-{
-    return TimeSyncStrategies(lhs) | TimeSyncStrategies(rhs);
-}
+using TimeSyncStrategies = Flags<TimeSyncStrategy>;
 
 const std::string timeSyncStrategyToHString(const TimeSyncStrategy &strategy);
 const std::string timeSyncStrategiesToHString(const TimeSyncStrategies &strategies);

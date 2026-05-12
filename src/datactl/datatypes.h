@@ -30,9 +30,10 @@
 #include <cmath>
 #include <type_traits>
 
-#include "syclock.h"
-#include "binarystream.h"
-#include "eigenaux.h"
+#include "datactl/syclock.h"
+#include "datactl/binarystream.h"
+#include "datactl/eigenaux.h"
+#include "datactl/flags.h"
 
 namespace Syntalos
 {
@@ -400,52 +401,29 @@ struct TableRow : BaseDataType {
  * Type of operation requested on a hardware signal line / channel / pin.
  */
 enum class LineCommandKind {
-    Unknown,
-    SetMode,           /// Configure line direction / mode
-    WriteDigital,      /// Set a digital line to a value (0/1)
-    WriteAnalog,       /// Set an analog line to a value
-    WriteDigitalPulse, /// Pulse a digital line for `duration` (value = level during pulse)
-    WriteAnalogPulse,  /// Drive an analog line at `value` for `duration` (for stim devices)
-    DeviceSpecific     /// Arbitrary device-defined payload carried in `extra`
+    UNKNOWN,
+    SET_MODE,            /// Configure line direction / mode
+    WRITE_DIGITAL,       /// Set a digital line to a value (0/1)
+    WRITE_ANALOG,        /// Set an analog line to a value
+    WRITE_DIGITAL_PULSE, /// Pulse a digital line for `duration` (value = level during pulse)
+    WRITE_ANALOG_PULSE,  /// Drive an analog line at `value` for `duration` (for stim devices)
+    CUSTOM               /// Arbitrary device-defined payload carried in `extra`
 };
 
 /**
- * @brief Mode flags for LineCommandKind::SetMode.
+ * @brief Individual mode bits for LineCommandKind::SetMode.
  *
  * Composable bit flags describing how a line should be configured.
  * Only meaningful for SetMode; ignored for other command kinds.
  */
-enum class LineModeFlags : uint32_t {
-    None = 0,
-    IsInput = 1u << 0,  /// Line is an input
-    IsOutput = 1u << 1, /// Line is an output
-    PullUp = 1u << 2    /// Input pull-up enabled (inputs only)
+enum class LineModeFlag : uint32_t {
+    NONE = 0,
+    IS_INPUT = 1u << 0,  /// Line is an input
+    IS_OUTPUT = 1u << 1, /// Line is an output
+    PULL_UP = 1u << 2    /// Input pull-up enabled (inputs only)
 };
 
-constexpr LineModeFlags operator|(LineModeFlags a, LineModeFlags b)
-{
-    return static_cast<LineModeFlags>(static_cast<uint32_t>(a) | static_cast<uint32_t>(b));
-}
-constexpr LineModeFlags operator&(LineModeFlags a, LineModeFlags b)
-{
-    return static_cast<LineModeFlags>(static_cast<uint32_t>(a) & static_cast<uint32_t>(b));
-}
-constexpr LineModeFlags operator~(LineModeFlags a)
-{
-    return static_cast<LineModeFlags>(~static_cast<uint32_t>(a));
-}
-constexpr LineModeFlags &operator|=(LineModeFlags &a, LineModeFlags b)
-{
-    return a = a | b;
-}
-constexpr LineModeFlags &operator&=(LineModeFlags &a, LineModeFlags b)
-{
-    return a = a & b;
-}
-constexpr bool hasFlag(LineModeFlags v, LineModeFlags f)
-{
-    return (static_cast<uint32_t>(v) & static_cast<uint32_t>(f)) != 0;
-}
+using LineModeFlags = Flags<LineModeFlag>;
 
 /**
  * @brief Command issued to a hardware signal line / channel / pin.
@@ -455,12 +433,12 @@ constexpr bool hasFlag(LineModeFlags v, LineModeFlags f)
 struct LineCommand : BaseDataType {
     SY_DEFINE_DATA_TYPE(LineCommand)
 
-    LineCommandKind kind{LineCommandKind::Unknown};
-    uint16_t lineId{0};                       /// Hardware line/channel/pin number
-    uint32_t value{0};                        /// Digital: 0/1; analog: DAC code
-    microseconds_t duration{};                /// Pulse duration for *Pulse kinds
-    LineModeFlags flags{LineModeFlags::None}; /// SetMode only
-    ByteVector extra;                         /// DeviceSpecific payload
+    LineCommandKind kind{LineCommandKind::UNKNOWN};
+    uint16_t lineId{0};                      /// Hardware line/channel/pin number
+    uint32_t value{0};                       /// Digital: 0/1; analog: DAC code
+    microseconds_t duration{};               /// Pulse duration for *Pulse kinds
+    LineModeFlags flags{LineModeFlag::NONE}; /// SetMode only
+    ByteVector extra;                        /// DeviceSpecific payload
 
     explicit LineCommand() = default;
 
@@ -490,7 +468,7 @@ struct LineCommand : BaseDataType {
         stream.write(lineId);
         stream.write(value);
         stream.write(static_cast<int64_t>(duration.count()));
-        stream.write(static_cast<uint32_t>(flags));
+        stream.write(flags.toInt());
         stream.write(extra);
 
         return true;
@@ -510,7 +488,7 @@ struct LineCommand : BaseDataType {
         stream.read(flagsRaw);
         stream.read(obj.extra);
         obj.duration = microseconds_t(durationUs);
-        obj.flags = static_cast<LineModeFlags>(flagsRaw);
+        obj.flags = LineModeFlags(flagsRaw);
 
         return obj;
     }

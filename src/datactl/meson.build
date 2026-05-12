@@ -9,6 +9,7 @@
 sy_datactl_pub_hdr = [
     'binarystream.h',
     'datatypes.h',
+    'flags.h',
     'frametype.h',
     'edlstorage.h',
     'eigenaux.h',

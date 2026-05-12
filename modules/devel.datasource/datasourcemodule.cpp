@@ -145,7 +145,7 @@ public:
             const auto usec = m_syTimer->timeSinceStartUsec().count();
             const auto msec = m_syTimer->timeSinceStartMsec().count();
             if (((msec / 1000) % 3) == 0) {
-                LineCommand lcmd(LineCommandKind::WriteDigital, 2);
+                LineCommand lcmd(LineCommandKind::WRITE_DIGITAL, 2);
                 lcmd.value = ((msec / 1000) % 2 == 0) ? 1 : 0;
                 m_fctlOut->push(lcmd);
             }

@@ -76,12 +76,12 @@ public:
 
     void start() final
     {
-        LineCommand inSetup(LineCommandKind::SetMode, kTestInLine);
-        inSetup.flags = LineModeFlags::IsInput;
+        LineCommand inSetup(LineCommandKind::SET_MODE, kTestInLine);
+        inSetup.flags = LineModeFlag::IS_INPUT;
         m_lcStream->push(inSetup);
 
-        LineCommand outSetup(LineCommandKind::SetMode, kTestOutLine);
-        outSetup.flags = LineModeFlags::IsOutput;
+        LineCommand outSetup(LineCommandKind::SET_MODE, kTestOutLine);
+        outSetup.flags = LineModeFlag::IS_OUTPUT;
         m_lcStream->push(outSetup);
 
         AbstractModule::start();
@@ -108,7 +108,7 @@ public:
                 continue;
 
             if (data->value) {
-                LineCommand ctl(LineCommandKind::WriteDigitalPulse, kTestOutLine, 1);
+                LineCommand ctl(LineCommandKind::WRITE_DIGITAL_PULSE, kTestOutLine, 1);
                 ctl.duration = std::chrono::duration_cast<microseconds_t>(milliseconds_t(50));
                 m_lcStream->push(ctl);
             }

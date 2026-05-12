@@ -325,7 +325,7 @@ public:
             return;
 
         switch (fc.kind) {
-        case LineCommandKind::WriteDigitalPulse: {
+        case LineCommandKind::WRITE_DIGITAL_PULSE: {
             const int line = static_cast<int>(fc.lineId);
             const auto durMs = std::max<int64_t>(
                 1, std::chrono::duration_cast<milliseconds_t>(fc.duration).count());
@@ -339,7 +339,7 @@ public:
             m_board->triggerDigitalOutput(line, static_cast<int>(durMs));
             break;
         }
-        case LineCommandKind::WriteDigital:
+        case LineCommandKind::WRITE_DIGITAL:
             LOG_WARNING(
                 m_log,
                 "TTL line-level command on line {} ignored: only WriteDigitalPulse is "

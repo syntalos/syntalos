@@ -34,10 +34,41 @@ namespace py = pybind11;
 using namespace Syntalos;
 
 /**
+ * Syntalos::Flags<E> conversion.
+ *
+ * Routes through the underlying enum E (which is registered as a py::enum_ with
+ * py::arithmetic(), so the Python side already supports | / & / ~ on its values).
+ * Python sees the field as the enum type; C++ keeps the Flags<E> wrapper.
+ */
+template<typename E>
+class type_caster<Syntalos::Flags<E>>
+{
+    using FlagsT = Syntalos::Flags<E>;
+    using EnumCaster = make_caster<E>;
+
+    PYBIND11_TYPE_CASTER(FlagsT, EnumCaster::name);
+
+    bool load(handle src, bool convert)
+    {
+        EnumCaster ec;
+        if (!ec.load(src, convert))
+            return false;
+        value = FlagsT(static_cast<E>(ec));
+        return true;
+    }
+
+    static handle cast(const FlagsT &src, return_value_policy policy, handle parent)
+    {
+        return EnumCaster::cast(static_cast<E>(src.toInt()), policy, parent);
+    }
+};
+
+/**
  * TableRow conversion
  */
 template<>
-struct type_caster<TableRow> {
+class type_caster<TableRow>
+{
 public:
     // Accept any sequence and stringify each item when loading a TableRow.
     PYBIND11_TYPE_CASTER(TableRow, io_name("typing.Sequence[typing.Any]", "typing.Sequence[str]"));
@@ -68,7 +99,8 @@ public:
 };
 
 template<>
-struct type_caster<Syntalos::MetaValue> {
+class type_caster<Syntalos::MetaValue>
+{
 public:
     PYBIND11_TYPE_CASTER(Syntalos::MetaValue, const_name("object"));
     bool load(handle src, bool convert);
@@ -76,7 +108,8 @@ public:
 };
 
 template<>
-struct type_caster<Syntalos::MetaArray> {
+class type_caster<Syntalos::MetaArray>
+{
 public:
     PYBIND11_TYPE_CASTER(Syntalos::MetaArray, const_name("list[typing.Any]"));
     bool load(handle src, bool convert);
@@ -84,7 +117,8 @@ public:
 };
 
 template<>
-struct type_caster<Syntalos::MetaStringMap> {
+class type_caster<Syntalos::MetaStringMap>
+{
 public:
     PYBIND11_TYPE_CASTER(Syntalos::MetaStringMap, const_name("dict[str, object]"));
     bool load(handle src, bool convert);

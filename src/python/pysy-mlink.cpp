@@ -719,8 +719,8 @@ struct PyHwOutputLine {
 
     LineCommand send_register()
     {
-        LineCommand cmd(LineCommandKind::SetMode, _lineId);
-        cmd.flags = LineModeFlags::IsOutput;
+        LineCommand cmd(LineCommandKind::SET_MODE, _lineId);
+        cmd.flags = LineModeFlag::IS_OUTPUT;
         _port._submit_typed_or_throw(cmd);
         return cmd;
     }
@@ -731,7 +731,7 @@ struct PyHwOutputLine {
             throw SyntalosPyError(
                 "set_value() is only valid for digital OutputLine; line " + std::to_string(_lineId)
                 + " is analog (use set_analog_value()).");
-        LineCommand cmd(LineCommandKind::WriteDigital, _lineId, value ? 1u : 0u);
+        LineCommand cmd(LineCommandKind::WRITE_DIGITAL, _lineId, value ? 1u : 0u);
         _port._submit_typed_or_throw(cmd);
         return cmd;
     }
@@ -741,7 +741,7 @@ struct PyHwOutputLine {
         if (_analog)
             throw SyntalosPyError(
                 "pulse() is only valid for digital OutputLine; line " + std::to_string(_lineId) + " is analog.");
-        LineCommand cmd(LineCommandKind::WriteDigitalPulse, _lineId, 1u);
+        LineCommand cmd(LineCommandKind::WRITE_DIGITAL_PULSE, _lineId, 1u);
         cmd.duration = std::chrono::duration_cast<microseconds_t>(milliseconds_t(duration_msec));
         _port._submit_typed_or_throw(cmd);
         return cmd;
@@ -753,7 +753,7 @@ struct PyHwOutputLine {
             throw SyntalosPyError(
                 "set_analog_value() is only valid for analog OutputLine; line " + std::to_string(_lineId)
                 + " is digital (use set_value()).");
-        LineCommand cmd(LineCommandKind::WriteAnalog, _lineId, value);
+        LineCommand cmd(LineCommandKind::WRITE_ANALOG, _lineId, value);
         _port._submit_typed_or_throw(cmd);
         return cmd;
     }
@@ -780,10 +780,10 @@ struct PyHwInputLine {
 
     LineCommand send_register()
     {
-        LineCommand cmd(LineCommandKind::SetMode, _lineId);
-        cmd.flags = LineModeFlags::IsInput;
+        LineCommand cmd(LineCommandKind::SET_MODE, _lineId);
+        cmd.flags = LineModeFlag::IS_INPUT;
         if (_pullup)
-            cmd.flags |= LineModeFlags::PullUp;
+            cmd.flags |= LineModeFlag::PULL_UP;
         _port._submit_typed_or_throw(cmd);
         return cmd;
     }
@@ -1032,20 +1032,20 @@ PYBIND11_MODULE(syntalos_mlink, m)
      **/
 
     py::enum_<LineCommandKind>(m, "LineCommandKind", "Type of operation requested on a hardware signal line.")
-        .value("UNKNOWN", LineCommandKind::Unknown)
-        .value("SET_MODE", LineCommandKind::SetMode, "Configure a line's direction / mode (uses ``flags``).")
-        .value("WRITE_DIGITAL", LineCommandKind::WriteDigital, "Set a digital line to a value (True/False).")
-        .value("WRITE_ANALOG", LineCommandKind::WriteAnalog, "Set an analog line to a value.")
-        .value("WRITE_DIGITAL_PULSE", LineCommandKind::WriteDigitalPulse, "Pulse a digital line for ``duration``.")
-        .value("WRITE_ANALOG_PULSE", LineCommandKind::WriteAnalogPulse, "Drive an analog line for ``duration``.")
-        .value("DEVICE_SPECIFIC", LineCommandKind::DeviceSpecific, "Device-defined payload carried in ``extra``.");
+        .value("UNKNOWN", LineCommandKind::UNKNOWN)
+        .value("SET_MODE", LineCommandKind::SET_MODE, "Configure a line's direction / mode (uses ``flags``).")
+        .value("WRITE_DIGITAL", LineCommandKind::WRITE_DIGITAL, "Set a digital line to a value (True/False).")
+        .value("WRITE_ANALOG", LineCommandKind::WRITE_ANALOG, "Set an analog line to a value.")
+        .value("WRITE_DIGITAL_PULSE", LineCommandKind::WRITE_DIGITAL_PULSE, "Pulse a digital line for ``duration``.")
+        .value("WRITE_ANALOG_PULSE", LineCommandKind::WRITE_ANALOG_PULSE, "Drive an analog line for ``duration``.")
+        .value("DEVICE_SPECIFIC", LineCommandKind::CUSTOM, "Device-defined payload carried in ``extra``.");
 
-    py::enum_<LineModeFlags>(
+    py::enum_<LineModeFlag>(
         m, "LineModeFlags", py::arithmetic(), "Composable mode flags for :class:`LineCommandKind.SET_MODE`.")
-        .value("NONE", LineModeFlags::None)
-        .value("IS_INPUT", LineModeFlags::IsInput, "Line is an input.")
-        .value("IS_OUTPUT", LineModeFlags::IsOutput, "Line is an output.")
-        .value("PULL_UP", LineModeFlags::PullUp, "Input pull-up resistor enabled (inputs only).");
+        .value("NONE", LineModeFlag::NONE)
+        .value("IS_INPUT", LineModeFlag::IS_INPUT, "Line is an input.")
+        .value("IS_OUTPUT", LineModeFlag::IS_OUTPUT, "Line is an output.")
+        .value("PULL_UP", LineModeFlag::PULL_UP, "Input pull-up resistor enabled (inputs only).");
 
     py::class_<LineCommand>(m, "LineCommand", "Command issued to a hardware signal line.")
         .def(py::init<>())

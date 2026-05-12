@@ -204,13 +204,13 @@ public:
             return false;
         const auto &ctl = maybeCtl.value();
         switch (ctl.kind) {
-        case LineCommandKind::SetMode:
+        case LineCommandKind::SET_MODE:
             configureDigitalPin(firmata, ctl.lineId, ctl.flags);
             break;
-        case LineCommandKind::WriteDigital:
+        case LineCommandKind::WRITE_DIGITAL:
             pinSetValue(firmata, ctl.lineId, ctl.value != 0);
             break;
-        case LineCommandKind::WriteDigitalPulse: {
+        case LineCommandKind::WRITE_DIGITAL_PULSE: {
             const auto durMs = std::chrono::duration_cast<milliseconds_t>(ctl.duration).count();
             pinSignalPulse(firmata, ctl.lineId, static_cast<int>(durMs));
             break;
@@ -225,8 +225,8 @@ public:
 
     void configureDigitalPin(SerialFirmata *firmata, int lineId, LineModeFlags flags)
     {
-        const bool isOutput = hasFlag(flags, LineModeFlags::IsOutput);
-        const bool isPullUp = hasFlag(flags, LineModeFlags::PullUp);
+        const bool isOutput = flags.hasFlag(LineModeFlag::IS_OUTPUT);
+        const bool isPullUp = flags.hasFlag(LineModeFlag::PULL_UP);
 
         FmPin pin;
         pin.kind = PinKind::Digital;

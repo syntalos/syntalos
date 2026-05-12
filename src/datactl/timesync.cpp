@@ -51,18 +51,18 @@ const std::string Syntalos::timeSyncStrategiesToHString(const TimeSyncStrategies
 {
     std::vector<std::string> sl;
 
-    if (strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD)
-        && strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
+    if (strategies.hasFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD)
+        && strategies.hasFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
         sl.emplace_back("shift timestamps");
     } else {
-        if (strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD))
+        if (strategies.hasFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD))
             sl.emplace_back(timeSyncStrategyToHString(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD));
-        if (strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD))
+        if (strategies.hasFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD))
             sl.emplace_back(timeSyncStrategyToHString(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD));
     }
-    if (strategies.testFlag(TimeSyncStrategy::ADJUST_CLOCK))
+    if (strategies.hasFlag(TimeSyncStrategy::ADJUST_CLOCK))
         sl.emplace_back(timeSyncStrategyToHString(TimeSyncStrategy::ADJUST_CLOCK));
-    if (strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
+    if (strategies.hasFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
         sl.emplace_back(timeSyncStrategyToHString(TimeSyncStrategy::WRITE_TSYNCFILE));
 
     return std::ranges::to<std::string>(sl | std::views::join_with(std::string(" and ")));
@@ -185,7 +185,7 @@ bool FreqCounterSynchronizer::start()
             m_modName);
         return false;
     }
-    if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
+    if (m_strategies.hasFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
         m_tswriter->setSyncMode(TSyncFileMode::SYNCPOINTS);
         m_tswriter->setTimeDataTypes(TSyncFileDataType::INT64, TSyncFileDataType::INT64);
         if (!m_tswriter->open(m_modName, m_collectionId, microseconds_t(m_toleranceUsec))) {
@@ -217,7 +217,7 @@ void FreqCounterSynchronizer::stop()
 {
     // Write the last timestamp, even if it was not out of tolerance.
     // This (for the most part) removes some guesswork and extrapolation in post-processing
-    if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
+    if (m_strategies.hasFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
         if (m_lastSecondaryIdxUnandjusted != 0 && m_lastMasterAssumedAcqTS.count() != 0) {
             auto offset = m_lastValidMasterTimestamp - m_lastMasterAssumedAcqTS;
             // we do not allow an to jump forward in time via the offset
@@ -326,7 +326,7 @@ void FreqCounterSynchronizer::processTimestamps(
         // datapoint was acquired as first value.
         // We used the calibration phase to just guess the offset between the counting clock and master
         // clock by calculating backwards.
-        if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
+        if (m_strategies.hasFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
             m_tswriter->writeTimes(0, m_expectedOffset * -1);
 
         m_lastTimeIndex = secondaryLastIdx;
@@ -424,11 +424,11 @@ void FreqCounterSynchronizer::processTimestamps(
         m_offsetChangeWaitBlocks = m_calibrationMaxBlockN * 1.2;
 
         m_applyIndexOffset = false;
-        if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
+        if (m_strategies.hasFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD)) {
             if (m_indexOffset > 0)
                 m_applyIndexOffset = true;
         }
-        if (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD)) {
+        if (m_strategies.hasFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD)) {
             if (m_indexOffset < 0)
                 m_applyIndexOffset = true;
         }
@@ -443,7 +443,7 @@ void FreqCounterSynchronizer::processTimestamps(
     // we calculate it here from the unadjusted last index value of the current block.
     // 1 is added to secondaryLastIdxUnadjusted becuse the timestamp reflects the time *after* a sample was acquired,
     // so the zero-index needs to be offset by one.
-    if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
+    if (m_strategies.hasFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
         m_tswriter->writeTimes(
             microseconds_t(std::lround((secondaryLastIdxUnadjusted + 1) * m_timePerPointUs)), masterAssumedAcqTS);
 
@@ -582,7 +582,7 @@ bool SecondaryClockSynchronizer::start()
             m_modName);
         return false;
     }
-    if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
+    if (m_strategies.hasFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
         m_tswriter->setSyncMode(TSyncFileMode::SYNCPOINTS);
         m_tswriter->setTimeDataTypes(TSyncFileDataType::INT64, TSyncFileDataType::INT64);
         if (!m_tswriter->open(m_modName, m_collectionId, microseconds_t(m_toleranceUsec))) {
@@ -615,7 +615,7 @@ bool SecondaryClockSynchronizer::start()
 void SecondaryClockSynchronizer::stop()
 {
     // write the last acquired timestamp pair, to simplify data post processing
-    if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
+    if (m_strategies.hasFlag(TimeSyncStrategy::WRITE_TSYNCFILE)) {
         if (m_lastSecondaryAcqTS.count() != 0)
             m_tswriter->writeTimes(m_lastSecondaryAcqTS, m_lastMasterTS);
     }
@@ -669,7 +669,7 @@ void SecondaryClockSynchronizer::processTimestamp(
 
         // if we are writing a timesync-file, always write the initial secondary clock time
         // matched to the expected-offset adjusted time
-        if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
+        if (m_strategies.hasFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
             m_tswriter->writeTimes(microseconds_t(0), m_expectedOffset * -1);
 
         // remember the secondary clock timestamp & master timestamp for the next iteration
@@ -698,7 +698,7 @@ void SecondaryClockSynchronizer::processTimestamp(
             if (masterTimestamp < m_lastMasterTS)
                 masterTimestamp = m_lastMasterTS + microseconds_t(1);
 
-            if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
+            if (m_strategies.hasFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
                 m_tswriter->writeTimes(secondaryAcqTimestamp, masterTimestamp);
 
             /*
@@ -737,8 +737,8 @@ void SecondaryClockSynchronizer::processTimestamp(
                     static_cast<int64_t>(std::ceil(m_clockCorrectionOffset.count() / 1.25)));
 
             // we still apply any corrective offset (most likely reduced in the previous step)
-            if ((m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD) && m_clockCorrectionOffset.count() > 0)
-                || (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD)
+            if ((m_strategies.hasFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD) && m_clockCorrectionOffset.count() > 0)
+                || (m_strategies.hasFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD)
                     && m_clockCorrectionOffset.count() < 0))
                 masterTimestamp = secondaryAcqTimestamp - m_expectedOffset - m_clockCorrectionOffset;
             // prevent any time-travel into the past
@@ -777,7 +777,7 @@ void SecondaryClockSynchronizer::processTimestamp(
         m_clockCorrectionOffset += microseconds_t(static_cast<int64_t>(std::ceil(adjValue)));
 
         // write timestamp correction to tsync file
-        if (m_strategies.testFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
+        if (m_strategies.hasFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
             m_tswriter->writeTimes(
                 secondaryAcqTimestamp, secondaryAcqTimestamp - m_expectedOffset - m_clockCorrectionOffset);
 
@@ -787,8 +787,8 @@ void SecondaryClockSynchronizer::processTimestamp(
     }
 
     // apply any existing timestamp correction offsets
-    if ((m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD) && m_clockCorrectionOffset.count() > 0)
-        || (m_strategies.testFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD) && m_clockCorrectionOffset.count() < 0))
+    if ((m_strategies.hasFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD) && m_clockCorrectionOffset.count() > 0)
+        || (m_strategies.hasFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD) && m_clockCorrectionOffset.count() < 0))
         masterTimestamp = secondaryAcqTimestamp - m_expectedOffset - m_clockCorrectionOffset;
 
     /*

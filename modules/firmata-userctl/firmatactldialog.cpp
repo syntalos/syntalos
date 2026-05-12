@@ -96,10 +96,10 @@ FirmataOutputWidget::FirmataOutputWidget(
         ctl.lineId = static_cast<uint16_t>(m_sbPinId->value());
 
         if (m_isAnalog) {
-            ctl.kind = LineCommandKind::WriteAnalog;
+            ctl.kind = LineCommandKind::WRITE_ANALOG;
             ctl.value = m_sbValue->value();
         } else {
-            ctl.kind = LineCommandKind::WriteDigital;
+            ctl.kind = LineCommandKind::WRITE_DIGITAL;
             ctl.value = m_btnSend->isChecked() ? 1 : 0;
             m_btnSend->setText(m_btnSend->isChecked() ? QStringLiteral("On") : QStringLiteral("Off"));
         }
@@ -112,7 +112,7 @@ FirmataOutputWidget::FirmataOutputWidget(
         m_btnSend->setText(QStringLiteral("Off"));
         LineCommand ctl;
         ctl.lineId = static_cast<uint16_t>(m_sbPinId->value());
-        ctl.kind = LineCommandKind::WriteDigitalPulse;
+        ctl.kind = LineCommandKind::WRITE_DIGITAL_PULSE;
         ctl.value = 1;
         ctl.duration = std::chrono::duration_cast<microseconds_t>(milliseconds_t(50));
         m_fmCtlStream->push(ctl);
@@ -140,8 +140,8 @@ void FirmataOutputWidget::setPinId(int pinId)
 void FirmataOutputWidget::submitNewPinCommand()
 {
     // Configure pin as output
-    LineCommand pinModeCmd(LineCommandKind::SetMode, static_cast<uint16_t>(m_sbPinId->value()));
-    pinModeCmd.flags = LineModeFlags::IsOutput;
+    LineCommand pinModeCmd(LineCommandKind::SET_MODE, static_cast<uint16_t>(m_sbPinId->value()));
+    pinModeCmd.flags = LineModeFlag::IS_OUTPUT;
     m_fmCtlStream->push(pinModeCmd);
 }
 
@@ -240,8 +240,8 @@ void FirmataInputWidget::setValue(int value)
 void FirmataInputWidget::submitNewPinCommand()
 {
     // Configure pin as input
-    LineCommand pinModeCmd(LineCommandKind::SetMode, static_cast<uint16_t>(m_sbPinId->value()));
-    pinModeCmd.flags = LineModeFlags::IsInput;
+    LineCommand pinModeCmd(LineCommandKind::SET_MODE, static_cast<uint16_t>(m_sbPinId->value()));
+    pinModeCmd.flags = LineModeFlag::IS_INPUT;
     m_fmCtlStream->push(pinModeCmd);
 }
 
