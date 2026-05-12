@@ -528,7 +528,9 @@ public:
             }
             case TCAM_PROPERTY_TYPE_ENUMERATION: {
                 tcam_property_enumeration_set_value(
-                    TCAM_PROPERTY_ENUMERATION(prop), qPrintable(valueVar.toString()), &error);
+                    TCAM_PROPERTY_ENUMERATION(prop),
+                    qPrintable(valueVar.toString()),
+                    &error);
                 break;
             }
             case TCAM_PROPERTY_TYPE_BOOLEAN: {
@@ -545,7 +547,11 @@ public:
 
             if (error != nullptr) {
                 LOG_WARNING(
-                    m_log, "{}: Unable to load camera property '{}': {}", m_device.serial(), name, error->message);
+                    m_log,
+                    "{}: Unable to load camera property '{}': {}",
+                    m_device.serial(),
+                    name,
+                    error->message);
                 continue;
             }
         }

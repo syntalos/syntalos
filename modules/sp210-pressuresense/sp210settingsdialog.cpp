@@ -62,7 +62,8 @@ void SP210SettingsDialog::scanDevices()
     for (auto &port : allPorts) {
         if (port.description().contains("SP210"))
             ui->portsComboBox->addItem(
-                QString("%1 (%2)").arg(port.portName()).arg(port.description()), port.systemLocation());
+                QString("%1 (%2)").arg(port.portName()).arg(port.description()),
+                port.systemLocation());
     }
 
     if (selectedSerialPort.isEmpty())
@@ -182,5 +183,7 @@ void SP210SettingsDialog::on_readInfoBtn_clicked()
         infoStr = QStringLiteral("No information received!");
 
     QMessageBox::information(
-        this, "Device Sensor Information", "Information about the sensor in this device:\n\n" + infoStr);
+        this,
+        "Device Sensor Information",
+        "Information about the sensor in this device:\n\n" + infoStr);
 }

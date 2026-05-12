@@ -366,7 +366,12 @@ private:
         // 2-D data array: shape = [total_samples, n_channels]
         const QStringList dataDimNames = {QStringLiteral("time"), QStringLiteral("channel")};
         m_dataArray = std::make_unique<ZarrV3Array>(
-            QString::fromStdString(m_storePath), QStringLiteral("data"), dataDtype, m_chunkCount, nCols, dataDimNames);
+            QString::fromStdString(m_storePath),
+            QStringLiteral("data"),
+            dataDtype,
+            m_chunkCount,
+            nCols,
+            dataDimNames);
 
         // embed signal metadata as Zarr array attributes
         QJsonObject dataAttrs;

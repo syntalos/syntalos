@@ -60,12 +60,12 @@ struct DigitalOutputCommand {
  * transpose into its IntSignalBlock if needed).
  */
 struct AcqSampleChunk {
-    int groupIndex = -1;          ///< headstage / stream index, or -1 for board-wide kinds
+    int groupIndex = -1;                       ///< headstage / stream index, or -1 for board-wide kinds
     ChannelKind kind = ChannelKind::Electrode; ///< what kind of channels this chunk carries
-    int channelsPerSample = 0;    ///< columns in @c samples
-    int numSamples = 0;           ///< rows in @c samples (set by the board)
+    int channelsPerSample = 0;                 ///< columns in @c samples
+    int numSamples = 0;                        ///< rows in @c samples (set by the board)
     std::vector<uint16_t> samples;
-    std::vector<uint64_t> sampleIndices;  ///< per-sample monotonic index from board
+    std::vector<uint64_t> sampleIndices; ///< per-sample monotonic index from board
 };
 
 /**
@@ -237,8 +237,7 @@ public:
     {
         const std::lock_guard guard(m_digitalMutex);
         m_digitalOutputCommands.push({ttlLine, true});
-        const auto deadline = std::chrono::steady_clock::now()
-                              + std::chrono::milliseconds(eventDurationMs);
+        const auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(eventDurationMs);
         m_digitalDeadlines.push_back({ttlLine, deadline});
     }
 

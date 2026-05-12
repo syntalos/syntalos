@@ -190,7 +190,11 @@ bool FreqCounterSynchronizer::start()
         m_tswriter->setTimeDataTypes(TSyncFileDataType::INT64, TSyncFileDataType::INT64);
         if (!m_tswriter->open(m_modName, m_collectionId, microseconds_t(m_toleranceUsec))) {
             SY_LOG_CRITICAL(
-                logTimeSync, "Unable to open timesync file for {}[{}]: {}", m_modName, m_id, m_tswriter->lastError());
+                logTimeSync,
+                "Unable to open timesync file for {}[{}]: {}",
+                m_modName,
+                m_id,
+                m_tswriter->lastError());
             return false;
         }
     }
@@ -262,9 +266,10 @@ void FreqCounterSynchronizer::processTimestamps(
 
     // timestamp when (as far and well as we can guess...) the current block was actually acquired, in microseconds
     // and based on the master clock timestamp generated upon data receival.
-    const microseconds_t masterAssumedAcqTS =
-        blocksRecvTimestamp - microseconds_t(std::lround(m_timePerPointUs * ((blockCount - 1) * idxTimestamps.rows())))
-        + microseconds_t(std::lround(m_timePerPointUs * (blockIndex * idxTimestamps.rows())));
+    const microseconds_t
+        masterAssumedAcqTS = blocksRecvTimestamp
+                             - microseconds_t(std::lround(m_timePerPointUs * ((blockCount - 1) * idxTimestamps.rows())))
+                             + microseconds_t(std::lround(m_timePerPointUs * (blockIndex * idxTimestamps.rows())));
     m_lastMasterAssumedAcqTS = masterAssumedAcqTS;
 
     // value of the last entry of the current block
@@ -445,7 +450,8 @@ void FreqCounterSynchronizer::processTimestamps(
     // so the zero-index needs to be offset by one.
     if (m_strategies.hasFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
         m_tswriter->writeTimes(
-            microseconds_t(std::lround((secondaryLastIdxUnadjusted + 1) * m_timePerPointUs)), masterAssumedAcqTS);
+            microseconds_t(std::lround((secondaryLastIdxUnadjusted + 1) * m_timePerPointUs)),
+            masterAssumedAcqTS);
 
     m_lastTimeIndex = secondaryLastIdx;
 }
@@ -501,7 +507,9 @@ void SecondaryClockSynchronizer::setCalibrationPointsCount(int timepointCount)
 {
     if (m_haveExpectedOffset) {
         SY_LOG_WARNING(
-            logTimeSync, "Rejected calibration point count change on active Clock Synchronizer for {}", m_modName);
+            logTimeSync,
+            "Rejected calibration point count change on active Clock Synchronizer for {}",
+            m_modName);
         return;
     }
 
@@ -587,14 +595,21 @@ bool SecondaryClockSynchronizer::start()
         m_tswriter->setTimeDataTypes(TSyncFileDataType::INT64, TSyncFileDataType::INT64);
         if (!m_tswriter->open(m_modName, m_collectionId, microseconds_t(m_toleranceUsec))) {
             SY_LOG_CRITICAL(
-                logTimeSync, "Unable to open timesync file for {}[{}]: {}", m_modName, m_id, m_tswriter->lastError());
+                logTimeSync,
+                "Unable to open timesync file for {}[{}]: {}",
+                m_modName,
+                m_id,
+                m_tswriter->lastError());
             return false;
         }
     }
 
     if (m_calibrationMaxN <= 4)
         SY_LOG_CRITICAL(
-            logTimeSync, "Clock synchronizer for {}[{}] uses a tiny calibration array (length <= 4)", m_modName, m_id);
+            logTimeSync,
+            "Clock synchronizer for {}[{}] uses a tiny calibration array (length <= 4)",
+            m_modName,
+            m_id);
     assert(m_calibrationMaxN > 0);
 
     m_lastOffsetWithinTolerance = false;
@@ -779,7 +794,8 @@ void SecondaryClockSynchronizer::processTimestamp(
         // write timestamp correction to tsync file
         if (m_strategies.hasFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
             m_tswriter->writeTimes(
-                secondaryAcqTimestamp, secondaryAcqTimestamp - m_expectedOffset - m_clockCorrectionOffset);
+                secondaryAcqTimestamp,
+                secondaryAcqTimestamp - m_expectedOffset - m_clockCorrectionOffset);
 
         // add a delay before we make any more changes, if we actually made a significant change
         if (std::abs(m_clockCorrectionOffset.count()) > 1)

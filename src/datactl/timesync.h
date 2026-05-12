@@ -60,8 +60,8 @@ enum class TimeSyncStrategy {
     SHIFT_TIMESTAMPS_FWD = 1 << 0, /// Move timestamps forward to match the master clock
     SHIFT_TIMESTAMPS_BWD = 1 << 1, /// Move timestamps backward to match the master clock
     ADJUST_CLOCK = 1 << 2,         /// Do not change timestamps by adjust the secondary clocks to match the master clock
-    WRITE_TSYNCFILE =
-        1 << 3 /// Do not directly adjust timestamps, but write a time-sync file to correct for errors in postprocessing
+    WRITE_TSYNCFILE = 1 << 3 /// Do not directly adjust timestamps, but write a time-sync file to correct for errors in
+                             /// postprocessing
 };
 
 using TimeSyncStrategies = Flags<TimeSyncStrategy>;
@@ -77,8 +77,8 @@ namespace Syntalos
 /**
  * @brief Function to call when synchronizer details have changed
  */
-using SyncDetailsChangeNotifyFn =
-    std::function<void(const std::string &id, const TimeSyncStrategies &strategies, const microseconds_t &tolerance)>;
+using SyncDetailsChangeNotifyFn = std::function<
+    void(const std::string &id, const TimeSyncStrategies &strategies, const microseconds_t &tolerance)>;
 
 /**
  * @brief Function to call to notify about an offset change

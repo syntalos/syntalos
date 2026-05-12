@@ -118,7 +118,8 @@ static bool saveProjectConfigInternal(
         mod->serializeSettings(confBaseDir.absolutePath(), modSettings, modExtraData);
         if (!modSettings.isEmpty())
             tar.writeFile(
-                QStringLiteral("%1/%2.toml").arg(modIndex).arg(mod->id()), qVariantHashToTomlData(modSettings));
+                QStringLiteral("%1/%2.toml").arg(modIndex).arg(mod->id()),
+                qVariantHashToTomlData(modSettings));
         if (!modExtraData.isEmpty())
             tar.writeFile(QStringLiteral("%1/%2.dat").arg(modIndex).arg(mod->id()), modExtraData);
 
@@ -462,7 +463,10 @@ bool loadProjectConfigurationInteractive(
             auto inPort = mod->inPortById(iPortId);
             if (inPort.get() == nullptr) {
                 LOG_WARNING(
-                    log, "Error when loading project: Module {} has no input port with ID", mod->name(), iPortId);
+                    log,
+                    "Error when loading project: Module {} has no input port with ID",
+                    mod->name(),
+                    iPortId);
                 continue;
             }
             auto outPort = srcMod->outPortById(srcModOutPortId);

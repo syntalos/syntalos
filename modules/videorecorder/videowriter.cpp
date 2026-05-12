@@ -561,7 +561,11 @@ void VideoWriter::initializeHWAccell()
     const auto hwDevice = d->codecProps.renderNode();
 
     int ret = av_hwdevice_ctx_create(
-        &d->hwDevCtx, av_hwdevice_find_type_by_name("vaapi"), qPrintable(hwDevice), nullptr, 0);
+        &d->hwDevCtx,
+        av_hwdevice_find_type_by_name("vaapi"),
+        qPrintable(hwDevice),
+        nullptr,
+        0);
 
     if (ret != 0)
         throw std::runtime_error(QStringLiteral("Failed to create hardware encoding device for %1: %2")
@@ -1236,8 +1240,9 @@ inline bool VideoWriter::prepareFrame(const cv::Mat &inImage)
                            .toStdString();
         return false;
     } else if ((d->inputPixFormat == AV_PIX_FMT_GRAY8) && (channels != 1)) {
-        d->lastError =
-            QStringLiteral("Expected grayscale image, but received image has %1 channels").arg(channels).toStdString();
+        d->lastError = QStringLiteral("Expected grayscale image, but received image has %1 channels")
+                           .arg(channels)
+                           .toStdString();
         return false;
     }
 
@@ -1370,8 +1375,9 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
         // write packet
         ret = av_write_frame(d->octx, pkt);
         if (ret < 0) {
-            d->lastError =
-                QStringLiteral("Unable to write frame packet to output: %1").arg(averrorToString(ret)).toStdString();
+            d->lastError = QStringLiteral("Unable to write frame packet to output: %1")
+                               .arg(averrorToString(ret))
+                               .toStdString();
             std::cerr << d->lastError << std::endl;
             goto out;
         }

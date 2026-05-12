@@ -119,7 +119,8 @@ void PlotWindow::updatePortLists()
     // display all registered ports in our UI
     for (const auto &port : m_mod->inPorts()) {
         auto item = new QListWidgetItem(
-            QStringLiteral("%1 [>>%2]").arg(port->title()).arg(port->dataTypeName()), ui->portListWidget);
+            QStringLiteral("%1 [>>%2]").arg(port->title()).arg(port->dataTypeName()),
+            ui->portListWidget);
         item->setData(Qt::UserRole, port->id());
 
         // make new plot widget
@@ -249,8 +250,9 @@ void PlotWindow::on_portListWidget_currentItemChanged(QListWidgetItem *current, 
         return;
     }
 
-    const auto signalNames =
-        m_signalDetails.value(current->data(Qt::UserRole).toString(), QMap<QString, PlotSeriesSettings>()).keys();
+    const auto signalNames = m_signalDetails
+                                 .value(current->data(Qt::UserRole).toString(), QMap<QString, PlotSeriesSettings>())
+                                 .keys();
     ui->sigListWidget->clear();
     for (const auto &name : signalNames) {
         auto item = new QListWidgetItem(name, ui->sigListWidget);

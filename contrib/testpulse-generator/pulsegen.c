@@ -12,18 +12,20 @@
 #include "hardware/structs/clocks.h"
 #include "hardware/structs/pll.h"
 
-#define LED_PIN         22
+#define LED_PIN 22
 #define MODE_SWITCH_PIN 5
-#define LED_PULSE_LEN   240
+#define LED_PULSE_LEN 240
 
-static void emit_led_pulse(uint ledPin)
+static void
+emit_led_pulse(uint ledPin)
 {
     gpio_put(LED_PIN, 1);
     sleep_ms(LED_PULSE_LEN);
     gpio_put(LED_PIN, 0);
 }
 
-static void emit_pulse_varsequence(uint ledPin)
+static void
+emit_pulse_varsequence(uint ledPin)
 {
     emit_led_pulse(ledPin);
     sleep_ms(1000 - LED_PULSE_LEN);
@@ -33,13 +35,15 @@ static void emit_pulse_varsequence(uint ledPin)
     sleep_ms(3000 - LED_PULSE_LEN);
 }
 
-static void emit_pulse_staticsequence(uint ledPin)
+static void
+emit_pulse_staticsequence(uint ledPin)
 {
     emit_led_pulse(ledPin);
     sleep_ms(1000 - LED_PULSE_LEN);
 }
 
-int main()
+int
+main()
 {
     stdio_init_all();
 
@@ -56,7 +60,12 @@ int main()
     pll_deinit(pll_sys);
 
     // CLK peri is clocked from clk_sys so need to change clk_peri's freq
-    clock_configure(clk_peri, 0, CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_CLK_SYS, 48 * MHZ, 48 * MHZ);
+    clock_configure(
+        clk_peri,
+        0,
+        CLOCKS_CLK_PERI_CTRL_AUXSRC_VALUE_CLK_SYS,
+        48 * MHZ,
+        48 * MHZ);
 
     // Re init now that clk_peri has changed
     stdio_init_all();

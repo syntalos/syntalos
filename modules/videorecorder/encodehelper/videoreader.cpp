@@ -261,8 +261,8 @@ std::optional<cv::Mat> VideoReader::frameToCVImage(AVFrame *frame)
         if (d->swsDstData[0])
             av_freep(&d->swsDstData[0]);
 
-        d->swsCtx = sws_getContext(
-            width, height, srcFormat, width, height, dstFormat, SWS_BILINEAR, nullptr, nullptr, nullptr);
+        d->swsCtx =
+            sws_getContext(width, height, srcFormat, width, height, dstFormat, SWS_BILINEAR, nullptr, nullptr, nullptr);
         if (d->swsCtx == nullptr) {
             d->lastError = "Could not initialize conversion context.";
             return std::nullopt;
@@ -282,8 +282,8 @@ std::optional<cv::Mat> VideoReader::frameToCVImage(AVFrame *frame)
         d->swsHeight = height;
     }
 
-    const auto scaledHeight = sws_scale(
-        d->swsCtx, frame->data, frame->linesize, 0, height, d->swsDstData, d->swsDstLinesize);
+    const auto
+        scaledHeight = sws_scale(d->swsCtx, frame->data, frame->linesize, 0, height, d->swsDstData, d->swsDstLinesize);
     if (scaledHeight != height) {
         d->lastError = "Failed to scale the frame into the destination pixel format.";
         return std::nullopt;

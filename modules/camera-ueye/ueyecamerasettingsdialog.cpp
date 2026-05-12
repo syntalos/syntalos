@@ -57,7 +57,10 @@ UEyeCameraSettingsDialog::UEyeCameraSettingsDialog(UEyeCamera *camera, QWidget *
 
     connect(ueyeConfFileBtn, &QToolButton::clicked, [=]() {
         auto fileName = QFileDialog::getOpenFileName(
-            this, tr("Select uEye Settings"), ".", tr("uEye Settings (*.ini)"));
+            this,
+            tr("Select uEye Settings"),
+            ".",
+            tr("uEye Settings (*.ini)"));
         if (fileName.isEmpty())
             return;
         m_ueyeConfFileLbl->setText(fileName);

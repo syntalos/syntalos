@@ -1044,7 +1044,8 @@ void FlowGraphEdge::updatePathTo(const QPointF &pos)
     arrow.append(
         arrow_pos0
         - QPointF(
-            ::sin(arrow_angle + M_PI - M_PI / 2.3) * arrow_size, ::cos(arrow_angle + M_PI - M_PI / 2.3) * arrow_size));
+            ::sin(arrow_angle + M_PI - M_PI / 2.3) * arrow_size,
+            ::cos(arrow_angle + M_PI - M_PI / 2.3) * arrow_size));
     arrow.append(arrow_pos0);
     path.addPolygon(QPolygonF(arrow));
 
@@ -1430,14 +1431,18 @@ void FlowGraphView::connectPorts(FlowGraphNodePort *port1, FlowGraphNodePort *po
         return;
 
     FlowGraphNode *node1 = findNode(
-        port1->portNode()->nodeName(), FlowGraphItem::Duplex, port1->portNode()->nodeType());
+        port1->portNode()->nodeName(),
+        FlowGraphItem::Duplex,
+        port1->portNode()->nodeType());
     if (node1 == nullptr)
         node1 = findNode(port1->portNode()->nodeName(), FlowGraphItem::Output, port1->portNode()->nodeType());
     if (node1 == nullptr)
         return;
 
     FlowGraphNode *node2 = findNode(
-        port2->portNode()->nodeName(), FlowGraphItem::Duplex, port2->portNode()->nodeType());
+        port2->portNode()->nodeName(),
+        FlowGraphItem::Duplex,
+        port2->portNode()->nodeType());
     if (node2 == nullptr)
         node2 = findNode(port2->portNode()->nodeName(), FlowGraphItem::Input, port2->portNode()->nodeType());
     if (node2 == nullptr)
@@ -2328,8 +2333,8 @@ QPointF FlowGraphView::findOptimalNodePosition(FlowGraphNode *node)
 
     // Ensure we have some margin from the viewport edges
     const qreal viewportMargin = 30.0;
-    const QRectF constrainedArea = viewportRect.adjusted(
-        viewportMargin, viewportMargin, -viewportMargin, -viewportMargin);
+    const QRectF constrainedArea = viewportRect
+                                       .adjusted(viewportMargin, viewportMargin, -viewportMargin, -viewportMargin);
 
     // If this is the first node or no existing nodes, place at center
     if (m_nodes.size() <= 1)

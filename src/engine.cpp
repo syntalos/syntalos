@@ -925,13 +925,15 @@ bool Engine::makeDirectory(const QString &dir)
 void Engine::makeFinalExperimentId()
 {
     // replace substitution variables (create copy of template string first!)
-    d->experimentIdFinal =
-        QString(d->experimentIdTmpl)
-            .replace(
-                "{n}",
-                QStringLiteral("%1").arg(
-                    d->runCount + 1, d->runCountPadding > 1 ? d->runCountPadding : 1, 10, QLatin1Char('0')))
-            .replace("{time}", QTime::currentTime().toString("hhmmss"));
+    d->experimentIdFinal = QString(d->experimentIdTmpl)
+                               .replace(
+                                   "{n}",
+                                   QStringLiteral("%1").arg(
+                                       d->runCount + 1,
+                                       d->runCountPadding > 1 ? d->runCountPadding : 1,
+                                       10,
+                                       QLatin1Char('0')))
+                               .replace("{time}", QTime::currentTime().toString("hhmmss"));
 }
 
 void Engine::refreshExportDirPath()
@@ -943,7 +945,11 @@ void Engine::refreshExportDirPath()
     makeFinalExperimentId();
 
     const auto result = arrangeExportDirName(
-        d->exportDirLayout, d->testSubject.id, currentDate, d->experimentIdFinal, d->flatExportDirName);
+        d->exportDirLayout,
+        d->testSubject.id,
+        currentDate,
+        d->experimentIdFinal,
+        d->flatExportDirName);
     d->exportDir = QDir::cleanPath(QStringLiteral("%1/%2").arg(d->exportBaseDir, result.dirName));
     d->exportName = result.flatId;
 }
@@ -1505,7 +1511,9 @@ void Engine::onBufferMonitorEvent()
 
     if (!issueFound && subBufferWarningEmitted) {
         Q_EMIT resourceWarningUpdate(
-            StreamBuffers, true, QStringLiteral("All modules appear to be running fast enough."));
+            StreamBuffers,
+            true,
+            QStringLiteral("All modules appear to be running fast enough."));
         subBufferWarningEmitted = false;
     }
 
@@ -1954,7 +1962,10 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
     // notify network controller that a run is being prepared (controller mode);
     // this call may block briefly to await ACKs from network listeners
     if (!d->netCtl->broadcastPrepare(
-            storageCollection->collectionId(), d->testSubject.id, d->testSubject.group, d->experimentIdFinal)) {
+            storageCollection->collectionId(),
+            d->testSubject.id,
+            d->testSubject.group,
+            d->experimentIdFinal)) {
         d->failed = true;
         return false;
     }
@@ -2021,7 +2032,9 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
     if (threadedModulesTotalN <= (cpuCoreCount - 1))
         potentialNoaffinityCPUCount = cpuCoreCount - threadedModulesTotalN - 1;
     LOG_INFO(
-        d->log, "Predicted amount of CPU cores with no (explicitly known) occupation: {}", potentialNoaffinityCPUCount);
+        d->log,
+        "Predicted amount of CPU cores with no (explicitly known) occupation: {}",
+        potentialNoaffinityCPUCount);
     for (auto &mod : modOrder.start)
         mod->setPotentialNoaffinityCPUCount(potentialNoaffinityCPUCount);
 
@@ -2037,7 +2050,9 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
             port->setDormant(true);
 
         LOG_INFO(
-            d->log, "Module '{}' is explicitly disabled. It was marked dormant and will not be started.", mod->name());
+            d->log,
+            "Module '{}' is explicitly disabled. It was marked dormant and will not be started.",
+            mod->name());
     }
 
     // prepare modules
@@ -2057,7 +2072,8 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
         mod->setSimpleStorageNames(d->simpleStorageNames);
         if ((modInfo != nullptr) && (!modInfo->storageGroupName().isEmpty())) {
             auto storageGroup = storageCollection->groupByName(
-                modInfo->storageGroupName().toStdString(), EDLCreateFlag::CREATE_OR_OPEN);
+                modInfo->storageGroupName().toStdString(),
+                EDLCreateFlag::CREATE_OR_OPEN);
             if (!storageGroup.has_value()) {
                 LOG_ERROR(
                     d->log,
@@ -2165,7 +2181,9 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
         // only emit a resource warning if we are using way more threads than we probably should
         if (threadedModulesTotalN > (cpuCoreCount + (cpuCoreCount / 2)))
             Q_EMIT resourceWarningUpdate(
-                CpuCores, false, QStringLiteral("Likely not enough CPU cores available for optimal operation."));
+                CpuCores,
+                false,
+                QStringLiteral("Likely not enough CPU cores available for optimal operation."));
 
         // launch threads for threaded modules, except for out out-of-process
         // modules - they get special treatment
@@ -2646,7 +2664,9 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
     if (initSuccessful) {
         finalizeExperimentMetadata(storageCollection, finishTimestamp, modOrder.start);
         LOG_INFO(
-            d->log, "Manifest and additional data saved in {} msec", timeDiffToNowMsec(lastPhaseTimepoint).count());
+            d->log,
+            "Manifest and additional data saved in {} msec",
+            timeDiffToNowMsec(lastPhaseTimepoint).count());
         // we made it: keep the export directory around (the failed-run guard
         // installed at the top of this function would otherwise wipe it).
         failedRunDirCleanup.dismiss();

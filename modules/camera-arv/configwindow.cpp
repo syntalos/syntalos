@@ -54,7 +54,9 @@ ArvConfigWindow::ArvConfigWindow(Syntalos::QuillLogger *logger, QWidget *parent)
     setupUi(this);
     on_statusTimeoutSpinbox_valueChanged(statusTimeoutSpinbox->value());
     m_debugConnection = connect(
-        &QArvDebug::messageSender, &MessageSender::newDebugMessage, [this](const QString &scope, const QString &msg) {
+        &QArvDebug::messageSender,
+        &MessageSender::newDebugMessage,
+        [this](const QString &scope, const QString &msg) {
             if (scope == m_log->get_logger_name() || scope.isEmpty())
                 messageList->appendPlainText(msg);
         });
@@ -454,7 +456,9 @@ void ArvConfigWindow::updateDecoder()
 
     decoder.reset();
     decoder = std::shared_ptr<QArvDecoder>(QArvDecoder::makeDecoder(
-        camera->getPixelFormatId(), camera->getROI().size(), useFastInterpolator->isChecked()));
+        camera->getPixelFormatId(),
+        camera->getROI().size(),
+        useFastInterpolator->isChecked()));
     if (!decoder) {
         QString message = tr("Decoder for %1 doesn't exist!");
         message = message.arg(camera->getPixelFormat());
@@ -991,7 +995,9 @@ void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArra
             message += errItem + "<br/>";
         message += "</body></html>";
         QMessageBox::warning(
-            this, QStringLiteral("%1 - Failed to load settings").arg(cameraSelector->currentText()), message);
+            this,
+            QStringLiteral("%1 - Failed to load settings").arg(cameraSelector->currentText()),
+            message);
     }
 
     // Set fps/gain/exposure explicitly, as those may be software settings

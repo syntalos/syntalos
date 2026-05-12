@@ -147,7 +147,10 @@ protected:
         -> std::expected<std::shared_ptr<OutputPortLink<T>>, std::string>
     {
         auto opInfo = m_slink->registerOutputPort(
-            id, title, static_cast<BaseDataType::TypeId>(syDataTypeId<T>()), metadata);
+            id,
+            title,
+            static_cast<BaseDataType::TypeId>(syDataTypeId<T>()),
+            metadata);
         if (!opInfo.has_value())
             return std::unexpected(opInfo.error());
 

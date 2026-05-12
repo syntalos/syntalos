@@ -145,7 +145,8 @@ bool ZarrV3Array::finalize()
     // at the end of the shard file, then close it.
     if (m_shardFile.isOpen()) {
         m_shardFile.write(
-            reinterpret_cast<const char *>(m_indexBuffer.data()), static_cast<qint64>(m_indexBuffer.size()));
+            reinterpret_cast<const char *>(m_indexBuffer.data()),
+            static_cast<qint64>(m_indexBuffer.size()));
         m_shardFile.close();
     }
     m_indexBuffer.clear();

@@ -186,7 +186,9 @@ public:
         nanoseconds_t sysOffsetToMaster;
         guint64 devOffsetToSysNs = 0;
         auto acqStartResult = m_camera->startAcquisition(
-            true, true, [this, &frameCount, &sysOffsetToMaster, &devOffsetToSysNs, &clockSync](ArvBuffer *buffer) {
+            true,
+            true,
+            [this, &frameCount, &sysOffsetToMaster, &devOffsetToSysNs, &clockSync](ArvBuffer *buffer) {
                 if (!m_running)
                     return;
                 if (frameCount == 0) {

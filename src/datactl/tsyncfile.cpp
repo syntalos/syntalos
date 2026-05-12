@@ -223,10 +223,10 @@ bool TimeSyncFileWriter::open(const std::string &modName, const Uuid &collection
     const auto userDataJson = jsonBuf.str();
 
     // compute creation time
-    const auto creationTimeSecs =
-        std::chrono::duration_cast<std::chrono::seconds>(
-            (m_creationTimeOverride.value_or(std::chrono::system_clock::now())).time_since_epoch())
-            .count();
+    const auto creationTimeSecs = std::chrono::duration_cast<std::chrono::seconds>(
+                                      (m_creationTimeOverride.value_or(std::chrono::system_clock::now()))
+                                          .time_since_epoch())
+                                      .count();
     m_creationTimeOverride.reset();
 
     // write file header - magic number raw (not checksummed)
@@ -580,7 +580,8 @@ bool TimeSyncFileReader::open(const std::string &fname)
                 }
                 if (finalCRC != XXH3_64bits_digest(csState))
                     SY_LOG_WARNING(
-                        logTSyncFile, "CRC check failed for last tsync data block: Data is likely corrupted.");
+                        logTSyncFile,
+                        "CRC check failed for last tsync data block: Data is likely corrupted.");
             }
             break;
         }

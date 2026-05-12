@@ -221,7 +221,8 @@ void ModuleSelectDialog::setModuleInfo(const QList<QSharedPointer<ModuleInfo>> &
         m_modInfoLib[info->id()] = info;
 
         auto item = new QStandardItem(
-            info->icon(), QStringLiteral("<b>%1</b><br/><span>%2</span>").arg(info->name(), info->summary()));
+            info->icon(),
+            QStringLiteral("<b>%1</b><br/><span>%2</span>").arg(info->name(), info->summary()));
         item->setTextAlignment(Qt::AlignLeft);
         item->setData(info->id());
         m_modModel->appendRow(item);

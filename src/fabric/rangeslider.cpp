@@ -196,7 +196,11 @@ int RangeSliderPrivate::pixelPosToRangeValue(int pos) const
     }
 
     return QStyle::sliderValueFromPosition(
-        q->minimum(), q->maximum(), pos - sliderMin, sliderMax - sliderMin, option.upsideDown);
+        q->minimum(),
+        q->maximum(),
+        pos - sliderMin,
+        sliderMax - sliderMin,
+        option.upsideDown);
 }
 
 //---------------------------------------------------------------------------
@@ -579,8 +583,8 @@ void RangeSlider::mousePressEvent(QMouseEvent *mouseEvent)
     // if we are here, no handles have been pressed
     // Check if we pressed on the groove between the 2 handles
 
-    QStyle::SubControl control = this->style()->hitTestComplexControl(
-        QStyle::CC_Slider, &option, mouseEvent->pos(), this);
+    QStyle::SubControl control = this->style()
+                                     ->hitTestComplexControl(QStyle::CC_Slider, &option, mouseEvent->pos(), this);
     QRect sr = style()->subControlRect(QStyle::CC_Slider, &option, QStyle::SC_SliderGroove, this);
     int minCenter = (this->orientation() == Qt::Horizontal ? handleRect.left() : handleRect.top());
     int maxCenter = (this->orientation() == Qt::Horizontal ? handleRect.right() : handleRect.bottom());
@@ -631,13 +635,15 @@ void RangeSlider::mouseMoveEvent(QMouseEvent *mouseEvent)
     if (this->isMinimumSliderDown() && !this->isMaximumSliderDown()) {
         double newMinPos = qMin(newPosition, d->m_MaximumPosition);
         this->setPositions(
-            newMinPos, d->m_MaximumPosition + (d->m_SymmetricMoves ? d->m_MinimumPosition - newMinPos : 0));
+            newMinPos,
+            d->m_MaximumPosition + (d->m_SymmetricMoves ? d->m_MinimumPosition - newMinPos : 0));
     }
     // Only the upper/right slider is down
     else if (this->isMaximumSliderDown() && !this->isMinimumSliderDown()) {
         double newMaxPos = qMax(d->m_MinimumPosition, newPosition);
         this->setPositions(
-            d->m_MinimumPosition - (d->m_SymmetricMoves ? newMaxPos - d->m_MaximumPosition : 0), newMaxPos);
+            d->m_MinimumPosition - (d->m_SymmetricMoves ? newMaxPos - d->m_MaximumPosition : 0),
+            newMaxPos);
     }
     // Both handles are down (the user clicked in between the handles)
     else if (this->isMinimumSliderDown() && this->isMaximumSliderDown()) {
@@ -712,7 +718,10 @@ bool RangeSlider::event(QEvent *_event)
         opt.sliderValue = d->m_MinimumValue;
         this->initStyleOption(&opt);
         QStyle::SubControl hoveredControl = this->style()->hitTestComplexControl(
-            QStyle::CC_Slider, &opt, helpEvent->pos(), this);
+            QStyle::CC_Slider,
+            &opt,
+            helpEvent->pos(),
+            this);
         if (!d->m_HandleToolTip.isEmpty() && hoveredControl == QStyle::SC_SliderHandle) {
             QToolTip::showText(helpEvent->globalPos(), d->m_HandleToolTip.arg(this->minimumValue()));
             _event->accept();

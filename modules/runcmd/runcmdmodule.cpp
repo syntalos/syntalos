@@ -147,10 +147,10 @@ public:
 
     void start() override
     {
-        const auto unixStartTime =
-            std::chrono::duration_cast<milliseconds_t>(
-                (std::chrono::system_clock::now() - m_syTimer->timeSinceStartMsec()).time_since_epoch())
-                .count();
+        const auto unixStartTime = std::chrono::duration_cast<milliseconds_t>(
+                                       (std::chrono::system_clock::now() - m_syTimer->timeSinceStartMsec())
+                                           .time_since_epoch())
+                                       .count();
         m_procEnv.insert("SY_START_TIME_UNIX_MS", QString::number(unixStartTime));
         m_proc->setProcessEnvironment(m_procEnv);
         m_proc->start();

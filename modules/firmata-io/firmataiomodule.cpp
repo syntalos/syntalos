@@ -152,7 +152,11 @@ public:
 
         // connect to data received events
         connect(
-            firmata.get(), &SerialFirmata::digitalRead, this, &FirmataIOModule::recvDigitalRead, Qt::DirectConnection);
+            firmata.get(),
+            &SerialFirmata::digitalRead,
+            this,
+            &FirmataIOModule::recvDigitalRead,
+            Qt::DirectConnection);
         connect(
             firmata.get(),
             &SerialFirmata::digitalPinRead,

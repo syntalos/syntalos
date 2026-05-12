@@ -211,7 +211,9 @@ MainWindow::MainWindow(QWidget *parent)
         auto id = ui->idLineEdit->text().trimmed();
         if (id.isEmpty()) {
             QMessageBox::warning(
-                this, "Could not change test subject", "Can not change test subject with an empty ID!");
+                this,
+                "Could not change test subject",
+                "Can not change test subject with an empty ID!");
             return;
         }
         sub.id = id;
@@ -438,7 +440,9 @@ void MainWindow::applySelectedAppStyle(bool updateIcons)
     // apply default color scheme
     if (m_gconf->appColorMode() != Syntalos::ColorMode::SYSTEM) {
         LOG_INFO(
-            m_log, "Changing application color scheme to: {}", Syntalos::colorModeToString(m_gconf->appColorMode()));
+            m_log,
+            "Changing application color scheme to: {}",
+            Syntalos::colorModeToString(m_gconf->appColorMode()));
         if (m_gconf->appColorMode() == Syntalos::ColorMode::DARK && darkColorSchemeAvailable())
             changeColorsDarkmode(true);
         else
@@ -845,7 +849,13 @@ void MainWindow::showExperimenterSelector(const QString &message)
     items.append(QStringLiteral("[Not selected]"));
     bool ok;
     const auto selection = QInputDialog::getItem(
-        this, QStringLiteral("Select an experimenter"), message, items, 0, false, &ok);
+        this,
+        QStringLiteral("Select an experimenter"),
+        message,
+        items,
+        0,
+        false,
+        &ok);
     if (!ok)
         return;
     const auto idx = items.indexOf(selection);
@@ -1103,7 +1113,9 @@ void MainWindow::projectOpenActionTriggered()
 
     if (!loadConfiguration(fileName)) {
         QMessageBox::critical(
-            this, QStringLiteral("Can not load configuration"), QStringLiteral("Failed to load configuration."));
+            this,
+            QStringLiteral("Can not load configuration"),
+            QStringLiteral("Failed to load configuration."));
         m_engine->removeAllModules();
     }
     m_gconf->setLastProjectDir(QFileInfo(fileName).absoluteDir().absolutePath());

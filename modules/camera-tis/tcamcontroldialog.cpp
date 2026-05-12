@@ -322,7 +322,9 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
             LOG_WARNING(m_log, "Unable to start pipeline. Stopping.");
 
             g_autoptr(GstMessage) msg = gst_bus_timed_pop_filtered(
-                bus, 100 * GST_MSECOND, (GstMessageType)(GST_MESSAGE_ERROR | GST_MESSAGE_STATE_CHANGED));
+                bus,
+                100 * GST_MSECOND,
+                (GstMessageType)(GST_MESSAGE_ERROR | GST_MESSAGE_STATE_CHANGED));
             if (msg) {
                 g_autofree gchar *debug_info = nullptr;
                 gst_message_parse_error(msg, &error, &debug_info);
@@ -339,7 +341,9 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
         }
     } else if (src_change_ret == GST_STATE_CHANGE_FAILURE) {
         g_autoptr(GstMessage) msg = gst_bus_timed_pop_filtered(
-            bus, 100 * GST_MSECOND, (GstMessageType)(GST_MESSAGE_ERROR | GST_MESSAGE_STATE_CHANGED));
+            bus,
+            100 * GST_MSECOND,
+            (GstMessageType)(GST_MESSAGE_ERROR | GST_MESSAGE_STATE_CHANGED));
         if (msg) {
             g_autofree gchar *debug_info = nullptr;
             gst_message_parse_error(msg, &error, &debug_info);

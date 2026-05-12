@@ -205,7 +205,9 @@ static GSource *efd_signal_source_new(int event_fd)
     auto source = (EFDSignalSource *)g_source_new(&efd_source_funcs, sizeof(EFDSignalSource));
     source->event_fd = event_fd;
     source->event_fd_tag = g_source_add_unix_fd(
-        (GSource *)source, event_fd, (GIOCondition)(G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL));
+        (GSource *)source,
+        event_fd,
+        (GIOCondition)(G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL));
     return (GSource *)source;
 }
 
@@ -243,7 +245,9 @@ void ModuleEventThread::moduleEventThreadFunc(QList<AbstractModule *> mods, Opti
             auto sub = ev.second;
             if (sub == nullptr) {
                 LOG_CRITICAL(
-                    d->log, "Bad event destination in module '{}'. Was the event subscription valid?", mod->name());
+                    d->log,
+                    "Bad event destination in module '{}'. Was the event subscription valid?",
+                    mod->name());
                 continue;
             }
             int eventfd = sub->enableNotify();

@@ -604,8 +604,9 @@ QList<QPair<QString, QString>> FLIRCamera::availableCameras()
         spn_ga::CStringPtr ptrDeviceModelName = nodeMapTLDevice.GetNode("DeviceModelName");
         if (IsAvailable(ptrDeviceModelName) && IsReadable(ptrDeviceModelName)) {
             const auto deviceModelName = ptrDeviceModelName->ToString();
-            camDisplayName =
-                QStringLiteral("%1 - %2").arg(camDisplayName).arg(QString::fromUtf8(deviceModelName.c_str()));
+            camDisplayName = QStringLiteral("%1 - %2")
+                                 .arg(camDisplayName)
+                                 .arg(QString::fromUtf8(deviceModelName.c_str()));
             if (camDisplayName.isEmpty())
                 camDisplayName = QStringLiteral("Unknown Device");
         }

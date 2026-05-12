@@ -282,7 +282,8 @@ public:
         }
 
         value = ByteVector(
-            reinterpret_cast<const std::byte *>(data), reinterpret_cast<const std::byte *>(data) + length);
+            reinterpret_cast<const std::byte *>(data),
+            reinterpret_cast<const std::byte *>(data) + length);
         return true;
     }
 

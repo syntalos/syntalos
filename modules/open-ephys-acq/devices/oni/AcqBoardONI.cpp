@@ -55,8 +55,8 @@ AcqBoardONI::AcqBoardONI()
 
     headstages.reserve(maxNumHeadstages);
     for (int i = 0; i < maxNumHeadstages; i++)
-        headstages.push_back(std::make_unique<HeadstageONI>(
-            static_cast<Rhd2000ONIBoard::BoardDataSource>(i), maxNumHeadstages));
+        headstages.push_back(
+            std::make_unique<HeadstageONI>(static_cast<Rhd2000ONIBoard::BoardDataSource>(i), maxNumHeadstages));
 
     dacChannelsToUpdate.assign(8, true);
     dacStream.assign(8, 0);
@@ -150,12 +150,7 @@ bool AcqBoardONI::detectBoard()
                     tag,
                     static_cast<int>(rc & 0x3F));
             } else {
-                LOG_INFO(
-                    m_log,
-                    "Open Ephys ECP5-ONI FPGA open. Gateware version v{}.{}.{}",
-                    major,
-                    minor,
-                    patch);
+                LOG_INFO(m_log, "Open Ephys ECP5-ONI FPGA open. Gateware version v{}.{}.{}", major, minor, patch);
             }
             hasI2cSupport = CheckSemVer(major, minor, patch, 1, 5, 0);
             hasMemoryMonitorSupport = CheckSemVer(major, minor, patch, 1, 5, 1);
@@ -242,13 +237,21 @@ bool AcqBoardONI::initializeBoardInThread()
     // Now that ADC calibration has been performed, switch to the command sequence
     // that does not execute ADC calibration.
     evalBoard->selectAuxCommandBank(
-        Rhd2000ONIBoard::PortA, Rhd2000ONIBoard::AuxCmd3, settings.fastSettleEnabled ? 2 : 1);
+        Rhd2000ONIBoard::PortA,
+        Rhd2000ONIBoard::AuxCmd3,
+        settings.fastSettleEnabled ? 2 : 1);
     evalBoard->selectAuxCommandBank(
-        Rhd2000ONIBoard::PortB, Rhd2000ONIBoard::AuxCmd3, settings.fastSettleEnabled ? 2 : 1);
+        Rhd2000ONIBoard::PortB,
+        Rhd2000ONIBoard::AuxCmd3,
+        settings.fastSettleEnabled ? 2 : 1);
     evalBoard->selectAuxCommandBank(
-        Rhd2000ONIBoard::PortC, Rhd2000ONIBoard::AuxCmd3, settings.fastSettleEnabled ? 2 : 1);
+        Rhd2000ONIBoard::PortC,
+        Rhd2000ONIBoard::AuxCmd3,
+        settings.fastSettleEnabled ? 2 : 1);
     evalBoard->selectAuxCommandBank(
-        Rhd2000ONIBoard::PortD, Rhd2000ONIBoard::AuxCmd3, settings.fastSettleEnabled ? 2 : 1);
+        Rhd2000ONIBoard::PortD,
+        Rhd2000ONIBoard::AuxCmd3,
+        settings.fastSettleEnabled ? 2 : 1);
 
     evalBoard->getAcquisitionClockHz(&acquisitionClockHz);
 
@@ -273,8 +276,7 @@ std::vector<const Headstage *> AcqBoardONI::getHeadstages()
 
 std::vector<int> AcqBoardONI::getAvailableSampleRates()
 {
-    return {1000, 1250, 1500, 2000, 2500, 3000, 3333, 4000, 5000,
-            6250, 8000, 10000, 12500, 15000, 20000, 25000, 30000};
+    return {1000, 1250, 1500, 2000, 2500, 3000, 3333, 4000, 5000, 6250, 8000, 10000, 12500, 15000, 20000, 25000, 30000};
 }
 
 void AcqBoardONI::setSampleRate(int desiredSampleRate)
@@ -398,7 +400,8 @@ void AcqBoardONI::checkAllCableDelays()
     evalBoard->setContinuousRunMode(false);
 
     auto delayDataBlock = std::make_unique<Rhd2000ONIDataBlock>(
-        evalBoard->getNumEnabledDataStreams(), evalBoard->isUSB3());
+        evalBoard->getNumEnabledDataStreams(),
+        evalBoard->isUSB3());
 
     std::vector<int> sumGoodDelays(8, 0);
     std::vector<int> indexFirstGoodDelay(8, -1);
@@ -411,7 +414,9 @@ void AcqBoardONI::checkAllCableDelays()
     for (int delay = -2; delay < 2; delay++) {
         LOG_DEBUG(m_log, "Setting delay to: {}", delay);
 
-        const auto clamp = [](int v) { return std::clamp(v, 0, 16); };
+        const auto clamp = [](int v) {
+            return std::clamp(v, 0, 16);
+        };
         const int delayA = clamp(static_cast<int>(settings.optimumDelay.portA) + delay);
         const int delayB = clamp(static_cast<int>(settings.optimumDelay.portB) + delay);
         const int delayC = clamp(static_cast<int>(settings.optimumDelay.portC) + delay);
@@ -433,8 +438,7 @@ void AcqBoardONI::checkAllCableDelays()
             if (!headstages[hs]->isConnected())
                 continue;
 
-            const int id = getIntanChipId(
-                delayDataBlock.get(), headstages[hs]->getStreamIndex(0), register59Value);
+            const int id = getIntanChipId(delayDataBlock.get(), headstages[hs]->getStreamIndex(0), register59Value);
 
             if (id == CHIP_ID_RHD2132 || id == CHIP_ID_RHD2216
                 || (id == CHIP_ID_RHD2164 && register59Value == REGISTER_59_MISO_A)) {
@@ -532,10 +536,8 @@ void AcqBoardONI::updateRegisters()
     }
 
     settings.dsp.cutoffFreq = chipRegisters.setDspCutoffFreq(settings.dsp.cutoffFreq);
-    settings.analogFilter.lowerBandwidth =
-        chipRegisters.setLowerBandwidth(settings.analogFilter.lowerBandwidth);
-    settings.analogFilter.upperBandwidth =
-        chipRegisters.setUpperBandwidth(settings.analogFilter.upperBandwidth);
+    settings.analogFilter.lowerBandwidth = chipRegisters.setLowerBandwidth(settings.analogFilter.lowerBandwidth);
+    settings.analogFilter.upperBandwidth = chipRegisters.setUpperBandwidth(settings.analogFilter.upperBandwidth);
     chipRegisters.enableDsp(settings.dsp.enabled);
 
     chipRegisters.enableAux1(settings.acquireAux);
@@ -558,13 +560,21 @@ void AcqBoardONI::updateRegisters()
 
     chipRegisters.setFastSettle(false);
     evalBoard->selectAuxCommandBank(
-        Rhd2000ONIBoard::PortA, Rhd2000ONIBoard::AuxCmd3, settings.fastSettleEnabled ? 2 : 1);
+        Rhd2000ONIBoard::PortA,
+        Rhd2000ONIBoard::AuxCmd3,
+        settings.fastSettleEnabled ? 2 : 1);
     evalBoard->selectAuxCommandBank(
-        Rhd2000ONIBoard::PortB, Rhd2000ONIBoard::AuxCmd3, settings.fastSettleEnabled ? 2 : 1);
+        Rhd2000ONIBoard::PortB,
+        Rhd2000ONIBoard::AuxCmd3,
+        settings.fastSettleEnabled ? 2 : 1);
     evalBoard->selectAuxCommandBank(
-        Rhd2000ONIBoard::PortC, Rhd2000ONIBoard::AuxCmd3, settings.fastSettleEnabled ? 2 : 1);
+        Rhd2000ONIBoard::PortC,
+        Rhd2000ONIBoard::AuxCmd3,
+        settings.fastSettleEnabled ? 2 : 1);
     evalBoard->selectAuxCommandBank(
-        Rhd2000ONIBoard::PortD, Rhd2000ONIBoard::AuxCmd3, settings.fastSettleEnabled ? 2 : 1);
+        Rhd2000ONIBoard::PortD,
+        Rhd2000ONIBoard::AuxCmd3,
+        settings.fastSettleEnabled ? 2 : 1);
 }
 
 int AcqBoardONI::getIntanChipId(Rhd2000ONIDataBlock *dataBlock, int stream, int &register59Value)
@@ -573,12 +583,9 @@ int AcqBoardONI::getIntanChipId(Rhd2000ONIDataBlock *dataBlock, int stream, int 
         return 0;
 
     const bool intanChipPresent =
-        ((char)dataBlock->auxiliaryData[stream][2][32] == 'I'
-         && (char)dataBlock->auxiliaryData[stream][2][33] == 'N'
-         && (char)dataBlock->auxiliaryData[stream][2][34] == 'T'
-         && (char)dataBlock->auxiliaryData[stream][2][35] == 'A'
-         && (char)dataBlock->auxiliaryData[stream][2][36] == 'N'
-         && (char)dataBlock->auxiliaryData[stream][2][24] == 'R'
+        ((char)dataBlock->auxiliaryData[stream][2][32] == 'I' && (char)dataBlock->auxiliaryData[stream][2][33] == 'N'
+         && (char)dataBlock->auxiliaryData[stream][2][34] == 'T' && (char)dataBlock->auxiliaryData[stream][2][35] == 'A'
+         && (char)dataBlock->auxiliaryData[stream][2][36] == 'N' && (char)dataBlock->auxiliaryData[stream][2][24] == 'R'
          && (char)dataBlock->auxiliaryData[stream][2][25] == 'H'
          && (char)dataBlock->auxiliaryData[stream][2][26] == 'D');
 
@@ -617,8 +624,7 @@ void AcqBoardONI::scanPortsInThread()
 
             if (hasBNO[i]) {
                 if (headstageId[i] == 0) {
-                    LOG_DEBUG(m_log,
-                              "Found headstage with BNO but no EEPROM. Assuming low-profile 3D headstage.");
+                    LOG_DEBUG(m_log, "Found headstage with BNO but no EEPROM. Assuming low-profile 3D headstage.");
                     evalBoard->setBnoAxisMap(i, 0b00100100);
                 } else {
                     std::stringstream ss;
@@ -700,7 +706,8 @@ void AcqBoardONI::scanPortsInThread()
     evalBoard->setContinuousRunMode(false);
 
     auto scanDataBlock = std::make_unique<Rhd2000ONIDataBlock>(
-        evalBoard->getNumEnabledDataStreams(), evalBoard->isUSB3());
+        evalBoard->getNumEnabledDataStreams(),
+        evalBoard->isUSB3());
 
     std::vector<int> sumGoodDelays(8, 0);
     std::vector<int> indexFirstGoodDelay(8, -1);
@@ -724,8 +731,7 @@ void AcqBoardONI::scanPortsInThread()
         }
 
         for (size_t hs = 0; hs < headstages.size(); ++hs) {
-            const int id =
-                getIntanChipId(scanDataBlock.get(), static_cast<int>(hs), register59Value);
+            const int id = getIntanChipId(scanDataBlock.get(), static_cast<int>(hs), register59Value);
 
             if (id == CHIP_ID_RHD2132 || id == CHIP_ID_RHD2216
                 || (id == CHIP_ID_RHD2164 && register59Value == REGISTER_59_MISO_A)) {
@@ -819,13 +825,7 @@ void AcqBoardONI::setCableLength(int hsNum, float length)
 
 bool AcqBoardONI::enableHeadstage(int hsNum, bool enabled, int nStr, int strChans, bool hasBno)
 {
-    LOG_DEBUG(
-        m_log,
-        "Headstage {}, enabled: {}, num streams: {}, stream channels: {}",
-        hsNum,
-        enabled,
-        nStr,
-        strChans);
+    LOG_DEBUG(m_log, "Headstage {}, enabled: {}, num streams: {}, stream channels: {}", hsNum, enabled, nStr, strChans);
 
     if (enabled) {
         headstages[hsNum]->setFirstChannel(getNumDataOutputs(ChannelKind::Electrode));
@@ -1089,8 +1089,7 @@ bool AcqBoardONI::isReady()
 
 bool AcqBoardONI::startAcquisition()
 {
-    dataBlock.reset(
-        new Rhd2000ONIDataBlock(evalBoard->getNumEnabledDataStreams(), evalBoard->isUSB3()));
+    dataBlock.reset(new Rhd2000ONIDataBlock(evalBoard->getNumEnabledDataStreams(), evalBoard->isUSB3()));
 
     LOG_DEBUG(m_log, "Expecting {} channels.", getNumChannels());
 
@@ -1102,8 +1101,7 @@ bool AcqBoardONI::startAcquisition()
     LOG_DEBUG(m_log, "Starting board");
     evalBoard->run();
 
-    blockSize = dataBlock->calculateDataBlockSizeInWords(
-        evalBoard->getNumEnabledDataStreams(), evalBoard->isUSB3());
+    blockSize = dataBlock->calculateDataBlockSizeInWords(evalBoard->getNumEnabledDataStreams(), evalBoard->isUSB3());
 
     isTransmitting = true;
     dataSampleNumber = 0;
@@ -1152,8 +1150,7 @@ bool AcqBoardONI::pumpSamples(std::span<AcqSampleChunk> sinks)
             continue;
         }
         sink.numSamples = nSamps;
-        const std::size_t needed =
-            static_cast<std::size_t>(nSamps) * static_cast<std::size_t>(sink.channelsPerSample);
+        const std::size_t needed = static_cast<std::size_t>(nSamps) * static_cast<std::size_t>(sink.channelsPerSample);
         if (sink.samples.size() < needed)
             sink.samples.resize(needed);
         if (sink.sampleIndices.size() < static_cast<std::size_t>(nSamps))
@@ -1175,12 +1172,9 @@ bool AcqBoardONI::pumpSamples(std::span<AcqSampleChunk> sinks)
             // Memory-monitor frames are converted into a status-message string
             // routed up to the module so it can show buffer fill % live.
             if (frame->dev_idx == Rhd2000ONIBoard::DEVICE_MEMORY && totalMemory > 0) {
-                const auto *data = static_cast<const uint32_t *>(
-                    static_cast<const void *>(frame->data));
-                const float memPct = 100.0f * static_cast<float>(*(data + 2))
-                                     / static_cast<float>(totalMemory);
-                if (m_lastReportedMemPct < 0.0f
-                    || std::abs(memPct - m_lastReportedMemPct) >= 1.0f) {
+                const auto *data = static_cast<const uint32_t *>(static_cast<const void *>(frame->data));
+                const float memPct = 100.0f * static_cast<float>(*(data + 2)) / static_cast<float>(totalMemory);
+                if (m_lastReportedMemPct < 0.0f || std::abs(memPct - m_lastReportedMemPct) >= 1.0f) {
                     emitMessage(MessageSeverity::Info, std::format("buffer:{}%", Syntalos::numToString(memPct)));
                     m_lastReportedMemPct = memPct;
                 }
@@ -1208,9 +1202,9 @@ bool AcqBoardONI::pumpSamples(std::span<AcqSampleChunk> sinks)
 
         index += 8; // magic-number header width
         const uint32_t rhythmSampleNum = Rhd2000ONIDataBlock::convertUsbTimeStamp(bufferPtr, index);
-        index += 4; // timestamp width
-        int auxIndex = index;          // aux chans start at this offset
-        index += 6 * numStreams;       // 3 aux chans * 2 bytes * numStreams
+        index += 4;              // timestamp width
+        int auxIndex = index;    // aux chans start at this offset
+        index += 6 * numStreams; // 3 aux chans * 2 bytes * numStreams
 
         // ---- electrode channels into the per-headstage chunks ----
         // We populate `thisSample` interleaved exactly like upstream so the AUX/ADC
@@ -1224,25 +1218,24 @@ bool AcqBoardONI::pumpSamples(std::span<AcqSampleChunk> sinks)
 
             for (int chan = 0; chan < nChans; chan++) {
                 channel++;
-                thisSample[channel] =
-                    static_cast<float>(*reinterpret_cast<uint16_t *>(bufferPtr + chanIndex) - 32768)
-                    * 0.195f;
+                thisSample[channel] = static_cast<float>(*reinterpret_cast<uint16_t *>(bufferPtr + chanIndex) - 32768)
+                                      * 0.195f;
                 chanIndex += 2 * numStreams; // single-chan stride (2 bytes * numStreams)
             }
         }
 
-        index += 64 * numStreams;        // neural-data width
-        auxIndex += 2 * numStreams;      // skip AuxCmd1 slots
+        index += 64 * numStreams;   // neural-data width
+        auxIndex += 2 * numStreams; // skip AuxCmd1 slots
 
         if (settings.acquireAux) {
             for (int dataStream = 0; dataStream < numStreams; dataStream++) {
                 if (chipId[dataStream] != CHIP_ID_RHD2164_B) {
                     const int auxNum = (rhythmSampleNum + 3) % 4;
                     if (auxNum < 3)
-                        auxSamples[dataStream][auxNum] =
-                            static_cast<float>(
-                                *reinterpret_cast<uint16_t *>(bufferPtr + auxIndex) - 32768)
-                            * 0.0000374f;
+                        auxSamples[dataStream][auxNum] = static_cast<float>(
+                                                             *reinterpret_cast<uint16_t *>(bufferPtr + auxIndex)
+                                                             - 32768)
+                                                         * 0.0000374f;
                     for (int chan = 0; chan < 3; chan++) {
                         channel++;
                         if (auxNum == 3)
@@ -1297,8 +1290,7 @@ bool AcqBoardONI::pumpSamples(std::span<AcqSampleChunk> sinks)
 
                 const int row = samp;
                 const int cps = sink.channelsPerSample;
-                uint16_t *out = sink.samples.data()
-                                + static_cast<std::size_t>(row) * static_cast<std::size_t>(cps);
+                uint16_t *out = sink.samples.data() + static_cast<std::size_t>(row) * static_cast<std::size_t>(cps);
                 sink.sampleIndices[row] = static_cast<uint64_t>(dataSampleNumber);
 
                 if (sink.kind == ChannelKind::Electrode) {
@@ -1320,8 +1312,7 @@ bool AcqBoardONI::pumpSamples(std::span<AcqSampleChunk> sinks)
                         if (chipId[stream] == CHIP_ID_RHD2132 && nChans == 16)
                             chanIndex += 2 * RHD2132_16CH_OFFSET * numStreams;
                         for (int chan = 0; chan < nChans && chanCol < cps; chan++) {
-                            out[chanCol++] =
-                                *reinterpret_cast<uint16_t *>(bufferPtr + chanIndex);
+                            out[chanCol++] = *reinterpret_cast<uint16_t *>(bufferPtr + chanIndex);
                             chanIndex += 2 * numStreams;
                         }
                     }
@@ -1369,8 +1360,7 @@ bool AcqBoardONI::pumpSamples(std::span<AcqSampleChunk> sinks)
 
             const int row = samp;
             const int cps = sink.channelsPerSample;
-            uint16_t *out = sink.samples.data()
-                            + static_cast<std::size_t>(row) * static_cast<std::size_t>(cps);
+            uint16_t *out = sink.samples.data() + static_cast<std::size_t>(row) * static_cast<std::size_t>(cps);
             sink.sampleIndices[row] = static_cast<uint64_t>(dataSampleNumber);
 
             for (int adcChan = 0; adcChan < cps && adcChan < 8; ++adcChan)
@@ -1488,8 +1478,7 @@ int AcqBoardONI::getChannelFromHeadstage(int hs, int ch)
     if (hs == static_cast<int>(headstages.size())) {
         const int adcOutputs = getNumDataOutputs(ChannelKind::Adc);
         if (adcOutputs > 0)
-            return getNumDataOutputs(ChannelKind::Electrode)
-                   + getNumDataOutputs(ChannelKind::Aux) + ch;
+            return getNumDataOutputs(ChannelKind::Electrode) + getNumDataOutputs(ChannelKind::Aux) + ch;
         return -1;
     }
     if (headstages[hs]->isConnected()) {
@@ -1555,8 +1544,7 @@ bool AcqBoardONI::getMemoryMonitorSupport() const
     return hasMemoryMonitorSupport;
 }
 
-bool AcqBoardONI::CheckSemVer(
-    int major, int minor, int patch, int targetMajor, int targetMinor, int targetPatch)
+bool AcqBoardONI::CheckSemVer(int major, int minor, int patch, int targetMajor, int targetMinor, int targetPatch)
 {
     if (major > targetMajor)
         return true;

@@ -117,7 +117,10 @@ static QString sliceJournalMessages(JournalCollector &journal)
         const auto entry = msgEntries[i];
         report += QStringLiteral("%1 %2 [%3]: %4\n")
                       .arg(
-                          entry.time.toString(Qt::ISODate), QString::number(entry.priority), entry.unit, entry.message);
+                          entry.time.toString(Qt::ISODate),
+                          QString::number(entry.priority),
+                          entry.unit,
+                          entry.message);
     }
     if (msgEntries.length() > MAX_LOG_ENTRIES_IN_REPORT)
         report += QStringLiteral("\n- List truncated, included only the last %1 entries.\n")
@@ -320,7 +323,9 @@ void CrashReportDialog::on_nextButton_clicked()
         QFile file(fileName);
         if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
             QMessageBox::warning(
-                this, "Unable to save file", QStringLiteral("Failed to save file: %1").arg(file.errorString()));
+                this,
+                "Unable to save file",
+                QStringLiteral("Failed to save file: %1").arg(file.errorString()));
             return;
         }
 

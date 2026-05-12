@@ -113,7 +113,9 @@ bool PyWorker::initPythonInterpreter()
     PyConfig config;
     PyConfig_InitPythonConfig(&config);
     auto status = PyConfig_SetString(
-        &config, &config.program_name, QCoreApplication::arguments()[0].toStdWString().c_str());
+        &config,
+        &config.program_name,
+        QCoreApplication::arguments()[0].toStdWString().c_str());
     if (PyStatus_Exception(status)) {
         QTimer::singleShot(0, this, [this, status]() {
             raiseError(std::format("Unable to set Python program name: {}", status.err_msg));
@@ -129,7 +131,9 @@ bool PyWorker::initPythonInterpreter()
     if (!venvDir.isEmpty()) {
         qCDebug(logPyWorker).noquote() << "Using virtual environment:" << venvDir;
         status = PyConfig_SetString(
-            &config, &config.program_name, QDir(venvDir).filePath("bin/python").toStdWString().c_str());
+            &config,
+            &config.program_name,
+            QDir(venvDir).filePath("bin/python").toStdWString().c_str());
         if (PyStatus_Exception(status)) {
             QTimer::singleShot(0, this, [this, status]() {
                 raiseError(std::format("Unable to set Python program name: {}", status.err_msg));

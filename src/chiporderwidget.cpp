@@ -238,7 +238,10 @@ void ChipOrderWidget::paintEvent(QPaintEvent *event)
     constexpr int indicatorWidth = 4;
     const int indicatorHeight = qMax(10, height() - 4);
     const QRect indicatorRect(
-        indicatorX - (indicatorWidth / 2), (height() - indicatorHeight) / 2, indicatorWidth, indicatorHeight);
+        indicatorX - (indicatorWidth / 2),
+        (height() - indicatorHeight) / 2,
+        indicatorWidth,
+        indicatorHeight);
     painter.drawRoundedRect(indicatorRect, 2, 2);
 }
 

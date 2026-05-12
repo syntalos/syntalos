@@ -139,7 +139,8 @@ public:
                 if (!m_channelEnabled[ch])
                     continue;
                 m_channelStreams[ch] = registerOutputPort<Frame>(
-                    QStringLiteral("frames-") + QString::fromUtf8(CHAN_IDS[ch]), QString::fromUtf8(CHAN_TITLES[ch]));
+                    QStringLiteral("frames-") + QString::fromUtf8(CHAN_IDS[ch]),
+                    QString::fromUtf8(CHAN_TITLES[ch]));
             }
             break;
 
@@ -148,7 +149,8 @@ public:
                 if (!m_channelEnabled[ch])
                     continue;
                 m_channelInputs[ch] = registerInputPort<Frame>(
-                    QStringLiteral("frames-") + QString::fromUtf8(CHAN_IDS[ch]), QString::fromUtf8(CHAN_TITLES[ch]));
+                    QStringLiteral("frames-") + QString::fromUtf8(CHAN_IDS[ch]),
+                    QString::fromUtf8(CHAN_TITLES[ch]));
             }
             m_combinedOut = registerOutputPort<Frame>(QStringLiteral("frames-out"), QStringLiteral("Combined"));
             break;

@@ -759,9 +759,11 @@ private:
     QString streamDebugId()
     {
         const auto modName = m_metadata.valueOr<std::string>(
-            _commonMetadataKeyMap->value(CommonMetadataKey::SrcModName), "unknown-module");
+            _commonMetadataKeyMap->value(CommonMetadataKey::SrcModName),
+            "unknown-module");
         const auto portName = m_metadata.valueOr<std::string>(
-            _commonMetadataKeyMap->value(CommonMetadataKey::SrcModPortTitle), "unknown-port");
+            _commonMetadataKeyMap->value(CommonMetadataKey::SrcModPortTitle),
+            "unknown-port");
         const auto dataTypeStr = dataTypeName().toStdString();
         return QString::fromStdString(modName + "▶ " + portName + "[" + dataTypeStr + "]");
     }

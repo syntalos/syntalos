@@ -48,9 +48,11 @@ public:
         : AbstractModule(parent)
     {
         m_paStream = registerOutputPort<FloatSignalBlock>(
-            QStringLiteral("sensor-data-pressure"), QStringLiteral("Pressure Data"));
+            QStringLiteral("sensor-data-pressure"),
+            QStringLiteral("Pressure Data"));
         m_tempStream = registerOutputPort<FloatSignalBlock>(
-            QStringLiteral("sensor-data-temperature"), QStringLiteral("Temperature Data"));
+            QStringLiteral("sensor-data-temperature"),
+            QStringLiteral("Temperature Data"));
 
         m_settingsDlg = new SP210SettingsDialog;
         addSettingsWindow(m_settingsDlg);
@@ -195,7 +197,8 @@ public:
 
             QByteArray sensorDataRaw;
             auto dataRecvTime = FUNC_DONE_TIMESTAMP(
-                m_syTimer->startTime(), sensorDataRaw = serial.readLine().trimmed());
+                m_syTimer->startTime(),
+                sensorDataRaw = serial.readLine().trimmed());
             if (sensorDataRaw.isEmpty() || !sensorDataRaw.startsWith("D:"))
                 continue;
 

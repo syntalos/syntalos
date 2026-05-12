@@ -45,10 +45,8 @@ void OeAcqSettingsDialog::buildUi()
     auto backendForm = new QFormLayout(backendGroup);
 
     m_backendCombo = new QComboBox(backendGroup);
-    m_backendCombo->addItem(
-        QStringLiteral("Auto-detect (use device if connected)"), static_cast<int>(BackendAuto));
-    m_backendCombo->addItem(
-        QStringLiteral("Open Ephys Acquisition Board"), static_cast<int>(BackendDevice));
+    m_backendCombo->addItem(QStringLiteral("Auto-detect (use device if connected)"), static_cast<int>(BackendAuto));
+    m_backendCombo->addItem(QStringLiteral("Open Ephys Acquisition Board"), static_cast<int>(BackendDevice));
     m_backendCombo->addItem(QStringLiteral("Simulated"), static_cast<int>(BackendSimulated));
     backendForm->addRow(QStringLiteral("Backend:"), m_backendCombo);
 
@@ -132,19 +130,14 @@ void OeAcqSettingsDialog::buildUi()
         emit namingSchemeChanged(m_namingCombo->currentData().toInt());
     });
     connect(m_scanButton, &QPushButton::clicked, this, &OeAcqSettingsDialog::rescanRequested);
-    connect(
-        m_impedanceButton,
-        &QPushButton::clicked,
-        this,
-        &OeAcqSettingsDialog::measureImpedancesRequested);
+    connect(m_impedanceButton, &QPushButton::clicked, this, &OeAcqSettingsDialog::measureImpedancesRequested);
 
     connect(m_backendCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int) {
         if (!m_emitSignals)
             return;
         emit backendChoiceChanged(m_backendCombo->currentData().toInt());
     });
-    connect(
-        m_reconnectButton, &QPushButton::clicked, this, &OeAcqSettingsDialog::reconnectRequested);
+    connect(m_reconnectButton, &QPushButton::clicked, this, &OeAcqSettingsDialog::reconnectRequested);
 }
 
 void OeAcqSettingsDialog::setAvailableSampleRates(const std::vector<int> &ratesHz)

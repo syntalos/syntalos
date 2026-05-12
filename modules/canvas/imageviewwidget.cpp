@@ -389,7 +389,15 @@ void ImageViewWidget::renderImage()
             // Warm-up: upload this frame directly so no garbage is shown, then fill PBO[0]
             // so the regular double-buffered pipeline can start on the very next frame.
             glTexSubImage2D(
-                GL_TEXTURE_2D, 0, 0, 0, imgWidth, imgHeight, d->textureFormat, d->textureDataType, d->glImage.data);
+                GL_TEXTURE_2D,
+                0,
+                0,
+                0,
+                imgWidth,
+                imgHeight,
+                d->textureFormat,
+                d->textureDataType,
+                d->glImage.data);
 
             glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[0]);
             auto *ptr = static_cast<GLubyte *>(glMapBufferRange(
@@ -433,7 +441,15 @@ void ImageViewWidget::renderImage()
     } else {
         // Direct texture upload (no PBO support)
         glTexSubImage2D(
-            GL_TEXTURE_2D, 0, 0, 0, imgWidth, imgHeight, d->textureFormat, d->textureDataType, d->glImage.data);
+            GL_TEXTURE_2D,
+            0,
+            0,
+            0,
+            imgWidth,
+            imgHeight,
+            d->textureFormat,
+            d->textureDataType,
+            d->glImage.data);
     }
 
     // Render

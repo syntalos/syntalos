@@ -27,7 +27,10 @@ public:
         // Register some example ports
         m_tabOut = registerOutputPortOrAbort<TableRow>("table-out", "Example Out");
         m_tabIn = registerInputPortOrAbort<TableRow>(
-            "table-in", "Example In", this, &ExampleModule::onTableDataReceived);
+            "table-in",
+            "Example In",
+            this,
+            &ExampleModule::onTableDataReceived);
 
         // notify that initialization is done and the module is idle now
         setState(ModuleState::IDLE);

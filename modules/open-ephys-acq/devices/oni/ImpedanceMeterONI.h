@@ -50,7 +50,7 @@ private:
     void restoreBoardSettings();
 
     /** Returns the magnitude and phase (in degrees) of a selected frequency component (in Hz)
-	        for a selected amplifier channel on the selected USB data stream.*/
+                for a selected amplifier channel on the selected USB data stream.*/
     void measureComplexAmplitude(
         std::vector<std::vector<std::vector<double>>> &measuredMagnitude,
         std::vector<std::vector<std::vector<double>>> &measuredPhase,
@@ -63,7 +63,7 @@ private:
         int numPeriods);
 
     /** Returns the real and imaginary amplitudes of a selected frequency component in the vector
-		    data, between a start index and end index. */
+                    data, between a start index and end index. */
     void amplitudeOfFreqComponent(
         double &realComponent,
         double &imagComponent,
@@ -74,9 +74,9 @@ private:
         double frequency);
 
     /** Given a measured complex impedance that is the result of an electrode impedance in parallel
-		    with a parasitic capacitance (i.e., due to the amplifier input capacitance and other
-		    capacitances associated with the chip bondpads), this function factors out the effect of the
-		    parasitic capacitance to return the acutal electrode impedance. */
+                    with a parasitic capacitance (i.e., due to the amplifier input capacitance and other
+                    capacitances associated with the chip bondpads), this function factors out the effect of the
+                    parasitic capacitance to return the acutal electrode impedance. */
     void factorOutParallelCapacitance(
         double &impedanceMagnitude,
         double &impedancePhase,
@@ -84,29 +84,23 @@ private:
         double parasiticCapacitance);
 
     /** This is a purely empirical function to correct observed errors in the real component
-		    of measured electrode impedances at sampling rates below 15 kS/s.  At low sampling rates,
-		    it is difficult to approximate a smooth sine wave with the on-chip voltage DAC and 10 kHz
-		    2-pole lowpass filter.  This function attempts to somewhat correct for this, but a better
-		    solution is to always run impedance measurements at 20 kS/s, where they seem to be most
-		    accurate. */
-    void empiricalResistanceCorrection(
-        double &impedanceMagnitude,
-        double &impedancePhase,
-        double boardSampleRate);
+                    of measured electrode impedances at sampling rates below 15 kS/s.  At low sampling rates,
+                    it is difficult to approximate a smooth sine wave with the on-chip voltage DAC and 10 kHz
+                    2-pole lowpass filter.  This function attempts to somewhat correct for this, but a better
+                    solution is to always run impedance measurements at 20 kS/s, where they seem to be most
+                    accurate. */
+    void empiricalResistanceCorrection(double &impedanceMagnitude, double &impedancePhase, double boardSampleRate);
 
     /** Updates electrode impedance measurement frequency, after checking that
-		    requested test frequency lies within acceptable ranges based on the
-		    amplifier bandwidth and the sampling rate.  See impedancefreqdialog.cpp
-			for more information.*/
+                    requested test frequency lies within acceptable ranges based on the
+                    amplifier bandwidth and the sampling rate.  See impedancefreqdialog.cpp
+                        for more information.*/
     float updateImpedanceFrequency(float desiredImpedanceFreq, bool &impedanceFreqValid);
 
     /** Reads numBlocks blocks of raw USB data stored in a queue of Rhd2000DataBlock
             objects, loads this data into this SignalProcessor object, scaling the raw
-			data to generate waveforms with units of volts or microvolts.*/
-    int loadAmplifierData(
-        std::queue<Rhd2000ONIDataBlock> &dataQueue,
-        int numBlocks,
-        int numDataStreams);
+                        data to generate waveforms with units of volts or microvolts.*/
+    int loadAmplifierData(std::queue<Rhd2000ONIDataBlock> &dataQueue, int numBlocks, int numDataStreams);
 
     std::vector<std::vector<std::vector<double>>> amplifierPreFilter;
 

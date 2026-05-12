@@ -60,9 +60,7 @@ constexpr int kHeadstageAuxChannels = 3;
 
 QString headstagePortTitle(const std::string &prefix, int chanCount)
 {
-    return QStringLiteral("Headstage %1 - %2 ch")
-        .arg(QString::fromStdString(prefix))
-        .arg(chanCount);
+    return QStringLiteral("Headstage %1 - %2 ch").arg(QString::fromStdString(prefix)).arg(chanCount);
 }
 
 QString auxPortTitle(const std::string &prefix)
@@ -110,8 +108,7 @@ public:
         // LineCommand WriteDigitalPulse events here to fire one of the
         // board's digital output lines for the given duration. Other
         // command kinds are accepted but only pulses are honored.
-        m_ttlIn = registerInputPort<LineCommand>(
-            QStringLiteral("ttl-in"), QStringLiteral("TTL Triggers"));
+        m_ttlIn = registerInputPort<LineCommand>(QStringLiteral("ttl-in"), QStringLiteral("TTL Triggers"));
 
         // Build the settings dialog once we know what the board can offer.
         m_settingsDlg = new OeAcqSettingsDialog;
@@ -162,20 +159,16 @@ public:
             setupBackend(/*reconnectingFromUi=*/true);
         });
 
-        connect(
-            m_settingsDlg,
-            &OeAcqSettingsDialog::measureImpedancesRequested,
-            this,
-            [this]() {
-                if (!m_board || m_running)
-                    return;
-                OeAcqImpedanceDialog dlg(m_board.get(), m_settingsDlg);
-                dlg.exec();
-                // Refresh the headstage summary — channel impedance values
-                // changed on each Headstage, the textual summary doesn't, but
-                // a future dialog may want to surface "scan ran at <time>".
-                m_settingsDlg->setHeadstageSummary(m_board->getHeadstages());
-            });
+        connect(m_settingsDlg, &OeAcqSettingsDialog::measureImpedancesRequested, this, [this]() {
+            if (!m_board || m_running)
+                return;
+            OeAcqImpedanceDialog dlg(m_board.get(), m_settingsDlg);
+            dlg.exec();
+            // Refresh the headstage summary — channel impedance values
+            // changed on each Headstage, the textual summary doesn't, but
+            // a future dialog may want to surface "scan ran at <time>".
+            m_settingsDlg->setHeadstageSummary(m_board->getHeadstages());
+        });
 
         addSettingsWindow(m_settingsDlg);
         return true;
@@ -202,8 +195,7 @@ public:
 
         const auto headstages = m_board->getHeadstages();
         if (headstages.empty()) {
-            raiseError(QStringLiteral(
-                "No connected headstages were detected. Cannot start acquisition."));
+            raiseError(QStringLiteral("No connected headstages were detected. Cannot start acquisition."));
             return false;
         }
 
@@ -286,16 +278,15 @@ public:
                 // both row-major (samples × channels), so this is an int32
                 // widen on every cell.
                 for (int s = 0; s < n; ++s) {
-                    const uint16_t *row =
-                        chunk.samples.data() + static_cast<size_t>(s) * cps;
+                    const uint16_t *row = chunk.samples.data() + static_cast<size_t>(s) * cps;
                     for (int c = 0; c < cps; ++c)
                         g.block->data(s, c) = static_cast<int32_t>(row[c]);
                     g.block->timestamps(s) = chunk.sampleIndices[s];
                 }
 
                 if (m_clockSync) {
-                    m_clockSync->processTimestamps(
-                        blockRecvTime, /* blockIndex */ 0, /* blockCount */ 1, g.block->timestamps);
+                    m_clockSync
+                        ->processTimestamps(blockRecvTime, /* blockIndex */ 0, /* blockCount */ 1, g.block->timestamps);
                 }
 
                 g.stream->push(*g.block);
@@ -326,13 +317,9 @@ public:
         switch (fc.kind) {
         case LineCommandKind::WRITE_DIGITAL_PULSE: {
             const int line = static_cast<int>(fc.lineId);
-            const auto durMs = std::max<int64_t>(
-                1, std::chrono::duration_cast<milliseconds_t>(fc.duration).count());
+            const auto durMs = std::max<int64_t>(1, std::chrono::duration_cast<milliseconds_t>(fc.duration).count());
             if (line < 0 || line >= 16) {
-                LOG_WARNING(
-                    m_log,
-                    "TTL pulse for line {} ignored: only lines 0..15 are valid.",
-                    line);
+                LOG_WARNING(m_log, "TTL pulse for line {} ignored: only lines 0..15 are valid.", line);
                 return;
             }
             m_board->triggerDigitalOutput(line, static_cast<int>(durMs));
@@ -378,10 +365,7 @@ public:
         m_acquireAdc = settings.value(QStringLiteral("acquire_adc"), false).toBool();
         m_namingScheme = static_cast<ChannelNamingScheme>(
             settings.value(QStringLiteral("naming_scheme"), static_cast<int>(GLOBAL_INDEX)).toInt());
-        m_backendChoice = settings
-                              .value(
-                                  QStringLiteral("backend"),
-                                  static_cast<int>(OeAcqSettingsDialog::BackendAuto))
+        m_backendChoice = settings.value(QStringLiteral("backend"), static_cast<int>(OeAcqSettingsDialog::BackendAuto))
                               .toInt();
 
         if (m_settingsDlg) {
@@ -419,8 +403,8 @@ private:
         }
 
         const int choice = m_backendChoice;
-        const bool wantDevice = (choice == OeAcqSettingsDialog::BackendAuto
-                                 || choice == OeAcqSettingsDialog::BackendDevice);
+        const bool
+            wantDevice = (choice == OeAcqSettingsDialog::BackendAuto || choice == OeAcqSettingsDialog::BackendDevice);
         const bool deviceMandatory = (choice == OeAcqSettingsDialog::BackendDevice);
 
         // Drop the previous board (if any) so its FT600/USB resources are
@@ -433,8 +417,8 @@ private:
         if (wantDevice) {
             auto oni = std::make_unique<AcqBoardONI>();
             oni->setMessageCallback([this](AcquisitionBoard::MessageSeverity sev, const std::string &msg) {
-            handleBoardMessage(sev, msg);
-        });
+                handleBoardMessage(sev, msg);
+            });
             if (oni->detectBoard()) {
                 next = std::move(oni);
                 LOG_INFO(m_log, "Using ONI Acquisition Board backend.");
@@ -445,9 +429,7 @@ private:
                     "was detected. Falling back to the simulated backend; press "
                     "\"Reconnect\" once the board is plugged in.");
             } else {
-                LOG_INFO(
-                    m_log,
-                    "No ONI Acquisition Board detected; using simulated backend.");
+                LOG_INFO(m_log, "No ONI Acquisition Board detected; using simulated backend.");
             }
         }
 
@@ -455,8 +437,8 @@ private:
             // Either user explicitly chose Simulated, or device probe failed.
             auto sim = std::make_unique<AcqBoardSim>();
             sim->setMessageCallback([this](AcquisitionBoard::MessageSeverity sev, const std::string &msg) {
-            handleBoardMessage(sev, msg);
-        });
+                handleBoardMessage(sev, msg);
+            });
             if (!sim->detectBoard()) {
                 if (!reconnectingFromUi)
                     raiseError(QStringLiteral(
@@ -469,8 +451,7 @@ private:
 
         if (!next->initializeBoard()) {
             if (!reconnectingFromUi)
-                raiseError(
-                    QStringLiteral("Failed to initialize the Open Ephys Acquisition Board."));
+                raiseError(QStringLiteral("Failed to initialize the Open Ephys Acquisition Board."));
             return false;
         }
         next->scanPorts();
@@ -559,12 +540,7 @@ private:
                     return;
                 }
 
-                QMessageBox box(
-                    QMessageBox::Warning,
-                    name(),
-                    msg,
-                    QMessageBox::Ok,
-                    m_settingsDlg);
+                QMessageBox box(QMessageBox::Warning, name(), msg, QMessageBox::Ok, m_settingsDlg);
                 box.setTextFormat(Qt::RichText);
                 box.setTextInteractionFlags(Qt::TextBrowserInteraction);
                 box.exec();
@@ -577,14 +553,11 @@ private:
     {
         // Soft / hard thresholds: above 50% the buffer is filling; above 75%
         // the host can't keep up and data loss is imminent.
-        const QString fmt =
-            pct < 50.0f
-                ? QStringLiteral("Buffer: %1%")
-            : pct < 75.0f
-                ? QStringLiteral("<html><font color=\"#aa6500\">Buffer:</font> %1%")
-                : QStringLiteral(
-                      "<html><font color=\"red\">Buffer:</font> %1% <small>"
-                      "<font color=\"red\">— host falling behind</font></small>");
+        const QString fmt = pct < 50.0f   ? QStringLiteral("Buffer: %1%")
+                            : pct < 75.0f ? QStringLiteral("<html><font color=\"#aa6500\">Buffer:</font> %1%")
+                                          : QStringLiteral(
+                                                "<html><font color=\"red\">Buffer:</font> %1% <small>"
+                                                "<font color=\"red\">— host falling behind</font></small>");
         setStatusMessage(fmt.arg(pct, 0, 'f', 1));
     }
 
@@ -640,7 +613,8 @@ private:
                 g.channelsPerSample = chanCount;
                 g.portId = QStringLiteral("hs-%1").arg(prefixLower);
                 g.stream = registerOutputPort<IntSignalBlock>(
-                    g.portId, headstagePortTitle(hs->getStreamPrefix(), chanCount));
+                    g.portId,
+                    headstagePortTitle(hs->getStreamPrefix(), chanCount));
 
                 g.channelNames.reserve(chanCount);
                 for (int c = 0; c < chanCount; ++c)
@@ -659,8 +633,7 @@ private:
                 g.streamPrefix = prefix;
                 g.channelsPerSample = kHeadstageAuxChannels;
                 g.portId = QStringLiteral("hs-%1-aux").arg(prefixLower);
-                g.stream = registerOutputPort<IntSignalBlock>(
-                    g.portId, auxPortTitle(hs->getStreamPrefix()));
+                g.stream = registerOutputPort<IntSignalBlock>(g.portId, auxPortTitle(hs->getStreamPrefix()));
 
                 g.channelNames = {
                     hs->getStreamPrefix() + "_AUX1",
@@ -738,8 +711,7 @@ private:
             g.stream->setMetadataValue("sample_rate", static_cast<double>(sampleRate));
             g.stream->setMetadataValue("time_unit", std::string{"index"});
             g.stream->setMetadataValue("data_unit", std::string{"raw_uint16"});
-            g.stream->setMetadataValue(
-                "bit_volts", static_cast<double>(m_board->getBitVolts(g.kind)));
+            g.stream->setMetadataValue("bit_volts", static_cast<double>(m_board->getBitVolts(g.kind)));
             g.stream->setMetadataValue("signal_names", namesMeta);
         }
     }

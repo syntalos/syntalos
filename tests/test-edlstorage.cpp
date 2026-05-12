@@ -188,8 +188,8 @@ private slots:
 
     void runUtilsSortTest()
     {
-        std::vector<std::string> files{
-            "test_1.mkv", "test_2.mkv", "test_9.mkv", "test_07.mkv", "test_10.mkv", "test_11.mkv", "test_8.mkv"};
+        std::vector<std::string>
+            files{"test_1.mkv", "test_2.mkv", "test_9.mkv", "test_07.mkv", "test_10.mkv", "test_11.mkv", "test_8.mkv"};
         edl::naturalNumListSort(files);
         QCOMPARE(files[0], "test_07.mkv");
         QCOMPARE(files[1], "test_1.mkv");

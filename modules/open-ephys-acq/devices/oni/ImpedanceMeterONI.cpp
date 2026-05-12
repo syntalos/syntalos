@@ -26,12 +26,12 @@
 #include <cmath>
 #include <vector>
 
-#define PI 3.14159265359
-#define TWO_PI 6.28318530718
+#define PI                 3.14159265359
+#define TWO_PI             6.28318530718
 #define DEGREES_TO_RADIANS 0.0174532925199
 #define RADIANS_TO_DEGREES 57.2957795132
 
-#define CHECK_EXIT  \
+#define CHECK_EXIT    \
     if (shouldStop()) \
     return
 
@@ -83,8 +83,7 @@ float ImpedanceMeterONI::updateImpedanceFrequency(float desiredImpedanceFreq, bo
     return actualImpedanceFreq;
 }
 
-int ImpedanceMeterONI::loadAmplifierData(
-    std::queue<Rhd2000ONIDataBlock> &dataQueue, int numBlocks, int numDataStreams)
+int ImpedanceMeterONI::loadAmplifierData(std::queue<Rhd2000ONIDataBlock> &dataQueue, int numBlocks, int numDataStreams)
 {
     int block, t, channel, stream;
     int indexAmp = 0;
@@ -95,8 +94,9 @@ int ImpedanceMeterONI::loadAmplifierData(
             for (channel = 0; channel < 32; ++channel) {
                 for (stream = 0; stream < numDataStreams; ++stream) {
                     // Amplifier waveform units = microvolts.
-                    amplifierPreFilter[stream][channel][indexAmp] =
-                        0.195 * (dataQueue.front().amplifierData[stream][channel][t] - 32768);
+                    amplifierPreFilter[stream][channel]
+                                      [indexAmp] = 0.195
+                                                   * (dataQueue.front().amplifierData[stream][channel][t] - 32768);
                 }
             }
             ++indexAmp;
@@ -133,12 +133,16 @@ void ImpedanceMeterONI::measureComplexAmplitude(
 
     // Measure real (iComponent) and imaginary (qComponent) amplitude of frequency component.
     amplitudeOfFreqComponent(
-        iComponent, qComponent, amplifierPreFilter[stream][chipChannel], startIndex, endIndex, sampleRate, frequency);
+        iComponent,
+        qComponent,
+        amplifierPreFilter[stream][chipChannel],
+        startIndex,
+        endIndex,
+        sampleRate,
+        frequency);
     // Calculate magnitude and phase from real (I) and imaginary (Q) components.
-    measuredMagnitude[stream][chipChannel][capIndex] =
-        std::sqrt(iComponent * iComponent + qComponent * qComponent);
-    measuredPhase[stream][chipChannel][capIndex] =
-        RADIANS_TO_DEGREES * std::atan2(qComponent, iComponent);
+    measuredMagnitude[stream][chipChannel][capIndex] = std::sqrt(iComponent * iComponent + qComponent * qComponent);
+    measuredPhase[stream][chipChannel][capIndex] = RADIANS_TO_DEGREES * std::atan2(qComponent, iComponent);
 }
 
 void ImpedanceMeterONI::amplitudeOfFreqComponent(
@@ -168,7 +172,10 @@ void ImpedanceMeterONI::amplitudeOfFreqComponent(
 }
 
 void ImpedanceMeterONI::factorOutParallelCapacitance(
-    double &impedanceMagnitude, double &impedancePhase, double frequency, double parasiticCapacitance)
+    double &impedanceMagnitude,
+    double &impedancePhase,
+    double frequency,
+    double parasiticCapacitance)
 {
     // First, convert from polar coordinates to rectangular coordinates.
     double measuredR = impedanceMagnitude * std::cos(DEGREES_TO_RADIANS * impedancePhase);
@@ -186,16 +193,16 @@ void ImpedanceMeterONI::factorOutParallelCapacitance(
 }
 
 void ImpedanceMeterONI::empiricalResistanceCorrection(
-    double &impedanceMagnitude, double &impedancePhase, double boardSampleRate)
+    double &impedanceMagnitude,
+    double &impedancePhase,
+    double boardSampleRate)
 {
     // First, convert from polar coordinates to rectangular coordinates.
     double impedanceR = impedanceMagnitude * std::cos(DEGREES_TO_RADIANS * impedancePhase);
     double impedanceX = impedanceMagnitude * std::sin(DEGREES_TO_RADIANS * impedancePhase);
 
     // Empirically derived correction factor (i.e., no physical basis for this equation).
-    impedanceR /= 10.0 * std::exp(-boardSampleRate / 2500.0)
-                      * std::cos(TWO_PI * boardSampleRate / 15000.0)
-                  + 1.0;
+    impedanceR /= 10.0 * std::exp(-boardSampleRate / 2500.0) * std::cos(TWO_PI * boardSampleRate / 15000.0) + 1.0;
 
     // Now, convert from rectangular coordinates back to polar coordinates.
     impedanceMagnitude = std::sqrt(impedanceR * impedanceR + impedanceX * impedanceX);
@@ -272,13 +279,14 @@ void ImpedanceMeterONI::runImpedanceMeasurementInternal(Impedances &impedances)
     }
 
     // Create a command list for the AuxCmd1 slot.
-    commandSequenceLength =
-        acquisitionBoard->chipRegisters.createCommandListZcheckDac(commandList, actualImpedanceFreq, 128.0);
+    commandSequenceLength = acquisitionBoard->chipRegisters.createCommandListZcheckDac(
+        commandList,
+        actualImpedanceFreq,
+        128.0);
     CHECK_EXIT;
     LOG_DEBUG(m_log, "ImpedanceMeterONI: Updating command list");
     acquisitionBoard->evalBoard->uploadCommandList(commandList, Rhd2000ONIBoard::AuxCmd1, 1);
-    acquisitionBoard->evalBoard->selectAuxCommandLength(
-        Rhd2000ONIBoard::AuxCmd1, 0, commandSequenceLength - 1);
+    acquisitionBoard->evalBoard->selectAuxCommandLength(Rhd2000ONIBoard::AuxCmd1, 0, commandSequenceLength - 1);
 
     if (acquisitionBoard->settings.fastTTLSettleEnabled) {
         acquisitionBoard->evalBoard->enableExternalFastSettle(false);
@@ -304,12 +312,12 @@ void ImpedanceMeterONI::runImpedanceMeasurementInternal(Impedances &impedances)
     LOG_DEBUG(m_log, "ImpedanceMeterONI: Padded numBlocks = {}", numBlocks);
 
     CHECK_EXIT;
-    acquisitionBoard->settings.dsp.cutoffFreq =
-        acquisitionBoard->chipRegisters.setDspCutoffFreq(acquisitionBoard->settings.dsp.cutoffFreq);
-    acquisitionBoard->settings.analogFilter.lowerBandwidth =
-        acquisitionBoard->chipRegisters.setLowerBandwidth(acquisitionBoard->settings.analogFilter.lowerBandwidth);
-    acquisitionBoard->settings.analogFilter.upperBandwidth =
-        acquisitionBoard->chipRegisters.setUpperBandwidth(acquisitionBoard->settings.analogFilter.upperBandwidth);
+    acquisitionBoard->settings.dsp.cutoffFreq = acquisitionBoard->chipRegisters.setDspCutoffFreq(
+        acquisitionBoard->settings.dsp.cutoffFreq);
+    acquisitionBoard->settings.analogFilter.lowerBandwidth = acquisitionBoard->chipRegisters.setLowerBandwidth(
+        acquisitionBoard->settings.analogFilter.lowerBandwidth);
+    acquisitionBoard->settings.analogFilter.upperBandwidth = acquisitionBoard->chipRegisters.setUpperBandwidth(
+        acquisitionBoard->settings.analogFilter.upperBandwidth);
     acquisitionBoard->chipRegisters.enableDsp(acquisitionBoard->settings.dsp.enabled);
     acquisitionBoard->chipRegisters.enableZcheck(true);
     LOG_DEBUG(m_log, "ImpedanceMeterONI: Z check enabled");
@@ -318,8 +326,7 @@ void ImpedanceMeterONI::runImpedanceMeasurementInternal(Impedances &impedances)
     CHECK_EXIT;
     // Upload version with no ADC calibration to AuxCmd3 RAM Bank 1.
     acquisitionBoard->evalBoard->uploadCommandList(commandList, Rhd2000ONIBoard::AuxCmd3, 3);
-    acquisitionBoard->evalBoard->selectAuxCommandLength(
-        Rhd2000ONIBoard::AuxCmd3, 0, commandSequenceLength - 1);
+    acquisitionBoard->evalBoard->selectAuxCommandLength(Rhd2000ONIBoard::AuxCmd3, 0, commandSequenceLength - 1);
     acquisitionBoard->evalBoard->selectAuxCommandBank(Rhd2000ONIBoard::PortA, Rhd2000ONIBoard::AuxCmd3, 3);
     acquisitionBoard->evalBoard->selectAuxCommandBank(Rhd2000ONIBoard::PortB, Rhd2000ONIBoard::AuxCmd3, 3);
     acquisitionBoard->evalBoard->selectAuxCommandBank(Rhd2000ONIBoard::PortC, Rhd2000ONIBoard::AuxCmd3, 3);
@@ -354,7 +361,7 @@ void ImpedanceMeterONI::runImpedanceMeasurementInternal(Impedances &impedances)
 
     const double bestAmplitude = 250.0; // we favor voltage readings closest to 250 µV: not too large, not too small
     const double dacVoltageAmplitude = 128 * (1.225 / 256); // assumes the DAC amplitude was set to 128
-    const double parasiticCapacitance = 14.0e-12; // 14 pF: estimate of on-chip parasitic capacitance
+    const double parasiticCapacitance = 14.0e-12;           // 14 pF: estimate of on-chip parasitic capacitance
     double relativeFreq = actualImpedanceFreq / acquisitionBoard->settings.boardSampleRate;
 
     int bestAmplitudeIndex;
@@ -383,8 +390,7 @@ void ImpedanceMeterONI::runImpedanceMeasurementInternal(Impedances &impedances)
             CHECK_EXIT;
 
             acquisitionBoard->chipRegisters.setZcheckChannel(channel);
-            commandSequenceLength =
-                acquisitionBoard->chipRegisters.createCommandListRegisterConfig(commandList, false);
+            commandSequenceLength = acquisitionBoard->chipRegisters.createCommandListRegisterConfig(commandList, false);
             // Upload version with no ADC calibration to AuxCmd3 RAM Bank 1.
             acquisitionBoard->evalBoard->uploadCommandList(commandList, Rhd2000ONIBoard::AuxCmd3, 3);
 
@@ -401,8 +407,7 @@ void ImpedanceMeterONI::runImpedanceMeasurementInternal(Impedances &impedances)
 
             for (stream = 0; stream < numdataStreams; ++stream) {
                 reportProgress(
-                    static_cast<double>(capRange) / 3.0
-                    + (static_cast<double>(channel) / 32.0 / 3.0)
+                    static_cast<double>(capRange) / 3.0 + (static_cast<double>(channel) / 32.0 / 3.0)
                     + (static_cast<double>(stream) / static_cast<double>(numdataStreams) / 32.0 / 3.0));
 
                 if (acquisitionBoard->chipId[stream] != CHIP_ID_RHD2164_B) {
@@ -424,8 +429,9 @@ void ImpedanceMeterONI::runImpedanceMeasurementInternal(Impedances &impedances)
             if (rhd2164ChipPresent) {
                 CHECK_EXIT;
                 acquisitionBoard->chipRegisters.setZcheckChannel(channel + 32); // address channels 32-63
-                commandSequenceLength =
-                    acquisitionBoard->chipRegisters.createCommandListRegisterConfig(commandList, false);
+                commandSequenceLength = acquisitionBoard->chipRegisters.createCommandListRegisterConfig(
+                    commandList,
+                    false);
                 acquisitionBoard->evalBoard->uploadCommandList(commandList, Rhd2000ONIBoard::AuxCmd3, 3);
 
                 acquisitionBoard->evalBoard->run();
@@ -470,8 +476,7 @@ void ImpedanceMeterONI::runImpedanceMeasurementInternal(Impedances &impedances)
             minDistance = 9.9e99; // ridiculously large number
             for (capRange = 0; capRange < 3; ++capRange) {
                 // Find the measured amplitude that is closest to bestAmplitude on a logarithmic scale
-                distance =
-                    std::abs(std::log(measuredMagnitude[stream][channel + chOffset][capRange] / bestAmplitude));
+                distance = std::abs(std::log(measuredMagnitude[stream][channel + chOffset][capRange] / bestAmplitude));
                 if (distance < minDistance) {
                     bestAmplitudeIndex = capRange;
                     minDistance = distance;
@@ -493,20 +498,21 @@ void ImpedanceMeterONI::runImpedanceMeasurementInternal(Impedances &impedances)
             current = TWO_PI * actualImpedanceFreq * dacVoltageAmplitude * Cseries;
 
             // Calculate impedance magnitude from calculated current and measured voltage.
-            impedanceMagnitude = 1.0e-6
-                                 * (measuredMagnitude[stream][channel + chOffset][bestAmplitudeIndex] / current)
+            impedanceMagnitude = 1.0e-6 * (measuredMagnitude[stream][channel + chOffset][bestAmplitudeIndex] / current)
                                  * (18.0 * relativeFreq * relativeFreq + 1.0);
 
             // Calculate impedance phase, with small correction factor accounting for the
             // 3-command SPI pipeline delay.
-            impedancePhase =
-                measuredPhase[stream][channel + chOffset][bestAmplitudeIndex] + (360.0 * (3.0 / period));
+            impedancePhase = measuredPhase[stream][channel + chOffset][bestAmplitudeIndex] + (360.0 * (3.0 / period));
 
             // Factor out on-chip parasitic capacitance from impedance measurement.
             factorOutParallelCapacitance(impedanceMagnitude, impedancePhase, actualImpedanceFreq, parasiticCapacitance);
 
             // Perform empirical resistance correction to improve accuracy at sample rates below 15 kS/s.
-            empiricalResistanceCorrection(impedanceMagnitude, impedancePhase, acquisitionBoard->settings.boardSampleRate);
+            empiricalResistanceCorrection(
+                impedanceMagnitude,
+                impedancePhase,
+                acquisitionBoard->settings.boardSampleRate);
 
             impedances.streams.push_back(enabledStreams[stream]);
             impedances.channels.push_back(channel + chOffset);
@@ -532,13 +538,21 @@ void ImpedanceMeterONI::restoreBoardSettings()
     acquisitionBoard->evalBoard->selectAuxCommandLength(Rhd2000ONIBoard::AuxCmd1, 0, 1);
 
     acquisitionBoard->evalBoard->selectAuxCommandBank(
-        Rhd2000ONIBoard::PortA, Rhd2000ONIBoard::AuxCmd3, acquisitionBoard->settings.fastSettleEnabled ? 2 : 1);
+        Rhd2000ONIBoard::PortA,
+        Rhd2000ONIBoard::AuxCmd3,
+        acquisitionBoard->settings.fastSettleEnabled ? 2 : 1);
     acquisitionBoard->evalBoard->selectAuxCommandBank(
-        Rhd2000ONIBoard::PortB, Rhd2000ONIBoard::AuxCmd3, acquisitionBoard->settings.fastSettleEnabled ? 2 : 1);
+        Rhd2000ONIBoard::PortB,
+        Rhd2000ONIBoard::AuxCmd3,
+        acquisitionBoard->settings.fastSettleEnabled ? 2 : 1);
     acquisitionBoard->evalBoard->selectAuxCommandBank(
-        Rhd2000ONIBoard::PortC, Rhd2000ONIBoard::AuxCmd3, acquisitionBoard->settings.fastSettleEnabled ? 2 : 1);
+        Rhd2000ONIBoard::PortC,
+        Rhd2000ONIBoard::AuxCmd3,
+        acquisitionBoard->settings.fastSettleEnabled ? 2 : 1);
     acquisitionBoard->evalBoard->selectAuxCommandBank(
-        Rhd2000ONIBoard::PortD, Rhd2000ONIBoard::AuxCmd3, acquisitionBoard->settings.fastSettleEnabled ? 2 : 1);
+        Rhd2000ONIBoard::PortD,
+        Rhd2000ONIBoard::AuxCmd3,
+        acquisitionBoard->settings.fastSettleEnabled ? 2 : 1);
 
     if (acquisitionBoard->settings.fastTTLSettleEnabled) {
         acquisitionBoard->evalBoard->enableExternalFastSettle(true);

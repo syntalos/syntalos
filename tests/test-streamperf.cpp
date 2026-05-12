@@ -227,10 +227,16 @@ private slots:
                 // we connect half of the regular consumers to the producer, the rest goes to the transformer
                 if ((i % 2) == 0)
                     threads.emplace_back(
-                        consumer_fast, std::string("consumer_raw_") + std::to_string(i), &barrier, prodStream.get());
+                        consumer_fast,
+                        std::string("consumer_raw_") + std::to_string(i),
+                        &barrier,
+                        prodStream.get());
                 else
                     threads.emplace_back(
-                        consumer_fast, std::string("consumer_tf_") + std::to_string(i), &barrier, transStream.get());
+                        consumer_fast,
+                        std::string("consumer_tf_") + std::to_string(i),
+                        &barrier,
+                        transStream.get());
             }
 
             std::cout << "Running " << threads.size() << " threads." << std::endl;

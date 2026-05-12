@@ -34,7 +34,9 @@ static void test_metasize_not_aliased_when_cast_with_reference_policy()
     source["size"] = MetaSize(640, 480);
 
     auto pyObjHandle = py::detail::type_caster<MetaStringMap>::cast(
-        source, py::return_value_policy::reference_internal, py::none());
+        source,
+        py::return_value_policy::reference_internal,
+        py::none());
     py::dict pyMap = py::reinterpret_steal<py::dict>(pyObjHandle);
 
     auto &sizeInSource = std::get<MetaSize>(static_cast<MetaValue::Base &>(source["size"]));

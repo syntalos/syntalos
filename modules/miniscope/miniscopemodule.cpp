@@ -62,7 +62,8 @@ public:
         m_rawOut = registerOutputPort<Frame>(QStringLiteral("frames-raw-out"), QStringLiteral("Raw Frames"));
         m_dispOut = registerOutputPort<Frame>(QStringLiteral("frames-disp-out"), QStringLiteral("Display Frames"));
         m_bnoVecOut = registerOutputPort<FloatSignalBlock>(
-            QStringLiteral("bno-raw-out"), QStringLiteral("Orientation Vector"));
+            QStringLiteral("bno-raw-out"),
+            QStringLiteral("Orientation Vector"));
         m_bnoTabOut = registerOutputPort<TableRow>(QStringLiteral("bno-tab-out"), QStringLiteral("Orientation Rows"));
 
         m_bnoVecOut->setMetadataValue("time_unit", "milliseconds");

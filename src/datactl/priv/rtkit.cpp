@@ -298,7 +298,9 @@ int64_t RtKit::getIntProperty(const std::string &propName, bool *ok)
             }
         } else if (error != nullptr) {
             m_lastError = std::format(
-                "Realtime Portal property DBus request for '{}' failed: {}", propName, error->message);
+                "Realtime Portal property DBus request for '{}' failed: {}",
+                propName,
+                error->message);
         }
     }
 
@@ -326,7 +328,9 @@ int64_t RtKit::getIntProperty(const std::string &propName, bool *ok)
                 }
 
                 m_lastError = std::format(
-                    "RtKit property '{}' has unsupported type '{}'.", propName, g_variant_get_type_string(variant));
+                    "RtKit property '{}' has unsupported type '{}'.",
+                    propName,
+                    g_variant_get_type_string(variant));
                 if (ok != nullptr)
                     (*ok) = false;
             } else {
@@ -384,7 +388,10 @@ bool setCurrentThreadRealtime(int priority)
     const auto maxRTPrio = rtkit.queryMaxRealtimePriority();
     if (priority > maxRTPrio) {
         SY_LOG_INFO(
-            logRtKit, "Unable to set thread realtime priority to {}, clamped to max value {}", priority, maxRTPrio);
+            logRtKit,
+            "Unable to set thread realtime priority to {}, clamped to max value {}",
+            priority,
+            maxRTPrio);
         priority = maxRTPrio;
     }
 

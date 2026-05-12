@@ -118,10 +118,12 @@ public:
         try {
             const auto kindByte = static_cast<uint8_t>(kind);
             ctrlSend->send(
-                zmq::buffer(&kindByte, 1), payload.isEmpty() ? zmq::send_flags::none : zmq::send_flags::sndmore);
+                zmq::buffer(&kindByte, 1),
+                payload.isEmpty() ? zmq::send_flags::none : zmq::send_flags::sndmore);
             if (!payload.isEmpty())
                 ctrlSend->send(
-                    zmq::buffer(payload.constData(), static_cast<size_t>(payload.size())), zmq::send_flags::none);
+                    zmq::buffer(payload.constData(), static_cast<size_t>(payload.size())),
+                    zmq::send_flags::none);
         } catch (const zmq::error_t &e) {
             LOG_WARNING(log, "Control send failed: {}", e.what());
         }

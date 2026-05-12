@@ -81,7 +81,14 @@ public:
 
         bool ok;
         auto intVal = QInputDialog::getInt(
-            nullptr, "Configure Debug Data Source", "Video Framerate", m_fps, 2, 10000, 1, &ok);
+            nullptr,
+            "Configure Debug Data Source",
+            "Video Framerate",
+            m_fps,
+            2,
+            10000,
+            1,
+            &ok);
         if (ok)
             m_fps = intVal;
     }

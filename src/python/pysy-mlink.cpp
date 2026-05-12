@@ -1007,7 +1007,9 @@ PYBIND11_MODULE(syntalos_mlink, m)
      **/
 
     py::enum_<ControlCommandKind>(
-        m, "ControlCommandKind", "The type of a control command sent to controllable modules.")
+        m,
+        "ControlCommandKind",
+        "The type of a control command sent to controllable modules.")
         .value("UNKNOWN", ControlCommandKind::UNKNOWN)
         .value("START", ControlCommandKind::START, "Start an operation.")
         .value("PAUSE", ControlCommandKind::PAUSE, "Pause an operation; can be resumed with ``START``.")
@@ -1025,7 +1027,9 @@ PYBIND11_MODULE(syntalos_mlink, m)
             &ControlCommand::setDuration,
             "Optional duration associated with this command, in milliseconds.")
         .def_readwrite(
-            "command", &ControlCommand::command, "Custom command string (used when ``kind`` is ``CUSTOM``).");
+            "command",
+            &ControlCommand::command,
+            "Custom command string (used when ``kind`` is ``CUSTOM``).");
 
     /**
      ** Line I/O (hardware signal lines)
@@ -1041,7 +1045,10 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .value("DEVICE_SPECIFIC", LineCommandKind::CUSTOM, "Device-defined payload carried in ``extra``.");
 
     py::enum_<LineModeFlag>(
-        m, "LineModeFlags", py::arithmetic(), "Composable mode flags for :class:`LineCommandKind.SET_MODE`.")
+        m,
+        "LineModeFlags",
+        py::arithmetic(),
+        "Composable mode flags for :class:`LineCommandKind.SET_MODE`.")
         .value("NONE", LineModeFlag::NONE)
         .value("IS_INPUT", LineModeFlag::IS_INPUT, "Line is an input.")
         .value("IS_OUTPUT", LineModeFlag::IS_OUTPUT, "Line is an output.")
@@ -1407,7 +1414,9 @@ PYBIND11_MODULE(syntalos_mlink, m)
      */
 
     py::class_<EDLDataset, std::shared_ptr<EDLDataset>>(
-        m, "EdlDataset", "An EDL dataset that holds data files for a modality.")
+        m,
+        "EdlDataset",
+        "An EDL dataset that holds data files for a modality.")
         .def_property_readonly("path", &EDLDataset::path, "Filesystem path of this dataset's directory (pathlib.Path).")
         .def_property_readonly("name", &EDLDataset::name, "Name of this dataset (str).")
         .def_property_readonly("is_empty", &EDLDataset::isEmpty, "True if no data file has been registered yet.")
@@ -1465,7 +1474,9 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "Set an attribute on this dataset.");
 
     py::class_<EDLGroup, std::shared_ptr<EDLGroup>>(
-        m, "EdlGroup", "An EDL group that can contain datasets and sub-groups.")
+        m,
+        "EdlGroup",
+        "An EDL group that can contain datasets and sub-groups.")
         .def_property_readonly("path", &EDLGroup::path, "Filesystem path of this group (pathlib.Path).")
         .def_property_readonly("name", &EDLGroup::name, "Name of this group (str).")
         .def(

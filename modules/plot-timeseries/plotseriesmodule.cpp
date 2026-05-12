@@ -110,14 +110,16 @@ public:
 
             if (port->dataTypeName() == "FloatSignalBlock") {
                 PlotSubscriptionDetails<FloatSignalBlock> sdF(
-                    std::static_pointer_cast<StreamInputPort<FloatSignalBlock>>(port), plotWidget);
+                    std::static_pointer_cast<StreamInputPort<FloatSignalBlock>>(port),
+                    plotWidget);
                 m_fpSubs.push_back(sdF);
 
                 // prevent receiving more than 4k items/s to safeguard a bit against overflows
                 sdF.sub->setThrottleItemsPerSec(4000);
             } else if (port->dataTypeName() == "IntSignalBlock") {
                 PlotSubscriptionDetails<IntSignalBlock> sdI(
-                    std::static_pointer_cast<StreamInputPort<IntSignalBlock>>(port), plotWidget);
+                    std::static_pointer_cast<StreamInputPort<IntSignalBlock>>(port),
+                    plotWidget);
                 m_intSubs.push_back(sdI);
 
                 // prevent receiving more than 4k items/s

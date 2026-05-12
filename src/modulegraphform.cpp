@@ -373,7 +373,10 @@ void ModuleGraphForm::on_graphPortsConnected(FlowGraphNodePort *port1, FlowGraph
 
     if (!inPort->acceptsSubscription(outPort->dataTypeName())) {
         LOG_WARNING(
-            m_log, "Tried to connect incompatible ports. ({} → {})", outPort->dataTypeName(), inPort->dataTypeName());
+            m_log,
+            "Tried to connect incompatible ports. ({} → {})",
+            outPort->dataTypeName(),
+            inPort->dataTypeName());
         ui->graphView->disconnectItems(port1, port2);
         return;
     }
@@ -399,7 +402,8 @@ void ModuleGraphForm::on_graphPortsDisconnected(FlowGraphNodePort *port1, FlowGr
     // sanity check
     if (!m_modifyPossible) {
         LOG_CRITICAL(
-            m_log, "Disconnected ports in graph UI although board modifications were prohibited. This is a bug.");
+            m_log,
+            "Disconnected ports in graph UI although board modifications were prohibited. This is a bug.");
         return;
     }
 
@@ -533,7 +537,8 @@ void ModuleGraphForm::on_modulePortConfigChanged()
                 otherPort = conn->port2();
 
             m_connMemory[mod->name() + port->streamPort()->id()] = qMakePair(
-                otherPort->portNode(), otherPort->streamPort()->id());
+                otherPort->portNode(),
+                otherPort->streamPort()->id());
         }
     }
 

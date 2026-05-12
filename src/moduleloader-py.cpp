@@ -95,7 +95,9 @@ public:
             return true;
 
         QMessageBox::warning(
-            nullptr, QStringLiteral("Failed to create virtual environment for %1").arg(id()), result.error());
+            nullptr,
+            QStringLiteral("Failed to create virtual environment for %1").arg(id()),
+            result.error());
         return false;
     }
 

@@ -113,9 +113,10 @@ void OeAcqImpedanceDialog::buildUi()
     auto root = new QVBoxLayout(this);
 
     m_statusLabel = new QLabel(
-        QStringLiteral("Press <b>Start scan</b> to measure impedances on all connected channels.\n"
-           "The board will be temporarily reconfigured (30 kHz sample rate, "
-           "default bandwidths, DSP off) and restored afterwards."),
+        QStringLiteral(
+            "Press <b>Start scan</b> to measure impedances on all connected channels.\n"
+            "The board will be temporarily reconfigured (30 kHz sample rate, "
+            "default bandwidths, DSP off) and restored afterwards."),
         this);
     m_statusLabel->setWordWrap(true);
     root->addWidget(m_statusLabel);
@@ -128,7 +129,10 @@ void OeAcqImpedanceDialog::buildUi()
     m_resultsTable = new QTableWidget(this);
     m_resultsTable->setColumnCount(4);
     m_resultsTable->setHorizontalHeaderLabels(
-        {QStringLiteral("Stream"), QStringLiteral("Channel"), QStringLiteral("Magnitude"), QStringLiteral("Phase (°)")});
+        {QStringLiteral("Stream"),
+         QStringLiteral("Channel"),
+         QStringLiteral("Magnitude"),
+         QStringLiteral("Phase (°)")});
     m_resultsTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     m_resultsTable->verticalHeader()->setVisible(false);
     m_resultsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
@@ -199,15 +203,14 @@ void OeAcqImpedanceDialog::onStartClicked()
     m_statusLabel->setText(QStringLiteral("Scanning… please wait."));
 
     // Hook the meter's progress callback up to a queued connection.
-    m_board->setImpedanceProgressCallback(
-        [this](double frac, const std::string &status) {
-            QMetaObject::invokeMethod(
-                this,
-                [this, frac, status]() {
-                    onProgress(frac, QString::fromStdString(status));
-                },
-                Qt::QueuedConnection);
-        });
+    m_board->setImpedanceProgressCallback([this](double frac, const std::string &status) {
+        QMetaObject::invokeMethod(
+            this,
+            [this, frac, status]() {
+                onProgress(frac, QString::fromStdString(status));
+            },
+            Qt::QueuedConnection);
+    });
 
     auto worker = new ImpedanceWorker(m_board);
     m_worker = new QThread(this);
@@ -273,8 +276,7 @@ void OeAcqImpedanceDialog::populateResults()
     for (int i = 0; i < n; ++i) {
         m_resultsTable->setItem(i, 0, new QTableWidgetItem(QString::number(imps.streams[i])));
         m_resultsTable->setItem(i, 1, new QTableWidgetItem(QString::number(imps.channels[i])));
-        m_resultsTable->setItem(
-            i, 2, new QTableWidgetItem(fmtMagnitude(static_cast<double>(imps.magnitudes[i]))));
+        m_resultsTable->setItem(i, 2, new QTableWidgetItem(fmtMagnitude(static_cast<double>(imps.magnitudes[i]))));
         m_resultsTable->setItem(
             i,
             3,
@@ -299,17 +301,12 @@ void OeAcqImpedanceDialog::onSaveAsClicked()
 
     const QByteArray xml = serializeImpedancesXml();
     if (xml.isEmpty()) {
-        QMessageBox::warning(
-            this,
-            "Save Impedance Measurements",
-            "No impedance data is available to save.");
+        QMessageBox::warning(this, "Save Impedance Measurements", "No impedance data is available to save.");
         return;
     }
 
     QSaveFile f(path);
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)
-        || f.write(xml) != xml.size()
-        || !f.commit()) {
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate) || f.write(xml) != xml.size() || !f.commit()) {
         QMessageBox::critical(
             this,
             "Save Impedance Measurements",
@@ -340,18 +337,14 @@ QByteArray OeAcqImpedanceDialog::serializeImpedancesXml() const
         if (!hs || !hs->isConnected())
             continue;
         w.writeStartElement(QStringLiteral("HEADSTAGE"));
-        w.writeAttribute(
-            QStringLiteral("name"), QString::fromStdString(hs->getStreamPrefix()));
+        w.writeAttribute(QStringLiteral("name"), QString::fromStdString(hs->getStreamPrefix()));
         for (int ch = 0; ch < hs->getNumActiveChannels(); ch++) {
             globalChannelNumber++;
             w.writeStartElement(QStringLiteral("CHANNEL"));
-            w.writeAttribute(
-                QStringLiteral("name"), QString::fromStdString(hs->getChannelName(ch)));
+            w.writeAttribute(QStringLiteral("name"), QString::fromStdString(hs->getChannelName(ch)));
             w.writeAttribute(QStringLiteral("number"), QString::number(globalChannelNumber));
-            w.writeAttribute(
-                QStringLiteral("magnitude"), QString::number(hs->getImpedanceMagnitude(ch)));
-            w.writeAttribute(
-                QStringLiteral("phase"), QString::number(hs->getImpedancePhase(ch)));
+            w.writeAttribute(QStringLiteral("magnitude"), QString::number(hs->getImpedanceMagnitude(ch)));
+            w.writeAttribute(QStringLiteral("phase"), QString::number(hs->getImpedancePhase(ch)));
             w.writeEndElement(); // CHANNEL
         }
         w.writeEndElement(); // HEADSTAGE

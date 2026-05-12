@@ -367,7 +367,10 @@ private:
 
         // we also always forward output to the log when running under gdb
         m_outFwdConn = connect(
-            this, &MLinkModule::processOutputReceived, this, [this](OutChannelType channel, const QString &data) {
+            this,
+            &MLinkModule::processOutputReceived,
+            this,
+            [this](OutChannelType channel, const QString &data) {
                 if (channel == OutChannelType::ChannelStdout)
                     LOG_RUNTIME_METADATA(m_log, quill::LogLevel::Info, "stdout-gdb", 0, "", "{}", data);
                 else

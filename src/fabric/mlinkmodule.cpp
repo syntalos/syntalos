@@ -494,7 +494,9 @@ bool MLinkModule::testIpcApiVersion(bool emitErrors)
         return false;
 
     auto modApiTagResponse = d->callClientSimple<ApiVersionRequest, ApiVersionResponse>(
-        this, API_VERSION_CALL_ID, [&](auto &) {});
+        this,
+        API_VERSION_CALL_ID,
+        [&](auto &) {});
     if (!modApiTagResponse.has_value()) {
         if (emitErrors)
             raiseError(QStringLiteral("Failed to communicate with module process to check API version!"));
@@ -854,7 +856,10 @@ void MLinkModule::serializeSettings(const QString &confBaseDir, QVariantHash &se
     };
 
     auto response = d->callSliceClient<SaveSettingsRequest, SaveSettingsResponse>(
-        this, SAVE_SETTINGS_CALL_ID, ssReq, 15);
+        this,
+        SAVE_SETTINGS_CALL_ID,
+        ssReq,
+        15);
     if (!response.has_value()) {
         LOG_WARNING(m_log, "Failed to save settings (issue communicating with the module). Reusing old settings.");
         extraData = byteVectorToQByteArray(d->settingsReq.data);
@@ -1141,11 +1146,14 @@ void MLinkModule::markIncomingForExport(StreamExporter *exporter)
 
         ConnectInputRequest req;
         req.portId = IoxServiceNameString::from_utf8_null_terminated_unchecked_truncated(
-            iport->id().toUtf8().constData(), iport->id().toUtf8().size());
+            iport->id().toUtf8().constData(),
+            iport->id().toUtf8().size());
         req.instanceId = IoxServiceNameString::from_utf8_null_terminated_unchecked_truncated(
-            details->instanceId.toUtf8().constData(), details->instanceId.toUtf8().size());
+            details->instanceId.toUtf8().constData(),
+            details->instanceId.toUtf8().size());
         req.channelId = IoxServiceNameString::from_utf8_null_terminated_unchecked_truncated(
-            details->channelId.toUtf8().constData(), details->channelId.toUtf8().size());
+            details->channelId.toUtf8().constData(),
+            details->channelId.toUtf8().size());
         req.topology = makeIpcServiceTopology(1, iport->outPort()->streamVar()->subscriberCount());
 
         bool ret = d->callClientSimple<ConnectInputRequest>(this, CONNECT_INPUT_CALL_ID, [&req](auto &payload) {
@@ -1282,7 +1290,11 @@ bool MLinkModule::prepare(const TestSubject &subject)
         .moduleName = name().toStdString(),
     };
     if (!d->callSliceClientSimple(
-            this, PREPARE_RUN_CALL_ID, prepReq, 15, IpcCallFlag::TimeoutIsError | IpcCallFlag::SkipWaitOnError))
+            this,
+            PREPARE_RUN_CALL_ID,
+            prepReq,
+            15,
+            IpcCallFlag::TimeoutIsError | IpcCallFlag::SkipWaitOnError))
         return false;
 
     QElapsedTimer timer;
@@ -1323,8 +1335,9 @@ void MLinkModule::start()
     d->portChangesAllowed = false;
 
     // timestamp when this module was started
-    auto startTimestampUs =
-        std::chrono::duration_cast<std::chrono::microseconds>(m_syTimer->currentTimePoint().time_since_epoch()).count();
+    auto startTimestampUs = std::chrono::duration_cast<std::chrono::microseconds>(
+                                m_syTimer->currentTimePoint().time_since_epoch())
+                                .count();
 
     // update input port metadata if the metadata has changed - this may happen in case of circular module connections
     for (auto &iport : inPorts()) {
@@ -1340,7 +1353,11 @@ void MLinkModule::start()
         req.id = portId;
         req.metadata = mdata;
         if (!d->callSliceClientSimple(
-                this, IN_PORT_UPDATE_METADATA_ID, req, 5, IpcCallFlag::TimeoutIsError | IpcCallFlag::SkipWaitOnError))
+                this,
+                IN_PORT_UPDATE_METADATA_ID,
+                req,
+                5,
+                IpcCallFlag::TimeoutIsError | IpcCallFlag::SkipWaitOnError))
             return;
     }
     d->sentMetadata.clear();

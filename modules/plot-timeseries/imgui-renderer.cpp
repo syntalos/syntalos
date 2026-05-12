@@ -81,8 +81,8 @@ void ImGuiRenderer::initialize(WindowWrapper *window)
     ImGuiIO &io = ImGui::GetIO();
 #ifndef QT_NO_CURSOR
     io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors; // We can honor GetMouseCursor() values (optional)
-    io.BackendFlags |=
-        ImGuiBackendFlags_HasSetMousePos; // We can honor io.WantSetMousePos requests (optional, rarely used)
+    io.BackendFlags |= ImGuiBackendFlags_HasSetMousePos;  // We can honor io.WantSetMousePos requests (optional, rarely
+                                                          // used)
 #endif
     io.BackendPlatformName = "qtimgui";
     io.BackendRendererName = "qtimgui_opengl";
@@ -221,9 +221,11 @@ void ImGuiRenderer::renderDrawList(ImDrawData *draw_data)
             } else {
                 // Project scissor/clipping rectangles into framebuffer space
                 ImVec2 clip_min(
-                    (pcmd->ClipRect.x - clip_off.x) * clip_scale.x, (pcmd->ClipRect.y - clip_off.y) * clip_scale.y);
+                    (pcmd->ClipRect.x - clip_off.x) * clip_scale.x,
+                    (pcmd->ClipRect.y - clip_off.y) * clip_scale.y);
                 ImVec2 clip_max(
-                    (pcmd->ClipRect.z - clip_off.x) * clip_scale.x, (pcmd->ClipRect.w - clip_off.y) * clip_scale.y);
+                    (pcmd->ClipRect.z - clip_off.x) * clip_scale.x,
+                    (pcmd->ClipRect.w - clip_off.y) * clip_scale.y);
                 if (clip_max.x <= clip_min.x || clip_max.y <= clip_min.y)
                     continue;
 
@@ -288,10 +290,12 @@ bool ImGuiRenderer::createFontsTexture()
     unsigned char *pixels;
     int width, height;
     io.Fonts->GetTexDataAsRGBA32(
-        &pixels, &width, &height); // Load as RGBA 32-bits (75% of the memory is wasted, but default font is so small)
-                                   // because it is more likely to be compatible with user's existing shaders. If your
-                                   // ImTextureId represent a higher-level concept than just a GL texture id, consider
-                                   // calling GetTexDataAsAlpha8() instead to save on GPU memory.
+        &pixels,
+        &width,
+        &height); // Load as RGBA 32-bits (75% of the memory is wasted, but default font is so small)
+                  // because it is more likely to be compatible with user's existing shaders. If your
+                  // ImTextureId represent a higher-level concept than just a GL texture id, consider
+                  // calling GetTexDataAsAlpha8() instead to save on GPU memory.
 
     // Upload texture to graphics system
     GLint last_texture;
@@ -376,11 +380,26 @@ bool ImGuiRenderer::createDeviceObjects()
 
 #define OFFSETOF(TYPE, ELEMENT) ((size_t)&(((TYPE *)0)->ELEMENT))
     glVertexAttribPointer(
-        g_AttribLocationPosition, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), (GLvoid *)OFFSETOF(ImDrawVert, pos));
+        g_AttribLocationPosition,
+        2,
+        GL_FLOAT,
+        GL_FALSE,
+        sizeof(ImDrawVert),
+        (GLvoid *)OFFSETOF(ImDrawVert, pos));
     glVertexAttribPointer(
-        g_AttribLocationUV, 2, GL_FLOAT, GL_FALSE, sizeof(ImDrawVert), (GLvoid *)OFFSETOF(ImDrawVert, uv));
+        g_AttribLocationUV,
+        2,
+        GL_FLOAT,
+        GL_FALSE,
+        sizeof(ImDrawVert),
+        (GLvoid *)OFFSETOF(ImDrawVert, uv));
     glVertexAttribPointer(
-        g_AttribLocationColor, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(ImDrawVert), (GLvoid *)OFFSETOF(ImDrawVert, col));
+        g_AttribLocationColor,
+        4,
+        GL_UNSIGNED_BYTE,
+        GL_TRUE,
+        sizeof(ImDrawVert),
+        (GLvoid *)OFFSETOF(ImDrawVert, col));
 #undef OFFSETOF
 
     createFontsTexture();

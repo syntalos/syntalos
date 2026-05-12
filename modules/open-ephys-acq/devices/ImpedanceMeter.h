@@ -32,8 +32,8 @@
 struct Impedances {
     std::vector<int> streams;
     std::vector<int> channels;
-    std::vector<float> magnitudes;  // Ohms
-    std::vector<float> phases;      // degrees
+    std::vector<float> magnitudes; // Ohms
+    std::vector<float> phases;     // degrees
     bool valid = false;
 };
 
@@ -87,7 +87,10 @@ protected:
 
     /** Allocate a 3-D array of doubles (helper). */
     static void allocateDoubleArray3D(
-        std::vector<std::vector<std::vector<double>>> &array3D, int xSize, int ySize, int zSize)
+        std::vector<std::vector<std::vector<double>>> &array3D,
+        int xSize,
+        int ySize,
+        int zSize)
     {
         if (xSize == 0)
             return;

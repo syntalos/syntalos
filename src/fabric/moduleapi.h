@@ -67,12 +67,12 @@ class StreamOutputPort;
  */
 enum class ModuleFeature {
     NONE = 0,
-    SHOW_SETTINGS = 1 << 0,  /// Module can display a settings window
-    SHOW_DISPLAY = 1 << 1,   /// Module has one or more display window(s) to show
-    REALTIME = 1 << 2,       /// Enable realtime scheduling for the module's thread
-    CALL_UI_EVENTS = 1 << 3, /// Call direct UI events processing method
-    REQUEST_CPU_AFFINITY =
-        1 << 4, /// Pin the module's thread to a separate CPU core, if possible (even if the user disabled this)
+    SHOW_SETTINGS = 1 << 0,        /// Module can display a settings window
+    SHOW_DISPLAY = 1 << 1,         /// Module has one or more display window(s) to show
+    REALTIME = 1 << 2,             /// Enable realtime scheduling for the module's thread
+    CALL_UI_EVENTS = 1 << 3,       /// Call direct UI events processing method
+    REQUEST_CPU_AFFINITY = 1 << 4, /// Pin the module's thread to a separate CPU core, if possible (even if the user
+                                   /// disabled this)
     PROHIBIT_CPU_AFFINITY = 1
                             << 5 /// Never set a core affinity for the thread of this module, even if the user wanted it
 };

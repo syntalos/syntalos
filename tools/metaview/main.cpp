@@ -38,7 +38,9 @@ int main(int argc, char *argv[])
     parser.addVersionOption();
 
     QCommandLineOption tsyncOption(
-        QStringLiteral("tsync"), QStringLiteral("Read data from a time-sync (.tsync) file"), QStringLiteral("file"));
+        QStringLiteral("tsync"),
+        QStringLiteral("Read data from a time-sync (.tsync) file"),
+        QStringLiteral("file"));
     parser.addOption(tsyncOption);
 
     parser.process(a);

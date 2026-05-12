@@ -88,13 +88,7 @@ void AcqBoardSim::scanPorts()
 
 bool AcqBoardSim::enableHeadstage(int hsNum, bool enabled, int nStr, int strChans)
 {
-    LOG_DEBUG(
-        m_log,
-        "Headstage {}, enabled: {}, num streams: {}, stream channels: {}",
-        hsNum,
-        enabled,
-        nStr,
-        strChans);
+    LOG_DEBUG(m_log, "Headstage {}, enabled: {}, num streams: {}, stream channels: {}", hsNum, enabled, nStr, strChans);
 
     if (enabled) {
         headstages[hsNum]->setFirstChannel(getNumDataOutputs(ChannelKind::Electrode));
@@ -199,16 +193,14 @@ bool AcqBoardSim::pumpSamples(std::span<AcqSampleChunk> sinks)
     const auto wantAdc = settings.acquireAdc;
 
     for (auto &sink : sinks) {
-        const bool active = (sink.kind == ChannelKind::Electrode)
-                            || (sink.kind == ChannelKind::Aux && wantAux)
+        const bool active = (sink.kind == ChannelKind::Electrode) || (sink.kind == ChannelKind::Aux && wantAux)
                             || (sink.kind == ChannelKind::Adc && wantAdc);
         if (!active) {
             sink.numSamples = 0;
             continue;
         }
         sink.numSamples = N;
-        const std::size_t needed =
-            static_cast<std::size_t>(N) * static_cast<std::size_t>(sink.channelsPerSample);
+        const std::size_t needed = static_cast<std::size_t>(N) * static_cast<std::size_t>(sink.channelsPerSample);
         if (sink.samples.size() < needed)
             sink.samples.resize(needed);
         if (sink.sampleIndices.size() < static_cast<std::size_t>(N))
@@ -230,8 +222,7 @@ bool AcqBoardSim::pumpSamples(std::span<AcqSampleChunk> sinks)
             if (sink.numSamples != N)
                 continue;
             sink.sampleIndices[s] = idx;
-            uint16_t *row =
-                sink.samples.data() + static_cast<std::size_t>(s) * sink.channelsPerSample;
+            uint16_t *row = sink.samples.data() + static_cast<std::size_t>(s) * sink.channelsPerSample;
             const int cps = sink.channelsPerSample;
             switch (sink.kind) {
             case ChannelKind::Electrode:
@@ -253,8 +244,8 @@ bool AcqBoardSim::pumpSamples(std::span<AcqSampleChunk> sinks)
 
     // Throttle to roughly real-time so downstream subscribers aren't drowned.
     const auto target = acqStart
-                        + std::chrono::microseconds(static_cast<int64_t>(
-                            (sampleNumber * 1'000'000ULL) / static_cast<uint64_t>(sampleRate)));
+                        + std::chrono::microseconds(
+                            static_cast<int64_t>((sampleNumber * 1'000'000ULL) / static_cast<uint64_t>(sampleRate)));
     const auto now = std::chrono::steady_clock::now();
     if (target > now)
         std::this_thread::sleep_for(target - now);

@@ -88,7 +88,8 @@ private slots:
         const auto expectedMidpoint = std::chrono::round<microseconds_t>((before + after) / 2.0);
         const auto deltaUsec = std::llabs((res - expectedMidpoint).count());
         QVERIFY2(
-            deltaUsec <= 2200, qPrintable(QStringLiteral("timestamp midpoint delta too large: %1 us").arg(deltaUsec)));
+            deltaUsec <= 2200,
+            qPrintable(QStringLiteral("timestamp midpoint delta too large: %1 us").arg(deltaUsec)));
 
         QVERIFY(timer->timeSinceStartMsec().count() >= 512);
     }

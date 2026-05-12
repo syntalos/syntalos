@@ -347,7 +347,8 @@ public:
         auto allPorts = QSerialPortInfo::availablePorts();
         for (auto &port : allPorts) {
             m_serialSelector->addItem(
-                QString("%1 (%2)").arg(port.portName(), port.description()), port.systemLocation());
+                QString("%1 (%2)").arg(port.portName(), port.description()),
+                port.systemLocation());
         }
 
         // select the right port again

@@ -142,7 +142,10 @@ PyVirtualEnvStatus pythonVirtualEnvStatus(const QString &venvName, const QString
     const auto interpreterPath = interpreterPathFromCfg(venvDir);
     if (!interpreterPath.isEmpty() && QFileInfo(interpreterPath).isAbsolute() && !QFileInfo::exists(interpreterPath)) {
         LOG_WARNING(
-            logVEnv, "Base Python interpreter for virtual environment {} is missing: {}", venvName, interpreterPath);
+            logVEnv,
+            "Base Python interpreter for virtual environment {} is missing: {}",
+            venvName,
+            interpreterPath);
         return PyVirtualEnvStatus::INTERPRETER_MISSING;
     }
 
@@ -314,7 +317,10 @@ auto createPythonVirtualEnv(const QString &venvName, const QString &requirements
     shFile.close();
 
     int ret = runInTerminal(
-        tmpCommandFile, QStringList(), venvDir, QStringLiteral("Creating virtual Python environment"));
+        tmpCommandFile,
+        QStringList(),
+        venvDir,
+        QStringLiteral("Creating virtual Python environment"));
 
     shFile.remove();
     tmpReqFile.remove();

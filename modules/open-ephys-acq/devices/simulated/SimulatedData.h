@@ -20,7 +20,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #ifndef __SIMULATEDDATA_H_2C4CBD67__
 #define __SIMULATEDDATA_H_2C4CBD67__
 

@@ -38,10 +38,10 @@
 #include <mutex>
 #include <vector>
 
-#define CHIP_ID_RHD2132   1
-#define CHIP_ID_RHD2216   2
-#define CHIP_ID_RHD2164   4
-#define CHIP_ID_RHD2164_B 1000
+#define CHIP_ID_RHD2132     1
+#define CHIP_ID_RHD2216     2
+#define CHIP_ID_RHD2164     4
+#define CHIP_ID_RHD2164_B   1000
 #define REGISTER_59_MISO_A  53
 #define REGISTER_59_MISO_B  58
 #define RHD2132_16CH_OFFSET 8
@@ -179,8 +179,8 @@ private:
 
     static constexpr int DEVICE_ID_V2 = 0x0100;
     static constexpr int DEVICE_ID_V3 = 0x0102;
-    static constexpr double v3AdcBitVal =
-        ((((1.25 * (1 + 84.5 / 51)) / (1 << 12)) * (10 / (1.25 * (1 + 84.5 / 51)))) / 16);
+    static constexpr double
+        v3AdcBitVal = ((((1.25 * (1 + 84.5 / 51)) / (1 << 12)) * (10 / (1.25 * (1 + 84.5 / 51)))) / 16);
 
     static constexpr int NUMBER_OF_PORTS = 4;
     static constexpr int BNO_CHANNELS = 3 + 3 + 4 + 3 + 1 + 4;

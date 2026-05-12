@@ -393,7 +393,9 @@ public:
         auto r = ctlEventNotifier->notify();
         if (!r.has_value())
             SY_LOG_ERROR(
-                logSyLink, "Failed to notify master of control event: {}", iox2::bb::into<const char *>(r.error()));
+                logSyLink,
+                "Failed to notify master of control event: {}",
+                iox2::bb::into<const char *>(r.error()));
     }
 
     /**
@@ -421,7 +423,8 @@ public:
                 return;
             if (std::chrono::steady_clock::now() >= deadline) {
                 SY_LOG_ERROR(
-                    logSyLink, "Port change acknowledgment from master timed out after 60s - aborting worker.");
+                    logSyLink,
+                    "Port change acknowledgment from master timed out after 60s - aborting worker.");
                 std::abort();
             }
             std::this_thread::sleep_for(std::chrono::microseconds(25));
@@ -619,7 +622,8 @@ void SyntalosLink::raiseError(const std::string &title, const std::string &messa
     auto &ev = uninit.payload_mut();
     ev.title = iox2::bb::StaticString<128>::from_utf8_null_terminated_unchecked_truncated(title.c_str(), title.size());
     ev.message = iox2::bb::StaticString<2048>::from_utf8_null_terminated_unchecked_truncated(
-        message.c_str(), message.size());
+        message.c_str(),
+        message.size());
     iox2::send(iox2::assume_init(std::move(uninit))).value();
     d->notifyMaster();
 
@@ -632,7 +636,8 @@ void SyntalosLink::raiseError(const std::string &message)
     auto &ev = uninit.payload_mut();
     ev.title = iox2::bb::StaticString<128>();
     ev.message = iox2::bb::StaticString<2048>::from_utf8_null_terminated_unchecked_truncated(
-        message.c_str(), message.size());
+        message.c_str(),
+        message.size());
     iox2::send(iox2::assume_init(std::move(uninit))).value();
     d->notifyMaster();
 
@@ -674,7 +679,8 @@ void SyntalosLink::processPendingControl()
 
         ApiVersionResponse resp;
         resp.apiVersion = iox2::bb::StaticString<64>::from_utf8_null_terminated_unchecked_truncated(
-            SY_MODULE_API_TAG, std::strlen(SY_MODULE_API_TAG));
+            SY_MODULE_API_TAG,
+            std::strlen(SY_MODULE_API_TAG));
         iox2::send(std::move(maybeResponse).value().write_payload(std::move(resp))).value();
     }
 
@@ -1126,10 +1132,13 @@ void SyntalosLink::awaitDataForever(const std::function<void()> &eventFn, int in
             d->rebuildWaitSet();
 
         const auto res = d->waitSet->wait_and_process_once_with_timeout(
-            onEvent, iox2::bb::Duration::from_micros(intervalUsec));
+            onEvent,
+            iox2::bb::Duration::from_micros(intervalUsec));
         if (!res.has_value()) {
             SY_LOG_WARNING(
-                logSyLink, "Event loop terminated unexpectedly: {}", iox2::bb::into<const char *>(res.error()));
+                logSyLink,
+                "Event loop terminated unexpectedly: {}",
+                iox2::bb::into<const char *>(res.error()));
             return;
         }
         // Treat SIGTERM/SIGINT as a shutdown request
@@ -1179,7 +1188,8 @@ void SyntalosLink::setStatusMessage(const std::string &message)
 {
     auto uninit = d->pubStatusMsg->loan_uninit().value();
     uninit.payload_mut().text = iox2::bb::StaticString<512>::from_utf8_null_terminated_unchecked_truncated(
-        message.c_str(), message.size());
+        message.c_str(),
+        message.size());
     iox2::send(iox2::assume_init(std::move(uninit))).value();
     d->notifyMaster();
 }
@@ -1364,7 +1374,8 @@ auto SyntalosLink::registerInputPort(const std::string &id, const std::string &t
         if (ip->dataTypeId() != typeId)
             return std::unexpected(
                 std::format(
-                    "Can not register input port. A port with ID '{}', but different data type, already exists.", id));
+                    "Can not register input port. A port with ID '{}', but different data type, already exists.",
+                    id));
         if (ip->title() != title) {
             ip->d->title = title;
             updateInputPort(ip);
@@ -1411,7 +1422,8 @@ auto SyntalosLink::registerOutputPort(
         if (op->dataTypeId() != typeId)
             return std::unexpected(
                 std::format(
-                    "Can not register output port. A port with ID '{}', but different data type, already exists.", id));
+                    "Can not register output port. A port with ID '{}', but different data type, already exists.",
+                    id));
         op->d->title = title;
         op->d->metadata = metadata;
         updateOutputPort(op);

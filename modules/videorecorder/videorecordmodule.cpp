@@ -348,7 +348,8 @@ public:
 
                 const auto inSubSrcModName = m_inSub->metadataValue<std::string>(CommonMetadataKey::SrcModName, {});
                 const auto dataBasename = dataBasenameFromSubMetadata(
-                    m_inSub->metadata(), std::format("{}-video", m_vidDataset->collectionShortTag()));
+                    m_inSub->metadata(),
+                    std::format("{}-video", m_vidDataset->collectionShortTag()));
                 vidSavePathBase = m_vidDataset->pathForDataBasename(dataBasename);
                 m_vidDataset->setDataScanPattern(
                     dataBasename + "*",
@@ -437,7 +438,9 @@ public:
 
         QEventLoop loop;
         QDBusServiceWatcher watcher(
-            EQUEUE_DBUS_SERVICE, QDBusConnection::sessionBus(), QDBusServiceWatcher::WatchForRegistration);
+            EQUEUE_DBUS_SERVICE,
+            QDBusConnection::sessionBus(),
+            QDBusServiceWatcher::WatchForRegistration);
         connect(&watcher, &QDBusServiceWatcher::serviceRegistered, [&](const QString &busName) {
             if (busName != EQUEUE_DBUS_SERVICE)
                 return;
@@ -445,7 +448,11 @@ public:
         });
 
         auto iface = new QDBusInterface(
-            EQUEUE_DBUS_SERVICE, "/", EQUEUE_DBUS_MANAGERINTF, QDBusConnection::sessionBus(), this);
+            EQUEUE_DBUS_SERVICE,
+            "/",
+            EQUEUE_DBUS_MANAGERINTF,
+            QDBusConnection::sessionBus(),
+            this);
 
         if (!iface->isValid()) {
             // service is not available, start detached queue processor
@@ -482,13 +489,15 @@ public:
 
         // display some "project name" useful for humans
         const auto time = QDateTime::currentDateTime();
-        const auto projectName =
-            m_subjectName.isEmpty()
-                ? QStringLiteral("%1 on %2")
-                      .arg(QString::fromStdString(m_vidDataset->name()), time.toString("HH:mm yy-MM-dd"))
-                : QStringLiteral("%1 @ %2 on %3")
-                      .arg(
-                          m_subjectName, QString::fromStdString(m_vidDataset->name()), time.toString("HH:mm yy-MM-dd"));
+        const auto projectName = m_subjectName.isEmpty() ? QStringLiteral("%1 on %2")
+                                                               .arg(
+                                                                   QString::fromStdString(m_vidDataset->name()),
+                                                                   time.toString("HH:mm yy-MM-dd"))
+                                                         : QStringLiteral("%1 @ %2 on %3")
+                                                               .arg(
+                                                                   m_subjectName,
+                                                                   QString::fromStdString(m_vidDataset->name()),
+                                                                   time.toString("HH:mm yy-MM-dd"));
 
         // we need to explicitly save the dataset here to ensure any globs are finalized into
         // actual data- and aux file parts.

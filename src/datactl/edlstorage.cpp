@@ -927,7 +927,10 @@ std::expected<void, std::string> EDLGroup::save()
         }
         if (obj->parent() != this) {
             SY_LOG_WARNING(
-                logEdl, "Unlinking EDL child '{}' that doesn't believe '{}' is its parent.", obj->name(), name());
+                logEdl,
+                "Unlinking EDL child '{}' that doesn't believe '{}' is its parent.",
+                obj->name(),
+                name());
             const std::lock_guard<std::mutex> lock(d->mutex);
             d->children.erase(std::find(d->children.begin(), d->children.end(), obj));
             it = snap.erase(it);

@@ -54,7 +54,8 @@ void SyncTimer::start() noexcept
     // we should probably crash here, but let's show a warning for now
     if (m_started)
         SY_LOG_CRITICAL(
-            logTimeClock, "The master sync timer was restarted after it was already running! This must never happen.");
+            logTimeClock,
+            "The master sync timer was restarted after it was already running! This must never happen.");
 
     // capture both clocks as close together as possible so startWallTime() is a
     // reliable absolute reference for cross-device alignment
@@ -67,7 +68,8 @@ void SyncTimer::startAt(const Syntalos::symaster_timepoint &startTimePoint) noex
 {
     if (m_started)
         SY_LOG_CRITICAL(
-            logTimeClock, "The master sync timer was restarted after it was already running! This must never happen.");
+            logTimeClock,
+            "The master sync timer was restarted after it was already running! This must never happen.");
 
     // Back-compute the wall-clock start from how long ago the master clock started.
     // Both clocks tick at nanosecond resolution with (hopefully!) negligible relative drift,
@@ -82,7 +84,8 @@ void SyncTimer::startAtWallTime(const std::chrono::system_clock::time_point &sta
 {
     if (m_started)
         SY_LOG_CRITICAL(
-            logTimeClock, "The master sync timer was restarted after it was already running! This must never happen.");
+            logTimeClock,
+            "The master sync timer was restarted after it was already running! This must never happen.");
 
     // Back-compute the master-clock start from how long ago the wall clock started.
     // This allows multiple devices in a networked system to share a common t=0.
