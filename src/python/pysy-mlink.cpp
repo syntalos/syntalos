@@ -275,34 +275,6 @@ struct OutputPort {
         _set_metadata_value_private(key, MetaSize(seq[0].cast<int32_t>(), seq[1].cast<int32_t>()));
     }
 
-    LineCommand register_digital_line(int lineId, bool isOutput, bool isPullUp = false)
-    {
-        LineCommand ctl(LineCommandKind::SetMode, static_cast<uint16_t>(lineId));
-        ctl.flags = isOutput ? LineModeFlags::IsOutput : LineModeFlags::IsInput;
-        if (!isOutput && isPullUp)
-            ctl.flags |= LineModeFlags::PullUp;
-
-        _submit_typed_or_throw(ctl);
-        return ctl;
-    }
-
-    LineCommand submit_digital_value(int lineId, bool value)
-    {
-        LineCommand ctl(LineCommandKind::WriteDigital, static_cast<uint16_t>(lineId), value ? 1u : 0u);
-
-        _submit_typed_or_throw(ctl);
-        return ctl;
-    }
-
-    LineCommand submit_digital_pulse(int lineId, int duration_msec = 50)
-    {
-        LineCommand ctl(LineCommandKind::WriteDigitalPulse, static_cast<uint16_t>(lineId), 1u);
-        ctl.duration = std::chrono::duration_cast<microseconds_t>(milliseconds_t(duration_msec));
-
-        _submit_typed_or_throw(ctl);
-        return ctl;
-    }
-
     std::string _id;
     int _dataTypeId;
     const std::shared_ptr<OutputPortInfo> _oport;
@@ -730,6 +702,97 @@ static PySyLinkManager *getActiveManager()
     return g_pslMgr;
 }
 
+/**
+ * Python handle for a hardware output line.
+ *
+ * Construction is side-effect-free; call register() at the start of every
+ * run to emit the SetMode command. Subsequent set_value/pulse/set_analog_value
+ * calls emit the corresponding LineCommand on the captured port.
+ */
+struct PyHwOutputLine {
+    PyHwOutputLine(OutputPort port, int lineId, bool analog)
+        : _port(std::move(port)),
+          _lineId(static_cast<uint16_t>(lineId)),
+          _analog(analog)
+    {
+    }
+
+    LineCommand send_register()
+    {
+        LineCommand cmd(LineCommandKind::SetMode, _lineId);
+        cmd.flags = LineModeFlags::IsOutput;
+        _port._submit_typed_or_throw(cmd);
+        return cmd;
+    }
+
+    LineCommand set_value(bool value)
+    {
+        if (_analog)
+            throw SyntalosPyError(
+                "set_value() is only valid for digital OutputLine; line " + std::to_string(_lineId)
+                + " is analog (use set_analog_value()).");
+        LineCommand cmd(LineCommandKind::WriteDigital, _lineId, value ? 1u : 0u);
+        _port._submit_typed_or_throw(cmd);
+        return cmd;
+    }
+
+    LineCommand pulse(int duration_msec)
+    {
+        if (_analog)
+            throw SyntalosPyError(
+                "pulse() is only valid for digital OutputLine; line " + std::to_string(_lineId) + " is analog.");
+        LineCommand cmd(LineCommandKind::WriteDigitalPulse, _lineId, 1u);
+        cmd.duration = std::chrono::duration_cast<microseconds_t>(milliseconds_t(duration_msec));
+        _port._submit_typed_or_throw(cmd);
+        return cmd;
+    }
+
+    LineCommand set_analog_value(uint32_t value)
+    {
+        if (!_analog)
+            throw SyntalosPyError(
+                "set_analog_value() is only valid for analog OutputLine; line " + std::to_string(_lineId)
+                + " is digital (use set_value()).");
+        LineCommand cmd(LineCommandKind::WriteAnalog, _lineId, value);
+        _port._submit_typed_or_throw(cmd);
+        return cmd;
+    }
+
+    OutputPort _port;
+    uint16_t _lineId;
+    bool _analog;
+};
+
+/**
+ * Python handle for a hardware input line.
+ *
+ * Construction is side-effect-free; call register() at the start of every run
+ * to emit the SetMode command. Readings arrive as LineReading messages on the
+ * consuming module's input port and are matched by line_id.
+ */
+struct PyHwInputLine {
+    PyHwInputLine(OutputPort port, int lineId, bool pullup)
+        : _port(std::move(port)),
+          _lineId(static_cast<uint16_t>(lineId)),
+          _pullup(pullup)
+    {
+    }
+
+    LineCommand send_register()
+    {
+        LineCommand cmd(LineCommandKind::SetMode, _lineId);
+        cmd.flags = LineModeFlags::IsInput;
+        if (_pullup)
+            cmd.flags |= LineModeFlags::PullUp;
+        _port._submit_typed_or_throw(cmd);
+        return cmd;
+    }
+
+    OutputPort _port;
+    uint16_t _lineId;
+    bool _pullup;
+};
+
 static uint64_t time_since_start_msec()
 {
     return getActiveLink()->timer()->timeSinceStartMsec().count();
@@ -977,7 +1040,8 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .value("WRITE_ANALOG_PULSE", LineCommandKind::WriteAnalogPulse, "Drive an analog line for ``duration``.")
         .value("DEVICE_SPECIFIC", LineCommandKind::DeviceSpecific, "Device-defined payload carried in ``extra``.");
 
-    py::enum_<LineModeFlags>(m, "LineModeFlags", py::arithmetic(), "Composable mode flags for :class:`LineCommandKind.SET_MODE`.")
+    py::enum_<LineModeFlags>(
+        m, "LineModeFlags", py::arithmetic(), "Composable mode flags for :class:`LineCommandKind.SET_MODE`.")
         .value("NONE", LineModeFlags::None)
         .value("IS_INPUT", LineModeFlags::IsInput, "Line is an input.")
         .value("IS_OUTPUT", LineModeFlags::IsOutput, "Line is an output.")
@@ -1102,45 +1166,100 @@ PYBIND11_MODULE(syntalos_mlink, m)
             ":param key: Metadata key string.\n"
             ":param value: Either a :class:`MetaSize` object or a sequence of exactly two integers ``[width, "
             "height]``.\n"
-            ":raises SyntalosPyError: If ``value`` does not have exactly two elements.")
+            ":raises SyntalosPyError: If ``value`` does not have exactly two elements.");
 
-        // convenience functions
+    /**
+     ** Hardware lines
+     **/
+
+    py::class_<PyHwOutputLine>(
+        m,
+        "HwOutputLine",
+        "Handle for a hardware output line (Firmata pin, DAQ channel, TTL line, ...).\n"
+        "\n"
+        "Construction captures the port and line identity but emits no command. Call\n"
+        ":meth:`send_register` at the start of every run to configure the line on the\n"
+        "downstream device.")
         .def(
-            "register_digital_line",
-            &OutputPort::register_digital_line,
-            py::return_value_policy::move,
+            py::init<OutputPort, int, bool>(),
+            py::arg("port"),
             py::arg("line_id"),
-            py::arg("is_output"),
-            py::arg("is_pullup") = false,
-            "Configure a hardware digital line and submit the SET_MODE command immediately.\n"
+            py::arg("analog") = false,
+            "Construct an output-line handle.\n"
             "\n"
+            ":param port: The :class:`OutputPort` carrying :class:`LineCommand` messages.\n"
             ":param line_id: Hardware line / channel / pin number.\n"
-            ":param is_output: ``True`` to configure the line as output, ``False`` for input.\n"
-            ":param is_pullup: ``True`` to enable the input pull-up resistor (inputs only; default: ``False``).\n"
+            ":param analog: ``True`` if this is an analog DAC output, ``False`` for digital (default).")
+        .def_readonly("line_id", &PyHwOutputLine::_lineId, "The hardware line ID this handle refers to.")
+        .def(
+            "send_register",
+            &PyHwOutputLine::send_register,
+            py::return_value_policy::move,
+            "Emit the SET_MODE command that configures the line as an output.\n"
+            "\n"
+            "Call this at the start of every run.\n"
+            "\n"
             ":return: The :class:`LineCommand` that was submitted.\n"
             ":rtype: LineCommand")
         .def(
-            "submit_digital_value",
-            &OutputPort::submit_digital_value,
+            "set_value",
+            &PyHwOutputLine::set_value,
             py::return_value_policy::move,
-            py::arg("line_id"),
             py::arg("value"),
-            "Write a digital value to a hardware line.\n"
+            "Write a digital value to the line (digital lines only).\n"
             "\n"
-            ":param line_id: Hardware line number.\n"
             ":param value: ``True`` / ``1`` for HIGH, ``False`` / ``0`` for LOW.\n"
+            ":raises SyntalosPyError: If this is an analog line.\n"
             ":return: The :class:`LineCommand` that was submitted.\n"
             ":rtype: LineCommand")
         .def(
-            "submit_digital_pulse",
-            &OutputPort::submit_digital_pulse,
+            "pulse",
+            &PyHwOutputLine::pulse,
             py::return_value_policy::move,
-            py::arg("line_id"),
             py::arg("duration_msec") = 50,
-            "Emit a digital pulse on a hardware line.\n"
+            "Emit a digital pulse on the line (digital lines only).\n"
             "\n"
-            ":param line_id: Hardware line number.\n"
             ":param duration_msec: Pulse duration in milliseconds (default: 50).\n"
+            ":raises SyntalosPyError: If this is an analog line.\n"
+            ":return: The :class:`LineCommand` that was submitted.\n"
+            ":rtype: LineCommand")
+        .def(
+            "set_analog_value",
+            &PyHwOutputLine::set_analog_value,
+            py::return_value_policy::move,
+            py::arg("value"),
+            "Write an analog DAC value to the line (analog lines only).\n"
+            "\n"
+            ":param value: DAC code (interpretation is device-specific).\n"
+            ":raises SyntalosPyError: If this is a digital line.\n"
+            ":return: The :class:`LineCommand` that was submitted.\n"
+            ":rtype: LineCommand");
+
+    py::class_<PyHwInputLine>(
+        m,
+        "HwInputLine",
+        "Handle for a hardware input line. Use this to configure an input on the\n"
+        "downstream device; subsequent readings arrive as :class:`LineReading` messages\n"
+        "on the consuming module's input port, matched by ``line_id``.")
+        .def(
+            py::init<OutputPort, int, bool>(),
+            py::arg("port"),
+            py::arg("line_id"),
+            py::arg("pullup") = false,
+            "Construct an input-line handle.\n"
+            "\n"
+            ":param port: The :class:`OutputPort` carrying :class:`LineCommand` messages.\n"
+            ":param line_id: Hardware line / channel / pin number.\n"
+            ":param pullup: ``True`` to enable the input pull-up resistor (default: ``False``).")
+        .def_readonly("line_id", &PyHwInputLine::_lineId, "The hardware line ID this handle refers to.")
+        .def(
+            "send_register",
+            &PyHwInputLine::send_register,
+            py::return_value_policy::move,
+            "Emit the SET_MODE command that configures the line as an input.\n"
+            "\n"
+            "Call this at the start of every run.\n"
+            "\n"
             ":return: The :class:`LineCommand` that was submitted.\n"
             ":rtype: LineCommand");
 
