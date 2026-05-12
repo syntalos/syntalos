@@ -401,12 +401,12 @@ struct TableRow : BaseDataType {
  */
 enum class LineCommandKind {
     Unknown,
-    SetMode,            /// Configure line direction / mode
-    WriteDigital,       /// Set a digital line to a value (0/1)
-    WriteAnalog,        /// Set an analog line to a value
-    WriteDigitalPulse,  /// Pulse a digital line for `duration` (value = level during pulse)
-    WriteAnalogPulse,   /// Drive an analog line at `value` for `duration` (for stim devices)
-    DeviceSpecific      /// Arbitrary device-defined payload carried in `extra`
+    SetMode,           /// Configure line direction / mode
+    WriteDigital,      /// Set a digital line to a value (0/1)
+    WriteAnalog,       /// Set an analog line to a value
+    WriteDigitalPulse, /// Pulse a digital line for `duration` (value = level during pulse)
+    WriteAnalogPulse,  /// Drive an analog line at `value` for `duration` (for stim devices)
+    DeviceSpecific     /// Arbitrary device-defined payload carried in `extra`
 };
 
 /**
@@ -416,10 +416,10 @@ enum class LineCommandKind {
  * Only meaningful for SetMode; ignored for other command kinds.
  */
 enum class LineModeFlags : uint32_t {
-    None     = 0,
-    IsInput  = 1u << 0,  /// Line is an input
-    IsOutput = 1u << 1,  /// Line is an output 
-    PullUp   = 1u << 2   /// Input pull-up enabled (inputs only)
+    None = 0,
+    IsInput = 1u << 0,  /// Line is an input
+    IsOutput = 1u << 1, /// Line is an output
+    PullUp = 1u << 2    /// Input pull-up enabled (inputs only)
 };
 
 constexpr LineModeFlags operator|(LineModeFlags a, LineModeFlags b)
@@ -456,11 +456,11 @@ struct LineCommand : BaseDataType {
     SY_DEFINE_DATA_TYPE(LineCommand)
 
     LineCommandKind kind{LineCommandKind::Unknown};
-    uint16_t lineId{0};                          /// Hardware line/channel/pin number
-    uint32_t value{0};                           /// Digital: 0/1; analog: DAC code
-    microseconds_t duration{};                   /// Pulse duration for *Pulse kinds
-    LineModeFlags flags{LineModeFlags::None};    /// SetMode only
-    ByteVector extra;                            /// DeviceSpecific payload
+    uint16_t lineId{0};                       /// Hardware line/channel/pin number
+    uint32_t value{0};                        /// Digital: 0/1; analog: DAC code
+    microseconds_t duration{};                /// Pulse duration for *Pulse kinds
+    LineModeFlags flags{LineModeFlags::None}; /// SetMode only
+    ByteVector extra;                         /// DeviceSpecific payload
 
     explicit LineCommand() = default;
 

@@ -39,8 +39,7 @@ public:
     {
         m_lrInPort = registerInputPort<LineReading>(QStringLiteral("firmata-in"), QStringLiteral("Line Readings"));
         m_tabStream = registerOutputPort<TableRow>(QStringLiteral("table-out"), QStringLiteral("Table Rows"));
-        m_lcStream = registerOutputPort<LineCommand>(
-            QStringLiteral("firmata-out"), QStringLiteral("Line Control"));
+        m_lcStream = registerOutputPort<LineCommand>(QStringLiteral("firmata-out"), QStringLiteral("Line Control"));
     }
 
     ~LatencyTestModule() override {}

@@ -38,8 +38,7 @@ public:
         : AbstractModule(parent)
     {
         m_fmInPort = registerInputPort<LineReading>(QStringLiteral("firmata-in"), QStringLiteral("Line Readings"));
-        m_fmCtlStream = registerOutputPort<LineCommand>(
-            QStringLiteral("firmata-out"), QStringLiteral("Line Control"));
+        m_fmCtlStream = registerOutputPort<LineCommand>(QStringLiteral("firmata-out"), QStringLiteral("Line Control"));
         m_ctlDialog = new FirmataCtlDialog(m_fmCtlStream);
         addDisplayWindow(m_ctlDialog);
 

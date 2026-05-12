@@ -211,16 +211,12 @@ public:
             pinSetValue(firmata, ctl.lineId, ctl.value != 0);
             break;
         case LineCommandKind::WriteDigitalPulse: {
-            const auto durMs =
-                std::chrono::duration_cast<milliseconds_t>(ctl.duration).count();
+            const auto durMs = std::chrono::duration_cast<milliseconds_t>(ctl.duration).count();
             pinSignalPulse(firmata, ctl.lineId, static_cast<int>(durMs));
             break;
         }
         default:
-            LOG_WARNING(
-                m_log,
-                "Received unsupported LineCommand kind for Firmata: {}",
-                static_cast<int>(ctl.kind));
+            LOG_WARNING(m_log, "Received unsupported LineCommand kind for Firmata: {}", static_cast<int>(ctl.kind));
             break;
         }
 
