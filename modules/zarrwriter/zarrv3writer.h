@@ -44,9 +44,10 @@ class ZarrV3Array
 {
 public:
     enum class DType {
-        Float64,
         Int32,
-        UInt64
+        UInt64,
+        Float32,
+        Float64
     };
 
     ZarrV3Array(
