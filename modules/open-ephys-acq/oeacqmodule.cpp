@@ -34,7 +34,6 @@
 #include <QMessageBox>
 #include <QSet>
 #include <QStringList>
-#include <QXmlStreamWriter>
 #include <chrono>
 #include <memory>
 #include <vector>
@@ -363,16 +362,13 @@ public:
         setSettingsRunLock(false);
     }
 
-    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &extraData) override
+    void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
     {
         settings.insert(QStringLiteral("sample_rate"), m_sampleRateHz);
         settings.insert(QStringLiteral("acquire_aux"), m_acquireAux);
         settings.insert(QStringLiteral("acquire_adc"), m_acquireAdc);
         settings.insert(QStringLiteral("naming_scheme"), static_cast<int>(m_namingScheme));
         settings.insert(QStringLiteral("backend"), m_backendChoice);
-
-        // Persist the latest impedance scan (if any) as XML
-        extraData = serializeImpedancesXml();
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
@@ -395,9 +391,7 @@ public:
             m_settingsDlg->setNamingScheme(m_namingScheme);
             m_settingsDlg->setBackendChoice(m_backendChoice);
         }
-        // Note: we don't reload impedance results from extraData. They're
-        // hardware-specific to the run that produced them; subsequent runs
-        // produce their own. The XML is preserved in the project archive.
+
         return true;
     }
 
@@ -512,16 +506,16 @@ private:
     QString activeBackendDescription() const
     {
         if (!m_board)
-            return tr("(not initialised)");
+            return QStringLiteral("(not initialised)");
         switch (m_board->getBoardType()) {
         case AcquisitionBoard::BoardType::ONI:
-            return tr("Open Ephys Acquisition Board (ONI)");
+            return QStringLiteral("Open Ephys Acquisition Board (ONI)");
         case AcquisitionBoard::BoardType::Simulated:
-            return tr("Simulated");
+            return QStringLiteral("Simulated");
         case AcquisitionBoard::BoardType::None:
             break;
         }
-        return tr("(unknown)");
+        return QStringLiteral("(unknown)");
     }
 
     /** Snapshot the current output-port id set; used to diff across reconnects. */
@@ -722,53 +716,6 @@ private:
                 dlg->setRunActive(active);
             },
             Qt::QueuedConnection);
-    }
-
-    /**
-     * Serialize the latest impedance scan to an XML byte buffer suitable for
-     * stuffing into @c serializeSettings()'s @c extraData. Empty buffer if no
-     * scan has been performed yet.
-     */
-    QByteArray serializeImpedancesXml() const
-    {
-        if (!m_board)
-            return {};
-        const auto &imps = m_board->getImpedances();
-        if (!imps.valid)
-            return {};
-
-        QByteArray out;
-        QXmlStreamWriter w(&out);
-        w.setAutoFormatting(true);
-        w.writeStartDocument();
-        w.writeStartElement(QStringLiteral("IMPEDANCES"));
-
-        int globalChannelNumber = -1;
-        const auto headstages = m_board->getHeadstages();
-        for (const auto *hs : headstages) {
-            if (!hs || !hs->isConnected())
-                continue;
-            w.writeStartElement(QStringLiteral("HEADSTAGE"));
-            w.writeAttribute(
-                QStringLiteral("name"), QString::fromStdString(hs->getStreamPrefix()));
-            for (int ch = 0; ch < hs->getNumActiveChannels(); ch++) {
-                globalChannelNumber++;
-                w.writeStartElement(QStringLiteral("CHANNEL"));
-                w.writeAttribute(
-                    QStringLiteral("name"), QString::fromStdString(hs->getChannelName(ch)));
-                w.writeAttribute(QStringLiteral("number"), QString::number(globalChannelNumber));
-                w.writeAttribute(
-                    QStringLiteral("magnitude"), QString::number(hs->getImpedanceMagnitude(ch)));
-                w.writeAttribute(
-                    QStringLiteral("phase"), QString::number(hs->getImpedancePhase(ch)));
-                w.writeEndElement(); // CHANNEL
-            }
-            w.writeEndElement(); // HEADSTAGE
-        }
-
-        w.writeEndElement(); // IMPEDANCES
-        w.writeEndDocument();
-        return out;
     }
 
     /** Push current sample rate / bit-volts / channel names onto each port. */

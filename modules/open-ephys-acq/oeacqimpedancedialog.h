@@ -48,6 +48,7 @@ public:
 private slots:
     void onStartClicked();
     void onCancelClicked();
+    void onSaveAsClicked();
     void onProgress(double fraction, const QString &status);
     void onScanFinished();
 
@@ -55,14 +56,17 @@ private:
     void buildUi();
     void populateResults();
     void setControlsRunning(bool running);
+    QByteArray serializeImpedancesXml() const;
 
     AcquisitionBoard *m_board = nullptr;
     QThread *m_worker = nullptr;
+    bool m_haveResults = false;
 
     QLabel *m_statusLabel = nullptr;
     QProgressBar *m_progressBar = nullptr;
     QPushButton *m_startButton = nullptr;
     QPushButton *m_cancelButton = nullptr;
+    QPushButton *m_saveAsButton = nullptr;
     QPushButton *m_closeButton = nullptr;
     QTableWidget *m_resultsTable = nullptr;
 };

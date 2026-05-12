@@ -32,68 +32,68 @@
 OeAcqSettingsDialog::OeAcqSettingsDialog(QWidget *parent)
     : QDialog(parent)
 {
-    setWindowTitle(tr("Open Ephys AcqBoard — Settings"));
+    setWindowTitle(QStringLiteral("Open Ephys AcqBoard — Settings"));
     buildUi();
 }
 
 void OeAcqSettingsDialog::buildUi()
 {
-    auto *root = new QVBoxLayout(this);
+    auto root = new QVBoxLayout(this);
 
     // ---------- backend group ----------
-    auto *backendGroup = new QGroupBox(tr("Backend"), this);
-    auto *backendForm = new QFormLayout(backendGroup);
+    auto backendGroup = new QGroupBox(QStringLiteral("Backend"), this);
+    auto backendForm = new QFormLayout(backendGroup);
 
     m_backendCombo = new QComboBox(backendGroup);
     m_backendCombo->addItem(
-        tr("Auto-detect (use device if connected)"), static_cast<int>(BackendAuto));
+        QStringLiteral("Auto-detect (use device if connected)"), static_cast<int>(BackendAuto));
     m_backendCombo->addItem(
-        tr("Open Ephys Acquisition Board"), static_cast<int>(BackendDevice));
-    m_backendCombo->addItem(tr("Simulated"), static_cast<int>(BackendSimulated));
-    backendForm->addRow(tr("Backend:"), m_backendCombo);
+        QStringLiteral("Open Ephys Acquisition Board"), static_cast<int>(BackendDevice));
+    m_backendCombo->addItem(QStringLiteral("Simulated"), static_cast<int>(BackendSimulated));
+    backendForm->addRow(QStringLiteral("Backend:"), m_backendCombo);
 
     auto activeRow = new QHBoxLayout;
-    m_activeBackendLabel = new QLabel(tr("(not yet initialised)"), backendGroup);
+    m_activeBackendLabel = new QLabel(QStringLiteral("(not yet initialised)"), backendGroup);
     m_activeBackendLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     activeRow->addWidget(m_activeBackendLabel, 1);
-    m_reconnectButton = new QPushButton(tr("Reconnect"), backendGroup);
+    m_reconnectButton = new QPushButton(QStringLiteral("Reconnect"), backendGroup);
     activeRow->addWidget(m_reconnectButton);
-    backendForm->addRow(tr("Active:"), activeRow);
+    backendForm->addRow("Active:", activeRow);
 
     root->addWidget(backendGroup);
 
     // ---------- acquisition group ----------
-    auto acqGroup = new QGroupBox(tr("Acquisition"), this);
+    auto acqGroup = new QGroupBox("Acquisition", this);
     auto acqForm = new QFormLayout(acqGroup);
 
     m_sampleRateCombo = new QComboBox(acqGroup);
-    acqForm->addRow(tr("Sample rate:"), m_sampleRateCombo);
+    acqForm->addRow("Sample rate:", m_sampleRateCombo);
 
-    m_acquireAuxCheck = new QCheckBox(tr("Stream AUX channels (3 per headstage)"), acqGroup);
+    m_acquireAuxCheck = new QCheckBox(QStringLiteral("Stream AUX channels (3 per headstage)"), acqGroup);
     acqForm->addRow(QString(), m_acquireAuxCheck);
 
-    m_acquireAdcCheck = new QCheckBox(tr("Stream board ADC channels (8)"), acqGroup);
+    m_acquireAdcCheck = new QCheckBox(QStringLiteral("Stream board ADC channels (8)"), acqGroup);
     acqForm->addRow(QString(), m_acquireAdcCheck);
 
     m_namingCombo = new QComboBox(acqGroup);
-    m_namingCombo->addItem(tr("Global index (CH1, CH2, …)"), static_cast<int>(GLOBAL_INDEX));
-    m_namingCombo->addItem(tr("Stream-relative (A1_CH1, A1_CH2, …)"), static_cast<int>(STREAM_INDEX));
-    acqForm->addRow(tr("Channel naming:"), m_namingCombo);
+    m_namingCombo->addItem(QStringLiteral("Global index (CH1, CH2, …)"), static_cast<int>(GLOBAL_INDEX));
+    m_namingCombo->addItem(QStringLiteral("Stream-relative (A1_CH1, A1_CH2, …)"), static_cast<int>(STREAM_INDEX));
+    acqForm->addRow(QStringLiteral("Channel naming:"), m_namingCombo);
 
     root->addWidget(acqGroup);
 
     // ---------- headstage panel ----------
-    auto *hsGroup = new QGroupBox(tr("Detected headstages"), this);
-    auto *hsLayout = new QVBoxLayout(hsGroup);
-    m_headstageLabel = new QLabel(tr("No scan performed yet."), hsGroup);
+    auto hsGroup = new QGroupBox(QStringLiteral("Detected headstages"), this);
+    auto hsLayout = new QVBoxLayout(hsGroup);
+    m_headstageLabel = new QLabel(QStringLiteral("No scan performed yet."), hsGroup);
     m_headstageLabel->setWordWrap(true);
     m_headstageLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     hsLayout->addWidget(m_headstageLabel);
 
-    auto *hsBtnRow = new QHBoxLayout;
-    m_scanButton = new QPushButton(tr("Rescan headstages"), hsGroup);
+    auto hsBtnRow = new QHBoxLayout;
+    m_scanButton = new QPushButton(QStringLiteral("Rescan headstages"), hsGroup);
     hsBtnRow->addWidget(m_scanButton);
-    m_impedanceButton = new QPushButton(tr("Measure impedances…"), hsGroup);
+    m_impedanceButton = new QPushButton(QStringLiteral("Measure impedances…"), hsGroup);
     hsBtnRow->addWidget(m_impedanceButton);
     hsBtnRow->addStretch(1);
     hsLayout->addLayout(hsBtnRow);
@@ -101,9 +101,9 @@ void OeAcqSettingsDialog::buildUi()
     root->addWidget(hsGroup);
 
     // ---------- close button row ----------
-    auto *btnRow = new QHBoxLayout;
+    auto btnRow = new QHBoxLayout;
     btnRow->addStretch(1);
-    auto *closeBtn = new QPushButton(tr("Close"), this);
+    auto closeBtn = new QPushButton(QStringLiteral("Close"), this);
     closeBtn->setDefault(true);
     btnRow->addWidget(closeBtn);
     root->addLayout(btnRow);
@@ -153,7 +153,7 @@ void OeAcqSettingsDialog::setAvailableSampleRates(const std::vector<int> &ratesH
     const int previous = m_sampleRateCombo->currentData().toInt();
     m_sampleRateCombo->clear();
     for (int r : ratesHz)
-        m_sampleRateCombo->addItem(tr("%1 Hz").arg(r), r);
+        m_sampleRateCombo->addItem(QStringLiteral("%1 Hz").arg(r), r);
 
     // Preserve previous selection if it's still available.
     int idx = m_sampleRateCombo->findData(previous);
@@ -165,20 +165,20 @@ void OeAcqSettingsDialog::setAvailableSampleRates(const std::vector<int> &ratesH
 void OeAcqSettingsDialog::setHeadstageSummary(const std::vector<const Headstage *> &headstages)
 {
     if (headstages.empty()) {
-        m_headstageLabel->setText(tr("No connected headstages."));
+        m_headstageLabel->setText(QStringLiteral("No connected headstages."));
         return;
     }
     QStringList lines;
     lines.reserve(static_cast<int>(headstages.size()));
-    for (const auto *hs : headstages) {
+    for (const auto hs : headstages) {
         if (hs == nullptr || !hs->isConnected())
             continue;
-        lines << tr("• %1 – %2 channels")
+        lines << QStringLiteral("• %1 – %2 channels")
                      .arg(QString::fromStdString(hs->getStreamPrefix()))
                      .arg(hs->getNumActiveChannels());
     }
     if (lines.isEmpty())
-        m_headstageLabel->setText(tr("No connected headstages."));
+        m_headstageLabel->setText(QStringLiteral("No connected headstages."));
     else
         m_headstageLabel->setText(lines.join(QStringLiteral("\n")));
 }
@@ -194,7 +194,7 @@ void OeAcqSettingsDialog::setSampleRateHz(int rate)
     int idx = m_sampleRateCombo->findData(rate);
     if (idx < 0) {
         // Append the foreign rate so the saved value isn't silently lost.
-        m_sampleRateCombo->addItem(tr("%1 Hz").arg(rate), rate);
+        m_sampleRateCombo->addItem(QStringLiteral("%1 Hz").arg(rate), rate);
         idx = m_sampleRateCombo->count() - 1;
     }
     m_sampleRateCombo->setCurrentIndex(idx);

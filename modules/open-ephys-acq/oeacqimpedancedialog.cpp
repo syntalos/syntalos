@@ -20,16 +20,22 @@
 #include "oeacqimpedancedialog.h"
 
 #include "devices/AcquisitionBoard.h"
+#include "devices/Headstage.h"
 
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLabel>
+#include <QMessageBox>
 #include <QProgressBar>
 #include <QPushButton>
+#include <QSaveFile>
 #include <QTableWidget>
 #include <QTableWidgetItem>
 #include <QThread>
 #include <QVBoxLayout>
+#include <QXmlStreamWriter>
 
 namespace
 {
@@ -85,7 +91,7 @@ OeAcqImpedanceDialog::OeAcqImpedanceDialog(AcquisitionBoard *board, QWidget *par
     : QDialog(parent),
       m_board(board)
 {
-    setWindowTitle(tr("Measure Electrode Impedances"));
+    setWindowTitle(QStringLiteral("Measure Electrode Impedances"));
     setModal(true);
     resize(560, 480);
     buildUi();
@@ -104,10 +110,10 @@ OeAcqImpedanceDialog::~OeAcqImpedanceDialog()
 
 void OeAcqImpedanceDialog::buildUi()
 {
-    auto *root = new QVBoxLayout(this);
+    auto root = new QVBoxLayout(this);
 
     m_statusLabel = new QLabel(
-        tr("Press <b>Start scan</b> to measure impedances on all connected channels.\n"
+        QStringLiteral("Press <b>Start scan</b> to measure impedances on all connected channels.\n"
            "The board will be temporarily reconfigured (30 kHz sample rate, "
            "default bandwidths, DSP off) and restored afterwards."),
         this);
@@ -122,30 +128,35 @@ void OeAcqImpedanceDialog::buildUi()
     m_resultsTable = new QTableWidget(this);
     m_resultsTable->setColumnCount(4);
     m_resultsTable->setHorizontalHeaderLabels(
-        {tr("Stream"), tr("Channel"), tr("Magnitude"), tr("Phase (°)")});
+        {QStringLiteral("Stream"), QStringLiteral("Channel"), QStringLiteral("Magnitude"), QStringLiteral("Phase (°)")});
     m_resultsTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     m_resultsTable->verticalHeader()->setVisible(false);
     m_resultsTable->setEditTriggers(QAbstractItemView::NoEditTriggers);
     m_resultsTable->setSelectionBehavior(QAbstractItemView::SelectRows);
     root->addWidget(m_resultsTable, /*stretch*/ 1);
 
-    auto *btnRow = new QHBoxLayout;
+    auto btnRow = new QHBoxLayout;
     btnRow->addStretch(1);
 
-    m_startButton = new QPushButton(tr("Start scan"), this);
+    m_startButton = new QPushButton("Start scan", this);
     m_startButton->setDefault(true);
     btnRow->addWidget(m_startButton);
 
-    m_cancelButton = new QPushButton(tr("Cancel"), this);
+    m_cancelButton = new QPushButton("Cancel", this);
     btnRow->addWidget(m_cancelButton);
 
-    m_closeButton = new QPushButton(tr("Close"), this);
+    m_saveAsButton = new QPushButton("Save as…", this);
+    m_saveAsButton->setEnabled(false);
+    btnRow->addWidget(m_saveAsButton);
+
+    m_closeButton = new QPushButton("Close", this);
     btnRow->addWidget(m_closeButton);
 
     root->addLayout(btnRow);
 
     connect(m_startButton, &QPushButton::clicked, this, &OeAcqImpedanceDialog::onStartClicked);
     connect(m_cancelButton, &QPushButton::clicked, this, &OeAcqImpedanceDialog::onCancelClicked);
+    connect(m_saveAsButton, &QPushButton::clicked, this, &OeAcqImpedanceDialog::onSaveAsClicked);
     connect(m_closeButton, &QPushButton::clicked, this, &QDialog::accept);
 }
 
@@ -154,12 +165,13 @@ void OeAcqImpedanceDialog::setControlsRunning(bool running)
     m_startButton->setEnabled(!running);
     m_cancelButton->setEnabled(running);
     m_closeButton->setEnabled(!running);
+    m_saveAsButton->setEnabled(!running && m_haveResults);
 }
 
 void OeAcqImpedanceDialog::onStartClicked()
 {
     if (!m_board) {
-        m_statusLabel->setText(tr("No acquisition board available."));
+        m_statusLabel->setText(QStringLiteral("No acquisition board available."));
         return;
     }
 
@@ -167,14 +179,14 @@ void OeAcqImpedanceDialog::onStartClicked()
     // measure, and the underlying meter assumes at least one connected
     // stream when allocating its working buffers.
     bool anyConnected = false;
-    for (const auto *hs : m_board->getHeadstages()) {
+    for (const auto hs : m_board->getHeadstages()) {
         if (hs && hs->isConnected()) {
             anyConnected = true;
             break;
         }
     }
     if (!anyConnected) {
-        m_statusLabel->setText(tr(
+        m_statusLabel->setText(QStringLiteral(
             "<b>No headstages connected.</b><br/>"
             "Plug in at least one headstage and use <i>Rescan headstages</i> "
             "in the settings dialog before measuring impedances."));
@@ -183,7 +195,8 @@ void OeAcqImpedanceDialog::onStartClicked()
 
     m_resultsTable->setRowCount(0);
     m_progressBar->setValue(0);
-    m_statusLabel->setText(tr("Scanning… please wait."));
+    m_haveResults = false;
+    m_statusLabel->setText(QStringLiteral("Scanning… please wait."));
 
     // Hook the meter's progress callback up to a queued connection.
     m_board->setImpedanceProgressCallback(
@@ -196,7 +209,7 @@ void OeAcqImpedanceDialog::onStartClicked()
                 Qt::QueuedConnection);
         });
 
-    auto *worker = new ImpedanceWorker(m_board);
+    auto worker = new ImpedanceWorker(m_board);
     m_worker = new QThread(this);
     worker->moveToThread(m_worker);
     connect(m_worker, &QThread::started, worker, &ImpedanceWorker::run);
@@ -213,7 +226,7 @@ void OeAcqImpedanceDialog::onCancelClicked()
 {
     if (m_board)
         m_board->requestImpedanceStop();
-    m_statusLabel->setText(tr("Cancelling…"));
+    m_statusLabel->setText(QStringLiteral("Cancelling…"));
     m_cancelButton->setEnabled(false);
 }
 
@@ -233,7 +246,7 @@ void OeAcqImpedanceDialog::onScanFinished()
 
     setControlsRunning(false);
     m_progressBar->setValue(1000);
-    m_statusLabel->setText(tr("Scan complete."));
+    m_statusLabel->setText(QStringLiteral("Scan complete."));
     populateResults();
 }
 
@@ -247,10 +260,14 @@ void OeAcqImpedanceDialog::populateResults()
     const Impedances &imps = m_board->getImpedances();
     if (!imps.valid) {
         m_resultsTable->setRowCount(0);
-        m_statusLabel->setText(tr("Scan completed, but no impedance data was returned."));
+        m_haveResults = false;
+        m_saveAsButton->setEnabled(false);
+        m_statusLabel->setText(QStringLiteral("Scan completed, but no impedance data was returned."));
         return;
     }
 
+    m_haveResults = true;
+    m_saveAsButton->setEnabled(true);
     const int n = static_cast<int>(imps.streams.size());
     m_resultsTable->setRowCount(n);
     for (int i = 0; i < n; ++i) {
@@ -264,4 +281,83 @@ void OeAcqImpedanceDialog::populateResults()
             new QTableWidgetItem(QString::number(static_cast<double>(imps.phases[i]), 'f', 1)));
     }
     m_resultsTable->resizeColumnsToContents();
+}
+
+void OeAcqImpedanceDialog::onSaveAsClicked()
+{
+    if (!m_board || !m_haveResults)
+        return;
+
+    const QString defaultName = QStringLiteral("impedances.xml");
+    const QString path = QFileDialog::getSaveFileName(
+        this,
+        "Save Impedance Measurements",
+        defaultName,
+        "XML Files (*.xml);;All Files (*)");
+    if (path.isEmpty())
+        return;
+
+    const QByteArray xml = serializeImpedancesXml();
+    if (xml.isEmpty()) {
+        QMessageBox::warning(
+            this,
+            "Save Impedance Measurements",
+            "No impedance data is available to save.");
+        return;
+    }
+
+    QSaveFile f(path);
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)
+        || f.write(xml) != xml.size()
+        || !f.commit()) {
+        QMessageBox::critical(
+            this,
+            "Save Impedance Measurements",
+            QStringLiteral("Could not write impedance data to:\n%1\n\n%2").arg(path, f.errorString()));
+        return;
+    }
+
+    m_statusLabel->setText(QStringLiteral("Saved impedances to <i>%1</i>.").arg(QFileInfo(path).fileName()));
+}
+
+QByteArray OeAcqImpedanceDialog::serializeImpedancesXml() const
+{
+    if (!m_board)
+        return {};
+    const auto &imps = m_board->getImpedances();
+    if (!imps.valid)
+        return {};
+
+    QByteArray out;
+    QXmlStreamWriter w(&out);
+    w.setAutoFormatting(true);
+    w.writeStartDocument();
+    w.writeStartElement(QStringLiteral("IMPEDANCES"));
+
+    int globalChannelNumber = -1;
+    const auto headstages = m_board->getHeadstages();
+    for (const auto hs : headstages) {
+        if (!hs || !hs->isConnected())
+            continue;
+        w.writeStartElement(QStringLiteral("HEADSTAGE"));
+        w.writeAttribute(
+            QStringLiteral("name"), QString::fromStdString(hs->getStreamPrefix()));
+        for (int ch = 0; ch < hs->getNumActiveChannels(); ch++) {
+            globalChannelNumber++;
+            w.writeStartElement(QStringLiteral("CHANNEL"));
+            w.writeAttribute(
+                QStringLiteral("name"), QString::fromStdString(hs->getChannelName(ch)));
+            w.writeAttribute(QStringLiteral("number"), QString::number(globalChannelNumber));
+            w.writeAttribute(
+                QStringLiteral("magnitude"), QString::number(hs->getImpedanceMagnitude(ch)));
+            w.writeAttribute(
+                QStringLiteral("phase"), QString::number(hs->getImpedancePhase(ch)));
+            w.writeEndElement(); // CHANNEL
+        }
+        w.writeEndElement(); // HEADSTAGE
+    }
+
+    w.writeEndElement(); // IMPEDANCES
+    w.writeEndDocument();
+    return out;
 }
