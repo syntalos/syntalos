@@ -23,6 +23,7 @@ EXCLUDE_MATCH = [
     '*/contrib/subprojects/*',
     '*/modules/intan-rhx/*',  # we want to keep Intan RHX close to upstream, for easy merging of changes
     '*/modules/camera-arv/qarv/*',
+    '*/modules/open-ephys-acq/devices/oni/rhythm-api/*',
     '*/tests/rwqueue/*',
 ]
 

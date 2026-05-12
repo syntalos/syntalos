@@ -1,17 +1,43 @@
 ---
+#
+# C++-specific rules
+#
 BasedOnStyle: LLVM
 IndentWidth: 4
----
 Language: Cpp
 Standard: c++20
 ColumnLimit: 120
+
 BreakBeforeBraces: Linux
+BraceWrapping:
+    SplitEmptyFunction: false
+
 PointerAlignment: Right
-AlignAfterOpenBracket: AlwaysBreak
 AllowAllParametersOfDeclarationOnNextLine: false
 AlwaysBreakBeforeMultilineStrings: true
 BreakBeforeBinaryOperators: NonAssignment
 AlignArrayOfStructures: Left
+
+# never sort includes, only regroup (in rare cases)
+IncludeBlocks: Regroup
+SortIncludes: Never
+
+# Allow arguments to be on their own lines
+AllowAllArgumentsOnNextLine: false
+
+# Never pack arguments or parameters
+BinPackArguments: false
+BinPackParameters: false
+
+AlignAfterOpenBracket: true
+BreakAfterOpenBracketBracedList: true
+BreakAfterOpenBracketFunction: true
+BreakAfterOpenBracketIf: true
+BreakAfterOpenBracketLoop: false
+BreakAfterOpenBracketSwitch: true
+
+# prefer breaking after ( and not =
+PenaltyBreakBeforeFirstCallParameter: 8
 
 # format C++11 braced lists like function calls
 Cpp11BracedListStyle: true
@@ -26,7 +52,7 @@ NamespaceIndentation: None
 SpaceAfterTemplateKeyword: false
 
 # Always break after template declaration
-AlwaysBreakTemplateDeclarations: true
+BreakTemplateDeclarations: Yes
 
 # macros for which the opening brace stays attached.
 ForEachMacros: [ foreach, Q_FOREACH, BOOST_FOREACH, forever, Q_FOREVER, QBENCHMARK, QBENCHMARK_ONCE ]
@@ -64,12 +90,8 @@ IndentCaseLabels: false
 # No space after C-style cast
 SpaceAfterCStyleCast: false
 
-# Never pack arguments or parameters
-BinPackArguments: false
-BinPackParameters: false
-
 # Avoid breaking around an assignment operator
-PenaltyBreakAssignment: 150
+PenaltyBreakAssignment: 380
 
 # Left-align newline escapes, e.g. in macros
 AlignEscapedNewlines: Left
@@ -80,6 +102,41 @@ AllowShortEnumsOnASingleLine: false
 # we want consecutive macros to be aligned
 AlignConsecutiveMacros: true
 
+---
+#
+# C-specific rules
+#
+BasedOnStyle: LLVM
+IndentWidth: 4
+Language: C
+
+AlwaysBreakAfterReturnType: AllDefinitions
+
+BreakBeforeBraces: Linux
+BraceWrapping:
+    SplitEmptyFunction: false
+
+PointerAlignment: Right
+AllowAllParametersOfDeclarationOnNextLine: false
+AlwaysBreakBeforeMultilineStrings: true
+BreakBeforeBinaryOperators: NonAssignment
+AlignArrayOfStructures: Left
+
 # never sort includes, only regroup (in rare cases)
 IncludeBlocks: Regroup
 SortIncludes: Never
+
+# Allow arguments to be on their own lines
+AllowAllArgumentsOnNextLine: false
+
+# Never pack arguments or parameters
+BinPackArguments: false
+BinPackParameters: false
+
+AlignAfterOpenBracket: true
+BreakAfterOpenBracketBracedList: true
+BreakAfterOpenBracketFunction: true
+BreakAfterOpenBracketIf: true
+BreakAfterOpenBracketLoop: false
+BreakAfterOpenBracketSwitch: true
+---
