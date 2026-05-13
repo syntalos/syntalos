@@ -447,6 +447,7 @@ void PlotCanvas::createGraphWithChannel(int channelIndex)
         else
             ++it;
     }
+
     Graph g;
     g.id = d->nextGraphId++;
     g.channels.append(channelIndex);

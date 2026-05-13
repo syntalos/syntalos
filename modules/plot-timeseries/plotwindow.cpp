@@ -43,8 +43,9 @@ PlotWindow::PlotWindow(AbstractModule *mod, QWidget *parent)
     m_canvas->setBufferSize(static_cast<size_t>(ui->bufferSizeSpinBox->value()) * 1000);
     m_canvas->setUpdateInterval(ui->speedSpinBox->value());
 
-    ui->channelTable->horizontalHeader()->setStretchLastSection(true);
+    ui->channelTable->horizontalHeader()->setStretchLastSection(false);
     ui->channelTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    ui->channelTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
 
     connect(m_canvas, &PlotCanvas::layoutChanged, this, &PlotWindow::refreshChannelTable);
 }
@@ -79,6 +80,9 @@ void PlotWindow::refreshChannelTable()
 {
     auto t = ui->channelTable;
     QSignalBlocker block(t);
+    // Wipe rows + cell widgets first so old QCheckBox children of the table
+    // can't briefly render at the table's top-left before being reparented.
+    t->setRowCount(0);
     t->setRowCount(m_canvas->channelCount());
 
     for (int i = 0; i < m_canvas->channelCount(); ++i) {
@@ -102,7 +106,9 @@ void PlotWindow::refreshChannelTable()
         chanItem->setFlags(chanItem->flags() & ~Qt::ItemIsEditable);
         t->setItem(i, 1, chanItem);
 
-        auto showCb = new QCheckBox(t);
+        // Create with no parent - setCellWidget reparents to t->viewport().
+        // Parenting to `t` directly causes a brief (0,0) render in the table.
+        auto showCb = new QCheckBox();
         showCb->setChecked(info.enabled);
         showCb->setEnabled(!m_running);
         connect(showCb, &QCheckBox::toggled, this, [this, i](bool checked) {
@@ -110,18 +116,13 @@ void PlotWindow::refreshChannelTable()
         });
         t->setCellWidget(i, 2, showCb);
 
-        auto digCb = new QCheckBox(t);
+        auto digCb = new QCheckBox();
         digCb->setChecked(info.digital);
         digCb->setEnabled(!m_running);
         connect(digCb, &QCheckBox::toggled, this, [this, i](bool checked) {
             onDigitalToggled(i, checked);
         });
         t->setCellWidget(i, 3, digCb);
-
-        const QString graphLabel = info.graphId > 0 ? QStringLiteral("#%1").arg(info.graphId) : QStringLiteral("—");
-        auto graphItem = new QTableWidgetItem(graphLabel);
-        graphItem->setFlags(graphItem->flags() & ~Qt::ItemIsEditable);
-        t->setItem(i, 4, graphItem);
     }
 }
 
