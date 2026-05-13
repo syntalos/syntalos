@@ -77,11 +77,11 @@ static QString makeChannelId(const QString &portPrefix, ChannelKind kind, int id
 {
     switch (kind) {
     case ChannelKind::Electrode:
-        return QStringLiteral("%1:E%2").arg(portPrefix).arg(idx, 2, 10, '0');
+        return QStringLiteral("%1:E%2").arg(portPrefix).arg(idx, 2, 10, QChar(u'0'));
     case ChannelKind::Aux:
-        return QStringLiteral("%1:AUX%2").arg(portPrefix).arg(idx, 2, 10, '0');
+        return QStringLiteral("%1:AUX%2").arg(portPrefix).arg(idx, 2, 10, QChar(u'0'));
     case ChannelKind::Adc:
-        return QStringLiteral("ADC:%1").arg(idx, 2, 10, '0');
+        return QStringLiteral("ADC:%1").arg(idx, 2, 10, QChar(u'0'));
     }
     return {};
 }
