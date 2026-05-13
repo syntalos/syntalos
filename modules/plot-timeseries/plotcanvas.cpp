@@ -147,6 +147,7 @@ public:
     ImPlotContext *impCtx = nullptr;
 
     bool isRunning = false;
+    int runningIntervalMs = 1000 / 60;
     size_t bufferSize = 2080000;
     float historyLen = 2.0f;
 
@@ -180,7 +181,10 @@ void PlotCanvas::setUpdateInterval(int frequency)
 {
     if (frequency < 1)
         frequency = 1;
-    d->updateTimer->setInterval(1000 / frequency);
+    d->runningIntervalMs = 1000 / frequency;
+    // Apply immediately only when running; idle rate stays slow.
+    if (d->isRunning)
+        d->updateTimer->setInterval(d->runningIntervalMs);
 }
 
 void PlotCanvas::setBufferSize(size_t size)
@@ -200,6 +204,15 @@ void PlotCanvas::setBufferSize(size_t size)
 void PlotCanvas::setRunning(bool running)
 {
     d->isRunning = running;
+    if (d->updateTimer) {
+        // ImGui is immediate-mode and needs a steady frame stream for
+        // interaction (zoom, hover, drag). While running, we redraw at the
+        // user-configured rate to follow live data; while idle, drop to a
+        // low rate so the UI stays responsive without burning CPU.
+        d->updateTimer->setInterval(running ? d->runningIntervalMs : 1000 / 30);
+        if (!d->updateTimer->isActive())
+            d->updateTimer->start();
+    }
 }
 
 void PlotCanvas::registerPort(const QString &portId, double timestampDivisor, const QString &yLabel)
@@ -578,6 +591,8 @@ void PlotCanvas::initializeGL()
     d->impCtx = ImPlot::CreateContext();
 
     QObject::connect(d->updateTimer, SIGNAL(timeout()), this, SLOT(update()));
+    // Start at the idle rate; setRunning() bumps it up for live captures
+    d->updateTimer->setInterval(d->isRunning ? d->runningIntervalMs : 1000 / 30);
     d->updateTimer->start();
 }
 
