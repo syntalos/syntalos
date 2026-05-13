@@ -122,6 +122,9 @@ struct InputPort {
                 case syDataTypeId<FloatSignalBlock>():
                     _on_data_cb(py::cast(FloatSignalBlock::fromMemory(data, size)));
                     break;
+                case syDataTypeId<UInt16SignalBlock>():
+                    _on_data_cb(py::cast(UInt16SignalBlock::fromMemory(data, size)));
+                    break;
                 default:
                     throw SyntalosPyError(std::format("Received data of unknown type on input port: {}", _id));
                 }
@@ -186,6 +189,8 @@ struct OutputPort {
             return slink->submitOutput(_oport, py::cast<const IntSignalBlock &>(pyObj));
         case syDataTypeId<FloatSignalBlock>():
             return slink->submitOutput(_oport, py::cast<const FloatSignalBlock &>(pyObj));
+        case syDataTypeId<UInt16SignalBlock>():
+            return slink->submitOutput(_oport, py::cast<const UInt16SignalBlock &>(pyObj));
         default:
             return false;
         }
@@ -1004,8 +1009,12 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .value("Frame", BaseDataType::TypeId::Frame, "A video frame.")
         .value("LineCommand", BaseDataType::TypeId::LineCommand, "Outbound command to a hardware signal line.")
         .value("LineReading", BaseDataType::TypeId::LineReading, "Timestamped reading from a hardware signal line.")
-        .value("IntSignalBlock", BaseDataType::TypeId::IntSignalBlock, "A block of integer signal samples.")
-        .value("FloatSignalBlock", BaseDataType::TypeId::FloatSignalBlock, "A block of float signal samples.");
+        .value("IntSignalBlock", BaseDataType::TypeId::IntSignalBlock, "A block of 32-bit integer signal samples.")
+        .value("FloatSignalBlock", BaseDataType::TypeId::FloatSignalBlock, "A block of 32-bit float signal samples.")
+        .value(
+            "UInt16SignalBlock",
+            BaseDataType::TypeId::UInt16SignalBlock,
+            "A block of 16-bit unsigned integer signal samples.");
 
     /**
      ** Control Command
@@ -1096,7 +1105,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
      ** Signal Blocks
      **/
 
-    py::class_<IntSignalBlock>(m, "IntSignalBlock", "A block of timestamped integer signal data.")
+    py::class_<IntSignalBlock>(m, "IntSignalBlock", "A block of timestamped 32-bit integer signal data.")
         .def(py::init<>())
         .def_readwrite("timestamps", &IntSignalBlock::timestamps, "1-D array of sample timestamps in µs.")
         .def_readwrite("data", &IntSignalBlock::data, "2-D data matrix: rows = samples, columns = channels.")
@@ -1104,13 +1113,21 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .def_property_readonly("rows", &IntSignalBlock::rows, "Number of rows (samples).")
         .def_property_readonly("cols", &IntSignalBlock::cols, "Number of columns (channels).");
 
-    py::class_<FloatSignalBlock>(m, "FloatSignalBlock", "A block of timestamped float signal data.")
+    py::class_<FloatSignalBlock>(m, "FloatSignalBlock", "A block of timestamped 32-bit float signal data.")
         .def(py::init<>())
         .def_readwrite("timestamps", &FloatSignalBlock::timestamps, "1-D array of sample timestamps in µs.")
         .def_readwrite("data", &FloatSignalBlock::data, "2-D data matrix: rows = samples, columns = channels.")
         .def_property_readonly("length", &FloatSignalBlock::length, "Number of samples (rows) in this block.")
         .def_property_readonly("rows", &FloatSignalBlock::rows, "Number of rows (samples).")
         .def_property_readonly("cols", &FloatSignalBlock::cols, "Number of columns (channels).");
+
+    py::class_<UInt16SignalBlock>(m, "UInt16SignalBlock", "A block of timestamped 16-bit unsigned integer signal data.")
+        .def(py::init<>())
+        .def_readwrite("timestamps", &UInt16SignalBlock::timestamps, "1-D array of sample timestamps in µs.")
+        .def_readwrite("data", &UInt16SignalBlock::data, "2-D data matrix: rows = samples, columns = channels.")
+        .def_property_readonly("length", &UInt16SignalBlock::length, "Number of samples (rows) in this block.")
+        .def_property_readonly("rows", &UInt16SignalBlock::rows, "Number of rows (samples).")
+        .def_property_readonly("cols", &UInt16SignalBlock::cols, "Number of columns (channels).");
 
     /**
      * Ports
