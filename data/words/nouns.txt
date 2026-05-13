@@ -1,3 +1,4 @@
+aardvark
 abandonment
 abatement
 abattoir
@@ -240,6 +241,7 @@ allusion
 ally
 almanac
 almond
+alpaca
 alpha
 alphabet
 altar
@@ -303,6 +305,7 @@ ancient
 android
 anecdote
 anemia
+anemone
 anesthesiologist
 anesthetic
 anesthetist
@@ -595,6 +598,7 @@ axe
 axiom
 axis
 axle
+axolotl
 ayatollah
 azure
 ba
@@ -935,6 +939,7 @@ birthrate
 birthright
 biscuit
 bishop
+bison
 bit
 bite
 bivouac
@@ -1016,6 +1021,7 @@ blubber
 bludgeon
 blue
 blueberry
+bluejay
 blueprint
 bluff
 blunder
@@ -1065,6 +1071,7 @@ bondsman
 bone
 bonfire
 bonnet
+bonobo
 bonsai
 booby
 book
@@ -1478,7 +1485,9 @@ captive
 captivity
 captor
 capture
+capybara
 car
+carabao
 carafe
 caramel
 carapace
@@ -1504,6 +1513,7 @@ carelessness
 caress
 caretaker
 cargo
+caribou
 caricature
 carillon
 carload
@@ -1545,6 +1555,7 @@ cassava
 casserole
 cassette
 cassock
+cassowary
 cast
 castaway
 caste
@@ -1613,6 +1624,7 @@ centenary
 center
 centerpiece
 centimeter
+centipede
 centre
 centrifuge
 centurion
@@ -1747,6 +1759,7 @@ chimney
 chimp
 chimpanzee
 chin
+chinchilla
 chine
 chip
 chipmunk
@@ -1787,6 +1800,7 @@ churchman
 churchyard
 churn
 chute
+cicada
 cider
 cigar
 cigaret
@@ -1935,6 +1949,7 @@ cocksucker
 cocktail
 coconut
 cocoon
+cod
 coda
 code
 codger
@@ -2298,6 +2313,7 @@ corduroy
 core
 cork
 corkscrew
+cormorant
 corn
 corncob
 cornea
@@ -2420,6 +2436,7 @@ crate
 crater
 cravat
 craving
+crayfish
 crayon
 craze
 creak
@@ -2889,6 +2906,7 @@ dimple
 diner
 dinette
 dinghy
+dingo
 dinner
 dinosaur
 dinosaurs
@@ -3086,6 +3104,7 @@ dork
 dorm
 dormer
 dormitory
+dormouse
 dosage
 dose
 dossier
@@ -3196,6 +3215,7 @@ dude
 duel
 duet
 duffel
+dugong
 dugout
 duke
 dukedom
@@ -3252,6 +3272,7 @@ eavesdropper
 ebb
 eccentricity
 echelon
+echidna
 echo
 eclipse
 ecologist
@@ -3269,6 +3290,7 @@ editor
 editorial
 education
 educator
+eel
 effect
 efficacy
 efficiency
@@ -3285,6 +3307,7 @@ eggs
 eggshell
 egomaniac
 egotist
+egret
 ejaculation
 ejection
 ejector
@@ -3314,6 +3337,7 @@ elf
 elimination
 elite
 elixir
+elk
 ell
 ellipse
 elm
@@ -3721,6 +3745,7 @@ femur
 fence
 fencer
 fender
+fennec
 fense
 fer
 ference
@@ -3848,6 +3873,7 @@ flail
 flake
 flame
 flamethrower
+flamingo
 flange
 flank
 flannel
@@ -4195,6 +4221,7 @@ gazelle
 gear
 gearbox
 gebling
+gecko
 geese
 geezer
 geisha
@@ -4229,6 +4256,7 @@ geologist
 geometry
 geosector
 ger
+gerbil
 germ
 gestation
 gesture
@@ -4297,6 +4325,7 @@ glycogen
 gnat
 gnawing
 gnome
+gnu
 goal
 goalie
 goaltender
@@ -4313,6 +4342,7 @@ godsend
 going
 goiter
 gold
+goldfish
 golem
 golfer
 gondola
@@ -4713,6 +4743,8 @@ hermit
 hernia
 hero
 heroine
+heron
+herring
 herringbone
 hesitancy
 hesitation
@@ -4749,6 +4781,7 @@ hint
 hinterland
 hip
 hippie
+hippopotamus
 hire
 hiring
 hiss
@@ -4921,6 +4954,8 @@ hypocrite
 hypothesis
 hysterectomy
 hysteria
+ibex
+ibis
 ice
 iceberg
 icebox
@@ -5443,6 +5478,7 @@ kindergarten
 kindness
 king
 kingdom
+kingfisher
 kingmaker
 kingpin
 kinship
@@ -5458,6 +5494,7 @@ kite
 kitten
 kittens
 kitty
+kiwi
 klaxon
 knack
 knapsack
@@ -5478,6 +5515,7 @@ knoll
 knot
 knowledge
 knuckle
+koala
 kook
 kraken
 kynd
@@ -5619,6 +5657,7 @@ legs
 legume
 lem
 lemon
+lemur
 lender
 length
 leopard
@@ -5738,6 +5777,7 @@ liver
 livery
 living
 lizard
+llama
 loader
 loading
 loaf
@@ -5835,10 +5875,10 @@ luster
 lute
 luxury
 lynching
+lynx
 lyre
 lyric
 lyricist
-m'lord
 macaw
 mace
 machete
@@ -5911,6 +5951,7 @@ mammy
 man
 management
 manager
+manatee
 mance
 mandarin
 mandate
@@ -5942,6 +5983,7 @@ manservant
 mansion
 mantel
 mantelpiece
+mantis
 mantle
 mantra
 manual
@@ -5982,6 +6024,7 @@ marshal
 marshland
 marshmallow
 mart
+marten
 martinet
 martini
 martyr
@@ -6058,6 +6101,7 @@ medicine
 mediocrity
 meditation
 medley
+meerkat
 meet
 meeting
 mega
@@ -6183,6 +6227,7 @@ miniskirt
 minister
 ministration
 ministry
+mink
 minnow
 minor
 minority
@@ -6307,6 +6352,7 @@ moonshiner
 moor
 mooring
 moorland
+moose
 mop
 moral
 moralist
@@ -6451,6 +6497,7 @@ narcotic
 narration
 narrative
 narrator
+narwhal
 nation
 nationalism
 nationalist
@@ -6520,6 +6567,7 @@ newsreel
 newsroom
 newsstand
 newswoman
+newt
 nibble
 nicety
 niche
@@ -6661,6 +6709,7 @@ oceanographer
 ochre
 octave
 octogenarian
+octopus
 oddball
 oddity
 odometer
@@ -6687,6 +6736,7 @@ oilfield
 oilman
 oilskin
 ointment
+okapi
 oldie
 oldster
 oligarchy
@@ -6716,6 +6766,7 @@ ophthalmologist
 opiate
 opinion
 opment
+opossum
 opponent
 opportunist
 opportunity
@@ -6730,6 +6781,7 @@ oracle
 oral
 orange
 oranges
+orangutan
 oration
 orator
 oratorio
@@ -6737,6 +6789,7 @@ oratory
 orb
 orbit
 orbiter
+orca
 orchard
 orchestra
 orchestration
@@ -6895,6 +6948,7 @@ panda
 pane
 panel
 panelling
+pangolin
 panhandle
 panic
 panoply
@@ -7071,6 +7125,7 @@ peephole
 peerage
 peg
 pegboard
+pelican
 pellet
 pelt
 pelvis
@@ -7251,6 +7306,7 @@ pipe
 pipeline
 piper
 piracy
+piranha
 pirate
 pistachio
 pistol
@@ -7306,6 +7362,7 @@ platform
 platitude
 platoon
 platter
+platypus
 play
 playback
 playboy
@@ -7730,6 +7787,7 @@ puck
 pudding
 puddle
 puff
+puffin
 pug
 puke
 pull
@@ -7797,6 +7855,7 @@ quack
 quadrangle
 quadrant
 quagmire
+quail
 quake
 qualification
 qualifier
@@ -7836,6 +7895,7 @@ quip
 quirk
 quitter
 quiver
+quokka
 quota
 quotation
 quote
@@ -8097,6 +8157,7 @@ rehearsal
 reign
 reimbursement
 reincarnation
+reindeer
 reinforcement
 reinstatement
 reinterpretation
@@ -8285,6 +8346,7 @@ revulsion
 reward
 rhetoric
 rhinestone
+rhinoceros
 rhizome
 rhododendron
 rhyme
@@ -8347,6 +8409,7 @@ road
 roadbed
 roadblock
 roadhouse
+roadrunner
 roadside
 roadster
 roadway
@@ -8494,6 +8557,7 @@ salesman
 salesperson
 saleswoman
 sally
+salmon
 salon
 saloon
 salsa
@@ -8674,6 +8738,7 @@ sea
 seabed
 seafood
 seagull
+seahorse
 seal
 sealer
 sealskin
@@ -8770,6 +8835,7 @@ serial
 sermon
 serpent
 serum
+serval
 servant
 serve
 server
@@ -9383,6 +9449,7 @@ squawk
 squeak
 squeal
 squeeze
+squid
 squint
 squire
 squirm
@@ -9430,6 +9497,7 @@ star
 starburst
 starch
 stare
+starfish
 starlet
 starling
 starship
@@ -9883,6 +9951,7 @@ tape
 taper
 tapestry
 taping
+tapir
 tapping
 tar
 tarantula
@@ -9984,6 +10053,7 @@ tequila
 terminal
 termination
 terminology
+termite
 tern
 terrace
 terracotta
@@ -10201,6 +10271,7 @@ totalitarianism
 totality
 tote
 totem
+toucan
 touch
 touchdown
 touchstone
@@ -10369,6 +10440,7 @@ troupe
 trouper
 trouser
 trousers
+trout
 trove
 trowel
 truancy
@@ -10749,6 +10821,7 @@ walker
 walkout
 walkway
 wall
+wallaby
 wallet
 walleye
 wallflower
@@ -10756,6 +10829,7 @@ wallop
 wallow
 wallpaper
 walnut
+walrus
 wand
 wanderer
 wane
@@ -10912,6 +10986,7 @@ wiggle
 wigwam
 wil
 wildcat
+wildebeest
 wilderness
 wildfire
 will
@@ -10958,9 +11033,11 @@ wobble
 woe
 wok
 wolf
+wolverine
 woman
 womanizer
 womb
+wombat
 women
 wonder
 wondering
