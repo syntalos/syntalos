@@ -141,6 +141,8 @@ void RecordedTable::setHeader(const QStringList &headers)
     m_tableWidget->horizontalHeader()->show();
     m_tableWidget->setColumnCount(headers.count());
     m_tableWidget->setHorizontalHeaderLabels(headers);
+    m_tableWidget->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    m_tableWidget->horizontalHeader()->setStretchLastSection(true);
 
     // write headers
     if (!m_eventFile->isOpen())
