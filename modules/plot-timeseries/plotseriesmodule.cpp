@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2023-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2023-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -19,8 +19,8 @@
 
 #include "plotseriesmodule.h"
 
+#include "plotcanvas.h"
 #include "plotwindow.h"
-#include "timeplotwidget.h"
 
 SYNTALOS_MODULE(PlotSeriesModule)
 
@@ -28,20 +28,17 @@ template<typename T>
 class PlotSubscriptionDetails
 {
 public:
-    explicit PlotSubscriptionDetails(std::shared_ptr<StreamInputPort<T>> newPort, TimePlotWidget *plot)
+    explicit PlotSubscriptionDetails(std::shared_ptr<StreamInputPort<T>> newPort)
         : port(newPort),
-          plotWidget(plot),
           timestampDivisor(1000)
     {
         sub = port->subscription();
+        portId = port->id();
     }
 
     std::shared_ptr<StreamInputPort<T>> port;
     std::shared_ptr<StreamSubscription<T>> sub;
-    std::vector<bool> showSignal;
-    TimePlotWidget *plotWidget;
-
-    int expectedSigSeriesCount;
+    QString portId;
     double timestampDivisor;
 };
 
@@ -66,7 +63,7 @@ public:
         m_plotWindow = new PlotWindow(this);
         m_plotWindow->setWindowIcon(modInfo->icon());
         addDisplayWindow(m_plotWindow);
-        m_plotWindow->updatePortLists();
+        m_plotWindow->refreshChannelTable();
     }
 
     ~PlotSeriesModule() override {}
@@ -84,46 +81,43 @@ public:
     bool prepare(const TestSubject &) override
     {
         m_active = false;
-
         m_fpSubs.clear();
         m_intSubs.clear();
-        for (auto &port : inPorts()) {
-            auto plotWidget = m_plotWindow->plotWidgetForPort(port->id());
 
-            // we can't or shouldn't display anything if we have no plot widget
-            if (plotWidget == nullptr) {
+        auto canvas = m_plotWindow->canvas();
+        canvas->clearRuntimeData();
+
+        for (auto &port : inPorts()) {
+            if (!port->hasSubscription()) {
+                // do nothing if we have no subscription
                 if (port->hasSubscription())
                     port->subscriptionVar()->suspend();
                 continue;
             }
 
-            // do nothing if we have no subscription
-            if (!port->hasSubscription()) {
-                plotWidget->setVisible(false);
-                continue;
-            }
-            plotWidget->setVisible(true);
-            plotWidget->clear();
-
             // resume, in case we previously suspended the subscription
             port->subscriptionVar()->resume();
 
+            // Register port on the canvas with default divisor; updated in start()
+            // once metadata is available.
+            canvas->registerPort(port->id(), 1000.0, QStringLiteral("y"));
+
             if (port->dataTypeName() == "FloatSignalBlock") {
-                PlotSubscriptionDetails<FloatSignalBlock> sdF(
-                    std::static_pointer_cast<StreamInputPort<FloatSignalBlock>>(port),
-                    plotWidget);
-                m_fpSubs.push_back(sdF);
+                PlotSubscriptionDetails<FloatSignalBlock> sd(
+                    std::static_pointer_cast<StreamInputPort<FloatSignalBlock>>(port));
 
                 // prevent receiving more than 4k items/s to safeguard a bit against overflows
-                sdF.sub->setThrottleItemsPerSec(4000);
+                sd.sub->setThrottleItemsPerSec(4000);
+                m_fpSubs.push_back(sd);
             } else if (port->dataTypeName() == "IntSignalBlock") {
-                PlotSubscriptionDetails<IntSignalBlock> sdI(
-                    std::static_pointer_cast<StreamInputPort<IntSignalBlock>>(port),
-                    plotWidget);
-                m_intSubs.push_back(sdI);
+                PlotSubscriptionDetails<IntSignalBlock> sd(
+                    std::static_pointer_cast<StreamInputPort<IntSignalBlock>>(port));
 
                 // prevent receiving more than 4k items/s
-                sdI.sub->setThrottleItemsPerSec(4000);
+                sd.sub->setThrottleItemsPerSec(4000);
+                m_intSubs.push_back(sd);
+            } else {
+                continue;
             }
 
             registerDataReceivedEvent(&PlotSeriesModule::onSignalBlockReceived, port->subscriptionVar());
@@ -162,28 +156,19 @@ public:
             sd.timestampDivisor = sampleRate;
         }
 
-        sd.plotWidget->setYAxisLabel(QString::fromStdString(sd.sub->metadataValue("data_unit", std::string{"y"})));
+        const QString yLabel = QString::fromStdString(sd.sub->metadataValue("data_unit", std::string{"y"}));
+        m_plotWindow->canvas()->registerPort(sd.portId, sd.timestampDivisor, yLabel);
 
-        sd.expectedSigSeriesCount = 0;
-        sd.showSignal.clear();
-
+        // Pre-create channel entries from any signal_names metadata so the table
+        // is populated before data starts flowing.
         const auto sigNamesArr = sd.sub->metadataValue("signal_names", MetaArray{});
-        QStringList signalNames;
+        int colIdx = 0;
         for (const auto &v : sigNamesArr) {
+            QString name = QStringLiteral("ch%1").arg(colIdx);
             if (const auto s = v.template get<std::string>())
-                signalNames << QString::fromStdString(*s);
-        }
-        m_plotWindow->setSignalsForPort(sd.port->id(), signalNames);
-        for (const auto &name : signalNames) {
-            const auto sps = m_plotWindow->signalPlotSettingsFor(sd.port->id(), name);
-            if (sps.isVisible) {
-                sd.plotWidget->addSeries(name, sps);
-                sd.showSignal.push_back(true);
-            } else {
-                sd.showSignal.push_back(false);
-            }
-
-            sd.expectedSigSeriesCount++;
+                name = QString::fromStdString(*s);
+            m_plotWindow->canvas()->ensureChannel(sd.portId, colIdx, name);
+            ++colIdx;
         }
     }
 
@@ -194,14 +179,17 @@ public:
         // apply all metadata
         for (auto &sd : m_fpSubs)
             applyMetadataForSubscription(sd);
-
         for (auto &sd : m_intSubs)
             applyMetadataForSubscription(sd);
+
+        m_plotWindow->refreshChannelTable();
     }
 
     template<typename T>
     void processIncomingData(PlotSubscriptionDetails<T> &sd)
     {
+        auto canvas = m_plotWindow->canvas();
+
         // Drain all queued blocks - peekNext() only dequeues one item, so we must
         // loop to prevent the subscription queue from growing unboundedly when the
         // producer (e.g. 30 kHz source) outpaces individual event firings.
@@ -211,29 +199,16 @@ public:
                 break;
             const auto &data = *maybeData;
 
-            sd.plotWidget->addToTimeseries(data.timestamps, sd.timestampDivisor);
+            canvas->appendTimestamps(sd.portId, data.timestamps);
 
-            // sanity check
-            if (data.data.cols() != sd.expectedSigSeriesCount) {
-                raiseError(QStringLiteral(
-                               "Unexpected amount of signal-series received on port %1: Expected %2, but got %3. "
-                               "This is a bug in the module we receive data from.")
-                               .arg(sd.port->title())
-                               .arg(sd.expectedSigSeriesCount)
-                               .arg(data.data.cols()));
-                return;
-            }
-
-            int seriesIdx = 0;
-            for (int i = 0; i < data.data.cols(); ++i) {
-                if (!sd.showSignal[i])
+            for (int c = 0; c < data.data.cols(); ++c) {
+                const int ci = canvas->ensureChannel(sd.portId, c, QString());
+                if (!canvas->channelEnabled(ci))
                     continue;
-
                 if constexpr (std::is_same_v<T, IntSignalBlock>)
-                    sd.plotWidget->addToSeriesI(seriesIdx, data.data.col(i));
+                    canvas->appendSamplesI(ci, data.data.col(c));
                 else
-                    sd.plotWidget->addToSeriesF(seriesIdx, data.data.col(i));
-                seriesIdx++;
+                    canvas->appendSamplesF(ci, data.data.col(c));
             }
         }
     }
@@ -245,7 +220,6 @@ public:
 
         for (auto &sd : m_fpSubs)
             processIncomingData(sd);
-
         for (auto &sd : m_intSubs)
             processIncomingData(sd);
     }
@@ -259,7 +233,6 @@ public:
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
     {
         QVariantList varInPorts;
-        QVariantHash varPortSigConfig;
         for (const auto &port : inPorts()) {
             QVariantHash po;
             po.insert("id", port->id());
@@ -268,20 +241,9 @@ public:
             varInPorts.append(po);
         }
 
-        for (const auto &port : inPorts()) {
-            QVariantList sigSetList;
-            for (const auto &sps : m_plotWindow->signalPlotSettingsFor(port->id())) {
-                QVariantHash sc;
-                sc.insert("name", sps.name);
-                sc.insert("is_visible", sps.isVisible);
-                sc.insert("is_digital", sps.isDigital);
-                sigSetList.append(sc);
-            }
-            varPortSigConfig[port->id()] = sigSetList;
-        }
-
         settings.insert("ports_in", varInPorts);
-        settings.insert("signals_settings", varPortSigConfig);
+        settings.insert("channels", m_plotWindow->canvas()->saveChannels());
+        settings.insert("graphs", m_plotWindow->canvas()->saveGraphs());
         settings.insert("settings_panel_visible", m_plotWindow->defaultSettingsVisible());
         settings.insert("update_frequency", m_plotWindow->updateFrequency());
         settings.insert("buffer_size", m_plotWindow->bufferSize());
@@ -290,10 +252,9 @@ public:
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
         clearInPorts();
+        m_plotWindow->canvas()->clearAll();
 
         const auto varInPorts = settings.value("ports_in").toList();
-        const auto varPortSigSettings = settings.value("signals_settings").toHash();
-
         for (const auto &pv : varInPorts) {
             const auto po = pv.toHash();
             const auto portId = po.value("id").toString();
@@ -301,23 +262,21 @@ public:
                 BaseDataType::typeIdFromString(qPrintable(po.value("data_type").toString())),
                 portId,
                 po.value("title").toString());
-
-            // read settings for the signals associated with this port
-            for (const auto &varSigSet : varPortSigSettings.value(portId, QVariantList()).toList()) {
-                const auto sigSet = varSigSet.toHash();
-                PlotSeriesSettings pss(sigSet.value("name").toString());
-                pss.isVisible = sigSet.value("is_visible", false).toBool();
-                pss.isDigital = sigSet.value("is_digital", false).toBool();
-
-                m_plotWindow->setSignalPlotSettings(portId, pss);
-            }
         }
+
+        // Pre-create canvas ports so loaded channels can resolve later.
+        for (const auto &pv : varInPorts) {
+            const auto po = pv.toHash();
+            m_plotWindow->canvas()->registerPort(po.value("id").toString(), 1000.0, QStringLiteral("y"));
+        }
+        m_plotWindow->canvas()->loadChannels(settings.value("channels").toList());
+        m_plotWindow->canvas()->loadGraphs(settings.value("graphs").toList());
 
         m_plotWindow->setDefaultSettingsVisible(settings.value("settings_panel_visible").toBool());
         m_plotWindow->setUpdateFrequency(settings.value("update_frequency", 60).toInt());
-        m_plotWindow->setBufferSize(settings.value("buffer_size", 1024).toInt());
+        m_plotWindow->setBufferSize(settings.value("buffer_size", 512).toInt());
 
-        m_plotWindow->updatePortLists();
+        m_plotWindow->refreshChannelTable();
         return true;
     }
 

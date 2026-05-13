@@ -43,7 +43,7 @@
        <height>50</height>
       </size>
      </property>
-     <layout class="QVBoxLayout" name="verticalLayout_14">
+     <layout class="QVBoxLayout" name="plotContainerLayout">
       <property name="spacing">
        <number>0</number>
       </property>
@@ -63,14 +63,14 @@
     </widget>
    </item>
    <item>
-    <widget class="QWidget" name="widget" native="true">
+    <widget class="QWidget" name="bottomBar" native="true">
      <property name="sizePolicy">
       <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
      </property>
-     <layout class="QVBoxLayout" name="verticalLayout">
+     <layout class="QVBoxLayout" name="bottomBarLayout">
       <property name="spacing">
        <number>2</number>
       </property>
@@ -125,7 +125,7 @@
           <verstretch>0</verstretch>
          </sizepolicy>
         </property>
-        <layout class="QHBoxLayout" name="horizontalLayout">
+        <layout class="QHBoxLayout" name="settingsLayout">
          <property name="spacing">
           <number>4</number>
          </property>
@@ -142,169 +142,11 @@
           <number>2</number>
          </property>
          <item>
-          <widget class="QGroupBox" name="signalSelectGroupBox">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
+          <widget class="QGroupBox" name="channelsGroupBox">
            <property name="title">
-            <string>Select Signals</string>
+            <string>Channels</string>
            </property>
-           <layout class="QHBoxLayout" name="horizontalLayout_2">
-            <item>
-             <widget class="QWidget" name="widget_5" native="true">
-              <layout class="QVBoxLayout" name="verticalLayout_3">
-               <property name="spacing">
-                <number>2</number>
-               </property>
-               <property name="leftMargin">
-                <number>2</number>
-               </property>
-               <property name="topMargin">
-                <number>2</number>
-               </property>
-               <property name="rightMargin">
-                <number>2</number>
-               </property>
-               <property name="bottomMargin">
-                <number>2</number>
-               </property>
-               <item>
-                <widget class="QListWidget" name="portListWidget"/>
-               </item>
-               <item>
-                <widget class="QWidget" name="widget_3" native="true">
-                 <layout class="QHBoxLayout" name="horizontalLayout_3">
-                  <property name="leftMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="topMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="rightMargin">
-                   <number>0</number>
-                  </property>
-                  <property name="bottomMargin">
-                   <number>0</number>
-                  </property>
-                  <item>
-                   <widget class="QPushButton" name="addPortBtn">
-                    <property name="text">
-                     <string>Add</string>
-                    </property>
-                    <property name="icon">
-                     <iconset theme="list-add"/>
-                    </property>
-                    <property name="flat">
-                     <bool>true</bool>
-                    </property>
-                   </widget>
-                  </item>
-                  <item>
-                   <widget class="QPushButton" name="removePortBtn">
-                    <property name="enabled">
-                     <bool>false</bool>
-                    </property>
-                    <property name="text">
-                     <string>Remove</string>
-                    </property>
-                    <property name="icon">
-                     <iconset theme="list-remove"/>
-                    </property>
-                    <property name="flat">
-                     <bool>true</bool>
-                    </property>
-                   </widget>
-                  </item>
-                 </layout>
-                </widget>
-               </item>
-              </layout>
-             </widget>
-            </item>
-            <item>
-             <widget class="QListWidget" name="sigListWidget">
-              <property name="enabled">
-               <bool>false</bool>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
-         <item>
-          <widget class="QGroupBox" name="sigSettingsGroupBox">
-           <property name="enabled">
-            <bool>false</bool>
-           </property>
-           <property name="title">
-            <string>Signal Settings</string>
-           </property>
-           <layout class="QVBoxLayout" name="verticalLayout_5">
-            <property name="leftMargin">
-             <number>2</number>
-            </property>
-            <property name="topMargin">
-             <number>2</number>
-            </property>
-            <property name="rightMargin">
-             <number>2</number>
-            </property>
-            <property name="bottomMargin">
-             <number>2</number>
-            </property>
-            <item>
-             <layout class="QFormLayout" name="formLayout">
-              <item row="0" column="0">
-               <widget class="QLabel" name="showSignalLabel">
-                <property name="text">
-                 <string>Show</string>
-                </property>
-               </widget>
-              </item>
-              <item row="0" column="1">
-               <widget class="QCheckBox" name="showSignalCheckBox">
-                <property name="checked">
-                 <bool>false</bool>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="0">
-               <widget class="QLabel" name="digitalLabel">
-                <property name="text">
-                 <string>Digital</string>
-                </property>
-               </widget>
-              </item>
-              <item row="1" column="1">
-               <widget class="QCheckBox" name="digitalCheckBox"/>
-              </item>
-             </layout>
-            </item>
-           </layout>
-          </widget>
-         </item>
-         <item>
-          <spacer name="horizontalSpacer_2">
-           <property name="orientation">
-            <enum>Qt::Orientation::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QGroupBox" name="groupBox">
-           <property name="title">
-            <string>Global Settings</string>
-           </property>
-           <layout class="QVBoxLayout" name="verticalLayout_4" stretch="0">
+           <layout class="QVBoxLayout" name="channelsBoxLayout">
             <property name="spacing">
              <number>2</number>
             </property>
@@ -321,7 +163,148 @@
              <number>2</number>
             </property>
             <item>
-             <layout class="QFormLayout" name="formLayout_3">
+             <widget class="QTableWidget" name="channelTable">
+              <property name="minimumSize">
+               <size>
+                <width>0</width>
+                <height>120</height>
+               </size>
+              </property>
+              <property name="selectionBehavior">
+               <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+              </property>
+              <property name="columnCount">
+               <number>5</number>
+              </property>
+              <attribute name="horizontalHeaderStretchLastSection">
+               <bool>true</bool>
+              </attribute>
+              <column>
+               <property name="text">
+                <string>Port</string>
+               </property>
+              </column>
+              <column>
+               <property name="text">
+                <string>Channel</string>
+               </property>
+              </column>
+              <column>
+               <property name="text">
+                <string>Show</string>
+               </property>
+              </column>
+              <column>
+               <property name="text">
+                <string>Digital</string>
+               </property>
+              </column>
+              <column>
+               <property name="text">
+                <string>Graph</string>
+               </property>
+              </column>
+             </widget>
+            </item>
+            <item>
+             <widget class="QWidget" name="channelsBtnRow" native="true">
+              <layout class="QHBoxLayout" name="channelsBtnRowLayout">
+               <property name="spacing">
+                <number>4</number>
+               </property>
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
+               <item>
+                <widget class="QPushButton" name="addPortBtn">
+                 <property name="text">
+                  <string>Add Port</string>
+                 </property>
+                 <property name="icon">
+                  <iconset theme="list-add"/>
+                 </property>
+                 <property name="flat">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="removePortBtn">
+                 <property name="text">
+                  <string>Remove Port</string>
+                 </property>
+                 <property name="icon">
+                  <iconset theme="list-remove"/>
+                 </property>
+                 <property name="flat">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QPushButton" name="resetLayoutBtn">
+                 <property name="text">
+                  <string>Reset Layout</string>
+                 </property>
+                 <property name="icon">
+                  <iconset theme="view-refresh"/>
+                 </property>
+                 <property name="flat">
+                  <bool>true</bool>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <spacer name="channelsBtnSpacer">
+                 <property name="orientation">
+                  <enum>Qt::Orientation::Horizontal</enum>
+                 </property>
+                 <property name="sizeHint" stdset="0">
+                  <size>
+                   <width>40</width>
+                   <height>20</height>
+                  </size>
+                 </property>
+                </spacer>
+               </item>
+              </layout>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="globalSettingsBox">
+           <property name="title">
+            <string>Global Settings</string>
+           </property>
+           <layout class="QVBoxLayout" name="globalSettingsLayout">
+            <property name="spacing">
+             <number>2</number>
+            </property>
+            <property name="leftMargin">
+             <number>2</number>
+            </property>
+            <property name="topMargin">
+             <number>2</number>
+            </property>
+            <property name="rightMargin">
+             <number>2</number>
+            </property>
+            <property name="bottomMargin">
+             <number>2</number>
+            </property>
+            <item>
+             <layout class="QFormLayout" name="globalSettingsForm">
               <item row="0" column="0">
                <widget class="QLabel" name="updateSpeedLabel">
                 <property name="text">
@@ -364,53 +347,11 @@
                  <number>2560</number>
                 </property>
                 <property name="value">
-                 <number>1024</number>
+                 <number>128</number>
                 </property>
                </widget>
               </item>
              </layout>
-            </item>
-           </layout>
-          </widget>
-         </item>
-         <item>
-          <widget class="QWidget" name="widget_2" native="true">
-           <layout class="QVBoxLayout" name="verticalLayout_13">
-            <property name="spacing">
-             <number>0</number>
-            </property>
-            <property name="leftMargin">
-             <number>0</number>
-            </property>
-            <property name="topMargin">
-             <number>0</number>
-            </property>
-            <property name="rightMargin">
-             <number>0</number>
-            </property>
-            <property name="bottomMargin">
-             <number>0</number>
-            </property>
-            <item>
-             <widget class="QWidget" name="widget_4" native="true">
-              <layout class="QHBoxLayout" name="horizontalLayout_8">
-               <property name="spacing">
-                <number>6</number>
-               </property>
-               <property name="leftMargin">
-                <number>0</number>
-               </property>
-               <property name="topMargin">
-                <number>1</number>
-               </property>
-               <property name="rightMargin">
-                <number>0</number>
-               </property>
-               <property name="bottomMargin">
-                <number>0</number>
-               </property>
-              </layout>
-             </widget>
             </item>
            </layout>
           </widget>

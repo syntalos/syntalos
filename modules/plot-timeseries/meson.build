@@ -6,14 +6,14 @@ module_hdr = [
 ]
 module_moc_hdr = [
     'imgui-renderer.h',
-    'timeplotwidget.h',
+    'plotcanvas.h',
     'plotwindow.h',
 ]
 
 module_src = [
     'imgui-renderer.cpp',
     'qtimgui.cpp',
-    'timeplotwidget.cpp',
+    'plotcanvas.cpp',
     'plotwindow.cpp',
 ]
 module_moc_src = [

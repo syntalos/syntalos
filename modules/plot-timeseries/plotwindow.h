@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -20,9 +20,8 @@
 #pragma once
 
 #include <QWidget>
-#include <QListWidgetItem>
 
-#include "timeplotwidget.h"
+#include "plotcanvas.h"
 
 namespace Syntalos
 {
@@ -43,14 +42,7 @@ public:
     explicit PlotWindow(AbstractModule *mod, QWidget *parent = nullptr);
     ~PlotWindow();
 
-    void updatePortLists();
-    void setSignalsForPort(const QString &portId, const QStringList &signalNames);
-    TimePlotWidget *plotWidgetForPort(const QString &portId);
-
-    bool signalIsShown(const QString &portId, const QString &signalName);
-    PlotSeriesSettings signalPlotSettingsFor(const QString &portId, const QString &signalName);
-    QList<PlotSeriesSettings> signalPlotSettingsFor(const QString &portId);
-    void setSignalPlotSettings(const QString &portId, const PlotSeriesSettings &pss);
+    PlotCanvas *canvas() const;
 
     void setRunning(bool running);
 
@@ -63,32 +55,24 @@ public:
     int bufferSize() const;
     void setBufferSize(int kitems);
 
+    void refreshChannelTable();
+
 private slots:
     void on_settingsDisplayBtn_clicked();
-    void on_portListWidget_currentItemChanged(QListWidgetItem *current, QListWidgetItem *previous);
-    void on_sigListWidget_currentItemChanged(QListWidgetItem *current, QListWidgetItem *previous);
-    void on_portListWidget_clicked(const QModelIndex &index);
-    void on_sigListWidget_clicked(const QModelIndex &index);
-
     void on_addPortBtn_clicked();
     void on_removePortBtn_clicked();
-
-    void on_showSignalCheckBox_toggled(bool checked);
-    void on_digitalCheckBox_toggled(bool checked);
-
+    void on_resetLayoutBtn_clicked();
     void on_speedSpinBox_valueChanged(int arg1);
     void on_bufferSizeSpinBox_valueChanged(int arg1);
 
 private:
     Ui::PlotWindow *ui;
     AbstractModule *m_mod;
+    PlotCanvas *m_canvas;
     bool m_running;
-
     bool m_defaultSettingsVisible;
-    QHash<QString, TimePlotWidget *> m_plotWidgets;
-    QHash<QString, QMap<QString, PlotSeriesSettings>> m_signalDetails;
 
     void setSettingsPanelVisible(bool visible);
-    bool checkAnyPortSignalsVisible(const QString &portId);
-    TimePlotWidget *newPlotWidget(const QString &portId);
+    void onShowToggled(int channelIndex, bool checked);
+    void onDigitalToggled(int channelIndex, bool checked);
 };

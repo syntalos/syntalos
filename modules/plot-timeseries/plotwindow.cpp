@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -20,26 +20,43 @@
 #include "plotwindow.h"
 #include "ui_plotwindow.h"
 
-#include <QScrollBar>
+#include <QCheckBox>
+#include <QHeaderView>
 #include <QInputDialog>
+#include <QTableWidgetItem>
 
 #include "moduleapi.h"
-#include "timeplotwidget.h"
 
 PlotWindow::PlotWindow(AbstractModule *mod, QWidget *parent)
     : QWidget(parent),
       ui(new Ui::PlotWindow),
       m_mod(mod),
+      m_canvas(nullptr),
       m_running(false),
       m_defaultSettingsVisible(true)
 {
     ui->setupUi(this);
     setWindowTitle(QStringLiteral("Time Series Plotter"));
+
+    m_canvas = new PlotCanvas(this);
+    ui->plotContainer->layout()->addWidget(m_canvas);
+    m_canvas->setBufferSize(static_cast<size_t>(ui->bufferSizeSpinBox->value()) * 1000);
+    m_canvas->setUpdateInterval(ui->speedSpinBox->value());
+
+    ui->channelTable->horizontalHeader()->setStretchLastSection(true);
+    ui->channelTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+
+    connect(m_canvas, &PlotCanvas::layoutChanged, this, &PlotWindow::refreshChannelTable);
 }
 
 PlotWindow::~PlotWindow()
 {
     delete ui;
+}
+
+PlotCanvas *PlotWindow::canvas() const
+{
+    return m_canvas;
 }
 
 void PlotWindow::setSettingsPanelVisible(bool visible)
@@ -53,144 +70,81 @@ void PlotWindow::setSettingsPanelVisible(bool visible)
     }
 }
 
-bool PlotWindow::checkAnyPortSignalsVisible(const QString &portId)
-{
-    bool anyVisible = false;
-
-    // special case: If there are no signals, we likely will get some metadata
-    // during the next run, so we consider *all* of them visible.
-    if (m_signalDetails[portId].isEmpty())
-        return true;
-
-    for (const auto &sd : m_signalDetails[portId].values()) {
-        if (sd.isVisible) {
-            anyVisible = true;
-            break;
-        }
-    }
-    if (!anyVisible) {
-        delete static_cast<QWidget *>(m_plotWidgets[portId]);
-        m_plotWidgets.remove(portId);
-    }
-
-    return anyVisible;
-}
-
-TimePlotWidget *PlotWindow::newPlotWidget(const QString &portId)
-{
-    auto plot = new TimePlotWidget(this);
-    ui->plotContainer->layout()->addWidget(plot);
-    if (m_plotWidgets.contains(portId))
-        delete m_plotWidgets[portId];
-    m_plotWidgets.insert(portId, plot);
-
-    plot->setBufferSize(ui->bufferSizeSpinBox->value() * 1000);
-    plot->setUpdateInterval(ui->speedSpinBox->value());
-
-    for (const auto &port : m_mod->inPorts()) {
-        if (port->id() == portId) {
-            plot->setTitle(port->title());
-            plot->setTitleVisible(false);
-            break;
-        }
-    }
-
-    bool showTitles = m_plotWidgets.size() > 1;
-    for (auto p : m_plotWidgets.values())
-        p->setTitleVisible(showTitles);
-
-    return plot;
-}
-
 void PlotWindow::on_settingsDisplayBtn_clicked()
 {
     setSettingsPanelVisible(!ui->settingsWidget->isVisible());
 }
 
-void PlotWindow::updatePortLists()
+void PlotWindow::refreshChannelTable()
 {
-    ui->portListWidget->clear();
+    auto t = ui->channelTable;
+    QSignalBlocker block(t);
+    t->setRowCount(m_canvas->channelCount());
 
-    // remove all existing plot displays
-    for (QWidget *w : m_plotWidgets.values())
-        delete w;
-    m_plotWidgets.clear();
+    for (int i = 0; i < m_canvas->channelCount(); ++i) {
+        const auto info = m_canvas->channelInfo(i);
 
-    // display all registered ports in our UI
-    for (const auto &port : m_mod->inPorts()) {
-        auto item = new QListWidgetItem(
-            QStringLiteral("%1 [>>%2]").arg(port->title()).arg(port->dataTypeName()),
-            ui->portListWidget);
-        item->setData(Qt::UserRole, port->id());
+        // Resolve port title (fall back to id) by looking it up on the module.
+        QString portTitle = info.portId;
+        for (const auto &port : m_mod->inPorts()) {
+            if (port->id() == info.portId) {
+                portTitle = port->title();
+                break;
+            }
+        }
 
-        // make new plot widget
-        newPlotWidget(port->id());
+        auto portItem = new QTableWidgetItem(portTitle);
+        portItem->setFlags(portItem->flags() & ~Qt::ItemIsEditable);
+        portItem->setData(Qt::UserRole, info.portId);
+        t->setItem(i, 0, portItem);
 
-        if (m_signalDetails.contains(port->id()))
-            checkAnyPortSignalsVisible(port->id());
-        else
-            m_signalDetails.insert(port->id(), QMap<QString, PlotSeriesSettings>());
+        auto chanItem = new QTableWidgetItem(info.signalName);
+        chanItem->setFlags(chanItem->flags() & ~Qt::ItemIsEditable);
+        t->setItem(i, 1, chanItem);
+
+        auto showCb = new QCheckBox(t);
+        showCb->setChecked(info.enabled);
+        showCb->setEnabled(!m_running);
+        connect(showCb, &QCheckBox::toggled, this, [this, i](bool checked) {
+            onShowToggled(i, checked);
+        });
+        t->setCellWidget(i, 2, showCb);
+
+        auto digCb = new QCheckBox(t);
+        digCb->setChecked(info.digital);
+        digCb->setEnabled(!m_running);
+        connect(digCb, &QCheckBox::toggled, this, [this, i](bool checked) {
+            onDigitalToggled(i, checked);
+        });
+        t->setCellWidget(i, 3, digCb);
+
+        const QString graphLabel = info.graphId > 0 ? QStringLiteral("#%1").arg(info.graphId) : QStringLiteral("—");
+        auto graphItem = new QTableWidgetItem(graphLabel);
+        graphItem->setFlags(graphItem->flags() & ~Qt::ItemIsEditable);
+        t->setItem(i, 4, graphItem);
     }
 }
 
-void PlotWindow::setSignalsForPort(const QString &portId, const QStringList &signalNames)
+void PlotWindow::onShowToggled(int channelIndex, bool checked)
 {
-    // update the settings map
-    QSet<QString> removeEntries;
-    for (const auto &name : m_signalDetails[portId].keys())
-        removeEntries.insert(name);
-
-    for (const auto &name : signalNames) {
-        if (!m_signalDetails[portId].contains(name))
-            m_signalDetails[portId].insert(name, PlotSeriesSettings(name, false));
-        removeEntries.remove(name);
-    }
-
-    for (const auto &name : removeEntries)
-        m_signalDetails[portId].remove(name);
+    m_canvas->setChannelEnabled(channelIndex, checked);
 }
 
-TimePlotWidget *PlotWindow::plotWidgetForPort(const QString &portId)
+void PlotWindow::onDigitalToggled(int channelIndex, bool checked)
 {
-    if (!m_plotWidgets.contains(portId))
-        return nullptr;
-    return m_plotWidgets.value(portId);
-}
-
-bool PlotWindow::signalIsShown(const QString &portId, const QString &signalName)
-{
-    const auto sigDetails = m_signalDetails[portId];
-
-    if (!sigDetails.contains(signalName))
-        return m_plotWidgets.contains(portId);
-
-    return sigDetails[signalName].isVisible;
-}
-
-PlotSeriesSettings PlotWindow::signalPlotSettingsFor(const QString &portId, const QString &signalName)
-{
-    return m_signalDetails[portId][signalName];
-}
-
-QList<PlotSeriesSettings> PlotWindow::signalPlotSettingsFor(const QString &portId)
-{
-    return m_signalDetails.value(portId, QMap<QString, PlotSeriesSettings>()).values();
-}
-
-void PlotWindow::setSignalPlotSettings(const QString &portId, const PlotSeriesSettings &pss)
-{
-    m_signalDetails[portId][pss.name] = pss;
+    m_canvas->setChannelDigital(channelIndex, checked);
 }
 
 void PlotWindow::setRunning(bool running)
 {
     m_running = running;
-
-    ui->signalSelectGroupBox->setEnabled(!running);
-    ui->sigSettingsGroupBox->setEnabled(!running);
+    ui->channelsGroupBox->setEnabled(true); // table itself stays usable; checkboxes disable per-row
     ui->bufferSizeSpinBox->setEnabled(!running);
-    for (TimePlotWidget *w : m_plotWidgets.values())
-        w->setRunning(running);
+    ui->addPortBtn->setEnabled(!running);
+    ui->removePortBtn->setEnabled(!running);
+    ui->resetLayoutBtn->setEnabled(!running);
+
+    m_canvas->setRunning(running);
 
     // save previous settings panel state when we switch to running mode
     if (running)
@@ -201,6 +155,8 @@ void PlotWindow::setRunning(bool running)
         setSettingsPanelVisible(false);
     else
         setSettingsPanelVisible(m_defaultSettingsVisible);
+
+    refreshChannelTable();
 }
 
 bool PlotWindow::defaultSettingsVisible()
@@ -224,8 +180,7 @@ int PlotWindow::updateFrequency() const
 void PlotWindow::setUpdateFrequency(int hz)
 {
     ui->speedSpinBox->setValue(hz);
-    for (auto *w : m_plotWidgets.values())
-        w->setUpdateInterval(hz);
+    m_canvas->setUpdateInterval(hz);
 }
 
 int PlotWindow::bufferSize() const
@@ -236,59 +191,17 @@ int PlotWindow::bufferSize() const
 void PlotWindow::setBufferSize(int kitems)
 {
     ui->bufferSizeSpinBox->setValue(kitems);
-    for (auto *w : m_plotWidgets.values())
-        w->setBufferSize(kitems * 1000);
+    m_canvas->setBufferSize(static_cast<size_t>(kitems) * 1000);
 }
 
-void PlotWindow::on_portListWidget_currentItemChanged(QListWidgetItem *current, QListWidgetItem *previous)
+void PlotWindow::on_speedSpinBox_valueChanged(int arg1)
 {
-    Q_UNUSED(previous)
-    if (current == nullptr) {
-        ui->sigSettingsGroupBox->setEnabled(false);
-        ui->sigListWidget->setEnabled(false);
-        ui->removePortBtn->setEnabled(false);
-        return;
-    }
-
-    const auto signalNames = m_signalDetails
-                                 .value(current->data(Qt::UserRole).toString(), QMap<QString, PlotSeriesSettings>())
-                                 .keys();
-    ui->sigListWidget->clear();
-    for (const auto &name : signalNames) {
-        auto item = new QListWidgetItem(name, ui->sigListWidget);
-        item->setData(Qt::UserRole, name);
-    }
-    ui->sigListWidget->setEnabled(true);
-    ui->removePortBtn->setEnabled(true);
+    m_canvas->setUpdateInterval(arg1);
 }
 
-void PlotWindow::on_portListWidget_clicked(const QModelIndex &index)
+void PlotWindow::on_bufferSizeSpinBox_valueChanged(int arg1)
 {
-    Q_UNUSED(index);
-    on_portListWidget_currentItemChanged(ui->portListWidget->currentItem(), ui->portListWidget->currentItem());
-}
-
-void PlotWindow::on_sigListWidget_currentItemChanged(QListWidgetItem *current, QListWidgetItem *previous)
-{
-    Q_UNUSED(previous)
-    if (current == nullptr) {
-        ui->sigSettingsGroupBox->setEnabled(false);
-        return;
-    }
-
-    const auto portId = ui->portListWidget->currentItem()->data(Qt::UserRole).toString();
-    const auto sigName = current->data(Qt::UserRole).toString();
-
-    const auto pss = m_signalDetails[portId][sigName];
-    ui->sigSettingsGroupBox->setEnabled(true);
-    ui->showSignalCheckBox->setChecked(signalIsShown(portId, sigName));
-    ui->digitalCheckBox->setChecked(pss.isDigital);
-}
-
-void PlotWindow::on_sigListWidget_clicked(const QModelIndex &index)
-{
-    Q_UNUSED(index);
-    on_sigListWidget_currentItemChanged(ui->sigListWidget->currentItem(), ui->sigListWidget->currentItem());
+    m_canvas->setBufferSize(static_cast<size_t>(arg1) * 1000);
 }
 
 void PlotWindow::on_addPortBtn_clicked()
@@ -328,53 +241,31 @@ void PlotWindow::on_addPortBtn_clicked()
         return;
 
     const auto newPortId = QStringLiteral("sigs%1-in").arg(newPortNumber);
-
     m_mod->registerInputPortByTypeId(streamSignalTypeMap[item], newPortId, title);
-    updatePortLists();
+    refreshChannelTable();
 }
 
 void PlotWindow::on_removePortBtn_clicked()
 {
-    auto portItem = ui->portListWidget->currentItem();
+    auto t = ui->channelTable;
+    const auto rows = t->selectionModel()->selectedRows();
+    if (rows.isEmpty())
+        return;
+    const int row = rows.first().row();
+    auto portItem = t->item(row, 0);
     if (portItem == nullptr)
         return;
-    ui->removePortBtn->setEnabled(false);
-    m_mod->removeInPortById(portItem->data(Qt::UserRole).toString());
-    updatePortLists();
+    const QString portId = portItem->data(Qt::UserRole).toString();
+    if (portId.isEmpty())
+        return;
+
+    m_canvas->unregisterPort(portId);
+    m_mod->removeInPortById(portId);
+    refreshChannelTable();
 }
 
-void PlotWindow::on_showSignalCheckBox_toggled(bool checked)
+void PlotWindow::on_resetLayoutBtn_clicked()
 {
-    const auto portId = ui->portListWidget->currentItem()->data(Qt::UserRole).toString();
-    const auto sigName = ui->sigListWidget->currentItem()->data(Qt::UserRole).toString();
-    if (checked) {
-        m_signalDetails[portId][sigName].isVisible = true;
-
-        // ensure the plot widget exists if any signal should be shown
-        if (!m_plotWidgets.contains(portId)) {
-            newPlotWidget(portId);
-        }
-    } else {
-        m_signalDetails[portId][sigName].isVisible = false;
-
-        // delete the plot widget if no more signals should be shown
-        checkAnyPortSignalsVisible(portId);
-    }
-}
-
-void PlotWindow::on_digitalCheckBox_toggled(bool checked)
-{
-    const auto portId = ui->portListWidget->currentItem()->data(Qt::UserRole).toString();
-    const auto sigName = ui->sigListWidget->currentItem()->data(Qt::UserRole).toString();
-    m_signalDetails[portId][sigName].isDigital = checked;
-}
-
-void PlotWindow::on_speedSpinBox_valueChanged(int arg1)
-{
-    setUpdateFrequency(arg1);
-}
-
-void PlotWindow::on_bufferSizeSpinBox_valueChanged(int arg1)
-{
-    setBufferSize(arg1);
+    m_canvas->resetLayoutOneChannelPerGraph();
+    refreshChannelTable();
 }
