@@ -247,11 +247,11 @@ private slots:
         const auto u1 = Uuid::fromHex("12345678-1234-7abc-8def-0123456789ab").value();
         const auto u2 = Uuid::fromHex("fedcba98-7654-7321-8fed-cba987654321").value();
         QCOMPARE(makeMonikerForUuid(u1), std::string("inter-chuck-tar"));
-        QCOMPARE(makeMonikerForUuid(u2), std::string("functioning-nay"));
+        QCOMPARE(makeMonikerForUuid(u2), std::string("functioning-navigator"));
 
-        QCOMPARE(makeMonikerForString("hello world"), std::string("insulting-eggplant"));
-        QCOMPARE(makeMonikerForString("hello worle"), std::string("remedial-reincarnation"));
-        QCOMPARE(makeMonikerForString(""), std::string("merry-pothole"));
+        QCOMPARE(makeMonikerForString("hello world"), std::string("insulting-eggs"));
+        QCOMPARE(makeMonikerForString("hello worle"), std::string("remedial-rehash"));
+        QCOMPARE(makeMonikerForString(""), std::string("merry-potato"));
     }
 
     void runCollectionMonikerTest()
