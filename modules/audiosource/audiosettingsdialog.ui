@@ -90,6 +90,19 @@
          <widget class="QCheckBox" name="immediatePlayCheckBox"/>
         </item>
         <item row="1" column="0">
+         <widget class="QLabel" name="deviceLabel">
+          <property name="text">
+           <string>Output Device</string>
+          </property>
+          <property name="buddy">
+           <cstring>deviceComboBox</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <widget class="QComboBox" name="deviceComboBox"/>
+        </item>
+        <item row="2" column="0">
          <widget class="QLabel" name="waveLabel">
           <property name="text">
            <string>Wave Type</string>
@@ -99,17 +112,17 @@
           </property>
          </widget>
         </item>
-        <item row="1" column="1">
+        <item row="2" column="1">
          <widget class="QComboBox" name="waveComboBox"/>
         </item>
-        <item row="2" column="0">
+        <item row="3" column="0">
          <widget class="QLabel" name="frequencyLabel">
           <property name="text">
            <string>Frequency</string>
           </property>
          </widget>
         </item>
-        <item row="2" column="1">
+        <item row="3" column="1">
          <widget class="QDoubleSpinBox" name="freqSpinBox">
           <property name="suffix">
            <string> Hz</string>
@@ -122,14 +135,14 @@
           </property>
          </widget>
         </item>
-        <item row="3" column="0">
+        <item row="4" column="0">
          <widget class="QLabel" name="volumeLabel">
           <property name="text">
            <string>Volume</string>
           </property>
          </widget>
         </item>
-        <item row="3" column="1">
+        <item row="4" column="1">
          <widget class="QSlider" name="volumeSlider">
           <property name="maximum">
            <number>100</number>
@@ -147,31 +160,11 @@
      </layout>
     </widget>
    </item>
-   <item>
-    <widget class="QWidget" name="brqWidget" native="true">
-     <layout class="QHBoxLayout" name="horizontalLayout_2">
-      <property name="spacing">
-       <number>0</number>
-      </property>
-      <property name="leftMargin">
-       <number>0</number>
-      </property>
-      <property name="topMargin">
-       <number>0</number>
-      </property>
-      <property name="rightMargin">
-       <number>0</number>
-      </property>
-      <property name="bottomMargin">
-       <number>0</number>
-      </property>
-     </layout>
-    </widget>
-   </item>
   </layout>
  </widget>
  <tabstops>
   <tabstop>immediatePlayCheckBox</tabstop>
+  <tabstop>deviceComboBox</tabstop>
   <tabstop>waveComboBox</tabstop>
  </tabstops>
  <resources/>

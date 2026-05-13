@@ -38,8 +38,12 @@ public:
     bool startImmediately() const;
     void setStartImmediately(bool value);
 
+    QString deviceId() const;
+    void setDeviceId(const QString &value);
+
     int waveKind() const;
     void setWaveKind(int value);
+    QString waveKindName() const;
 
     double frequency() const;
     void setFrequency(double value);
