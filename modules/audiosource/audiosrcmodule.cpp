@@ -53,19 +53,29 @@ private:
     GstElement *m_audioSink;
     GstElement *m_pipeline;
     GstBus *m_bus;
+    guint m_busWatchId;
 
 public:
     explicit AudioSourceModule(ModuleInfo *modInfo, QObject *parent = nullptr)
         : AbstractModule(parent),
           m_settingsDialog(nullptr),
           m_prevCommand(ControlCommandKind::STOP),
-          m_pipeline(nullptr)
+          m_audioSource(nullptr),
+          m_audioSink(nullptr),
+          m_pipeline(nullptr),
+          m_bus(nullptr),
+          m_busWatchId(0)
     {
         m_ctlPort = registerInputPort<ControlCommand>(QStringLiteral("control-in"), QStringLiteral("Control"));
 
         m_settingsDialog = new AudioSettingsDialog;
         addSettingsWindow(m_settingsDialog);
         setName(name());
+    }
+
+    ~AudioSourceModule() override
+    {
+        deletePipeline();
     }
 
     bool initialize() override
@@ -164,18 +174,24 @@ public:
         gst_element_link(m_audioSource, m_audioSink);
 
         m_bus = gst_pipeline_get_bus(GST_PIPELINE(m_pipeline));
-        gst_bus_add_watch(m_bus, audiosrc_pipeline_watch_func, this);
+        m_busWatchId = gst_bus_add_watch(m_bus, audiosrc_pipeline_watch_func, this);
 
         return true;
     }
 
     void deletePipeline()
     {
+        if (m_busWatchId != 0) {
+            g_source_remove(m_busWatchId);
+            m_busWatchId = 0;
+        }
         if (m_pipeline == nullptr)
             return;
         gst_element_set_state(m_pipeline, GST_STATE_NULL);
-        g_clear_pointer(&m_pipeline, g_object_unref);
-        g_clear_pointer(&m_bus, g_object_unref);
+        g_clear_pointer(&m_pipeline, gst_object_unref);
+        g_clear_pointer(&m_bus, gst_object_unref);
+        m_audioSource = nullptr;
+        m_audioSink = nullptr;
     }
 
     bool resetPipeline()
