@@ -82,6 +82,12 @@ Scenario-based integration tests live in `tests/scenarios/` as TOML manifests.
 - **Python**: Black (line length 100, Python 3.11+ target)
 - **Indentation**: 4 spaces everywhere, no tabs
 
+## Inspecting `.syct` Project Files
+
+`.syct` files are tar archives containing the project's TOML manifests and per-module settings blobs.
+To inspect one as deterministic plain text (e.g. to diff one against another to debug changes), use:
+`./tools/syct-tools/syct-to-text.py path/to/project.syct`
+
 ## Architecture Overview
 
 ### Repository Layout
@@ -315,7 +321,7 @@ initialize()        ← module added to board; start persistent worker if needed
 
 Modules expose typed `StreamInputPort` / `StreamOutputPort` instances.
 All supported data types are defined in `src/datactl/datatypes.h`:
-`Frame`, `TableRow`, `ControlCommand`, `FirmataData`, `FloatSignalBlock`, `IntSignalBlock`, etc.
+`Frame`, `TableRow`, `ControlCommand`, `LineCommand`, `LineReading`, `*SignalBlock`, etc.
 
 Stream metadata is carried as `MetaStringMap` (a `std::map<std::string, MetaValue>`) where
 `MetaValue` is a `std::variant`. These types are defined in `src/datactl/streammeta.h`.
