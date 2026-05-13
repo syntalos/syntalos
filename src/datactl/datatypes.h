@@ -117,6 +117,7 @@ public:
         LineReading,
         IntSignalBlock,
         FloatSignalBlock,
+        UInt16SignalBlock,
         Last
     };
 
@@ -151,6 +152,8 @@ public:
             return "IntSignalBlock";
         case FloatSignalBlock:
             return "FloatSignalBlock";
+        case UInt16SignalBlock:
+            return "UInt16SignalBlock";
         default:
             return "<<unknown>>";
         }
@@ -174,6 +177,8 @@ public:
             return TypeId::IntSignalBlock;
         if (str == "FloatSignalBlock")
             return TypeId::FloatSignalBlock;
+        if (str == "UInt16SignalBlock")
+            return TypeId::UInt16SignalBlock;
         return TypeId::Unknown;
     }
 
@@ -659,6 +664,61 @@ struct FloatSignalBlock : BaseDataType {
 
         obj.timestamps = deserializeEigen<VectorXul>(stream);
         obj.data = deserializeEigen<MatrixXf>(stream);
+
+        return obj;
+    }
+};
+
+/**
+ * @brief A block of 16-bit unsigned integer signal data with timestamps.
+ *
+ * Used by DAQ hardware that natively produces 16-bit samples.
+ */
+struct UInt16SignalBlock : BaseDataType {
+    SY_DEFINE_DATA_TYPE(UInt16SignalBlock)
+
+    VectorXul timestamps;
+    MatrixXui16 data;
+
+    explicit UInt16SignalBlock(uint sampleCount = 60, uint channelCount = 1)
+    {
+        assert(channelCount > 0);
+        timestamps.resize(sampleCount);
+        data.resize(sampleCount, channelCount);
+    }
+
+    [[nodiscard]] size_t length() const
+    {
+        return timestamps.size();
+    }
+
+    [[nodiscard]] size_t rows() const
+    {
+        return data.rows();
+    }
+
+    [[nodiscard]] size_t cols() const
+    {
+        return data.cols();
+    }
+
+    bool toBytes(ByteVector &output) const override
+    {
+        BinaryStreamWriter stream(output);
+
+        serializeEigen(stream, timestamps);
+        serializeEigen(stream, data);
+
+        return true;
+    }
+
+    static UInt16SignalBlock fromMemory(const void *memory, size_t size)
+    {
+        UInt16SignalBlock obj;
+        BinaryStreamReader stream(memory, size);
+
+        obj.timestamps = deserializeEigen<VectorXul>(stream);
+        obj.data = deserializeEigen<MatrixXui16>(stream);
 
         return obj;
     }

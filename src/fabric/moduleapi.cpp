@@ -478,8 +478,9 @@ VarStreamInputPort *Syntalos::newInputPortForType(
     CHECK_RETURN_INPUT_PORT(Frame)
     CHECK_RETURN_INPUT_PORT(IntSignalBlock)
     CHECK_RETURN_INPUT_PORT(FloatSignalBlock)
+    CHECK_RETURN_INPUT_PORT(UInt16SignalBlock)
 
-    qCritical() << "Unable to create input port for unknown type ID" << typeId;
+    LOG_CRITICAL(logRoot, "Unable to create input port for unknown type ID {}", typeId);
     return nullptr;
 }
 
@@ -492,8 +493,9 @@ VariantDataStream *Syntalos::newStreamForType(int typeId)
     CHECK_RETURN_STREAM(Frame)
     CHECK_RETURN_STREAM(IntSignalBlock)
     CHECK_RETURN_STREAM(FloatSignalBlock)
+    CHECK_RETURN_STREAM(UInt16SignalBlock)
 
-    qCritical() << "Unable to create data stream for unknown type ID" << typeId;
+    LOG_CRITICAL(logRoot, "Unable to create data stream for unknown type ID {}", typeId);
     return nullptr;
 }
 

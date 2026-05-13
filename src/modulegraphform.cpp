@@ -74,8 +74,9 @@ ModuleGraphForm::ModuleGraphForm(QWidget *parent)
     ui->graphView->setPortTypeColor(TableRow::staticTypeId(), QColor::fromRgb(0x8FD6FE));
     ui->graphView->setPortTypeColor(IntSignalBlock::staticTypeId(), QColor::fromRgb(0x2ECC71));
     ui->graphView->setPortTypeColor(FloatSignalBlock::staticTypeId(), QColor::fromRgb(0xAECC70));
+    ui->graphView->setPortTypeColor(UInt16SignalBlock::staticTypeId(), QColor::fromRgb(0x2ECCAE));
 
-    // add rename ation to the menu
+    // add rename action to the menu
     auto renameAction = new QAction("Rename module", this);
     m_modifiersMenu->addAction(renameAction);
     connect(renameAction, &QAction::triggered, [this]() {
