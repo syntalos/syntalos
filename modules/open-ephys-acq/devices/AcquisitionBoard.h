@@ -57,7 +57,7 @@ struct DigitalOutputCommand {
  * Layout: @c samples is a row-major matrix of size @c numSamples * @c
  * channelsPerSample (column-major would be cheaper for downstream Eigen, but
  * the ONI rhythm-api emits row-major so we stay with that and let the module
- * transpose into its IntSignalBlock if needed).
+ * transpose into its SignalBlockU16 if needed).
  */
 struct AcqSampleChunk {
     int groupIndex = -1;                       ///< headstage / stream index, or -1 for board-wide kinds

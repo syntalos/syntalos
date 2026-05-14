@@ -1699,8 +1699,8 @@ void FlowGraphView::mouseMoveEvent(QMouseEvent *event)
             // the scene edge so ensureVisible() has slack to pan into. The
             // release handler tightens the rect properly once the drag ends.
             const qreal dragMargin = 40.0;
-            const QRectF itemsExt = m_scene->itemsBoundingRect().adjusted(
-                -dragMargin, -dragMargin, dragMargin, dragMargin);
+            const QRectF itemsExt = m_scene->itemsBoundingRect()
+                                        .adjusted(-dragMargin, -dragMargin, dragMargin, dragMargin);
             const QRectF grown = m_scene->sceneRect().united(itemsExt);
             if (grown != m_scene->sceneRect())
                 m_scene->setSceneRect(grown);

@@ -48,8 +48,8 @@ class PlotSeriesModule : public AbstractModule
 {
     Q_OBJECT
 private:
-    std::vector<PlotSubscriptionDetails<FloatSignalBlock>> m_fpSubs;
-    std::vector<PlotSubscriptionDetails<IntSignalBlock>> m_intSubs;
+    std::vector<PlotSubscriptionDetails<SignalBlockF32>> m_fpSubs;
+    std::vector<PlotSubscriptionDetails<SignalBlockI32>> m_intSubs;
 
     PlotWindow *m_plotWindow;
     bool m_active;
@@ -59,8 +59,8 @@ public:
         : AbstractModule(parent)
     {
         // Register default input ports
-        registerInputPort<FloatSignalBlock>(QStringLiteral("fpsig1-in"), QStringLiteral("Float In 1"));
-        registerInputPort<IntSignalBlock>(QStringLiteral("intsig1-in"), QStringLiteral("Int In 1"));
+        registerInputPort<SignalBlockF32>(QStringLiteral("sigs1-in"), QStringLiteral("Float 1"));
+        registerInputPort<SignalBlockI32>(QStringLiteral("sigs2-in"), QStringLiteral("Integer 1"));
 
         m_plotWindow = new PlotWindow(this);
         m_plotWindow->setWindowIcon(modInfo->icon());
@@ -104,16 +104,16 @@ public:
             // once metadata is available.
             canvas->registerPort(port->id(), 1000.0, QStringLiteral("y"));
 
-            if (port->dataTypeName() == "FloatSignalBlock") {
-                PlotSubscriptionDetails<FloatSignalBlock> sd(
-                    std::static_pointer_cast<StreamInputPort<FloatSignalBlock>>(port));
+            if (port->dataTypeName() == "SignalBlockF32") {
+                PlotSubscriptionDetails<SignalBlockF32> sd(
+                    std::static_pointer_cast<StreamInputPort<SignalBlockF32>>(port));
 
                 // prevent receiving more than 4k items/s to safeguard a bit against overflows
                 sd.sub->setThrottleItemsPerSec(4000);
                 m_fpSubs.push_back(sd);
-            } else if (port->dataTypeName() == "IntSignalBlock") {
-                PlotSubscriptionDetails<IntSignalBlock> sd(
-                    std::static_pointer_cast<StreamInputPort<IntSignalBlock>>(port));
+            } else if (port->dataTypeName() == "SignalBlockI32") {
+                PlotSubscriptionDetails<SignalBlockI32> sd(
+                    std::static_pointer_cast<StreamInputPort<SignalBlockI32>>(port));
 
                 // prevent receiving more than 4k items/s
                 sd.sub->setThrottleItemsPerSec(4000);
@@ -212,7 +212,7 @@ public:
             }
 
             // One lock acquisition per block for all channels.
-            if constexpr (std::is_same_v<T, IntSignalBlock>)
+            if constexpr (std::is_same_v<T, SignalBlockI32>)
                 canvas->appendBlockI(sd.portId, data.timestamps, data.data, sd.channelIdxByCol.data(), nCols);
             else
                 canvas->appendBlockF(sd.portId, data.timestamps, data.data, sd.channelIdxByCol.data(), nCols);
@@ -285,8 +285,6 @@ public:
         m_plotWindow->refreshChannelTable();
         return true;
     }
-
-private:
 };
 
 QString PlotSeriesModuleInfo::id() const

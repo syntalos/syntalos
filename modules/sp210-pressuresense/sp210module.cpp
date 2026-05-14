@@ -37,8 +37,8 @@ class SP210Module : public AbstractModule
     Q_OBJECT
 
 private:
-    std::shared_ptr<DataStream<FloatSignalBlock>> m_paStream;
-    std::shared_ptr<DataStream<FloatSignalBlock>> m_tempStream;
+    std::shared_ptr<DataStream<SignalBlockF32>> m_paStream;
+    std::shared_ptr<DataStream<SignalBlockF32>> m_tempStream;
     SP210SettingsDialog *m_settingsDlg;
 
     std::unique_ptr<SecondaryClockSynchronizer> m_clockSync;
@@ -47,10 +47,10 @@ public:
     explicit SP210Module(QObject *parent = nullptr)
         : AbstractModule(parent)
     {
-        m_paStream = registerOutputPort<FloatSignalBlock>(
+        m_paStream = registerOutputPort<SignalBlockF32>(
             QStringLiteral("sensor-data-pressure"),
             QStringLiteral("Pressure Data"));
-        m_tempStream = registerOutputPort<FloatSignalBlock>(
+        m_tempStream = registerOutputPort<SignalBlockF32>(
             QStringLiteral("sensor-data-temperature"),
             QStringLiteral("Temperature Data"));
 
@@ -186,8 +186,8 @@ public:
             return;
         statusMessage("Reading data...");
 
-        FloatSignalBlock paBlock(blockSize, 1);
-        FloatSignalBlock cBlock(blockSize, 1);
+        SignalBlockF32 paBlock(blockSize, 1);
+        SignalBlockF32 cBlock(blockSize, 1);
         int blockSampleIdx = 0;
         while (m_running) {
             if (!serial.waitForReadyRead(10 * 1000)) {

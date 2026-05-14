@@ -36,9 +36,9 @@ private:
     std::shared_ptr<DataStream<TableRow>> m_rowsOut;
     std::shared_ptr<DataStream<LineCommand>> m_fctlOut;
 
-    std::shared_ptr<DataStream<FloatSignalBlock>> m_floatOut;
-    std::shared_ptr<DataStream<IntSignalBlock>> m_intOut;
-    std::shared_ptr<DataStream<UInt16SignalBlock>> m_uint16Out;
+    std::shared_ptr<DataStream<SignalBlockF32>> m_floatOut;
+    std::shared_ptr<DataStream<SignalBlockI32>> m_intOut;
+    std::shared_ptr<DataStream<SignalBlockU16>> m_uint16Out;
 
     int m_fps;
     QSize m_outFrameSize;
@@ -59,11 +59,9 @@ public:
         m_frameOut = registerOutputPort<Frame>(QStringLiteral("frames-out"), QStringLiteral("Frames"));
         m_rowsOut = registerOutputPort<TableRow>(QStringLiteral("rows-out"), QStringLiteral("Table Rows"));
         m_fctlOut = registerOutputPort<LineCommand>(QStringLiteral("fctl-out"), QStringLiteral("Line Control"));
-        m_floatOut = registerOutputPort<FloatSignalBlock>(QStringLiteral("float-out"), QStringLiteral("Sines"));
-        m_intOut = registerOutputPort<IntSignalBlock>(QStringLiteral("int-out"), QStringLiteral("Numbers"));
-        m_uint16Out = registerOutputPort<UInt16SignalBlock>(
-            QStringLiteral("uint16-out"),
-            QStringLiteral("U16 Counters"));
+        m_floatOut = registerOutputPort<SignalBlockF32>(QStringLiteral("float-out"), QStringLiteral("Sines"));
+        m_intOut = registerOutputPort<SignalBlockI32>(QStringLiteral("int-out"), QStringLiteral("Numbers"));
+        m_uint16Out = registerOutputPort<SignalBlockU16>(QStringLiteral("uint16-out"), QStringLiteral("U16 Counters"));
     }
 
     ~DataSourceModule() override {}
@@ -167,7 +165,7 @@ public:
             }
 
             if ((usec > m_prevTimeSData) && (msec % 2) == 0) {
-                FloatSignalBlock fsb(2, 3);
+                SignalBlockF32 fsb(2, 3);
                 fsb.timestamps[0] = usec - 1;
                 fsb.timestamps[1] = usec;
                 fsb.data(0, 0) = 0.5f * sinf(50 * ((msec - 1) / 20));
@@ -180,7 +178,7 @@ public:
                 fsb.data(1, 2) = 0.4f * sinf(50 * (msec / 200));
                 m_floatOut->push(fsb);
 
-                IntSignalBlock isb(2, 1);
+                SignalBlockI32 isb(2, 1);
                 isb.timestamps[0] = usec - 1;
                 isb.timestamps[1] = usec;
                 if (m_prevIntValue > 10) {
@@ -194,7 +192,7 @@ public:
                 }
                 m_intOut->push(isb);
 
-                UInt16SignalBlock usb(2, 2);
+                SignalBlockU16 usb(2, 2);
                 usb.timestamps[0] = usec - 1;
                 usb.timestamps[1] = usec;
                 const uint16_t base = static_cast<uint16_t>(msec & 0xFFFF);

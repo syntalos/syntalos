@@ -211,10 +211,10 @@ void PlotWindow::on_addPortBtn_clicked()
     const auto allStreamTypes = streamTypeIdIndex();
 
     for (const auto &[key, value] : allStreamTypes) {
-        if (key == "FloatSignalBlock")
+        if (key == "SignalBlockI32")
+            streamSignalTypeMap["Integer"] = value;
+        else if (key == "SignalBlockF32")
             streamSignalTypeMap["Float"] = value;
-        else if (key == "IntSignalBlock")
-            streamSignalTypeMap["Int"] = value;
     }
 
     int newPortNumber = m_mod->inPorts().length() + 1;
@@ -236,7 +236,7 @@ void PlotWindow::on_addPortBtn_clicked()
         QStringLiteral("Set Port Title"),
         QStringLiteral("A human-readable short port title:"),
         QLineEdit::Normal,
-        item + QStringLiteral(" In %1").arg(newPortNumber),
+        item + QStringLiteral(" %1").arg(newPortNumber),
         &ok);
     if (!ok || title.isEmpty())
         return;

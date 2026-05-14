@@ -93,8 +93,8 @@ public:
     void stopWithError(const QString &message);
 
     void setPortSignalBlockSampleSize(size_t sampleNum);
-    std::vector<std::vector<StreamDataInfo<FloatSignalBlock>>> floatSdiByGroupChannel;
-    std::vector<std::vector<StreamDataInfo<IntSignalBlock>>> intSdiByGroupChannel;
+    std::vector<std::vector<StreamDataInfo<SignalBlockF32>>> floatSdiByGroupChannel;
+    std::vector<std::vector<StreamDataInfo<SignalBlockI32>>> intSdiByGroupChannel;
 
     std::unique_ptr<FreqCounterSynchronizer> clockSync;
 

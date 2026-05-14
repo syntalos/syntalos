@@ -50,7 +50,7 @@ struct GroupStream {
     QString streamPrefix;
     /** Hardware-fixed number of columns the board fills per sample. */
     int rawChannelsPerSample = 0;
-    /** Width of the published IntSignalBlock (mask-filtered). */
+    /** Width of the published SignalBlockU16 (mask-filtered). */
     int channelsPerSample = 0;
     /** Map from output column index -> raw column index. */
     std::vector<int> enabledLocalIndices;
@@ -61,8 +61,8 @@ struct GroupStream {
      *  user toggles a checkbox during a run; read by the run thread on every
      *  sample copy. */
     std::unique_ptr<std::atomic_bool[]> mutedOutputColumns;
-    std::shared_ptr<DataStream<UInt16SignalBlock>> stream;
-    std::shared_ptr<UInt16SignalBlock> block;
+    std::shared_ptr<DataStream<SignalBlockU16>> stream;
+    std::shared_ptr<SignalBlockU16> block;
     /** Names of enabled channels only. */
     std::vector<std::string> channelNames;
 };
@@ -644,11 +644,11 @@ private:
      * Like registerOutputPort but silently returns the existing port's stream
      * if one was already registered with that ID.
      */
-    std::shared_ptr<DataStream<UInt16SignalBlock>> getOrRegisterOutPort(const QString &id, const QString &title)
+    std::shared_ptr<DataStream<SignalBlockU16>> getOrRegisterOutPort(const QString &id, const QString &title)
     {
         if (auto existing = outPortById(id))
-            return existing->stream<UInt16SignalBlock>();
-        return registerOutputPort<UInt16SignalBlock>(id, title);
+            return existing->stream<SignalBlockU16>();
+        return registerOutputPort<SignalBlockU16>(id, title);
     }
 
     /**
@@ -726,7 +726,7 @@ private:
                 g.stream = getOrRegisterOutPort(
                     g.portId,
                     headstagePortTitle(hs->getStreamPrefix(), g.channelsPerSample));
-                g.block = std::make_shared<UInt16SignalBlock>(0, g.channelsPerSample);
+                g.block = std::make_shared<SignalBlockU16>(0, g.channelsPerSample);
                 currentIds.insert(g.portId);
                 m_groups.push_back(std::move(g));
             }
@@ -754,7 +754,7 @@ private:
                 g.mutedOutputColumns = std::make_unique<std::atomic_bool[]>(g.channelsPerSample);
 
                 g.stream = getOrRegisterOutPort(g.portId, auxPortTitle(hs->getStreamPrefix(), auxPerHs));
-                g.block = std::make_shared<UInt16SignalBlock>(0, g.channelsPerSample);
+                g.block = std::make_shared<SignalBlockU16>(0, g.channelsPerSample);
                 currentIds.insert(g.portId);
                 m_groups.push_back(std::move(g));
             }
@@ -780,7 +780,7 @@ private:
             if (g.channelsPerSample > 0) {
                 g.mutedOutputColumns = std::make_unique<std::atomic_bool[]>(g.channelsPerSample);
                 g.stream = getOrRegisterOutPort(g.portId, adcPortTitle(adcCount));
-                g.block = std::make_shared<UInt16SignalBlock>(0, g.channelsPerSample);
+                g.block = std::make_shared<SignalBlockU16>(0, g.channelsPerSample);
                 currentIds.insert(g.portId);
                 m_groups.push_back(std::move(g));
             }

@@ -37,12 +37,12 @@ class JSONWriterModule : public AbstractModule
 {
     Q_OBJECT
 private:
-    std::shared_ptr<StreamInputPort<FloatSignalBlock>> m_floatIn;
-    std::shared_ptr<StreamInputPort<IntSignalBlock>> m_intIn;
+    std::shared_ptr<StreamInputPort<SignalBlockF32>> m_floatIn;
+    std::shared_ptr<StreamInputPort<SignalBlockI32>> m_intIn;
     std::shared_ptr<StreamInputPort<TableRow>> m_rowsIn;
 
-    std::shared_ptr<StreamSubscription<FloatSignalBlock>> m_floatSub;
-    std::shared_ptr<StreamSubscription<IntSignalBlock>> m_intSub;
+    std::shared_ptr<StreamSubscription<SignalBlockF32>> m_floatSub;
+    std::shared_ptr<StreamSubscription<SignalBlockI32>> m_intSub;
     std::shared_ptr<StreamSubscription<TableRow>> m_rowSub;
 
     InputSourceKind m_isrcKind;
@@ -61,8 +61,8 @@ public:
         : AbstractModule(parent)
     {
         // Input ports for all the data we could potentially handle
-        m_floatIn = registerInputPort<FloatSignalBlock>(QStringLiteral("fpsig1-in"), QStringLiteral("Float Signals"));
-        m_intIn = registerInputPort<IntSignalBlock>(QStringLiteral("intsig1-in"), QStringLiteral("Integer Signals"));
+        m_floatIn = registerInputPort<SignalBlockF32>(QStringLiteral("fpsig1-in"), QStringLiteral("Float Signals"));
+        m_intIn = registerInputPort<SignalBlockI32>(QStringLiteral("intsig1-in"), QStringLiteral("Integer Signals"));
         m_rowsIn = registerInputPort<TableRow>(QStringLiteral("rows"), QStringLiteral("Table Rows"));
 
         m_settingsDlg = new JSONSettingsDialog();

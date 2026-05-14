@@ -123,13 +123,13 @@ private:
     static constexpr int64_t ZARR_CHUNK_MAX = 100000;
     static constexpr int64_t ZARR_CHUNK_DEFAULT = 10000; // fallback when sample rate is unknown
 
-    std::shared_ptr<StreamInputPort<FloatSignalBlock>> m_floatIn;
-    std::shared_ptr<StreamInputPort<IntSignalBlock>> m_intIn;
-    std::shared_ptr<StreamInputPort<UInt16SignalBlock>> m_uint16In;
+    std::shared_ptr<StreamInputPort<SignalBlockF32>> m_floatIn;
+    std::shared_ptr<StreamInputPort<SignalBlockI32>> m_intIn;
+    std::shared_ptr<StreamInputPort<SignalBlockU16>> m_uint16In;
 
-    std::shared_ptr<StreamSubscription<FloatSignalBlock>> m_floatSub;
-    std::shared_ptr<StreamSubscription<IntSignalBlock>> m_intSub;
-    std::shared_ptr<StreamSubscription<UInt16SignalBlock>> m_uint16Sub;
+    std::shared_ptr<StreamSubscription<SignalBlockF32>> m_floatSub;
+    std::shared_ptr<StreamSubscription<SignalBlockI32>> m_intSub;
+    std::shared_ptr<StreamSubscription<SignalBlockU16>> m_uint16Sub;
 
     InputSourceKind m_isrcKind;
     bool m_writeData;
@@ -156,9 +156,9 @@ public:
           m_expectedChannels(0),
           m_chunkCount(ZARR_CHUNK_DEFAULT)
     {
-        m_floatIn = registerInputPort<FloatSignalBlock>(QStringLiteral("fpsig1-in"), QStringLiteral("Float32 Signals"));
-        m_intIn = registerInputPort<IntSignalBlock>(QStringLiteral("intsig1-in"), QStringLiteral("Int32 Signals"));
-        m_uint16In = registerInputPort<UInt16SignalBlock>(
+        m_floatIn = registerInputPort<SignalBlockF32>(QStringLiteral("fpsig1-in"), QStringLiteral("Float32 Signals"));
+        m_intIn = registerInputPort<SignalBlockI32>(QStringLiteral("intsig1-in"), QStringLiteral("Int32 Signals"));
+        m_uint16In = registerInputPort<SignalBlockU16>(
             QStringLiteral("uint16sig1-in"),
             QStringLiteral("UInt16 Signals"));
 

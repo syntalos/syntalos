@@ -37,7 +37,7 @@ class MiniscopeModule : public AbstractModule
 private:
     std::shared_ptr<DataStream<Frame>> m_rawOut;
     std::shared_ptr<DataStream<Frame>> m_dispOut;
-    std::shared_ptr<DataStream<FloatSignalBlock>> m_bnoVecOut;
+    std::shared_ptr<DataStream<SignalBlockF32>> m_bnoVecOut;
     std::shared_ptr<DataStream<TableRow>> m_bnoTabOut;
 
     std::vector<float> m_lastOrientationVec;
@@ -61,7 +61,7 @@ public:
     {
         m_rawOut = registerOutputPort<Frame>(QStringLiteral("frames-raw-out"), QStringLiteral("Raw Frames"));
         m_dispOut = registerOutputPort<Frame>(QStringLiteral("frames-disp-out"), QStringLiteral("Display Frames"));
-        m_bnoVecOut = registerOutputPort<FloatSignalBlock>(
+        m_bnoVecOut = registerOutputPort<SignalBlockF32>(
             QStringLiteral("bno-raw-out"),
             QStringLiteral("Orientation Vector"));
         m_bnoTabOut = registerOutputPort<TableRow>(QStringLiteral("bno-tab-out"), QStringLiteral("Orientation Rows"));
@@ -275,7 +275,7 @@ public:
             }
 
             if (self->m_bnoVecOut->isActive()) {
-                FloatSignalBlock sblock(1, 4);
+                SignalBlockF32 sblock(1, 4);
                 sblock.timestamps(0, 0) = updatedFrameTime.count();
                 sblock.data(0, 0) = orientation[0];
                 sblock.data(0, 1) = orientation[1];

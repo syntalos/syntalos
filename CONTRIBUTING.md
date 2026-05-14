@@ -321,7 +321,7 @@ initialize()        ← module added to board; start persistent worker if needed
 
 Modules expose typed `StreamInputPort` / `StreamOutputPort` instances.
 All supported data types are defined in `src/datactl/datatypes.h`:
-`Frame`, `TableRow`, `ControlCommand`, `LineCommand`, `LineReading`, `*SignalBlock`, etc.
+`Frame`, `TableRow`, `ControlCommand`, `LineCommand`, `LineReading`, `SignalBlock*`, etc.
 
 Stream metadata is carried as `MetaStringMap` (a `std::map<std::string, MetaValue>`) where
 `MetaValue` is a `std::variant`. These types are defined in `src/datactl/streammeta.h`.

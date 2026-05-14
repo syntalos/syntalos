@@ -332,8 +332,8 @@ void IntanRhxModule::onExportedChannelsChanged(const QList<Channel *> &channels)
             if ((int) intSdiByGroupChannel[groupIndex].size() <= channel->getNativeChannelNumber())
                 intSdiByGroupChannel[groupIndex].resize(channel->getNativeChannelNumber() + 1);
 
-            StreamDataInfo<IntSignalBlock> sdi(groupIndex, channel->getNativeChannelNumber());
-            sdi.stream = registerOutputPort<IntSignalBlock>(channel->getNativeName(), channel->getNativeAndCustomNames());
+            StreamDataInfo<SignalBlockI32> sdi(groupIndex, channel->getNativeChannelNumber());
+            sdi.stream = registerOutputPort<SignalBlockI32>(channel->getNativeName(), channel->getNativeAndCustomNames());
             sdi.active = true;
 
             intSdiByGroupChannel[groupIndex][channel->getNativeChannelNumber()] = sdi;
@@ -344,8 +344,8 @@ void IntanRhxModule::onExportedChannelsChanged(const QList<Channel *> &channels)
             if ((int) floatSdiByGroupChannel[groupIndex].size() <= channel->getNativeChannelNumber())
                 floatSdiByGroupChannel[groupIndex].resize(channel->getNativeChannelNumber() + 1);
 
-            StreamDataInfo<FloatSignalBlock> sdi(groupIndex, channel->getNativeChannelNumber());
-            sdi.stream = registerOutputPort<FloatSignalBlock>(channel->getNativeName(), channel->getNativeAndCustomNames());
+            StreamDataInfo<SignalBlockF32> sdi(groupIndex, channel->getNativeChannelNumber());
+            sdi.stream = registerOutputPort<SignalBlockF32>(channel->getNativeName(), channel->getNativeAndCustomNames());
             sdi.active = true;
 
             floatSdiByGroupChannel[groupIndex][channel->getNativeChannelNumber()] = sdi;

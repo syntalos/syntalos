@@ -137,7 +137,7 @@ public:
         // and perform text parsing for simplicity
         m_portsDialog->setAllowedInputTypes({BaseDataType::TableRow});
         m_portsDialog->setAllowedOutputTypes(
-            {BaseDataType::TableRow, BaseDataType::FloatSignalBlock, BaseDataType::IntSignalBlock});
+            {BaseDataType::TableRow, BaseDataType::SignalBlockF32, BaseDataType::SignalBlockI32});
 
         // combine the UI elements into the main layout
         auto splitter = new QSplitter(Qt::Vertical, m_codeWindow);
@@ -469,7 +469,7 @@ public:
 
         // start all streams
         for (auto &p : outPorts()) {
-            if (p->dataTypeId() == BaseDataType::IntSignalBlock || p->dataTypeId() == BaseDataType::FloatSignalBlock) {
+            if (p->dataTypeId() == BaseDataType::SignalBlockI32 || p->dataTypeId() == BaseDataType::SignalBlockF32) {
                 auto stream = p->streamVar();
                 stream->setMetadataValue("signal_names", MetaArray{"Data"});
                 stream->setMetadataValue("time_unit", "microseconds");
@@ -543,8 +543,8 @@ public:
             return;
         }
 
-        bool isIntBlock = stream->dataTypeId() == BaseDataType::IntSignalBlock;
-        bool isFloatBlock = !isIntBlock && stream->dataTypeId() == BaseDataType::FloatSignalBlock;
+        bool isIntBlock = stream->dataTypeId() == BaseDataType::SignalBlockI32;
+        bool isFloatBlock = !isIntBlock && stream->dataTypeId() == BaseDataType::SignalBlockF32;
 
         if (isIntBlock || isFloatBlock) {
             const auto array = obj["d"].toArray();
@@ -559,21 +559,21 @@ public:
             }
 
             if (isIntBlock) {
-                IntSignalBlock block(arrayLen);
+                SignalBlockI32 block(arrayLen);
                 for (int i = 0; i < arrayLen; i++) {
                     block.data(i, 0) = array[i].toInt();
                     block.timestamps(i, 0) = recvMasterTime.count();
                 }
 
-                std::static_pointer_cast<DataStream<IntSignalBlock>>(stream)->push(block);
+                std::static_pointer_cast<DataStream<SignalBlockI32>>(stream)->push(block);
             } else {
-                FloatSignalBlock block(arrayLen);
+                SignalBlockF32 block(arrayLen);
                 for (int i = 0; i < arrayLen; i++) {
                     block.data(i, 0) = array[i].toDouble();
                     block.timestamps(i, 0) = recvMasterTime.count();
                 }
 
-                std::static_pointer_cast<DataStream<FloatSignalBlock>>(stream)->push(block);
+                std::static_pointer_cast<DataStream<SignalBlockF32>>(stream)->push(block);
             }
         }
     }

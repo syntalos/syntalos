@@ -31,14 +31,14 @@ class ONIXCommutatorModule : public AbstractModule
     Q_OBJECT
 
 private:
-    std::shared_ptr<StreamInputPort<FloatSignalBlock>> m_qIn;
+    std::shared_ptr<StreamInputPort<SignalBlockF32>> m_qIn;
     ONIXCommutatorSettingsDialog *m_settingsDlg;
 
 public:
     explicit ONIXCommutatorModule(QObject *parent = nullptr)
         : AbstractModule(parent)
     {
-        m_qIn = registerInputPort<FloatSignalBlock>(QStringLiteral("quaternion-in"), QStringLiteral("Quaternions"));
+        m_qIn = registerInputPort<SignalBlockF32>(QStringLiteral("quaternion-in"), QStringLiteral("Quaternions"));
 
         m_settingsDlg = new ONIXCommutatorSettingsDialog;
         addSettingsWindow(m_settingsDlg);

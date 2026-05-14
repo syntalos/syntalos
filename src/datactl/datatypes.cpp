@@ -104,7 +104,7 @@ BaseDataType::TypeId BaseDataType::typeIdFromString(const std::string &str)
     return result;
 }
 
-IntSignalBlock::IntSignalBlock(struct UInt16SignalBlock &&src)
+SignalBlockI32::SignalBlockI32(struct SignalBlockU16 &&src)
 {
     // The data matrix has a different scalar type, so the cast must read every
     // element anyway; only the timestamps can actually be moved.
@@ -112,7 +112,7 @@ IntSignalBlock::IntSignalBlock(struct UInt16SignalBlock &&src)
     data = src.data.cast<int32_t>();
 }
 
-UInt16SignalBlock::UInt16SignalBlock(struct IntSignalBlock &&src)
+SignalBlockU16::SignalBlockU16(struct SignalBlockI32 &&src)
 {
     timestamps = std::move(src.timestamps);
     data = src.data.cast<uint16_t>();
