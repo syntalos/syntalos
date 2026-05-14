@@ -13,7 +13,7 @@
 using namespace Syntalos;
 using namespace Eigen;
 
-static uint vecLast(const VectorXul &vec)
+static uint vecLast(const VectorXu64 &vec)
 {
     return vec[vec.rows() - 1];
 }
@@ -24,7 +24,7 @@ static uint vecLast(const VectorXul &vec)
 class FakeIndexDevice
 {
 private:
-    VectorXul m_lastIndexBlock;
+    VectorXu64 m_lastIndexBlock;
     int m_freqHz;
 
 public:
@@ -32,7 +32,7 @@ public:
     {
         // start at zero for our index counter, 10 elements per block
         const auto elementsPerBlock = 10;
-        m_lastIndexBlock = VectorXul::Zero(elementsPerBlock);
+        m_lastIndexBlock = VectorXu64::Zero(elementsPerBlock);
 
         m_freqHz = 20000;
     }
@@ -42,10 +42,10 @@ public:
         return m_freqHz;
     };
 
-    VectorXul generateBlock()
+    VectorXu64 generateBlock()
     {
         if (vecLast(m_lastIndexBlock) == 0) {
-            m_lastIndexBlock += VectorXul::LinSpaced(m_lastIndexBlock.rows(), 0, m_lastIndexBlock.rows());
+            m_lastIndexBlock += VectorXu64::LinSpaced(m_lastIndexBlock.rows(), 0, m_lastIndexBlock.rows());
         } else {
             const auto prevLastVal = m_lastIndexBlock[m_lastIndexBlock.rows() - 1];
             for (uint i = 0; i < m_lastIndexBlock.rows(); ++i)

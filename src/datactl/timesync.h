@@ -129,7 +129,7 @@ public:
         const microseconds_t &blocksRecvTimestamp,
         int blockIndex,
         int blockCount,
-        VectorXul &idxTimestamps);
+        VectorXu64 &idxTimestamps);
 
     FreqCounterSynchronizer(const FreqCounterSynchronizer &) = delete;
     FreqCounterSynchronizer &operator=(const FreqCounterSynchronizer &) = delete;
@@ -150,7 +150,7 @@ private:
 
     uint m_calibrationMaxBlockN;
     uint m_calibrationIdx;
-    VectorXsl m_tsOffsetsUsec;
+    VectorXi64 m_tsOffsetsUsec;
     int64_t m_runningOffsetSum{0}; // running sum of m_tsOffsetsUsec
 
     bool m_haveExpectedOffset;
@@ -246,7 +246,7 @@ private:
 
     uint m_calibrationMaxN;
     uint m_calibrationIdx;
-    VectorXsl m_clockOffsetsUsec;
+    VectorXi64 m_clockOffsetsUsec;
     int64_t m_runningOffsetSum{0}; // running sum of m_clockOffsetsUsec
 
     bool m_haveExpectedOffset;

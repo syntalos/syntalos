@@ -543,8 +543,8 @@ struct IntSignalBlock : BaseDataType {
         return data.cols();
     }
 
-    VectorXul timestamps;
-    MatrixXsi data;
+    VectorXu64 timestamps;
+    MatrixXi32 data;
 
     bool toBytes(ByteVector &output) const override
     {
@@ -561,8 +561,8 @@ struct IntSignalBlock : BaseDataType {
         IntSignalBlock obj;
         BinaryStreamReader stream(memory, size);
 
-        obj.timestamps = deserializeEigen<VectorXul>(stream);
-        obj.data = deserializeEigen<MatrixXsi>(stream);
+        obj.timestamps = deserializeEigen<VectorXu64>(stream);
+        obj.data = deserializeEigen<MatrixXi32>(stream);
 
         return obj;
     }
@@ -604,7 +604,7 @@ struct FloatSignalBlock : BaseDataType {
         return data.cols();
     }
 
-    VectorXul timestamps;
+    VectorXu64 timestamps;
     MatrixXf data;
 
     bool toBytes(ByteVector &output) const override
@@ -622,7 +622,7 @@ struct FloatSignalBlock : BaseDataType {
         FloatSignalBlock obj;
         BinaryStreamReader stream(memory, size);
 
-        obj.timestamps = deserializeEigen<VectorXul>(stream);
+        obj.timestamps = deserializeEigen<VectorXu64>(stream);
         obj.data = deserializeEigen<MatrixXf>(stream);
 
         return obj;
@@ -637,8 +637,8 @@ struct FloatSignalBlock : BaseDataType {
 struct UInt16SignalBlock : BaseDataType {
     SY_DEFINE_DATA_TYPE(UInt16SignalBlock)
 
-    VectorXul timestamps;
-    MatrixXui16 data;
+    VectorXu64 timestamps;
+    MatrixXu16 data;
 
     explicit UInt16SignalBlock(uint sampleCount = 60, uint channelCount = 1)
     {
@@ -679,8 +679,8 @@ struct UInt16SignalBlock : BaseDataType {
         UInt16SignalBlock obj;
         BinaryStreamReader stream(memory, size);
 
-        obj.timestamps = deserializeEigen<VectorXul>(stream);
-        obj.data = deserializeEigen<MatrixXui16>(stream);
+        obj.timestamps = deserializeEigen<VectorXu64>(stream);
+        obj.data = deserializeEigen<MatrixXu16>(stream);
 
         return obj;
     }

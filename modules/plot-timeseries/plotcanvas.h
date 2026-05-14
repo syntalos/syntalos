@@ -62,14 +62,14 @@ public:
     // Data ingestion (thread-safe)
     void appendBlockF(
         const QString &portId,
-        const VectorXul &timestamps,
+        const VectorXu64 &timestamps,
         const Eigen::Ref<const MatrixXf> &data,
         const int *channelIdx,
         int nCols);
     void appendBlockI(
         const QString &portId,
-        const VectorXul &timestamps,
-        const Eigen::Ref<const MatrixXsi> &data,
+        const VectorXu64 &timestamps,
+        const Eigen::Ref<const MatrixXi32> &data,
         const int *channelIdx,
         int nCols);
 

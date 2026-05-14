@@ -447,7 +447,7 @@ void PlotCanvas::setChannelDigital(int channelIndex, bool digital)
 
 void PlotCanvas::appendBlockF(
     const QString &portId,
-    const VectorXul &timestamps,
+    const VectorXu64 &timestamps,
     const Eigen::Ref<const MatrixXf> &data,
     const int *channelIdx,
     int nCols)
@@ -482,8 +482,8 @@ void PlotCanvas::appendBlockF(
 
 void PlotCanvas::appendBlockI(
     const QString &portId,
-    const VectorXul &timestamps,
-    const Eigen::Ref<const MatrixXsi> &data,
+    const VectorXu64 &timestamps,
+    const Eigen::Ref<const MatrixXi32> &data,
     const int *channelIdx,
     int nCols)
 {

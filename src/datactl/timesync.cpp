@@ -204,7 +204,7 @@ bool FreqCounterSynchronizer::start()
     m_haveExpectedOffset = false;
     m_calibrationIdx = 0;
     m_expectedOffsetCalCount = 0;
-    m_tsOffsetsUsec = VectorXsl::Zero(m_calibrationMaxBlockN);
+    m_tsOffsetsUsec = VectorXi64::Zero(m_calibrationMaxBlockN);
     m_runningOffsetSum = 0;
     m_lastTimeIndex = 0;
     m_indexOffset = 0;
@@ -249,7 +249,7 @@ void FreqCounterSynchronizer::processTimestamps(
     const microseconds_t &blocksRecvTimestamp,
     int blockIndex,
     int blockCount,
-    VectorXul &idxTimestamps)
+    VectorXu64 &idxTimestamps)
 {
     // basic input value sanity checks
     assert(blockCount >= 1);
@@ -262,7 +262,7 @@ void FreqCounterSynchronizer::processTimestamps(
 
     // adjust timestamp based on our current offset
     if (m_applyIndexOffset && (m_indexOffset != 0))
-        idxTimestamps -= VectorXul::Ones(idxTimestamps.rows()) * m_indexOffset;
+        idxTimestamps -= VectorXu64::Ones(idxTimestamps.rows()) * m_indexOffset;
 
     // timestamp when (as far and well as we can guess...) the current block was actually acquired, in microseconds
     // and based on the master clock timestamp generated upon data receival.
@@ -440,7 +440,7 @@ void FreqCounterSynchronizer::processTimestamps(
 
         // already apply offset as gradient to the current vector, if we are permitted to make that change
         if (initialOffset && m_applyIndexOffset)
-            idxTimestamps -= VectorXul::LinSpaced(idxTimestamps.rows(), 0, m_indexOffset);
+            idxTimestamps -= VectorXu64::LinSpaced(idxTimestamps.rows(), 0, m_indexOffset);
     }
 
     // we're out of sync, record that fact to the tsync file if we are writing one
@@ -618,7 +618,7 @@ bool SecondaryClockSynchronizer::start()
     m_calibrationIdx = 0;
     m_expectedOffsetCalCount = 0;
     m_expectedOffset = microseconds_t(0);
-    m_clockOffsetsUsec = VectorXsl::Zero(m_calibrationMaxN);
+    m_clockOffsetsUsec = VectorXi64::Zero(m_calibrationMaxN);
     m_runningOffsetSum = 0;
     m_lastMasterTS = m_syTimer->timeSinceStartMsec();
     m_lastSecondaryAcqTS = microseconds_t(0);
