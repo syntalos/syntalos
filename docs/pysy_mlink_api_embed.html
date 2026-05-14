@@ -233,9 +233,11 @@ syntalos_mlink    </h1>
 
 <p>LineReading : Timestamped reading from a hardware signal line.</p>
 
-<p>IntSignalBlock : A block of integer signal samples.</p>
+<p>SignalBlockI32 : A block of 32-bit integer signal samples.</p>
 
-<p>FloatSignalBlock : A block of float signal samples.</p>
+<p>SignalBlockF32 : A block of 32-bit float signal samples.</p>
+
+<p>SignalBlockU16 : A block of 16-bit unsigned integer signal samples.</p>
 </div>
 
 
@@ -262,17 +264,6 @@ syntalos_mlink    </h1>
 
 
 </div>
-<div id="DataType.FloatSignalBlock" class="classattr">
-<div class="attr variable">
-<span class="name">FloatSignalBlock</span><span class="annotation">: ClassVar[<a href="#DataType">DataType</a>]</span>
-
-
-</div>
-<a class="headerlink" href="#DataType.FloatSignalBlock"></a>
-
-
-
-</div>
 <div id="DataType.Frame" class="classattr">
 <div class="attr variable">
 <span class="name">Frame</span><span class="annotation">: ClassVar[<a href="#DataType">DataType</a>]</span>
@@ -280,17 +271,6 @@ syntalos_mlink    </h1>
 
 </div>
 <a class="headerlink" href="#DataType.Frame"></a>
-
-
-
-</div>
-<div id="DataType.IntSignalBlock" class="classattr">
-<div class="attr variable">
-<span class="name">IntSignalBlock</span><span class="annotation">: ClassVar[<a href="#DataType">DataType</a>]</span>
-
-
-</div>
-<a class="headerlink" href="#DataType.IntSignalBlock"></a>
 
 
 
@@ -313,6 +293,39 @@ syntalos_mlink    </h1>
 
 </div>
 <a class="headerlink" href="#DataType.LineReading"></a>
+
+
+
+</div>
+<div id="DataType.SignalBlockF32" class="classattr">
+<div class="attr variable">
+<span class="name">SignalBlockF32</span><span class="annotation">: ClassVar[<a href="#DataType">DataType</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#DataType.SignalBlockF32"></a>
+
+
+
+</div>
+<div id="DataType.SignalBlockI32" class="classattr">
+<div class="attr variable">
+<span class="name">SignalBlockI32</span><span class="annotation">: ClassVar[<a href="#DataType">DataType</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#DataType.SignalBlockI32"></a>
+
+
+
+</div>
+<div id="DataType.SignalBlockU16" class="classattr">
+<div class="attr variable">
+<span class="name">SignalBlockU16</span><span class="annotation">: ClassVar[<a href="#DataType">DataType</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#DataType.SignalBlockU16"></a>
 
 
 
@@ -563,86 +576,6 @@ syntalos_mlink    </h1>
 
 </div>
 </section>
-<section id="FloatSignalBlock">
-<div class="attr class">
-
-<span class="def">class</span>
-<span class="name">FloatSignalBlock</span>:
-
-
-</div>
-<a class="headerlink" href="#FloatSignalBlock"></a>
-
-<div class="docstring"><p>A block of timestamped float signal data.</p>
-</div>
-
-
-<div id="FloatSignalBlock.cols" class="classattr">
-<div class="attr variable">
-<span class="name">cols</span><span class="annotation">: int</span>
-
-
-</div>
-<a class="headerlink" href="#FloatSignalBlock.cols"></a>
-
-<div class="docstring"><p>Number of columns (channels).</p>
-</div>
-
-
-</div>
-<div id="FloatSignalBlock.data" class="classattr">
-<div class="attr variable">
-<span class="name">data</span><span class="annotation">: Annotated[numpy.ndarray[tuple[Any, ...], numpy.dtype[numpy.float64]], &#39;[m, n]&#39;]</span>
-
-
-</div>
-<a class="headerlink" href="#FloatSignalBlock.data"></a>
-
-<div class="docstring"><p>2-D data matrix: rows = samples, columns = channels.</p>
-</div>
-
-
-</div>
-<div id="FloatSignalBlock.length" class="classattr">
-<div class="attr variable">
-<span class="name">length</span><span class="annotation">: int</span>
-
-
-</div>
-<a class="headerlink" href="#FloatSignalBlock.length"></a>
-
-<div class="docstring"><p>Number of samples (rows) in this block.</p>
-</div>
-
-
-</div>
-<div id="FloatSignalBlock.rows" class="classattr">
-<div class="attr variable">
-<span class="name">rows</span><span class="annotation">: int</span>
-
-
-</div>
-<a class="headerlink" href="#FloatSignalBlock.rows"></a>
-
-<div class="docstring"><p>Number of rows (samples).</p>
-</div>
-
-
-</div>
-<div id="FloatSignalBlock.timestamps" class="classattr">
-<div class="attr variable">
-<span class="name">timestamps</span><span class="annotation">: Annotated[numpy.ndarray[tuple[Any, ...], numpy.dtype[numpy.uint64]], &#39;[m, 1]&#39;]</span>
-
-
-</div>
-<a class="headerlink" href="#FloatSignalBlock.timestamps"></a>
-
-<div class="docstring"><p>1-D array of sample timestamps in µs.</p>
-</div>
-
-
-</div>
-</section>
 <section id="Frame">
 <div class="attr class">
 
@@ -748,15 +681,15 @@ on the consuming module's input port, matched by <code><a href="#HwInputLine.lin
 
 
 </div>
-<div id="HwInputLine.send_register" class="classattr">
+<div id="HwInputLine.send_mode" class="classattr">
 <div class="attr function">
 
 <span class="def">def</span>
-<span class="name">send_register</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span></span><span class="return-annotation">) -> <span class="n"><a href="#LineCommand">LineCommand</a></span>:</span></span>
+<span class="name">send_mode</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span></span><span class="return-annotation">) -> <span class="n"><a href="#LineCommand">LineCommand</a></span>:</span></span>
 
 
 </div>
-<a class="headerlink" href="#HwInputLine.send_register"></a>
+<a class="headerlink" href="#HwInputLine.send_mode"></a>
 
 <div class="docstring"><p>Emit the SET_MODE command that configures the line as an input.</p>
 
@@ -798,7 +731,7 @@ on the consuming module's input port, matched by <code><a href="#HwInputLine.lin
 <div class="docstring"><p>Handle for a hardware output line (Firmata pin, DAQ channel, TTL line, ...).</p>
 
 <p>Construction captures the port and line identity but emits no command. Call
-<code><a href="#HwOutputLine.send_register">send_register()</a></code> at the start of every run to configure the line on the
+<code><a href="#HwOutputLine.send_mode">send_mode()</a></code> at the start of every run to configure the line on the
 downstream device.</p>
 </div>
 
@@ -829,11 +762,44 @@ downstream device.</p>
 <div class="attr function">
 
 <span class="def">def</span>
-<span class="name">pulse</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	duration_msec: &lt;class &#x27;SupportsInt&#x27;&gt; = 50</span><span class="return-annotation">) -> <span class="n"><a href="#LineCommand">LineCommand</a></span>:</span></span>
+<span class="name">pulse</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	duration_usec: &lt;class &#x27;SupportsInt&#x27;&gt; = 2500</span><span class="return-annotation">) -> <span class="n"><a href="#LineCommand">LineCommand</a></span>:</span></span>
 
 
 </div>
 <a class="headerlink" href="#HwOutputLine.pulse"></a>
+
+<div class="docstring"><p>Emit a digital pulse on the line (digital lines only).</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>duration_msec: Pulse duration in microseconds (default</strong>:  2500).</li>
+</ul>
+
+<h6 id="raises">Raises</h6>
+
+<ul>
+<li><strong>SyntalosPyError</strong>:  If this is an analog line.</li>
+</ul>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>The <code><a href="#LineCommand">LineCommand</a></code> that was submitted.</p>
+</blockquote>
+</div>
+
+
+</div>
+<div id="HwOutputLine.pulse_msec" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">pulse_msec</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	duration_msec: &lt;class &#x27;SupportsInt&#x27;&gt; = 50</span><span class="return-annotation">) -> <span class="n"><a href="#LineCommand">LineCommand</a></span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#HwOutputLine.pulse_msec"></a>
 
 <div class="docstring"><p>Emit a digital pulse on the line (digital lines only).</p>
 
@@ -858,15 +824,15 @@ downstream device.</p>
 
 
 </div>
-<div id="HwOutputLine.send_register" class="classattr">
+<div id="HwOutputLine.send_mode" class="classattr">
 <div class="attr function">
 
 <span class="def">def</span>
-<span class="name">send_register</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span></span><span class="return-annotation">) -> <span class="n"><a href="#LineCommand">LineCommand</a></span>:</span></span>
+<span class="name">send_mode</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span></span><span class="return-annotation">) -> <span class="n"><a href="#LineCommand">LineCommand</a></span>:</span></span>
 
 
 </div>
-<a class="headerlink" href="#HwOutputLine.send_register"></a>
+<a class="headerlink" href="#HwOutputLine.send_mode"></a>
 
 <div class="docstring"><p>Emit the SET_MODE command that configures the line as an output.</p>
 
@@ -1041,86 +1007,6 @@ downstream device.</p>
 (e.g. <code><a href="#Frame">Frame</a></code>, <code>TableRow</code>). Set to <code>None</code> to remove the callback.</p>
 
 <p>Type: <code>Callable[[object], None] | None</code>.</p>
-</div>
-
-
-</div>
-</section>
-<section id="IntSignalBlock">
-<div class="attr class">
-
-<span class="def">class</span>
-<span class="name">IntSignalBlock</span>:
-
-
-</div>
-<a class="headerlink" href="#IntSignalBlock"></a>
-
-<div class="docstring"><p>A block of timestamped integer signal data.</p>
-</div>
-
-
-<div id="IntSignalBlock.cols" class="classattr">
-<div class="attr variable">
-<span class="name">cols</span><span class="annotation">: int</span>
-
-
-</div>
-<a class="headerlink" href="#IntSignalBlock.cols"></a>
-
-<div class="docstring"><p>Number of columns (channels).</p>
-</div>
-
-
-</div>
-<div id="IntSignalBlock.data" class="classattr">
-<div class="attr variable">
-<span class="name">data</span><span class="annotation">: Annotated[numpy.ndarray[tuple[Any, ...], numpy.dtype[numpy.int32]], &#39;[m, n]&#39;]</span>
-
-
-</div>
-<a class="headerlink" href="#IntSignalBlock.data"></a>
-
-<div class="docstring"><p>2-D data matrix: rows = samples, columns = channels.</p>
-</div>
-
-
-</div>
-<div id="IntSignalBlock.length" class="classattr">
-<div class="attr variable">
-<span class="name">length</span><span class="annotation">: int</span>
-
-
-</div>
-<a class="headerlink" href="#IntSignalBlock.length"></a>
-
-<div class="docstring"><p>Number of samples (rows) in this block.</p>
-</div>
-
-
-</div>
-<div id="IntSignalBlock.rows" class="classattr">
-<div class="attr variable">
-<span class="name">rows</span><span class="annotation">: int</span>
-
-
-</div>
-<a class="headerlink" href="#IntSignalBlock.rows"></a>
-
-<div class="docstring"><p>Number of rows (samples).</p>
-</div>
-
-
-</div>
-<div id="IntSignalBlock.timestamps" class="classattr">
-<div class="attr variable">
-<span class="name">timestamps</span><span class="annotation">: Annotated[numpy.ndarray[tuple[Any, ...], numpy.dtype[numpy.uint64]], &#39;[m, 1]&#39;]</span>
-
-
-</div>
-<a class="headerlink" href="#IntSignalBlock.timestamps"></a>
-
-<div class="docstring"><p>1-D array of sample timestamps in µs.</p>
 </div>
 
 
@@ -1712,6 +1598,246 @@ or <code>list</code> of <code>int</code>/<code>str</code> values.</li>
 <a class="headerlink" href="#OutputPort.name"></a>
 
 <div class="docstring"><p>The unique port ID string.</p>
+</div>
+
+
+</div>
+</section>
+<section id="SignalBlockF32">
+<div class="attr class">
+
+<span class="def">class</span>
+<span class="name">SignalBlockF32</span>:
+
+
+</div>
+<a class="headerlink" href="#SignalBlockF32"></a>
+
+<div class="docstring"><p>A block of timestamped 32-bit float signal data.</p>
+</div>
+
+
+<div id="SignalBlockF32.cols" class="classattr">
+<div class="attr variable">
+<span class="name">cols</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#SignalBlockF32.cols"></a>
+
+<div class="docstring"><p>Number of columns (channels).</p>
+</div>
+
+
+</div>
+<div id="SignalBlockF32.data" class="classattr">
+<div class="attr variable">
+<span class="name">data</span><span class="annotation">: Annotated[numpy.ndarray[tuple[Any, ...], numpy.dtype[numpy.float32]], &#39;[m, n]&#39;]</span>
+
+
+</div>
+<a class="headerlink" href="#SignalBlockF32.data"></a>
+
+<div class="docstring"><p>2-D data matrix: rows = samples, columns = channels.</p>
+</div>
+
+
+</div>
+<div id="SignalBlockF32.length" class="classattr">
+<div class="attr variable">
+<span class="name">length</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#SignalBlockF32.length"></a>
+
+<div class="docstring"><p>Number of samples (rows) in this block.</p>
+</div>
+
+
+</div>
+<div id="SignalBlockF32.rows" class="classattr">
+<div class="attr variable">
+<span class="name">rows</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#SignalBlockF32.rows"></a>
+
+<div class="docstring"><p>Number of rows (samples).</p>
+</div>
+
+
+</div>
+<div id="SignalBlockF32.timestamps" class="classattr">
+<div class="attr variable">
+<span class="name">timestamps</span><span class="annotation">: Annotated[numpy.ndarray[tuple[Any, ...], numpy.dtype[numpy.uint64]], &#39;[m, 1]&#39;]</span>
+
+
+</div>
+<a class="headerlink" href="#SignalBlockF32.timestamps"></a>
+
+<div class="docstring"><p>1-D array of sample timestamps in µs.</p>
+</div>
+
+
+</div>
+</section>
+<section id="SignalBlockI32">
+<div class="attr class">
+
+<span class="def">class</span>
+<span class="name">SignalBlockI32</span>:
+
+
+</div>
+<a class="headerlink" href="#SignalBlockI32"></a>
+
+<div class="docstring"><p>A block of timestamped 32-bit integer signal data.</p>
+</div>
+
+
+<div id="SignalBlockI32.cols" class="classattr">
+<div class="attr variable">
+<span class="name">cols</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#SignalBlockI32.cols"></a>
+
+<div class="docstring"><p>Number of columns (channels).</p>
+</div>
+
+
+</div>
+<div id="SignalBlockI32.data" class="classattr">
+<div class="attr variable">
+<span class="name">data</span><span class="annotation">: Annotated[numpy.ndarray[tuple[Any, ...], numpy.dtype[numpy.int32]], &#39;[m, n]&#39;]</span>
+
+
+</div>
+<a class="headerlink" href="#SignalBlockI32.data"></a>
+
+<div class="docstring"><p>2-D data matrix: rows = samples, columns = channels.</p>
+</div>
+
+
+</div>
+<div id="SignalBlockI32.length" class="classattr">
+<div class="attr variable">
+<span class="name">length</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#SignalBlockI32.length"></a>
+
+<div class="docstring"><p>Number of samples (rows) in this block.</p>
+</div>
+
+
+</div>
+<div id="SignalBlockI32.rows" class="classattr">
+<div class="attr variable">
+<span class="name">rows</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#SignalBlockI32.rows"></a>
+
+<div class="docstring"><p>Number of rows (samples).</p>
+</div>
+
+
+</div>
+<div id="SignalBlockI32.timestamps" class="classattr">
+<div class="attr variable">
+<span class="name">timestamps</span><span class="annotation">: Annotated[numpy.ndarray[tuple[Any, ...], numpy.dtype[numpy.uint64]], &#39;[m, 1]&#39;]</span>
+
+
+</div>
+<a class="headerlink" href="#SignalBlockI32.timestamps"></a>
+
+<div class="docstring"><p>1-D array of sample timestamps in µs.</p>
+</div>
+
+
+</div>
+</section>
+<section id="SignalBlockU16">
+<div class="attr class">
+
+<span class="def">class</span>
+<span class="name">SignalBlockU16</span>:
+
+
+</div>
+<a class="headerlink" href="#SignalBlockU16"></a>
+
+<div class="docstring"><p>A block of timestamped 16-bit unsigned integer signal data.</p>
+</div>
+
+
+<div id="SignalBlockU16.cols" class="classattr">
+<div class="attr variable">
+<span class="name">cols</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#SignalBlockU16.cols"></a>
+
+<div class="docstring"><p>Number of columns (channels).</p>
+</div>
+
+
+</div>
+<div id="SignalBlockU16.data" class="classattr">
+<div class="attr variable">
+<span class="name">data</span><span class="annotation">: Annotated[numpy.ndarray[tuple[Any, ...], numpy.dtype[numpy.uint16]], &#39;[m, n]&#39;]</span>
+
+
+</div>
+<a class="headerlink" href="#SignalBlockU16.data"></a>
+
+<div class="docstring"><p>2-D data matrix: rows = samples, columns = channels.</p>
+</div>
+
+
+</div>
+<div id="SignalBlockU16.length" class="classattr">
+<div class="attr variable">
+<span class="name">length</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#SignalBlockU16.length"></a>
+
+<div class="docstring"><p>Number of samples (rows) in this block.</p>
+</div>
+
+
+</div>
+<div id="SignalBlockU16.rows" class="classattr">
+<div class="attr variable">
+<span class="name">rows</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#SignalBlockU16.rows"></a>
+
+<div class="docstring"><p>Number of rows (samples).</p>
+</div>
+
+
+</div>
+<div id="SignalBlockU16.timestamps" class="classattr">
+<div class="attr variable">
+<span class="name">timestamps</span><span class="annotation">: Annotated[numpy.ndarray[tuple[Any, ...], numpy.dtype[numpy.uint64]], &#39;[m, 1]&#39;]</span>
+
+
+</div>
+<a class="headerlink" href="#SignalBlockU16.timestamps"></a>
+
+<div class="docstring"><p>1-D array of sample timestamps in µs.</p>
 </div>
 
 
