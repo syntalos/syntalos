@@ -38,6 +38,7 @@ private:
 
     std::shared_ptr<DataStream<FloatSignalBlock>> m_floatOut;
     std::shared_ptr<DataStream<IntSignalBlock>> m_intOut;
+    std::shared_ptr<DataStream<UInt16SignalBlock>> m_uint16Out;
 
     int m_fps;
     QSize m_outFrameSize;
@@ -60,6 +61,9 @@ public:
         m_fctlOut = registerOutputPort<LineCommand>(QStringLiteral("fctl-out"), QStringLiteral("Line Control"));
         m_floatOut = registerOutputPort<FloatSignalBlock>(QStringLiteral("float-out"), QStringLiteral("Sines"));
         m_intOut = registerOutputPort<IntSignalBlock>(QStringLiteral("int-out"), QStringLiteral("Numbers"));
+        m_uint16Out = registerOutputPort<UInt16SignalBlock>(
+            QStringLiteral("uint16-out"),
+            QStringLiteral("U16 Counters"));
     }
 
     ~DataSourceModule() override {}
@@ -132,6 +136,11 @@ public:
         m_intOut->setMetadataValue("data_unit", "au");
         m_intOut->start();
 
+        m_uint16Out->setMetadataValue("signal_names", MetaArray{"U16 1", "U16 2"});
+        m_uint16Out->setMetadataValue("time_unit", "microseconds");
+        m_uint16Out->setMetadataValue("data_unit", "au");
+        m_uint16Out->start();
+
         m_fctlOut->start();
 
         return true;
@@ -184,6 +193,16 @@ public:
                     m_prevIntValue++;
                 }
                 m_intOut->push(isb);
+
+                UInt16SignalBlock usb(2, 2);
+                usb.timestamps[0] = usec - 1;
+                usb.timestamps[1] = usec;
+                const uint16_t base = static_cast<uint16_t>(msec & 0xFFFF);
+                usb.data(0, 0) = base;
+                usb.data(1, 0) = static_cast<uint16_t>(base + 1);
+                usb.data(0, 1) = static_cast<uint16_t>(60000 - base);
+                usb.data(1, 1) = static_cast<uint16_t>(60000 - base - 1);
+                m_uint16Out->push(usb);
 
                 m_prevTimeSData = usec;
             }

@@ -109,7 +109,8 @@ private:
 enum class InputSourceKind {
     NONE,
     FLOAT,
-    INT
+    INT,
+    UINT16
 };
 
 class ZarrWriterModule : public AbstractModule
@@ -124,9 +125,11 @@ private:
 
     std::shared_ptr<StreamInputPort<FloatSignalBlock>> m_floatIn;
     std::shared_ptr<StreamInputPort<IntSignalBlock>> m_intIn;
+    std::shared_ptr<StreamInputPort<UInt16SignalBlock>> m_uint16In;
 
     std::shared_ptr<StreamSubscription<FloatSignalBlock>> m_floatSub;
     std::shared_ptr<StreamSubscription<IntSignalBlock>> m_intSub;
+    std::shared_ptr<StreamSubscription<UInt16SignalBlock>> m_uint16Sub;
 
     InputSourceKind m_isrcKind;
     bool m_writeData;
@@ -153,8 +156,11 @@ public:
           m_expectedChannels(0),
           m_chunkCount(ZARR_CHUNK_DEFAULT)
     {
-        m_floatIn = registerInputPort<FloatSignalBlock>(QStringLiteral("fpsig1-in"), QStringLiteral("Float64 Signals"));
+        m_floatIn = registerInputPort<FloatSignalBlock>(QStringLiteral("fpsig1-in"), QStringLiteral("Float32 Signals"));
         m_intIn = registerInputPort<IntSignalBlock>(QStringLiteral("intsig1-in"), QStringLiteral("Int32 Signals"));
+        m_uint16In = registerInputPort<UInt16SignalBlock>(
+            QStringLiteral("uint16sig1-in"),
+            QStringLiteral("UInt16 Signals"));
 
         m_settingsDlg = new ZarrSettingsDialog();
         m_settingsDlg->setWindowIcon(modInfo->icon());
@@ -206,6 +212,19 @@ public:
             registerDataReceivedEvent(&ZarrWriterModule::onIntSignalBlockReceived, m_intSub);
         }
 
+        m_uint16Sub.reset();
+        if (m_uint16In->hasSubscription()) {
+            m_uint16Sub = m_uint16In->subscription();
+            if (m_isrcKind != InputSourceKind::NONE) {
+                raiseError(QStringLiteral(
+                    "More than one input is connected. Only one signal type can be "
+                    "written into a Zarr array at a time."));
+                return false;
+            }
+            m_isrcKind = InputSourceKind::UINT16;
+            registerDataReceivedEvent(&ZarrWriterModule::onUInt16SignalBlockReceived, m_uint16Sub);
+        }
+
         setStateReady();
         return true;
     }
@@ -238,6 +257,17 @@ public:
             m_timeUnit = QString::fromStdString(m_intSub->metadataValue("time_unit", std::string{}));
             m_dataUnit = QString::fromStdString(m_intSub->metadataValue("data_unit", std::string{}));
             m_chunkCount = chunkCountFromSampleRate(m_intSub->metadataValue("sample_rate", -1.0));
+            break;
+        }
+        case InputSourceKind::UINT16: {
+            mdata = m_uint16Sub->metadata();
+            m_signalNames.clear();
+            for (const auto &v : m_uint16Sub->metadataValue("signal_names", MetaArray{}))
+                if (const auto s = v.get<std::string>())
+                    m_signalNames << QString::fromStdString(*s);
+            m_timeUnit = QString::fromStdString(m_uint16Sub->metadataValue("time_unit", std::string{}));
+            m_dataUnit = QString::fromStdString(m_uint16Sub->metadataValue("data_unit", std::string{}));
+            m_chunkCount = chunkCountFromSampleRate(m_uint16Sub->metadataValue("sample_rate", -1.0));
             break;
         }
         default:
@@ -338,8 +368,22 @@ private:
         if (m_tsArray)
             return;
 
-        const ZarrV3Array::DType dataDtype = (m_isrcKind == InputSourceKind::FLOAT) ? ZarrV3Array::DType::Float64
-                                                                                    : ZarrV3Array::DType::Int32;
+        ZarrV3Array::DType dataDtype;
+        switch (m_isrcKind) {
+        case InputSourceKind::FLOAT:
+            dataDtype = ZarrV3Array::DType::Float32;
+            break;
+        case InputSourceKind::INT:
+            dataDtype = ZarrV3Array::DType::Int32;
+            break;
+        case InputSourceKind::UINT16:
+            dataDtype = ZarrV3Array::DType::UInt16;
+            break;
+        default:
+            raiseError(QStringLiteral("Internal error: unknown input source kind"));
+            m_writeData = false;
+            return;
+        }
 
         // 1-D timestamps array: shape = [total_samples], dtype = uint64
         m_tsArray = std::make_unique<ZarrV3Array>(
@@ -429,6 +473,21 @@ private:
         m_tsArray->appendBytes(block.timestamps.data(), block.timestamps.rows());
 
         const Eigen::Matrix<int32_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> rmMtx = block.data;
+        m_dataArray->appendBytes(rmMtx.data(), rmMtx.rows());
+    }
+
+    void onUInt16SignalBlockReceived()
+    {
+        const auto maybeData = m_uint16Sub->peekNext();
+        if (!maybeData.has_value() || !m_writeData)
+            return;
+        const auto &block = maybeData.value();
+
+        ensureArraysInitialized(static_cast<int>(block.data.cols()));
+
+        m_tsArray->appendBytes(block.timestamps.data(), block.timestamps.rows());
+
+        const Eigen::Matrix<uint16_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> rmMtx = block.data;
         m_dataArray->appendBytes(rmMtx.data(), rmMtx.rows());
     }
 };
