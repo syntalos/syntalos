@@ -664,6 +664,24 @@ public:
             throw SyntalosPyError(res.error());
         return *res;
     }
+
+    std::shared_ptr<FreqCounterSynchronizer> initCounterSynchronizer(double frequencyHz, const std::string &id)
+    {
+        auto sync = m_slink->initCounterSynchronizer(frequencyHz, id);
+        if (!sync)
+            throw SyntalosPyError(
+                "Unable to create FreqCounterSynchronizer (module not in PREPARING / READY / RUNNING state).");
+        return {std::move(sync)};
+    }
+
+    std::shared_ptr<SecondaryClockSynchronizer> initClockSynchronizer(double expectedFrequencyHz, const std::string &id)
+    {
+        auto sync = m_slink->initClockSynchronizer(expectedFrequencyHz, id);
+        if (!sync)
+            throw SyntalosPyError(
+                "Unable to create SecondaryClockSynchronizer (module not in PREPARING / READY / RUNNING state).");
+        return {std::move(sync)};
+    }
 };
 
 static SyntalosLink *getActiveLink()
@@ -1515,6 +1533,102 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "Set an attribute on this group.");
 
     /**
+     * Clock synchronization
+     */
+
+    py::enum_<TimeSyncStrategy>(
+        m,
+        "TimeSyncStrategy",
+        py::arithmetic(),
+        "Strategies a synchronizer may apply to keep a secondary timeline aligned with the master clock.\n"
+        "\n"
+        "Values are bit flags and may be combined with ``|``.")
+        .value("NONE", TimeSyncStrategy::NONE, "Do nothing.")
+        .value(
+            "SHIFT_TIMESTAMPS_FWD",
+            TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD,
+            "Move timestamps forward to match the master clock.")
+        .value(
+            "SHIFT_TIMESTAMPS_BWD",
+            TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD,
+            "Move timestamps backward to match the master clock.")
+        .value(
+            "ADJUST_CLOCK",
+            TimeSyncStrategy::ADJUST_CLOCK,
+            "Adjust the secondary clock to match the master clock without changing timestamps.")
+        .value(
+            "WRITE_TSYNCFILE",
+            TimeSyncStrategy::WRITE_TSYNCFILE,
+            "Write a time-sync file for offline offset correction in postprocessing.");
+
+    py::class_<SecondaryClockSynchronizer, std::shared_ptr<SecondaryClockSynchronizer>>(
+        m,
+        "SecondaryClockSynchronizer",
+        "Synchronizer for an external steady monotonic clock.\n"
+        "\n"
+        "Obtain an instance via :meth:`SyntalosLink.init_clock_synchronizer`.")
+        .def(
+            "set_strategies",
+            [](SecondaryClockSynchronizer &self, int strategies) {
+                self.setStrategies(TimeSyncStrategies(strategies));
+            },
+            py::arg("strategies"),
+            "Set the bitset of :class:`TimeSyncStrategy` values the synchronizer may apply.")
+        .def(
+            "set_tolerance_usec",
+            [](SecondaryClockSynchronizer &self, int64_t tolerance_usec) {
+                self.setTolerance(microseconds_t(tolerance_usec));
+            },
+            py::arg("tolerance_usec"),
+            "Set the tolerance for offset deviations, in microseconds.")
+        .def(
+            "set_calibration_points_count",
+            &SecondaryClockSynchronizer::setCalibrationPointsCount,
+            py::arg("count"),
+            "Set the number of calibration points required to compute the initial offset.")
+        .def(
+            "set_expected_clock_frequency_hz",
+            &SecondaryClockSynchronizer::setExpectedClockFrequencyHz,
+            py::arg("frequency"),
+            "Auto-tune tolerance and required calibration points based on the expected DAQ frequency.")
+        .def(
+            "start",
+            &SecondaryClockSynchronizer::start,
+            "Initialize and begin synchronization. Returns ``True`` on success.")
+        .def("stop", &SecondaryClockSynchronizer::stop, "Finalize and close the time-sync file (if any).")
+        .def(
+            "process_timestamp",
+            [](SecondaryClockSynchronizer &self, int64_t master_timestamp_usec, int64_t secondary_acq_ts_usec) {
+                microseconds_t master(master_timestamp_usec);
+                self.processTimestamp(master, microseconds_t(secondary_acq_ts_usec));
+                return master.count();
+            },
+            py::arg("master_timestamp_usec"),
+            py::arg("secondary_acq_timestamp_usec"),
+            "Process a master/secondary timestamp pair.\n"
+            "\n"
+            "Returns the (possibly adjusted) master timestamp, in microseconds.")
+        .def_property_readonly(
+            "is_calibrated",
+            &SecondaryClockSynchronizer::isCalibrated,
+            "Whether the synchronizer has completed its calibration phase.")
+        .def_property_readonly(
+            "expected_offset_to_master_usec",
+            [](const SecondaryClockSynchronizer &self) {
+                return self.expectedOffsetToMaster().count();
+            },
+            "The expected offset from the secondary clock to the master clock, in microseconds.")
+        .def_property_readonly(
+            "clock_correction_offset_usec",
+            [](const SecondaryClockSynchronizer &self) {
+                return self.clockCorrectionOffset().count();
+            },
+            "The current dynamic clock-correction offset, in microseconds.\n"
+            "\n"
+            "Negative values indicate the secondary clock is running too slow, positive values\n"
+            "indicate it is running too fast.");
+
+    /**
      * Module registration (for standalone Python modules)
      */
 
@@ -1700,7 +1814,25 @@ PYBIND11_MODULE(syntalos_mlink, m)
             ":param group: Parent :class:`EdlGroup`.\n"
             ":param name: Dataset name.\n"
             ":return: The new :class:`EdlDataset`.\n"
-            ":rtype: EdlDataset");
+            ":rtype: EdlDataset")
+
+        // ---- Clock synchronization ----
+
+        .def(
+            "init_clock_synchronizer",
+            &PySyLinkManager::initClockSynchronizer,
+            py::arg("expected_frequency_hz") = 0.0,
+            py::arg("id") = std::string{},
+            "Create a synchronizer for an external steady monotonic clock.\n"
+            "\n"
+            "Must be called while the module is preparing or running (typically inside\n"
+            ":attr:`on_prepare`).\n"
+            "\n"
+            ":param expected_frequency_hz: Optional expected acquisition frequency in Hz; if\n"
+            "    greater than zero it auto-tunes the calibration point count and tolerance.\n"
+            ":param id: Optional synchronizer id; defaults to the module instance id.\n"
+            ":return: A new :class:`SecondaryClockSynchronizer`.\n"
+            ":rtype: SecondaryClockSynchronizer");
 
     m.def(
         "init_link",
