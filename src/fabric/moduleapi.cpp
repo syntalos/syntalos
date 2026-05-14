@@ -283,6 +283,8 @@ bool VarStreamInputPort::hasSubscription() const
 void VarStreamInputPort::setSubscription(StreamOutputPort *src, std::shared_ptr<VariantStreamSubscription> sub)
 {
     d->outPort = src;
+    if (sub && sub->dataTypeId() != dataTypeId())
+        sub = wrapSubscriptionForType(sub, dataTypeId());
     m_sub = sub;
     src->addSubscriberPort(this);
 
@@ -377,7 +379,10 @@ StreamOutputPort::~StreamOutputPort() {}
 
 bool StreamOutputPort::canSubscribe(const QString &typeName)
 {
-    return typeName == d->stream->dataTypeName();
+    if (typeName == d->stream->dataTypeName())
+        return true;
+    const int toId = BaseDataType::typeIdFromString(typeName.toStdString());
+    return checkStreamTypesCompatible(d->stream->dataTypeId(), toId);
 }
 
 int StreamOutputPort::dataTypeId() const

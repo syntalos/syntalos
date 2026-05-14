@@ -171,7 +171,7 @@ public:
      * @brief Obtain next element from stream, block in case there is no new element
      * @return The obtained value, or std::nullopt in case the stream ended.
      */
-    std::optional<T> next()
+    virtual std::optional<T> next()
     {
         if (!m_active && m_queue.peek() == nullptr)
             return std::nullopt;
@@ -185,7 +185,7 @@ public:
      * This function behaves the same as next(), but does return immediately without blocking.
      * To see if the stream as ended, check the active() property on this subscription.
      */
-    std::optional<T> peekNext()
+    virtual std::optional<T> peekNext()
     {
         if (!m_active && m_queue.peek() == nullptr)
             return std::nullopt;
@@ -240,14 +240,17 @@ public:
     template<typename MT>
     [[nodiscard]] MT metadataValue(const QString &key, MT fallback) const
     {
-        const auto v = m_metadata.value(key.toStdString());
+        // Route through the virtual metadata() accessor so adapters (e.g.
+        // StreamSubscriptionAdapter) that hold no metadata of their own
+        // can forward to their backing subscription.
+        const auto v = metadata().value(key.toStdString());
         return v.has_value() ? v->template getOr<MT>(std::move(fallback)) : std::move(fallback);
     }
 
     template<typename MT>
     [[nodiscard]] MT metadataValue(CommonMetadataKey key, MT fallback) const
     {
-        const auto v = m_metadata.value(_commonMetadataKeyMap->value(key));
+        const auto v = metadata().value(_commonMetadataKeyMap->value(key));
         return v.has_value() ? v->template getOr<MT>(std::move(fallback)) : std::move(fallback);
     }
 
@@ -768,3 +771,151 @@ private:
         return QString::fromStdString(modName + "▶ " + portName + "[" + dataTypeStr + "]");
     }
 };
+
+/**
+ * @brief A view over a StreamSubscription<From> that yields values of type To.
+ *
+ * Used to make incompatible-typed ports connectable when To has an
+ * `explicit To(const From &)` constructor. The adapter is-a
+ * StreamSubscription<To> so the existing dynamic_pointer_cast in
+ * StreamInputPort<To>::subscription() succeeds; next()/peekNext() pull a
+ * From from the inner subscription and construct a To on the fly.
+ *
+ * All other operations delegate to the inner subscription, so throttling,
+ * suspension, metadata, eventfd notifications etc. behave as if the
+ * consumer had subscribed directly.
+ */
+template<typename From, typename To>
+class StreamSubscriptionAdapter final : public StreamSubscription<To>
+{
+public:
+    explicit StreamSubscriptionAdapter(std::shared_ptr<StreamSubscription<From>> inner)
+        : StreamSubscription<To>(nullptr),
+          m_inner(std::move(inner))
+    {
+    }
+
+    std::optional<To> next() override
+    {
+        auto v = m_inner->next();
+        if (!v.has_value())
+            return std::nullopt;
+        // `v` is a local rvalue: prefer a move-from-`From` converting
+        // constructor when one exists, falling back to the const-ref form.
+        return std::optional<To>{std::in_place, std::move(*v)};
+    }
+
+    std::optional<To> peekNext() override
+    {
+        auto v = m_inner->peekNext();
+        if (!v.has_value())
+            return std::nullopt;
+        return std::optional<To>{std::in_place, std::move(*v)};
+    }
+
+    bool callIfNextVar(const ProcessVarFn &fn) override
+    {
+        auto v = peekNext();
+        if (v.has_value()) {
+            fn(v.value());
+            return true;
+        }
+        return false;
+    }
+
+    bool unsubscribe() override
+    {
+        return m_inner->unsubscribe();
+    }
+
+    bool isActive() const override
+    {
+        return m_inner->isActive();
+    }
+
+    bool hasPending() const override
+    {
+        return m_inner->hasPending();
+    }
+
+    size_t approxPendingCount() const override
+    {
+        return m_inner->approxPendingCount();
+    }
+
+    int enableNotify() override
+    {
+        return m_inner->enableNotify();
+    }
+
+    void disableNotify() override
+    {
+        m_inner->disableNotify();
+    }
+
+    void setThrottleItemsPerSec(uint itemsPerSec, bool allowMore = true) override
+    {
+        m_inner->setThrottleItemsPerSec(itemsPerSec, allowMore);
+    }
+
+    void suspend() override
+    {
+        m_inner->suspend();
+    }
+
+    void resume() override
+    {
+        m_inner->resume();
+    }
+
+    void clearPending() override
+    {
+        m_inner->clearPending();
+    }
+
+    MetaStringMap metadata() const override
+    {
+        return m_inner->metadata();
+    }
+
+    MetaValue metadataValue(const QString &key, const MetaValue &defaultValue = nullptr) const override
+    {
+        return m_inner->metadataValue(key, defaultValue);
+    }
+
+    MetaValue metadataValue(CommonMetadataKey key, const MetaValue &defaultValue = nullptr) const override
+    {
+        return m_inner->metadataValue(key, defaultValue);
+    }
+
+    void forcePushNullopt() override
+    {
+        m_inner->forcePushNullopt();
+    }
+
+private:
+    std::shared_ptr<StreamSubscription<From>> m_inner;
+};
+
+/**
+ * @brief True if a subscription of type `fromTypeId` can drive an input port
+ *        of type `toTypeId`.
+ *
+ * Two types are compatible when they are equal, or when `To` has an
+ * accessible `explicit To(const From &)` constructor - e.g. a converting
+ * constructor exists on the destination type.
+ */
+bool checkStreamTypesCompatible(int fromTypeId, int toTypeId);
+
+/**
+ * @brief Wrap a variant subscription so that its values appear as `targetTypeId`.
+ *
+ * If the subscription is already of the target type, returns it unchanged.
+ * Otherwise locates a `(From, To)` pair via the StreamTypeList and instantiates
+ * a ConvertingStreamSubscription. Returns the original subscription if no
+ * conversion is possible (the caller should have checked compatibility via
+ * areStreamTypesCompatible).
+ */
+std::shared_ptr<VariantStreamSubscription> wrapSubscriptionForType(
+    std::shared_ptr<VariantStreamSubscription> sub,
+    int targetTypeId);

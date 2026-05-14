@@ -29,6 +29,8 @@
 #include <array>
 #include <cmath>
 #include <type_traits>
+#include <tuple>
+#include <utility>
 
 #include "datactl/syclock.h"
 #include "datactl/binarystream.h"
@@ -290,6 +292,10 @@ enum class ControlCommandKind {
     STEP,  /// Advance operation by one step
     CUSTOM
 };
+
+// Forward declarations
+struct Frame;
+struct UInt16SignalBlock;
 
 /**
  * @brief A control command to a module.
@@ -568,6 +574,8 @@ struct IntSignalBlock : BaseDataType {
         data.resize(sampleCount, channelCount);
     }
 
+    explicit IntSignalBlock(struct UInt16SignalBlock &&src);
+
     [[nodiscard]] size_t length() const
     {
         return timestamps.size();
@@ -687,6 +695,8 @@ struct UInt16SignalBlock : BaseDataType {
         data.resize(sampleCount, channelCount);
     }
 
+    explicit UInt16SignalBlock(struct IntSignalBlock &&src);
+
     [[nodiscard]] size_t length() const
     {
         return timestamps.size();
@@ -723,6 +733,32 @@ struct UInt16SignalBlock : BaseDataType {
         return obj;
     }
 };
+
+/**
+ * @brief Compile-time list of all stream data types.
+ *
+ * Append a new type here when adding it to the TypeId enum.
+ */
+using StreamTypeList = std::tuple<
+    ControlCommand,
+    TableRow,
+    LineCommand,
+    LineReading,
+    Frame,
+    IntSignalBlock,
+    FloatSignalBlock,
+    UInt16SignalBlock>;
+
+/**
+ * @brief Call `fn(std::type_identity<T>{})` for every T in StreamTypeList.
+ */
+template<typename Fn>
+constexpr void forEachStreamType(Fn &&fn)
+{
+    [&]<size_t... Is>(std::index_sequence<Is...>) {
+        (fn(std::type_identity<std::tuple_element_t<Is, StreamTypeList>>{}), ...);
+    }(std::make_index_sequence<std::tuple_size_v<StreamTypeList>>{});
+}
 
 /**
  * @brief Helper function to register all meta types for stream data

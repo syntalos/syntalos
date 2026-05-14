@@ -17,12 +17,15 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "datatypes.h"
-#include "frametype.h"
+#include "datactl/datatypes.h"
+#include "datactl/frametype.h"
+
+namespace Syntalos
+{
 
 static std::vector<std::pair<std::string, int>> g_streamTypeIdIndex;
 
-std::string Syntalos::toString(ModuleState state)
+std::string toString(ModuleState state)
 {
     switch (state) {
     case ModuleState::UNKNOWN:
@@ -46,7 +49,7 @@ std::string Syntalos::toString(ModuleState state)
     }
 }
 
-void Syntalos::registerStreamMetaTypes()
+void registerStreamMetaTypes()
 {
     // only register the types if we have not created the global registry yet
     if (!g_streamTypeIdIndex.empty())
@@ -59,7 +62,23 @@ void Syntalos::registerStreamMetaTypes()
     }
 }
 
-std::vector<std::pair<std::string, int>> Syntalos::streamTypeIdIndex()
+std::vector<std::pair<std::string, int>> streamTypeIdIndex()
 {
     return g_streamTypeIdIndex;
 }
+
+IntSignalBlock::IntSignalBlock(struct UInt16SignalBlock &&src)
+{
+    // The data matrix has a different scalar type, so the cast must read every
+    // element anyway; only the timestamps can actually be moved.
+    timestamps = std::move(src.timestamps);
+    data = src.data.cast<int32_t>();
+}
+
+UInt16SignalBlock::UInt16SignalBlock(struct IntSignalBlock &&src)
+{
+    timestamps = std::move(src.timestamps);
+    data = src.data.cast<uint16_t>();
+}
+
+} // namespace Syntalos

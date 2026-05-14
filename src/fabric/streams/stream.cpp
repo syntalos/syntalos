@@ -19,6 +19,58 @@
 
 #include "stream.h"
 
+#include "datactl/datatypes.h"
+#include "datactl/frametype.h"
+
 VariantStreamSubscription::~VariantStreamSubscription() {}
 
 VariantDataStream::~VariantDataStream() {}
+
+bool checkStreamTypesCompatible(int fromTypeId, int toTypeId)
+{
+    if (fromTypeId == toTypeId)
+        return true;
+
+    bool ok = false;
+    forEachStreamType([&](auto fromTag) {
+        using From = typename decltype(fromTag)::type;
+        if (From::staticTypeId() != fromTypeId)
+            return;
+        forEachStreamType([&](auto toTag) {
+            using To = typename decltype(toTag)::type;
+            // Accepts either a `To(const From &)` or a `To(From &&)` converting constructor
+            if constexpr (!std::same_as<From, To> && std::constructible_from<To, From>) {
+                if (To::staticTypeId() == toTypeId)
+                    ok = true;
+            }
+        });
+    });
+    return ok;
+}
+
+std::shared_ptr<VariantStreamSubscription> wrapSubscriptionForType(
+    std::shared_ptr<VariantStreamSubscription> sub,
+    int targetTypeId)
+{
+    if (!sub || sub->dataTypeId() == targetTypeId)
+        return sub;
+
+    std::shared_ptr<VariantStreamSubscription> wrapped;
+    forEachStreamType([&](auto fromTag) {
+        using From = typename decltype(fromTag)::type;
+        if (wrapped || From::staticTypeId() != sub->dataTypeId())
+            return;
+        forEachStreamType([&](auto toTag) {
+            using To = typename decltype(toTag)::type;
+            // Accepts either a `To(const From &)` or a `To(From &&)` converting constructor
+            if constexpr (!std::same_as<From, To> && std::constructible_from<To, From>) {
+                if (wrapped || To::staticTypeId() != targetTypeId)
+                    return;
+                auto inner = std::dynamic_pointer_cast<StreamSubscription<From>>(sub);
+                if (inner)
+                    wrapped = std::make_shared<StreamSubscriptionAdapter<From, To>>(std::move(inner));
+            }
+        });
+    });
+    return wrapped ? wrapped : sub;
+}

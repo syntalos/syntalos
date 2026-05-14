@@ -120,6 +120,17 @@ QRectF FlowGraphItem::editorRect(void) const
 //----------------------------------------------------------------------------
 // FlowGraphNodePort
 
+// Two ports are connectable if their stream data types are equal or if one
+// can be implicitly converted to the other. Direction is decided by the
+// caller's other checks (portMode); compatibility is queried symmetrically
+// so this helper is safe to call regardless of port order.
+static bool portsHaveCompatibleStreamType(FlowGraphNodePort *a, FlowGraphNodePort *b)
+{
+    const int ta = a->streamPort()->dataTypeId();
+    const int tb = b->streamPort()->dataTypeId();
+    return checkStreamTypesCompatible(ta, tb) || checkStreamTypesCompatible(tb, ta);
+}
+
 FlowGraphNodePort::FlowGraphNodePort(FlowGraphNode *node)
     : FlowGraphItem(node),
       m_node(node),
@@ -1458,7 +1469,7 @@ void FlowGraphView::connectPorts(FlowGraphNodePort *port1, FlowGraphNodePort *po
         return;
     }
 
-    if (port1->streamPort()->dataTypeId() != port2->streamPort()->dataTypeId()) {
+    if (!checkStreamTypesCompatible(port1->streamPort()->dataTypeId(), port2->streamPort()->dataTypeId())) {
         // we have two incompatible ports, don't permit a connection
         delete edge;
         return;
@@ -1617,8 +1628,8 @@ void FlowGraphView::mouseMoveEvent(QMouseEvent *event)
             if (item && item->type() == FlowGraphNodePort::Type) {
                 FlowGraphNodePort *port1 = m_connect->port1();
                 FlowGraphNodePort *port2 = static_cast<FlowGraphNodePort *>(item);
-                if (port1 && port2 && port1->portType() == port2->portType()
-                    && port1->portMode() != port2->portMode()) {
+                if (port1 && port2 && port1->portMode() != port2->portMode()
+                    && portsHaveCompatibleStreamType(port1, port2)) {
                     port2->update();
                 }
             }
@@ -1719,12 +1730,17 @@ void FlowGraphView::mouseReleaseEvent(QMouseEvent *event)
                 FlowGraphNodePort *port1 = m_connect->port1();
                 FlowGraphNodePort *port2 = static_cast<FlowGraphNodePort *>(item);
                 if (port1 && port2 && port1->portNode() != port2->portNode() && port1->portMode() != port2->portMode()
-                    && port1->portType() == port2->portType() && port1->findConnect(port2) == nullptr) {
+                    && portsHaveCompatibleStreamType(port1, port2) && port1->findConnect(port2) == nullptr) {
                     port2->setSelected(true);
 
                     if (m_connect->setPort2(port2) && m_allowEdit) {
                         // check if the ports have compatible data types
-                        if (port1->streamPort()->dataTypeId() == port2->streamPort()->dataTypeId()) {
+                        // (the convertible direction is output → input)
+                        const auto outPort = (port1->portMode() == FlowGraphNodePort::Output) ? port1 : port2;
+                        const auto inPort = (outPort == port1) ? port2 : port1;
+                        if (checkStreamTypesCompatible(
+                                outPort->streamPort()->dataTypeId(),
+                                inPort->streamPort()->dataTypeId())) {
                             m_connect->updatePathTo(port2->portPos());
                             m_connect = nullptr;
                             ++m_selected_nodes;
@@ -1857,7 +1873,7 @@ void FlowGraphView::connectItems(FlowGraphNodePort *port1, FlowGraphNodePort *po
         return;
     if (port1->isOutput() == port2->isOutput())
         return;
-    if (port1->portType() != port2->portType())
+    if (!portsHaveCompatibleStreamType(port1, port2))
         return;
     connectPorts(port1, port2);
 }
@@ -1907,7 +1923,7 @@ void FlowGraphView::connectItems(void)
         // Connect ports; notify eventual observers...
         FlowGraphNodePort *port1 = iter1.next();
         FlowGraphNodePort *port2 = iter2.next();
-        if (port1 && port2 && port1->portType() == port2->portType())
+        if (port1 && port2 && portsHaveCompatibleStreamType(port1, port2))
             connectPorts(port1, port2);
     }
 }

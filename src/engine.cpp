@@ -1478,7 +1478,7 @@ void Engine::onBufferMonitorEvent()
 
         // determine connection "heat" level
         ConnectionHeatLevel heat;
-        if (approxPendingCount > 300)
+        if (approxPendingCount > 400)
             heat = ConnectionHeatLevel::HIGH;
         else if (approxPendingCount > 200)
             heat = ConnectionHeatLevel::MEDIUM;

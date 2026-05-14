@@ -378,7 +378,10 @@ public:
 
     bool acceptsSubscription(const QString &typeName) override
     {
-        return m_acceptedTypeName == typeName;
+        if (m_acceptedTypeName == typeName)
+            return true;
+        const int fromId = BaseDataType::typeIdFromString(typeName.toStdString());
+        return checkStreamTypesCompatible(fromId, m_acceptedTypeId);
     }
 
 private:
