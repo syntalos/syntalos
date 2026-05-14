@@ -1045,6 +1045,10 @@ void FlowGraphEdge::updatePathTo(const QPointF &pos)
     path.cubicTo(pos2, pos3, pos4);
     const qreal arrow_angle = path.angleAtPercent(0.5) * M_PI / 180.0;
     const QPointF arrow_pos0 = path.pointAtPercent(0.5);
+    // Cache the anchor for the type-conversion indicator while the path is
+    // still bezier-only - pointAtPercent() walks the polygon perimeter once
+    // the arrow shape is added below.
+    m_convIndicatorPos = path.pointAtPercent(is_out0 ? 0.92 : 0.08);
     path.cubicTo(pos3, pos2, pos1);
     const qreal arrow_size = 12.0;
     QVector<QPointF> arrow;
@@ -1085,6 +1089,30 @@ void FlowGraphEdge::paint(QPainter *painter, const QStyleOptionGraphicsItem *opt
     }
 
     painter->drawPath(QGraphicsPathItem::path());
+
+    if (m_hasTypeConversion && m_port1 && m_port2) {
+        constexpr qreal radius = 5.0;
+        const QRectF ringRect(
+            m_convIndicatorPos.x() - radius,
+            m_convIndicatorPos.y() - radius,
+            radius * 2.0,
+            radius * 2.0);
+        painter->setRenderHint(QPainter::Antialiasing, true);
+        // Draw a bicolour split disc - left half = source-type colour,
+        // right half = destination-type colour (thin outline so the
+        // glyph stays legible against any background).
+        painter->setPen(Qt::NoPen);
+        painter->setBrush(m_port1->background());
+        painter->drawPie(ringRect, 90 * 16, 180 * 16); // top -> left -> bottom
+        painter->setBrush(m_port2->background());
+        painter->drawPie(ringRect, -90 * 16, 180 * 16); // bottom -> right -> top
+        const QPalette pal;
+        QColor outline = pal.windowText().color();
+        outline.setAlpha(180);
+        painter->setPen(QPen(outline, 1.0));
+        painter->setBrush(Qt::NoBrush);
+        painter->drawEllipse(ringRect);
+    }
 }
 
 QVariant FlowGraphEdge::itemChange(GraphicsItemChange change, const QVariant &value)
@@ -1138,6 +1166,20 @@ void FlowGraphEdge::updatePortTypeColors(void)
         FlowGraphItem::setForeground(color);
         FlowGraphItem::setBackground(color);
     }
+
+    // Detect a type-converted connection and surface it via a small bicolour
+    // indicator near the input end plus a descriptive tooltip.
+    if (m_port1 && m_port2 && m_port1->portType() != m_port2->portType()) {
+        m_hasTypeConversion = true;
+        const auto srcName = BaseDataType::typeIdToString(m_port1->portType());
+        const auto dstName = BaseDataType::typeIdToString(m_port2->portType());
+        setToolTip(QStringLiteral("%1 → %2")
+                       .arg(QString::fromStdString(srcName), QString::fromStdString(dstName)));
+    } else {
+        m_hasTypeConversion = false;
+        setToolTip(QString());
+    }
+    update();
 }
 
 void FlowGraphEdge::setHeatLevel(ConnectionHeatLevel hlevel)
@@ -1742,6 +1784,10 @@ void FlowGraphView::mouseReleaseEvent(QMouseEvent *event)
                                 outPort->streamPort()->dataTypeId(),
                                 inPort->streamPort()->dataTypeId())) {
                             m_connect->updatePathTo(port2->portPos());
+                            // Refresh visual state now that both ports are
+                            // known - picks up the type-conversion indicator
+                            // and tooltip for cross-type links.
+                            m_connect->updatePortTypeColors();
                             m_connect = nullptr;
                             ++m_selected_nodes;
                             ++nchanged;

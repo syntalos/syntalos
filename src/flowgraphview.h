@@ -418,6 +418,9 @@ protected:
 private:
     FlowGraphNodePort *m_port1;
     FlowGraphNodePort *m_port2;
+
+    bool m_hasTypeConversion{false};
+    QPointF m_convIndicatorPos;
 };
 
 /**
