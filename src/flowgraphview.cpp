@@ -1813,14 +1813,20 @@ void FlowGraphView::mouseReleaseEvent(QMouseEvent *event)
         }
         // Maybe some node(s) were moved...
         if (m_item && m_item->type() == FlowGraphNode::Type) {
-            QList<FlowGraphNode *> nodes;
             foreach (QGraphicsItem *item, m_scene->selectedItems()) {
                 if (item->type() == FlowGraphNode::Type) {
                     FlowGraphNode *node = static_cast<FlowGraphNode *>(item);
                     if (node)
-                        nodes.append(node);
+                        saveNodePos(node);
                 }
             }
+            // Re-balance the scene rect once the user lets go, so any
+            // one-sided slack from the grow-only drag logic is reclaimed.
+            // Only tighten here - not on plain clicks or rubber-band
+            // releases - because those operations never grow the scene rect,
+            // and calling setSceneRect() on a click causes the viewport to
+            // jump even when the rect value is nominally unchanged.
+            tightenSceneRect();
         }
         // Close rubber-band lasso...
         if (m_rubberband) {
@@ -1834,11 +1840,6 @@ void FlowGraphView::mouseReleaseEvent(QMouseEvent *event)
                 nchanged = 0;
             }
         }
-        // Re-balance the scene rect once the user lets go, so any one-sided
-        // slack accumulated during the drag is reclaimed. Don't auto-scroll
-        // here - the per-frame ensureVisible() during the drag already kept
-        // the relevant node on screen.
-        tightenSceneRect();
         break;
     case DragScroll:
     default:
