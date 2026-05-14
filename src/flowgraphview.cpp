@@ -1173,8 +1173,7 @@ void FlowGraphEdge::updatePortTypeColors(void)
         m_hasTypeConversion = true;
         const auto srcName = BaseDataType::typeIdToString(m_port1->portType());
         const auto dstName = BaseDataType::typeIdToString(m_port2->portType());
-        setToolTip(QStringLiteral("%1 → %2")
-                       .arg(QString::fromStdString(srcName), QString::fromStdString(dstName)));
+        setToolTip(QStringLiteral("%1 → %2").arg(QString::fromStdString(srcName), QString::fromStdString(dstName)));
     } else {
         m_hasTypeConversion = false;
         setToolTip(QString());
