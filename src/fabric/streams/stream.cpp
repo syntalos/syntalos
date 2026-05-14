@@ -22,30 +22,28 @@
 #include "datactl/datatypes.h"
 #include "datactl/frametype.h"
 
-VariantStreamSubscription::~VariantStreamSubscription() {}
+VariantStreamSubscription::~VariantStreamSubscription() = default;
 
-VariantDataStream::~VariantDataStream() {}
+VariantDataStream::~VariantDataStream() = default;
 
 bool checkStreamTypesCompatible(int fromTypeId, int toTypeId)
 {
     if (fromTypeId == toTypeId)
         return true;
 
-    bool ok = false;
-    forEachStreamType([&](auto fromTag) {
+    return forEachStreamType([&](auto fromTag) {
         using From = typename decltype(fromTag)::type;
         if (From::staticTypeId() != fromTypeId)
-            return;
-        forEachStreamType([&](auto toTag) {
+            return false;
+        return forEachStreamType([&](auto toTag) {
             using To = typename decltype(toTag)::type;
             // Accepts either a `To(const From &)` or a `To(From &&)` converting constructor
-            if constexpr (!std::same_as<From, To> && std::constructible_from<To, From>) {
-                if (To::staticTypeId() == toTypeId)
-                    ok = true;
-            }
+            if constexpr (!std::same_as<From, To> && std::constructible_from<To, From>)
+                return To::staticTypeId() == toTypeId;
+            else
+                return false;
         });
     });
-    return ok;
 }
 
 std::shared_ptr<VariantStreamSubscription> wrapSubscriptionForType(
@@ -58,17 +56,21 @@ std::shared_ptr<VariantStreamSubscription> wrapSubscriptionForType(
     std::shared_ptr<VariantStreamSubscription> wrapped;
     forEachStreamType([&](auto fromTag) {
         using From = typename decltype(fromTag)::type;
-        if (wrapped || From::staticTypeId() != sub->dataTypeId())
-            return;
-        forEachStreamType([&](auto toTag) {
+        if (From::staticTypeId() != sub->dataTypeId())
+            return false;
+        return forEachStreamType([&](auto toTag) {
             using To = typename decltype(toTag)::type;
             // Accepts either a `To(const From &)` or a `To(From &&)` converting constructor
             if constexpr (!std::same_as<From, To> && std::constructible_from<To, From>) {
-                if (wrapped || To::staticTypeId() != targetTypeId)
-                    return;
+                if (To::staticTypeId() != targetTypeId)
+                    return false;
                 auto inner = std::dynamic_pointer_cast<StreamSubscription<From>>(sub);
-                if (inner)
-                    wrapped = std::make_shared<StreamSubscriptionAdapter<From, To>>(std::move(inner));
+                if (!inner)
+                    return false;
+                wrapped = std::make_shared<StreamSubscriptionAdapter<From, To>>(std::move(inner));
+                return true;
+            } else {
+                return false;
             }
         });
     });

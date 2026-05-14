@@ -462,46 +462,38 @@ void StreamOutputPort::removeSubscriberPort(VarStreamInputPort *inPort)
     d->subscriberPorts.removeOne(inPort);
 }
 
-#define CHECK_RETURN_INPUT_PORT(T) \
-    if (typeId == BaseDataType::T) \
-        return new StreamInputPort<T>(mod, id, title);
-
-#define CHECK_RETURN_STREAM(T)     \
-    if (typeId == BaseDataType::T) \
-        return new DataStream<T>();
-
 VarStreamInputPort *Syntalos::newInputPortForType(
     int typeId,
     AbstractModule *mod,
     const QString &id,
     const QString &title = QString())
 {
-    CHECK_RETURN_INPUT_PORT(ControlCommand)
-    CHECK_RETURN_INPUT_PORT(TableRow)
-    CHECK_RETURN_INPUT_PORT(LineCommand)
-    CHECK_RETURN_INPUT_PORT(LineReading)
-    CHECK_RETURN_INPUT_PORT(Frame)
-    CHECK_RETURN_INPUT_PORT(IntSignalBlock)
-    CHECK_RETURN_INPUT_PORT(FloatSignalBlock)
-    CHECK_RETURN_INPUT_PORT(UInt16SignalBlock)
-
-    LOG_CRITICAL(logRoot, "Unable to create input port for unknown type ID {}", typeId);
-    return nullptr;
+    VarStreamInputPort *result = nullptr;
+    forEachStreamType([&](auto tag) {
+        using T = typename decltype(tag)::type;
+        if (T::staticTypeId() != typeId)
+            return false;
+        result = new StreamInputPort<T>(mod, id, title);
+        return true;
+    });
+    if (!result)
+        LOG_CRITICAL(logRoot, "Unable to create input port for unknown type ID {}", typeId);
+    return result;
 }
 
 VariantDataStream *Syntalos::newStreamForType(int typeId)
 {
-    CHECK_RETURN_STREAM(ControlCommand)
-    CHECK_RETURN_STREAM(TableRow)
-    CHECK_RETURN_STREAM(LineCommand)
-    CHECK_RETURN_STREAM(LineReading)
-    CHECK_RETURN_STREAM(Frame)
-    CHECK_RETURN_STREAM(IntSignalBlock)
-    CHECK_RETURN_STREAM(FloatSignalBlock)
-    CHECK_RETURN_STREAM(UInt16SignalBlock)
-
-    LOG_CRITICAL(logRoot, "Unable to create data stream for unknown type ID {}", typeId);
-    return nullptr;
+    VariantDataStream *result = nullptr;
+    forEachStreamType([&](auto tag) {
+        using T = typename decltype(tag)::type;
+        if (T::staticTypeId() != typeId)
+            return false;
+        result = new DataStream<T>();
+        return true;
+    });
+    if (!result)
+        LOG_CRITICAL(logRoot, "Unable to create data stream for unknown type ID {}", typeId);
+    return result;
 }
 
 QString Syntalos::toString(ModuleCategory category)

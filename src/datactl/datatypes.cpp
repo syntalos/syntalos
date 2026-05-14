@@ -67,6 +67,43 @@ std::vector<std::pair<std::string, int>> streamTypeIdIndex()
     return g_streamTypeIdIndex;
 }
 
+std::string BaseDataType::typeIdToString(int value)
+{
+    if (!typeIdIsValid(value))
+        return "<<unknown>>";
+    return typeIdToString(static_cast<TypeId>(value));
+}
+
+std::string BaseDataType::typeIdToString(TypeId value)
+{
+    if (value == Unknown)
+        return "Unknown";
+    std::string result = "<<unknown>>";
+    forEachStreamType([&](auto tag) {
+        using T = typename decltype(tag)::type;
+        if (T::staticTypeId() != value)
+            return false;
+        result = T::staticTypeName();
+        return true;
+    });
+    return result;
+}
+
+BaseDataType::TypeId BaseDataType::typeIdFromString(const std::string &str)
+{
+    if (str == "Unknown")
+        return TypeId::Unknown;
+    TypeId result = TypeId::Unknown;
+    forEachStreamType([&](auto tag) {
+        using T = typename decltype(tag)::type;
+        if (str != T::staticTypeName())
+            return false;
+        result = T::staticTypeId();
+        return true;
+    });
+    return result;
+}
+
 IntSignalBlock::IntSignalBlock(struct UInt16SignalBlock &&src)
 {
     // The data matrix has a different scalar type, so the cast must read every

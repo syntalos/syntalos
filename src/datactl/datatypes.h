@@ -128,61 +128,9 @@ public:
         return value >= 1 && value < TypeId::Last;
     }
 
-    static std::string typeIdToString(int value)
-    {
-        if (!typeIdIsValid(value))
-            return "<<unknown>>";
-        return typeIdToString(static_cast<TypeId>(value));
-    }
-
-    static std::string typeIdToString(TypeId value)
-    {
-        switch (value) {
-        case Unknown:
-            return "Unknown";
-        case ControlCommand:
-            return "ControlCommand";
-        case TableRow:
-            return "TableRow";
-        case Frame:
-            return "Frame";
-        case LineCommand:
-            return "LineCommand";
-        case LineReading:
-            return "LineReading";
-        case IntSignalBlock:
-            return "IntSignalBlock";
-        case FloatSignalBlock:
-            return "FloatSignalBlock";
-        case UInt16SignalBlock:
-            return "UInt16SignalBlock";
-        default:
-            return "<<unknown>>";
-        }
-    }
-
-    static TypeId typeIdFromString(const std::string &str)
-    {
-        if (str == "Unknown")
-            return TypeId::Unknown;
-        if (str == "ControlCommand")
-            return TypeId::ControlCommand;
-        if (str == "TableRow")
-            return TypeId::TableRow;
-        if (str == "Frame")
-            return TypeId::Frame;
-        if (str == "LineCommand")
-            return TypeId::LineCommand;
-        if (str == "LineReading")
-            return TypeId::LineReading;
-        if (str == "IntSignalBlock")
-            return TypeId::IntSignalBlock;
-        if (str == "FloatSignalBlock")
-            return TypeId::FloatSignalBlock;
-        if (str == "UInt16SignalBlock")
-            return TypeId::UInt16SignalBlock;
-        return TypeId::Unknown;
-    }
+    static std::string typeIdToString(int value);
+    static std::string typeIdToString(TypeId value);
+    static TypeId typeIdFromString(const std::string &str);
 
     /**
      * Unique ID for the respective data type.
@@ -237,6 +185,10 @@ public:                                                  \
     static constexpr BaseDataType::TypeId staticTypeId() \
     {                                                    \
         return BaseDataType::TypeName;                   \
+    }                                                    \
+    static constexpr const char *staticTypeName()        \
+    {                                                    \
+        return #TypeName;                                \
     }                                                    \
                                                          \
 private:                                                 \
@@ -742,21 +694,24 @@ struct UInt16SignalBlock : BaseDataType {
 using StreamTypeList = std::tuple<
     ControlCommand,
     TableRow,
+    Frame,
     LineCommand,
     LineReading,
-    Frame,
     IntSignalBlock,
     FloatSignalBlock,
     UInt16SignalBlock>;
 
 /**
  * @brief Call `fn(std::type_identity<T>{})` for every T in StreamTypeList.
+ *
+ * The lambda must return bool: `true` to stop iterating (typically "I found
+ * what I was looking for"), `false` to keep going.
  */
 template<typename Fn>
-constexpr void forEachStreamType(Fn &&fn)
+constexpr bool forEachStreamType(Fn &&fn)
 {
-    [&]<size_t... Is>(std::index_sequence<Is...>) {
-        (fn(std::type_identity<std::tuple_element_t<Is, StreamTypeList>>{}), ...);
+    return [&]<size_t... Is>(std::index_sequence<Is...>) {
+        return (fn(std::type_identity<std::tuple_element_t<Is, StreamTypeList>>{}) || ...);
     }(std::make_index_sequence<std::tuple_size_v<StreamTypeList>>{});
 }
 

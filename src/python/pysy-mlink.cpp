@@ -100,34 +100,15 @@ struct InputPort {
 
         _iport->setNewDataRawCallback([this](const void *data, size_t size) {
             try {
-                switch (_dataTypeId) {
-                case syDataTypeId<ControlCommand>():
-                    _on_data_cb(py::cast(ControlCommand::fromMemory(data, size)));
-                    break;
-                case syDataTypeId<TableRow>():
-                    _on_data_cb(py::cast(TableRow::fromMemory(data, size)));
-                    break;
-                case syDataTypeId<Frame>():
-                    _on_data_cb(py::cast(Frame::fromMemory(data, size)));
-                    break;
-                case syDataTypeId<LineCommand>():
-                    _on_data_cb(py::cast(LineCommand::fromMemory(data, size)));
-                    break;
-                case syDataTypeId<LineReading>():
-                    _on_data_cb(py::cast(LineReading::fromMemory(data, size)));
-                    break;
-                case syDataTypeId<IntSignalBlock>():
-                    _on_data_cb(py::cast(IntSignalBlock::fromMemory(data, size)));
-                    break;
-                case syDataTypeId<FloatSignalBlock>():
-                    _on_data_cb(py::cast(FloatSignalBlock::fromMemory(data, size)));
-                    break;
-                case syDataTypeId<UInt16SignalBlock>():
-                    _on_data_cb(py::cast(UInt16SignalBlock::fromMemory(data, size)));
-                    break;
-                default:
+                const bool handled = forEachStreamType([&](auto tag) {
+                    using T = typename decltype(tag)::type;
+                    if (syDataTypeId<T>() != _dataTypeId)
+                        return false;
+                    _on_data_cb(py::cast(T::fromMemory(data, size)));
+                    return true;
+                });
+                if (!handled)
                     throw SyntalosPyError(std::format("Received data of unknown type on input port: {}", _id));
-                }
             } catch (py::error_already_set &e) {
                 if (!handlePyError(getActiveLink(), e))
                     throw;
@@ -171,29 +152,21 @@ struct OutputPort {
     bool _submit_output_private(const py::object &pyObj)
     {
         auto slink = getActiveLink();
-        switch (_oport->dataTypeId()) {
-        case syDataTypeId<ControlCommand>():
-            return slink->submitOutput(_oport, py::cast<const ControlCommand &>(pyObj));
-        case syDataTypeId<TableRow>(): {
-            // value-cast for sequence-construction path from Python list-like objects
-            auto row = py::cast<TableRow>(pyObj);
-            return slink->submitOutput(_oport, row);
-        }
-        case syDataTypeId<Frame>():
-            return slink->submitOutput(_oport, py::cast<const Frame &>(pyObj));
-        case syDataTypeId<LineCommand>():
-            return slink->submitOutput(_oport, py::cast<const LineCommand &>(pyObj));
-        case syDataTypeId<LineReading>():
-            return slink->submitOutput(_oport, py::cast<const LineReading &>(pyObj));
-        case syDataTypeId<IntSignalBlock>():
-            return slink->submitOutput(_oport, py::cast<const IntSignalBlock &>(pyObj));
-        case syDataTypeId<FloatSignalBlock>():
-            return slink->submitOutput(_oport, py::cast<const FloatSignalBlock &>(pyObj));
-        case syDataTypeId<UInt16SignalBlock>():
-            return slink->submitOutput(_oport, py::cast<const UInt16SignalBlock &>(pyObj));
-        default:
-            return false;
-        }
+        bool submitted = false;
+        const bool handled = forEachStreamType([&](auto tag) {
+            using T = typename decltype(tag)::type;
+            if (syDataTypeId<T>() != _oport->dataTypeId())
+                return false;
+            if constexpr (std::is_same_v<T, TableRow>) {
+                // value-cast for sequence-construction path from Python list-like objects
+                auto row = py::cast<TableRow>(pyObj);
+                submitted = slink->submitOutput(_oport, row);
+            } else {
+                submitted = slink->submitOutput(_oport, py::cast<const T &>(pyObj));
+            }
+            return true;
+        });
+        return handled && submitted;
     }
 
     [[noreturn]] static void _throw_submit_failed()
