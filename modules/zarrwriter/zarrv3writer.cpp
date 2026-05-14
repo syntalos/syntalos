@@ -42,9 +42,9 @@ ZarrV3Array::ZarrV3Array(
       m_typeSize(0),
       m_cctx(nullptr),
       m_shardOffset(0),
-      m_bufferOffset(0),
       m_totalRows(0),
-      m_chunkIdx(0)
+      m_chunkIdx(0),
+      m_chunksSinceMeta(0)
 {
     // I am lazy... We can add proper portability later, if we ever need it.
     static_assert(std::endian::native == std::endian::little, "This Zarr writer only supports little-endian hosts");
@@ -98,6 +98,9 @@ std::expected<void, QString> ZarrV3Array::open()
     ZSTD_CCtx_setParameter(m_cctx, ZSTD_c_compressionLevel, 3);
     ZSTD_CCtx_setParameter(m_cctx, ZSTD_c_checksumFlag, 1);
 
+    m_chunksSinceMeta = 0;
+    m_lastMetaCheckpoint = std::chrono::steady_clock::now();
+
     return {};
 }
 
@@ -113,25 +116,23 @@ void ZarrV3Array::appendBytes(const void *data, int64_t nRows)
     m_buffer.insert(m_buffer.end(), src, src + byteCount);
 
     const int64_t chunkBytes = m_chunkSize * m_nCols * m_typeSize;
-    while ((int64_t)(m_buffer.size() - m_bufferOffset) >= chunkBytes) {
-        writeChunk(m_buffer.data() + m_bufferOffset, m_chunkSize);
-        m_bufferOffset += chunkBytes;
+    while ((int64_t)m_buffer.size() >= chunkBytes) {
+        writeChunk(m_buffer.data(), m_chunkSize);
+        m_buffer.erase(m_buffer.begin(), m_buffer.begin() + chunkBytes);
     }
 }
 
 bool ZarrV3Array::finalize()
 {
-    const int64_t remaining = (int64_t)m_buffer.size() - m_bufferOffset;
-    if (remaining > 0) {
-        const int64_t remainingRows = remaining / (m_nCols * m_typeSize);
+    if (!m_buffer.empty()) {
+        const int64_t remainingRows = (int64_t)m_buffer.size() / (m_nCols * m_typeSize);
         if (remainingRows > 0) {
             // Pad the partial final chunk to the full nominal chunk size with zeros
             // (fill_value = 0). zarr-python decompresses the full chunk and then
             // slices down to the actual array length using the shape in zarr.json.
             const size_t chunkBytes = static_cast<size_t>(m_chunkSize) * m_nCols * m_typeSize;
             ByteVector paddedChunk(chunkBytes, std::byte{0});
-            const size_t remainingBytes = static_cast<size_t>(remainingRows) * m_nCols * m_typeSize;
-            std::memcpy(paddedChunk.data(), m_buffer.data() + m_bufferOffset, remainingBytes);
+            std::memcpy(paddedChunk.data(), m_buffer.data(), m_buffer.size());
 
             const int64_t trueTotal = m_totalRows + remainingRows;
             writeChunk(paddedChunk.data(), m_chunkSize); // increments m_totalRows by m_chunkSize
@@ -140,15 +141,13 @@ bool ZarrV3Array::finalize()
     }
 
     m_buffer.clear();
-    m_bufferOffset = 0;
 
     if (m_cctx != nullptr) {
         ZSTD_freeCCtx(m_cctx);
         m_cctx = nullptr;
     }
 
-    // Append the shard index (N x 16 bytes: offset + length per inner chunk)
-    // at the end of the shard file, then close it.
+    // Write the final shard index
     if (m_shardFile.isOpen()) {
         m_shardFile.write(
             reinterpret_cast<const char *>(m_indexBuffer.data()),
@@ -157,6 +156,8 @@ bool ZarrV3Array::finalize()
     }
     m_indexBuffer.clear();
 
+    // Force a zarr.json rewrite with the final, corrected m_totalRows
+    // (which may differ from what the last Tier-B checkpoint wrote).
     return writeMetadata();
 }
 
@@ -186,7 +187,7 @@ bool ZarrV3Array::writeChunk(const void *data, int64_t nRows)
     m_indexBuffer.insert(m_indexBuffer.end(), offsetBytes, offsetBytes + sizeof(uint64_t));
     m_indexBuffer.insert(m_indexBuffer.end(), lengthBytes, lengthBytes + sizeof(uint64_t));
 
-    // Append compressed data to the open shard file
+    // Write compressed data
     const qint64 written = m_shardFile.write(reinterpret_cast<const char *>(dest.data()), static_cast<qint64>(csize));
     if (written != static_cast<qint64>(csize))
         return false;
@@ -194,7 +195,36 @@ bool ZarrV3Array::writeChunk(const void *data, int64_t nRows)
     m_shardOffset += csize;
     m_totalRows += nRows;
     m_chunkIdx++;
+
+    writeCheckpoint();
     return true;
+}
+
+void ZarrV3Array::writeCheckpoint()
+{
+    // Tier A: write the current shard index immediately after the compressed
+    // data so the shard is always self-consistent on disk. We then seek back
+    // to m_shardOffset so the cursor invariant holds.
+    if (m_shardFile.isOpen()) {
+        m_shardFile.seek(static_cast<qint64>(m_shardOffset));
+        m_shardFile.write(
+            reinterpret_cast<const char *>(m_indexBuffer.data()),
+            static_cast<qint64>(m_indexBuffer.size()));
+        m_shardFile.flush();
+        m_shardFile.seek(static_cast<qint64>(m_shardOffset));
+    }
+
+    // Tier B: rewrite zarr.json every kJsonCheckpointEveryChunks chunks or
+    // kJsonCheckpointEverySecs seconds, whichever comes first.
+    ++m_chunksSinceMeta;
+    const auto now = std::chrono::steady_clock::now();
+    const auto elapsedSecs =
+        std::chrono::duration_cast<std::chrono::seconds>(now - m_lastMetaCheckpoint).count();
+    if (m_chunksSinceMeta >= kMetadataCheckpointMinChunks || elapsedSecs >= kMetadataCheckpointMinSecs) {
+        writeMetadata();
+        m_chunksSinceMeta = 0;
+        m_lastMetaCheckpoint = now;
+    }
 }
 
 bool ZarrV3Array::writeMetadata()

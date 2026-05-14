@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <chrono>
 #include <cstdint>
 #include <expected>
 
@@ -85,6 +86,13 @@ public:
 private:
     bool writeChunk(const void *data, int64_t nRows);
     bool writeMetadata();
+    void writeCheckpoint();
+
+    // Checkpoints so we don't lose Zarr data in a crash (of course, Syntalos never crashes,
+    // but just in case...): Tier-A (index flush): every chunk. Tier-B (zarr.json rewrite):
+    // every kJsonCheckpointEveryChunks chunks OR kJsonCheckpointEverySecs seconds.
+    static constexpr int kMetadataCheckpointMinChunks = 16;
+    static constexpr int kMetadataCheckpointMinSecs = 30;
 
     QString m_arrayDir;
     DType m_dtype;
@@ -102,15 +110,20 @@ private:
     ZSTD_CCtx *m_cctx;
 
     // Shard index: one (byte_offset, byte_length) pair per inner chunk
-    // stored as raw little-endian uint64_t pairs, appended at finalize().
+    // stored as raw little-endian uint64_t pairs. Written incrementally after
+    // each chunk (Tier A) and finalised on finalize().
     Syntalos::ByteVector m_indexBuffer;
     uint64_t m_shardOffset; // current end of compressed data in the shard file
 
-    // Rolling accumulation buffer for incoming uncompressed data
+    // Rolling accumulation buffer for incoming uncompressed data.
+    // Flushed chunks are erased immediately so this stays bounded to <= 1 chunk.
     Syntalos::ByteVector m_buffer;
-    int64_t m_bufferOffset;
     int64_t m_totalRows;
     int64_t m_chunkIdx;
+
+    // Tier-B checkpoint tracking
+    int64_t m_chunksSinceMeta;
+    std::chrono::steady_clock::time_point m_lastMetaCheckpoint;
 
     QJsonObject m_attributes;
 };
