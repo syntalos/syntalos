@@ -40,6 +40,8 @@ public:
     std::shared_ptr<StreamSubscription<T>> sub;
     QString portId;
     double timestampDivisor;
+    // Resolved canvas channel indices by column; -1 = not yet resolved.
+    std::vector<int> channelIdxByCol;
 };
 
 class PlotSeriesModule : public AbstractModule
@@ -190,26 +192,30 @@ public:
     {
         auto canvas = m_plotWindow->canvas();
 
-        // Drain all queued blocks - peekNext() only dequeues one item, so we must
-        // loop to prevent the subscription queue from growing unboundedly when the
-        // producer (e.g. 30 kHz source) outpaces individual event firings.
+        // Drain all queued blocks in a tight loop to prevent the subscription
+        // queue from growing when a 30 kHz producer outruns individual event firings.
         while (true) {
             auto maybeData = sd.sub->peekNext();
             if (!maybeData.has_value())
                 break;
             const auto &data = *maybeData;
+            const int nCols = data.data.cols();
 
-            canvas->appendTimestamps(sd.portId, data.timestamps);
+            // Grow the index cache on first sight of a new column count.
+            if ((int)sd.channelIdxByCol.size() < nCols)
+                sd.channelIdxByCol.resize(nCols, -1);
 
-            for (int c = 0; c < data.data.cols(); ++c) {
-                const int ci = canvas->ensureChannel(sd.portId, c, QString());
-                if (!canvas->channelEnabled(ci))
-                    continue;
-                if constexpr (std::is_same_v<T, IntSignalBlock>)
-                    canvas->appendSamplesI(ci, data.data.col(c));
-                else
-                    canvas->appendSamplesF(ci, data.data.col(c));
+            // Resolve any still-unknown channel indices (at most once per column).
+            for (int c = 0; c < nCols; ++c) {
+                if (sd.channelIdxByCol[c] == -1)
+                    sd.channelIdxByCol[c] = canvas->ensureChannel(sd.portId, c, QString());
             }
+
+            // One lock acquisition per block for all channels.
+            if constexpr (std::is_same_v<T, IntSignalBlock>)
+                canvas->appendBlockI(sd.portId, data.timestamps, data.data, sd.channelIdxByCol.data(), nCols);
+            else
+                canvas->appendBlockF(sd.portId, data.timestamps, data.data, sd.channelIdxByCol.data(), nCols);
         }
     }
 

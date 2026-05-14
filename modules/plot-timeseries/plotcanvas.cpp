@@ -21,6 +21,8 @@
 
 #include <QTimer>
 #include <QHash>
+#include <algorithm>
+#include <cstring>
 #include <mutex>
 #include <vector>
 #include <memory_resource>
@@ -47,6 +49,56 @@ public:
         m_head = (m_head + 1) % m_capacity;
         if (m_count < m_capacity)
             ++m_count;
+    }
+
+    void add(const T *src, size_t n)
+    {
+        if (n == 0 || m_capacity == 0)
+            return;
+        if (n >= m_capacity) {
+            src += (n - m_capacity);
+            n = m_capacity;
+        }
+        const size_t tail = m_capacity - m_head;
+        if (n <= tail) {
+            std::memcpy(m_data.data() + m_head, src, n * sizeof(T));
+        } else {
+            std::memcpy(m_data.data() + m_head, src, tail * sizeof(T));
+            std::memcpy(m_data.data(), src + tail, (n - tail) * sizeof(T));
+        }
+        m_head = (m_head + n) % m_capacity;
+        m_count = std::min(m_count + n, m_capacity);
+    }
+
+    // Copy logical elements [from, from+len) in oldest-first order into dst.
+    void copyRange(size_t from, size_t len, T *dst) const
+    {
+        if (len == 0 || from >= m_count)
+            return;
+        len = std::min(len, m_count - from);
+        const size_t off = (m_count == m_capacity) ? m_head : 0;
+        const size_t start = (off + from) % m_capacity;
+        const size_t part1 = std::min(len, m_capacity - start);
+        std::memcpy(dst, m_data.data() + start, part1 * sizeof(T));
+        if (len > part1)
+            std::memcpy(dst + part1, m_data.data(), (len - part1) * sizeof(T));
+    }
+
+    // First logical index where value >= threshold (ring must be sorted ascending).
+    size_t lowerBoundLogical(T threshold, size_t startIdx = 0) const
+    {
+        if (m_count == 0 || startIdx >= m_count)
+            return startIdx;
+        const size_t off = (m_count == m_capacity) ? m_head : 0;
+        size_t lo = startIdx, hi = m_count;
+        while (lo < hi) {
+            const size_t mid = (lo + hi) / 2;
+            if (m_data[(off + mid) % m_capacity] < threshold)
+                lo = mid + 1;
+            else
+                hi = mid;
+        }
+        return lo;
     }
 
     const T *data() const
@@ -161,6 +213,41 @@ public:
     // linked X axis storage; refreshed each frame in running mode
     double xLinkMin = 0.0;
     double xLinkMax = 10.0;
+
+    // Ingest scratch buffers - allocated once, reused per block (ingest thread)
+    std::vector<float> tsConvBuf;
+    std::vector<float> sampleConvBuf;
+
+    // Per-frame render snapshot built under brief lock, rendered without lock
+    struct PortSnap {
+        QString yLabel;
+        size_t visFrom = 0;    // logical ring index where visible window starts
+        std::vector<float> ts; // timestamps[visFrom .. end)
+    };
+    struct ChannelSnap {
+        int channelIdx = 0;
+        QString portId;
+        QString signalName;
+        int colIdx = 0;
+        bool digital = false;
+        size_t tsOffset = 0; // offset into portSnaps[portId].ts for this channel
+        size_t visLen = 0;
+        std::vector<float> samples;
+    };
+    struct GraphSnap {
+        int id = 0;
+        int origIdx = 0; // index into d->graphs (for splitter drag)
+        float sizeWeight = 1.0f;
+        std::vector<int> chanSnaps; // indices into channelSnaps
+    };
+    QHash<QString, PortSnap> portSnaps;
+    std::vector<ChannelSnap> channelSnaps;
+    std::vector<GraphSnap> graphSnaps;
+
+    // Decimation scratch (reused each frame, overwritten per channel)
+    std::vector<float> decTs;
+    std::vector<float> decSamples;
+    float lastFrameWidth = 800.0f;
 };
 
 PlotCanvas::PlotCanvas(QWidget *parent)
@@ -358,40 +445,74 @@ void PlotCanvas::setChannelDigital(int channelIndex, bool digital)
     d->channels[channelIndex].digital = digital;
 }
 
-void PlotCanvas::appendTimestamps(const QString &portId, const VectorXul &vec)
+void PlotCanvas::appendBlockF(
+    const QString &portId,
+    const VectorXul &timestamps,
+    const Eigen::Ref<const MatrixXf> &data,
+    const int *channelIdx,
+    int nCols)
 {
+    const int n = (int)timestamps.rows();
+    if (n == 0)
+        return;
     const std::lock_guard<std::mutex> lock(d->dataMutex);
     auto it = d->ports.find(portId);
     if (it == d->ports.end())
         return;
-    const float div = it->timestampDivisor;
-    auto &ts = it->timestamps;
-    for (int i = 0; i < vec.rows(); ++i)
-        ts.add(vec(i, 0) / div);
+
+    const float div = (float)it->timestampDivisor;
+    d->tsConvBuf.resize(n);
+    for (int i = 0; i < n; ++i)
+        d->tsConvBuf[i] = (float)timestamps(i) / div;
+    it->timestamps.add(d->tsConvBuf.data(), n);
+
+    d->sampleConvBuf.resize(n);
+    for (int c = 0; c < nCols; ++c) {
+        const int ci = channelIdx[c];
+        if (ci < 0 || ci >= (int)d->channels.size())
+            continue;
+        auto &ch = d->channels[ci];
+        if (!ch.enabled)
+            continue;
+        for (int i = 0; i < n; ++i)
+            d->sampleConvBuf[i] = data(i, c);
+        ch.samples.add(d->sampleConvBuf.data(), n);
+    }
 }
 
-void PlotCanvas::appendSamplesF(int channelIndex, const Eigen::RowVectorXf &vec)
+void PlotCanvas::appendBlockI(
+    const QString &portId,
+    const VectorXul &timestamps,
+    const Eigen::Ref<const MatrixXsi> &data,
+    const int *channelIdx,
+    int nCols)
 {
+    const int n = (int)timestamps.rows();
+    if (n == 0)
+        return;
     const std::lock_guard<std::mutex> lock(d->dataMutex);
-    if (channelIndex < 0 || channelIndex >= (int)d->channels.size())
+    auto it = d->ports.find(portId);
+    if (it == d->ports.end())
         return;
-    auto &c = d->channels[channelIndex];
-    if (!c.enabled)
-        return;
-    for (int i = 0; i < vec.size(); ++i)
-        c.samples.add(vec(i));
-}
 
-void PlotCanvas::appendSamplesI(int channelIndex, const Eigen::RowVectorXi &vec)
-{
-    const std::lock_guard<std::mutex> lock(d->dataMutex);
-    if (channelIndex < 0 || channelIndex >= (int)d->channels.size())
-        return;
-    auto &c = d->channels[channelIndex];
-    if (!c.enabled)
-        return;
-    for (int i = 0; i < vec.size(); ++i)
-        c.samples.add(vec(i));
+    const float div = (float)it->timestampDivisor;
+    d->tsConvBuf.resize(n);
+    for (int i = 0; i < n; ++i)
+        d->tsConvBuf[i] = (float)timestamps(i) / div;
+    it->timestamps.add(d->tsConvBuf.data(), n);
+
+    d->sampleConvBuf.resize(n);
+    for (int c = 0; c < nCols; ++c) {
+        const int ci = channelIdx[c];
+        if (ci < 0 || ci >= (int)d->channels.size())
+            continue;
+        auto &ch = d->channels[ci];
+        if (!ch.enabled)
+            continue;
+        for (int i = 0; i < n; ++i)
+            d->sampleConvBuf[i] = (float)data(i, c);
+        ch.samples.add(d->sampleConvBuf.data(), n);
+    }
 }
 
 int PlotCanvas::graphIdForChannel(int channelIndex) const
@@ -585,6 +706,61 @@ void PlotCanvas::loadGraphs(const QVariantList &v)
     Q_EMIT layoutChanged();
 }
 
+// Build a min/max envelope: for each of nBins time-ordered bins across [ts,samples)(length n),
+// emit the sample at the min and the sample at the max (1 or 2 points per bin, time-ordered).
+// Reduces rendering cost while preserving spike visibility.
+static void decimateMinMax(
+    const float *ts,
+    const float *samples,
+    size_t n,
+    std::vector<float> &outTs,
+    std::vector<float> &outSamples,
+    size_t nBins)
+{
+    outTs.clear();
+    outSamples.clear();
+    if (n == 0 || nBins == 0)
+        return;
+    outTs.reserve(nBins * 2);
+    outSamples.reserve(nBins * 2);
+
+    const double step = (double)n / nBins;
+    for (size_t b = 0; b < nBins; ++b) {
+        const size_t i0 = (size_t)(b * step);
+        const size_t i1 = std::min((size_t)((b + 1) * step + 0.5), n);
+        if (i0 >= i1)
+            continue;
+
+        float vMin = samples[i0], vMax = samples[i0];
+        size_t iMin = i0, iMax = i0;
+        for (size_t i = i0 + 1; i < i1; ++i) {
+            if (samples[i] < vMin) {
+                vMin = samples[i];
+                iMin = i;
+            }
+            if (samples[i] > vMax) {
+                vMax = samples[i];
+                iMax = i;
+            }
+        }
+
+        if (iMin == iMax) {
+            outTs.push_back(ts[iMin]);
+            outSamples.push_back(vMin);
+        } else if (iMin < iMax) {
+            outTs.push_back(ts[iMin]);
+            outSamples.push_back(vMin);
+            outTs.push_back(ts[iMax]);
+            outSamples.push_back(vMax);
+        } else {
+            outTs.push_back(ts[iMax]);
+            outSamples.push_back(vMax);
+            outTs.push_back(ts[iMin]);
+            outSamples.push_back(vMin);
+        }
+    }
+}
+
 void PlotCanvas::initializeGL()
 {
     initializeOpenGLFunctions();
@@ -618,11 +794,11 @@ void PlotCanvas::paintGL()
 
     bool layoutDirty = false;
 
+    // Snapshot phase (mutex held only for the memcpy pass)
     {
         const std::lock_guard<std::mutex> lock(d->dataMutex);
 
-        // Determine current X range from any port's most recent timestamp.
-        float tNow = 0.0;
+        float tNow = 0.0f;
         bool haveTime = false;
         for (const auto &p : d->ports) {
             if (!p.timestamps.isEmpty()) {
@@ -637,235 +813,273 @@ void PlotCanvas::paintGL()
             d->xLinkMin = 0.0;
             d->xLinkMax = d->historyLen;
         }
+        const auto tMin = (float)d->xLinkMin;
 
-        // Build the list of graphs that have at least one enabled channel.
-        // Graphs whose channels are all hidden via "Show" are not rendered at all.
-        std::vector<int> visIdx;
-        visIdx.reserve(d->graphs.size());
-        for (int i = 0; i < (int)d->graphs.size(); ++i) {
-            for (int ci : d->graphs[i].channels) {
-                if (ci >= 0 && ci < (int)d->channels.size() && d->channels[ci].enabled) {
-                    visIdx.push_back(i);
-                    break;
-                }
+        // Per-port: copy the visible timestamp window into portSnaps.
+        d->portSnaps.clear();
+        for (auto it = d->ports.begin(); it != d->ports.end(); ++it) {
+            const auto &pd = it.value();
+            const size_t tsTotal = pd.timestamps.size();
+            if (tsTotal == 0)
+                continue;
+            Private::PortSnap ps;
+            ps.yLabel = pd.yLabel;
+            ps.visFrom = pd.timestamps.lowerBoundLogical(tMin);
+            const size_t visLen = tsTotal - ps.visFrom;
+            ps.ts.resize(visLen);
+            if (visLen > 0)
+                pd.timestamps.copyRange(ps.visFrom, visLen, ps.ts.data());
+            d->portSnaps.insert(it.key(), std::move(ps));
+        }
+
+        // Per-channel: copy matching samples, aligned to the port's ts window.
+        d->channelSnaps.clear();
+        for (int ci = 0; ci < (int)d->channels.size(); ++ci) {
+            const auto &c = d->channels[ci];
+            if (!c.enabled || c.portId.isEmpty())
+                continue;
+            auto psIt = d->portSnaps.find(c.portId);
+            if (psIt == d->portSnaps.end())
+                continue;
+            const auto &ps = psIt.value();
+
+            // tsTotal - ring's current count; reconstruct from snapshot fields
+            const size_t tsTotal = ps.visFrom + ps.ts.size();
+            const size_t sampTotal = c.samples.size();
+            // Samples correspond to the last sampTotal entries of the ts ring.
+            const size_t tsStart = tsTotal >= sampTotal ? tsTotal - sampTotal : 0;
+            const size_t adjVisFrom = std::max(ps.visFrom, tsStart);
+            if (adjVisFrom >= tsTotal)
+                continue;
+
+            Private::ChannelSnap cs;
+            cs.channelIdx = ci;
+            cs.portId = c.portId;
+            cs.signalName = c.signalName;
+            cs.colIdx = c.colIdx;
+            cs.digital = c.digital;
+            cs.tsOffset = adjVisFrom - ps.visFrom;
+            cs.visLen = tsTotal - adjVisFrom;
+            const size_t sampFrom = adjVisFrom - tsStart;
+            cs.samples.resize(cs.visLen);
+            c.samples.copyRange(sampFrom, cs.visLen, cs.samples.data());
+            d->channelSnaps.push_back(std::move(cs));
+        }
+
+        // Map original channel index -> channelSnaps index.
+        QHash<int, int> chanToSnap;
+        chanToSnap.reserve((int)d->channelSnaps.size());
+        for (int i = 0; i < (int)d->channelSnaps.size(); ++i)
+            chanToSnap.insert(d->channelSnaps[i].channelIdx, i);
+
+        // Snapshot graph layout (metadata only; sample data is in channelSnaps).
+        d->graphSnaps.clear();
+        for (int gi = 0; gi < (int)d->graphs.size(); ++gi) {
+            const auto &g = d->graphs[gi];
+            Private::GraphSnap gs;
+            gs.id = g.id;
+            gs.origIdx = gi;
+            gs.sizeWeight = g.sizeWeight;
+            for (int ch : g.channels) {
+                auto it2 = chanToSnap.find(ch);
+                if (it2 != chanToSnap.end())
+                    gs.chanSnaps.push_back(*it2);
             }
+            d->graphSnaps.push_back(std::move(gs));
         }
-        const int nVis = (int)visIdx.size();
-        const float availH = ImGui::GetContentRegionAvail().y;
-        const float newDropH = (nVis > 0 ? 14.0f : 0.0f);
-        const float scrollAreaH = std::max(40.0f, availH - newDropH - 4.0f);
-        const float splitterTotal = (nVis > 0 ? (nVis - 1) : 0) * kSplitterHeight;
+    }
 
-        float weightSum = 0.0f;
-        for (int i : visIdx)
-            weightSum += d->graphs[i].sizeWeight;
-        if (weightSum <= 0.0f)
-            weightSum = 1.0f;
+    // Mutex released; render from snapshots
+    std::vector<int> visIdx;
+    visIdx.reserve(d->graphSnaps.size());
+    for (int i = 0; i < (int)d->graphSnaps.size(); ++i) {
+        if (!d->graphSnaps[i].chanSnaps.empty())
+            visIdx.push_back(i);
+    }
+    const int nVis = (int)visIdx.size();
+    const float availH = ImGui::GetContentRegionAvail().y;
+    const float newDropH = (nVis > 0 ? 14.0f : 0.0f);
+    const float scrollAreaH = std::max(40.0f, availH - newDropH - 4.0f);
+    const float splitterTotal = (nVis > 0 ? (nVis - 1) : 0) * kSplitterHeight;
 
-        // Per-graph height = sizeWeight * kMinGraphHeight (weight floored at
-        // kMinGraphWeight). The user grows individual graphs by dragging their
-        // splitter, which increases that graph's sizeWeight.
-        // If the resulting total is shorter than the available area, scale all
-        // heights up uniformly so the canvas fills the space (no empty area
-        // below the last graph). If the total exceeds the area, the region
-        // scrolls and no scaling is applied.
-        std::vector<float> heights(nVis, 0.0f);
-        float totalHeight = 0.0f;
-        for (int idx = 0; idx < nVis; ++idx) {
-            float w = d->graphs[visIdx[idx]].sizeWeight;
-            if (w < kMinGraphWeight)
-                w = kMinGraphWeight;
-            const float h = w * kMinGraphHeight;
-            heights[idx] = h;
-            totalHeight += h;
+    std::vector<float> heights(nVis, 0.0f);
+    float totalHeight = 0.0f;
+    for (int idx = 0; idx < nVis; ++idx) {
+        float w = d->graphSnaps[visIdx[idx]].sizeWeight;
+        if (w < kMinGraphWeight)
+            w = kMinGraphWeight;
+        heights[idx] = w * kMinGraphHeight;
+        totalHeight += heights[idx];
+    }
+    const bool scrollable = (totalHeight + splitterTotal) > scrollAreaH;
+    if (!scrollable && totalHeight > 0.0f) {
+        const float scale = (scrollAreaH - splitterTotal) / totalHeight;
+        if (scale > 1.0f) {
+            for (auto &h : heights)
+                h *= scale;
         }
-        const bool scrollable = (totalHeight + splitterTotal) > scrollAreaH;
-        if (!scrollable && totalHeight > 0.0f) {
-            const float scale = (scrollAreaH - splitterTotal) / totalHeight;
-            if (scale > 1.0f) {
-                for (auto &h : heights)
-                    h *= scale;
+    }
+
+    if (d->graphSnaps.empty()) {
+        ImGui::TextDisabled("No channels yet. Connect input ports and start a run.");
+    } else if (nVis == 0) {
+        ImGui::TextDisabled("All channels are hidden. Tick \"Show\" in the Channels panel to display them.");
+    }
+
+    ImGui::BeginChild(
+        "graphs_scroll",
+        ImVec2(0, scrollAreaH),
+        false,
+        scrollable ? ImGuiWindowFlags_AlwaysVerticalScrollbar : 0);
+
+    ImPlot::PushStyleVar(ImPlotStyleVar_PlotPadding, ImVec2(4, 2));
+    ImPlot::PushStyleVar(ImPlotStyleVar_LabelPadding, ImVec2(2, 2));
+    ImPlot::PushStyleVar(ImPlotStyleVar_LegendPadding, ImVec2(4, 2));
+    ImPlot::PushStyleVar(ImPlotStyleVar_LegendInnerPadding, ImVec2(2, 2));
+
+    for (int idx = 0; idx < nVis; ++idx) {
+        auto &gs = d->graphSnaps[visIdx[idx]];
+        const float h = heights[idx];
+
+        QStringList parts;
+        int shown = 0;
+        for (int csi : gs.chanSnaps) {
+            if (shown++ >= 4) {
+                parts << QStringLiteral("…");
+                break;
             }
+            parts << d->channelSnaps[csi].signalName;
         }
-        (void)weightSum;
+        const QString title = parts.isEmpty() ? QStringLiteral("(empty)") : parts.join(QStringLiteral(" + "));
+        const QByteArray plotIdUtf8 = QStringLiteral("%1##g%2").arg(title).arg(gs.id).toUtf8();
 
-        if (d->graphs.empty()) {
-            ImGui::TextDisabled("No channels yet. Connect input ports and start a run.");
-        } else if (nVis == 0) {
-            ImGui::TextDisabled("All channels are hidden. Tick \"Show\" in the Channels panel to display them.");
+        QByteArray yLabelUtf8 = QByteArrayLiteral("y");
+        if (!gs.chanSnaps.empty()) {
+            const auto &firstCs = d->channelSnaps[gs.chanSnaps[0]];
+            auto psIt = d->portSnaps.find(firstCs.portId);
+            if (psIt != d->portSnaps.end())
+                yLabelUtf8 = psIt->yLabel.toUtf8();
         }
 
-        ImGui::BeginChild(
-            "graphs_scroll",
-            ImVec2(0, scrollAreaH),
-            false,
-            scrollable ? ImGuiWindowFlags_AlwaysVerticalScrollbar : 0);
+        const bool isBottom = (idx == nVis - 1);
+        ImPlotAxisFlags xFlags = ImPlotAxisFlags_None;
+        if (!isBottom)
+            xFlags |= ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_NoLabel;
+        const ImPlotFlags plotFlags = ImPlotFlags_NoTitle | ImPlotFlags_NoMouseText;
 
-        // Tighten ImPlot padding so many small plots fit on screen. The
-        // defaults waste a lot of pixels around each axis.
-        ImPlot::PushStyleVar(ImPlotStyleVar_PlotPadding, ImVec2(4, 2));
-        ImPlot::PushStyleVar(ImPlotStyleVar_LabelPadding, ImVec2(2, 2));
-        ImPlot::PushStyleVar(ImPlotStyleVar_LegendPadding, ImVec2(4, 2));
-        ImPlot::PushStyleVar(ImPlotStyleVar_LegendInnerPadding, ImVec2(2, 2));
+        if (ImPlot::BeginPlot(plotIdUtf8.constData(), ImVec2(-1, h), plotFlags)) {
+            ImPlot::SetupAxes(isBottom ? "time [s]" : nullptr, yLabelUtf8.constData(), xFlags, ImPlotAxisFlags_AutoFit);
+            ImPlot::SetupAxisLinks(ImAxis_X1, &d->xLinkMin, &d->xLinkMax);
 
-        for (int idx = 0; idx < nVis; ++idx) {
-            const int gi = visIdx[idx];
-            auto &g = d->graphs[gi];
-            const float h = heights[idx];
+            // Cache the plot pixel width for the decimation threshold next frame.
+            const float pw = ImPlot::GetPlotSize().x;
+            if (pw > 1.0f)
+                d->lastFrameWidth = pw;
 
-            // Title derived from currently enabled channels in the graph.
-            QStringList parts;
-            int shown = 0;
-            for (int ci : g.channels) {
-                if (ci < 0 || ci >= (int)d->channels.size())
+            for (int csi : gs.chanSnaps) {
+                const auto &cs = d->channelSnaps[csi];
+                auto psIt = d->portSnaps.find(cs.portId);
+                if (psIt == d->portSnaps.end() || cs.visLen == 0)
                     continue;
-                if (!d->channels[ci].enabled)
-                    continue;
-                if (shown++ >= 4) {
-                    parts << QStringLiteral("…");
-                    break;
-                }
-                parts << d->channels[ci].signalName;
-            }
-            const QString title = parts.isEmpty() ? QStringLiteral("(empty)") : parts.join(QStringLiteral(" + "));
-            const QByteArray plotIdUtf8 = QStringLiteral("%1##g%2").arg(title).arg(g.id).toUtf8();
+                const auto &ps = psIt.value();
 
-            // Y label: from the port of the first enabled channel; "y" if mixed.
-            QByteArray yLabelUtf8 = QByteArrayLiteral("y");
-            QString firstPort;
-            bool mixed = false;
-            for (int ci : g.channels) {
-                if (ci < 0 || ci >= (int)d->channels.size() || !d->channels[ci].enabled)
-                    continue;
-                if (firstPort.isEmpty())
-                    firstPort = d->channels[ci].portId;
-                else if (d->channels[ci].portId != firstPort) {
-                    mixed = true;
-                    break;
-                }
-            }
-            if (!firstPort.isEmpty() && !mixed) {
-                auto pit = d->ports.find(firstPort);
-                if (pit != d->ports.end())
-                    yLabelUtf8 = pit->yLabel.toUtf8();
-            }
+                const float *tsPtr = ps.ts.data() + cs.tsOffset;
+                const float *sampPtr = cs.samples.data();
+                int n = (int)cs.visLen;
 
-            // Hide redundant X tick labels and axis label on every plot except
-            // the bottom-most visible one - they all share the same linked X.
-            const bool isBottom = (idx == nVis - 1);
-            ImPlotAxisFlags xFlags = ImPlotAxisFlags_None;
-            if (!isBottom)
-                xFlags |= ImPlotAxisFlags_NoTickLabels | ImPlotAxisFlags_NoLabel;
-            const ImPlotFlags plotFlags = ImPlotFlags_NoTitle | ImPlotFlags_NoMouseText;
-
-            if (ImPlot::BeginPlot(plotIdUtf8.constData(), ImVec2(-1, h), plotFlags)) {
-                ImPlot::SetupAxes(
-                    isBottom ? "time [s]" : nullptr,
-                    yLabelUtf8.constData(),
-                    xFlags,
-                    ImPlotAxisFlags_AutoFit);
-                ImPlot::SetupAxisLinks(ImAxis_X1, &d->xLinkMin, &d->xLinkMax);
-
-                for (int ci : g.channels) {
-                    const auto &c = d->channels[ci];
-                    if (!c.enabled || c.portId.isEmpty())
-                        continue;
-                    auto pit = d->ports.find(c.portId);
-                    if (pit == d->ports.end())
-                        continue;
-                    const auto &ts = pit->timestamps;
-                    if (ts.isEmpty() || c.samples.size() == 0)
-                        continue;
-
-                    const auto label = QStringLiteral("%1##c%2").arg(c.signalName).arg(ci).toUtf8();
-                    const int n = (int)std::min(ts.size(), c.samples.size());
-                    const int off = ts.offset();
-                    const ImVec4 col = colorForChannel(c.signalName, c.colIdx);
-                    ImPlot::SetNextLineStyle(col);
-                    ImPlot::SetNextFillStyle(col, 0.5f);
-                    if (c.digital)
-                        ImPlot::PlotDigital(label.constData(), ts.data(), c.samples.data(), n, 0, off);
-                    else
-                        ImPlot::PlotLine(label.constData(), ts.data(), c.samples.data(), n, 0, off);
-
-                    if (ImPlot::BeginDragDropSourceItem(label.constData())) {
-                        int payload = ci;
-                        ImGui::SetDragDropPayload("PLOTCANVAS_CHANNEL", &payload, sizeof(int));
-                        ImGui::Text("%s", c.signalName.toUtf8().constData());
-                        ImPlot::EndDragDropSource();
+                // Min/max envelope decimation: reduce to at most 2 x pixelWidth
+                // points so rendering cost is proportional to display pixels.
+                // Digital channels are skipped - their step edges must not be lost.
+                if (!cs.digital) {
+                    const int pixW = (int)std::max(d->lastFrameWidth, 64.0f);
+                    if (n > pixW * 4) {
+                        decimateMinMax(tsPtr, sampPtr, n, d->decTs, d->decSamples, pixW * 2);
+                        tsPtr = d->decTs.data();
+                        sampPtr = d->decSamples.data();
+                        n = (int)d->decTs.size();
                     }
                 }
 
-                if (ImPlot::BeginDragDropTargetPlot()) {
-                    if (auto p = ImGui::AcceptDragDropPayload("PLOTCANVAS_CHANNEL")) {
-                        const int ci = *static_cast<const int *>(p->Data);
-                        moveChannelToGraph(ci, g.id);
-                        layoutDirty = true;
-                    }
-                    ImPlot::EndDragDropTarget();
+                const auto label = QStringLiteral("%1##c%2").arg(cs.signalName).arg(cs.channelIdx).toUtf8();
+                const ImVec4 col = colorForChannel(cs.signalName, cs.colIdx);
+                ImPlot::SetNextLineStyle(col);
+                ImPlot::SetNextFillStyle(col, 0.5f);
+                if (cs.digital)
+                    ImPlot::PlotDigital(label.constData(), tsPtr, sampPtr, n);
+                else
+                    ImPlot::PlotLine(label.constData(), tsPtr, sampPtr, n);
+
+                if (ImPlot::BeginDragDropSourceItem(label.constData())) {
+                    int payload = cs.channelIdx;
+                    ImGui::SetDragDropPayload("PLOTCANVAS_CHANNEL", &payload, sizeof(int));
+                    ImGui::Text("%s", cs.signalName.toUtf8().constData());
+                    ImPlot::EndDragDropSource();
                 }
-
-                ImPlot::EndPlot();
             }
 
-            // Splitter strip between visible graphs.
-            if (idx < nVis - 1) {
-                const auto splitId = std::format("##split_{}", g.id);
-                ImGui::InvisibleButton(splitId.c_str(), ImVec2(-1, kSplitterHeight));
-                if (ImGui::IsItemActive()) {
-                    const float dy = ImGui::GetIO().MouseDelta.y;
-                    if (dy != 0.0f) {
-                        // Grow/shrink only the upper graph; the lower one keeps
-                        // its weight. Floor at kMinGraphWeight so it can never
-                        // shrink below the base height.
-                        auto &gA = d->graphs[visIdx[idx]];
-                        const float newA = gA.sizeWeight + (dy / kMinGraphHeight);
-                        gA.sizeWeight = std::max(kMinGraphWeight, newA);
-                    }
-                }
-                if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-                    ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
-
-                // Render the splitter as a thin line over the invisible area.
-                ImVec2 minP = ImGui::GetItemRectMin();
-                ImVec2 maxP = ImGui::GetItemRectMax();
-                const ImU32 col = ImGui::GetColorU32(
-                    ImGui::IsItemHovered() || ImGui::IsItemActive() ? ImGuiCol_SeparatorActive : ImGuiCol_Separator);
-                const float midY = (minP.y + maxP.y) * 0.5f;
-                ImGui::GetWindowDrawList()->AddLine(ImVec2(minP.x, midY), ImVec2(maxP.x, midY), col, 1.0f);
-            }
-        }
-
-        ImPlot::PopStyleVar(4);
-        ImGui::EndChild();
-
-        // "Drop here to create a new graph" zone - kept outside the scroll area
-        // so it stays reachable no matter how far the user has scrolled.
-        if (nVis > 0) {
-            ImGui::InvisibleButton("##new_graph_drop", ImVec2(-1, newDropH));
-            ImVec2 minP = ImGui::GetItemRectMin();
-            ImVec2 maxP = ImGui::GetItemRectMax();
-            const bool dragActive = ImGui::GetDragDropPayload() != nullptr
-                                    && ImGui::GetDragDropPayload()->IsDataType("PLOTCANVAS_CHANNEL");
-            const ImU32 col = ImGui::GetColorU32(dragActive ? ImGuiCol_DragDropTarget : ImGuiCol_Separator);
-            ImGui::GetWindowDrawList()->AddRect(minP, maxP, col, 2.0f, 0, dragActive ? 2.0f : 1.0f);
-            if (dragActive) {
-                ImVec2 ts = ImGui::CalcTextSize("Drop to create a new graph");
-                ImGui::GetWindowDrawList()->AddText(
-                    ImVec2((minP.x + maxP.x) * 0.5f - ts.x * 0.5f, (minP.y + maxP.y) * 0.5f - ts.y * 0.5f),
-                    col,
-                    "Drop to create a new graph");
-            }
-            if (ImGui::BeginDragDropTarget()) {
-                if (auto *p = ImGui::AcceptDragDropPayload("PLOTCANVAS_CHANNEL")) {
+            if (ImPlot::BeginDragDropTargetPlot()) {
+                if (auto p = ImGui::AcceptDragDropPayload("PLOTCANVAS_CHANNEL")) {
                     const int ci = *static_cast<const int *>(p->Data);
-                    createGraphWithChannel(ci);
+                    moveChannelToGraph(ci, gs.id);
                     layoutDirty = true;
                 }
-                ImGui::EndDragDropTarget();
+                ImPlot::EndDragDropTarget();
             }
+
+            ImPlot::EndPlot();
         }
-    } // end lock
+
+        if (idx < nVis - 1) {
+            const auto splitId = std::format("##split_{}", gs.id);
+            ImGui::InvisibleButton(splitId.c_str(), ImVec2(-1, kSplitterHeight));
+            if (ImGui::IsItemActive()) {
+                const float dy = ImGui::GetIO().MouseDelta.y;
+                if (dy != 0.0f) {
+                    auto &gA = d->graphs[gs.origIdx];
+                    gA.sizeWeight = std::max(kMinGraphWeight, gA.sizeWeight + (dy / kMinGraphHeight));
+                    gs.sizeWeight = gA.sizeWeight;
+                }
+            }
+            if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+                ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS);
+
+            ImVec2 minP = ImGui::GetItemRectMin();
+            ImVec2 maxP = ImGui::GetItemRectMax();
+            const ImU32 col = ImGui::GetColorU32(
+                ImGui::IsItemHovered() || ImGui::IsItemActive() ? ImGuiCol_SeparatorActive : ImGuiCol_Separator);
+            const float midY = (minP.y + maxP.y) * 0.5f;
+            ImGui::GetWindowDrawList()->AddLine(ImVec2(minP.x, midY), ImVec2(maxP.x, midY), col, 1.0f);
+        }
+    }
+
+    ImPlot::PopStyleVar(4);
+    ImGui::EndChild();
+
+    // "Drop here to create a new graph" zone.
+    if (nVis > 0) {
+        ImGui::InvisibleButton("##new_graph_drop", ImVec2(-1, newDropH));
+        ImVec2 minP = ImGui::GetItemRectMin();
+        ImVec2 maxP = ImGui::GetItemRectMax();
+        const bool dragActive = ImGui::GetDragDropPayload() != nullptr
+                                && ImGui::GetDragDropPayload()->IsDataType("PLOTCANVAS_CHANNEL");
+        const ImU32 col = ImGui::GetColorU32(dragActive ? ImGuiCol_DragDropTarget : ImGuiCol_Separator);
+        ImGui::GetWindowDrawList()->AddRect(minP, maxP, col, 2.0f, 0, dragActive ? 2.0f : 1.0f);
+        if (dragActive) {
+            ImVec2 ts = ImGui::CalcTextSize("Drop to create a new graph");
+            ImGui::GetWindowDrawList()->AddText(
+                ImVec2((minP.x + maxP.x) * 0.5f - ts.x * 0.5f, (minP.y + maxP.y) * 0.5f - ts.y * 0.5f),
+                col,
+                "Drop to create a new graph");
+        }
+        if (ImGui::BeginDragDropTarget()) {
+            if (auto *p = ImGui::AcceptDragDropPayload("PLOTCANVAS_CHANNEL")) {
+                const int ci = *static_cast<const int *>(p->Data);
+                createGraphWithChannel(ci);
+                layoutDirty = true;
+            }
+            ImGui::EndDragDropTarget();
+        }
+    }
 
     ImGui::End();
 

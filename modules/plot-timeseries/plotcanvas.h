@@ -60,9 +60,18 @@ public:
     void setChannelDigital(int channelIndex, bool digital);
 
     // Data ingestion (thread-safe)
-    void appendTimestamps(const QString &portId, const VectorXul &vec);
-    void appendSamplesF(int channelIndex, const Eigen::RowVectorXf &vec);
-    void appendSamplesI(int channelIndex, const Eigen::RowVectorXi &vec);
+    void appendBlockF(
+        const QString &portId,
+        const VectorXul &timestamps,
+        const Eigen::Ref<const MatrixXf> &data,
+        const int *channelIdx,
+        int nCols);
+    void appendBlockI(
+        const QString &portId,
+        const VectorXul &timestamps,
+        const Eigen::Ref<const MatrixXsi> &data,
+        const int *channelIdx,
+        int nCols);
 
     // Graph operations
     void resetLayoutOneChannelPerGraph();
