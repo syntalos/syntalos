@@ -41,9 +41,9 @@ public:
     PyWorker(SyntalosLink *slink, QObject *parent = nullptr);
     ~PyWorker() override;
 
-    ModuleState state() const;
-    SyncTimer *timer() const;
-    bool isRunning() const;
+    [[nodiscard]] ModuleState state() const;
+    [[nodiscard]] std::shared_ptr<SyncTimer> timer() const;
+    [[nodiscard]] bool isRunning() const;
 
     void awaitData(int timeoutUsec = -1);
 

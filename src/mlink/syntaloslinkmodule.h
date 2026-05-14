@@ -31,6 +31,9 @@ template<typename T>
     requires std::is_base_of_v<BaseDataType, T>
 class OutputPortLink;
 
+class FreqCounterSynchronizer;
+class SecondaryClockSynchronizer;
+
 /**
  * @brief Convenience interface to write an OOP Syntalos module
  */
@@ -82,7 +85,7 @@ protected:
     /**
      * The global experiment timer.
      */
-    [[nodiscard]] SyncTimer *timer() const;
+    [[nodiscard]] std::shared_ptr<SyncTimer> timer() const;
 
     /**
      * Information about the current test subject. Refreshed
@@ -203,6 +206,22 @@ protected:
     {
         return unwrapOrAbort(registerInputPort<T, U>(id, title, instance, fn));
     }
+
+    /**
+     * @brief Create a frequency-counter synchronizer for the current run.
+     *
+     * Must be called while the module is preparing or running.
+     */
+    std::unique_ptr<FreqCounterSynchronizer> initCounterSynchronizer(double frequencyHz, const std::string &id = {});
+
+    /**
+     * @brief Create a secondary-clock synchronizer for the current run.
+     *
+     * Must be called while the module is preparing or running.
+     */
+    std::unique_ptr<SecondaryClockSynchronizer> initClockSynchronizer(
+        double expectedFrequencyHz = 0,
+        const std::string &id = {});
 
     /**
      * Called when settings should be saved.

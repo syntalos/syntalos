@@ -287,6 +287,27 @@ struct StatusMessageEvent {
 static const std::string STATUS_MESSAGE_CHANNEL_ID = "StatusMessage";
 
 /**
+ * Synchronizer details change event: emitted by a worker-owned time-sync
+ * synchronizer whenever its strategies / tolerance change.
+ */
+struct SyncDetailsEvent {
+    iox2::bb::StaticString<64> id;
+    int32_t strategies;    // TimeSyncStrategies bitset (underlying int)
+    int64_t toleranceUsec; // microseconds_t::count()
+};
+static const std::string SYNC_DETAILS_CHANNEL_ID = "SyncDetails";
+
+/**
+ * Synchronizer offset change event: emitted by a worker-owned time-sync
+ * synchronizer whenever the measured offset to the master clock changes.
+ */
+struct SyncOffsetEvent {
+    iox2::bb::StaticString<64> id;
+    int64_t offsetUsec; // microseconds_t::count()
+};
+static const std::string SYNC_OFFSET_CHANNEL_ID = "SyncOffset";
+
+/**
  * Request the module API version supported by the worker.
  */
 struct ApiVersionRequest {

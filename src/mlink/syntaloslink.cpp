@@ -31,6 +31,7 @@
 #include "datactl/priv/rtkit.h"
 #include "datactl/priv/cpuaffinity.h"
 #include "datactl/loginternal.h"
+#include "datactl/timesync.h"
 
 using namespace Syntalos;
 using namespace Syntalos::ipc;
@@ -262,7 +263,7 @@ public:
         : modId(instanceId),
           state(ModuleState::UNKNOWN),
           maxRTPriority(0),
-          syTimer(nullptr),
+          syTimer(),
           shutdownPending(false)
     {
         // make a new node for this module
@@ -272,6 +273,8 @@ public:
         pubError.emplace(makeTypedPublisher<ErrorEvent>(*node, svcName(ERROR_CHANNEL_ID)));
         pubState.emplace(makeTypedPublisher<StateChangeEvent>(*node, svcName(STATE_CHANNEL_ID)));
         pubStatusMsg.emplace(makeTypedPublisher<StatusMessageEvent>(*node, svcName(STATUS_MESSAGE_CHANNEL_ID)));
+        pubSyncDetails.emplace(makeTypedPublisher<SyncDetailsEvent>(*node, svcName(SYNC_DETAILS_CHANNEL_ID)));
+        pubSyncOffset.emplace(makeTypedPublisher<SyncOffsetEvent>(*node, svcName(SYNC_OFFSET_CHANNEL_ID)));
 
         cltInPortChange.emplace(makeSliceClient(*node, svcName(IN_PORT_CHANGE_CHANNEL_ID)));
         cltOutPortChange.emplace(makeSliceClient(*node, svcName(OUT_PORT_CHANGE_CHANNEL_ID)));
@@ -313,6 +316,8 @@ public:
     std::optional<IoxPublisher<ErrorEvent>> pubError;
     std::optional<IoxPublisher<StateChangeEvent>> pubState;
     std::optional<IoxPublisher<StatusMessageEvent>> pubStatusMsg;
+    std::optional<IoxPublisher<SyncDetailsEvent>> pubSyncDetails;
+    std::optional<IoxPublisher<SyncOffsetEvent>> pubSyncOffset;
 
     // Clients: Module -> Syntalos master
     std::optional<IoxUntypedClient> cltInPortChange;
@@ -357,7 +362,7 @@ public:
     int maxRTPriority;
     std::vector<std::shared_ptr<InputPortInfo>> inPortInfo;
     std::vector<std::shared_ptr<OutputPortInfo>> outPortInfo;
-    SyncTimer *syTimer;
+    std::shared_ptr<SyncTimer> syTimer;
     TestSubjectInfo testSubject;
     RunInfo runInfo;
     bool allowAsyncStart = true;
@@ -462,6 +467,44 @@ public:
             return;
         }
         iox2::send(std::move(maybeResponse).value().write_payload(DoneResponse{success})).value();
+    }
+
+    /**
+     * Forward a synchronizer details-change notification to the master.
+     */
+    void publishSyncDetails(
+        const std::string &id,
+        const TimeSyncStrategies &strategies,
+        const microseconds_t &tolerance)
+    {
+        if (!pubSyncDetails.has_value()) [[unlikely]] {
+            SY_LOG_ERROR(logSyLink, "publishSyncDetails: publisher not initialized");
+            return;
+        }
+        auto uninit = pubSyncDetails->loan_uninit().value();
+        auto &ev = uninit.payload_mut();
+        ev.id = iox2::bb::StaticString<64>::from_utf8_null_terminated_unchecked_truncated(id.c_str(), id.size());
+        ev.strategies = static_cast<int32_t>(strategies.toInt());
+        ev.toleranceUsec = tolerance.count();
+        iox2::send(iox2::assume_init(std::move(uninit))).value();
+        notifyMaster();
+    }
+
+    /**
+     * Forward a synchronizer offset-change notification to the master.
+     */
+    void publishSyncOffset(const std::string &id, const microseconds_t &currentOffset)
+    {
+        if (!pubSyncOffset.has_value()) [[unlikely]] {
+            SY_LOG_ERROR(logSyLink, "publishSyncOffset: publisher not initialized");
+            return;
+        }
+        auto uninit = pubSyncOffset->loan_uninit().value();
+        auto &ev = uninit.payload_mut();
+        ev.id = iox2::bb::StaticString<64>::from_utf8_null_terminated_unchecked_truncated(id.c_str(), id.size());
+        ev.offsetUsec = currentOffset.count();
+        iox2::send(iox2::assume_init(std::move(uninit))).value();
+        notifyMaster();
     }
 
     /**
@@ -596,7 +639,7 @@ public:
 SyntalosLink::SyntalosLink(const std::string &instanceId)
     : d(new SyntalosLink::Private(instanceId))
 {
-    d->syTimer = new SyncTimer;
+    d->syTimer = std::make_shared<SyncTimer>();
 
     // we us the fast, async start() by default
     d->allowAsyncStart = true;
@@ -606,10 +649,7 @@ SyntalosLink::SyntalosLink(const std::string &instanceId)
     setState(ModuleState::INITIALIZING);
 }
 
-SyntalosLink::~SyntalosLink()
-{
-    delete d->syTimer;
-}
+SyntalosLink::~SyntalosLink() = default;
 
 std::string SyntalosLink::instanceId() const
 {
@@ -926,11 +966,14 @@ void SyntalosLink::processPendingControl()
         }
 
         // prepare the run
+        setState(ModuleState::PREPARING);
         auto success = true;
         if (d->prepareRunCb)
             success = d->prepareRunCb();
 
         Private::replyDoneSlice(*req, success);
+        if (success)
+            setState(ModuleState::READY);
     }
 
     // ---- Start ----
@@ -940,8 +983,7 @@ void SyntalosLink::processPendingControl()
             break;
 
         const auto timePoint = symaster_timepoint(microseconds_t(req->payload().startTimestampUsec));
-        delete d->syTimer;
-        d->syTimer = new SyncTimer;
+        d->syTimer = std::make_shared<SyncTimer>();
         d->syTimer->startAt(timePoint);
 
         // Ensure all output-port publishers know about subscribers that connected
@@ -1234,7 +1276,7 @@ void SyntalosLink::setShutdownCallback(ShutdownFn callback)
     d->shutdownCb = std::move(callback);
 }
 
-SyncTimer *SyntalosLink::timer() const
+std::shared_ptr<SyncTimer> SyntalosLink::timer() const
 {
     return d->syTimer;
 }
@@ -1562,6 +1604,65 @@ bool SyntalosLink::submitOutput(const std::shared_ptr<OutputPortInfo> &oport, co
     }
 
     return true;
+}
+
+std::unique_ptr<FreqCounterSynchronizer> SyntalosLink::initCounterSynchronizer(
+    double frequencyHz,
+    const std::string &id)
+{
+    if ((d->state != ModuleState::PREPARING) && (d->state != ModuleState::READY)
+        && (d->state != ModuleState::RUNNING)) {
+        SY_LOG_ERROR(
+            logSyLink,
+            "initCounterSynchronizer called in invalid module state ({}).",
+            static_cast<int>(d->state));
+        return nullptr;
+    }
+    assert(frequencyHz > 0);
+
+    const std::string syncId = id.empty() ? d->modId : id;
+    auto sync = std::make_unique<FreqCounterSynchronizer>(d->syTimer, d->modId, frequencyHz, syncId);
+
+    auto pd = d.get();
+    sync->setNotifyCallbacks(
+        [pd](const std::string &cbId, const TimeSyncStrategies &strategies, const microseconds_t &tolerance) {
+            pd->publishSyncDetails(cbId, strategies, tolerance);
+        },
+        [pd](const std::string &cbId, const microseconds_t &currentOffset) {
+            pd->publishSyncOffset(cbId, currentOffset);
+        });
+
+    return sync;
+}
+
+std::unique_ptr<SecondaryClockSynchronizer> SyntalosLink::initClockSynchronizer(
+    double expectedFrequencyHz,
+    const std::string &id)
+{
+    if ((d->state != ModuleState::PREPARING) && (d->state != ModuleState::READY)
+        && (d->state != ModuleState::RUNNING)) {
+        SY_LOG_ERROR(
+            logSyLink,
+            "initClockSynchronizer called in invalid module state ({}).",
+            static_cast<int>(d->state));
+        return nullptr;
+    }
+
+    const std::string syncId = id.empty() ? d->modId : id;
+    auto sync = std::make_unique<SecondaryClockSynchronizer>(d->syTimer, d->modId, syncId);
+    if (expectedFrequencyHz > 0)
+        sync->setExpectedClockFrequencyHz(expectedFrequencyHz);
+
+    auto pd = d.get();
+    sync->setNotifyCallbacks(
+        [pd](const std::string &cbId, const TimeSyncStrategies &strategies, const microseconds_t &tolerance) {
+            pd->publishSyncDetails(cbId, strategies, tolerance);
+        },
+        [pd](const std::string &cbId, const microseconds_t &currentOffset) {
+            pd->publishSyncOffset(cbId, currentOffset);
+        });
+
+    return sync;
 }
 
 } // namespace Syntalos

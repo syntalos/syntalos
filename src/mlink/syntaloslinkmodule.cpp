@@ -98,7 +98,7 @@ void SyntalosLinkModule::raiseError(const std::string &message)
     m_slink->raiseError(message);
 }
 
-SyncTimer *SyntalosLinkModule::timer() const
+std::shared_ptr<SyncTimer> SyntalosLinkModule::timer() const
 {
     return m_slink->timer();
 }
@@ -195,6 +195,20 @@ auto SyntalosLinkModule::createStorageGroup(const std::shared_ptr<EDLGroup> &par
     -> std::expected<std::shared_ptr<EDLGroup>, std::string>
 {
     return m_slink->reserveEdlGroup(parent, name);
+}
+
+std::unique_ptr<FreqCounterSynchronizer> SyntalosLinkModule::initCounterSynchronizer(
+    double frequencyHz,
+    const std::string &id)
+{
+    return m_slink->initCounterSynchronizer(frequencyHz, id);
+}
+
+std::unique_ptr<SecondaryClockSynchronizer> SyntalosLinkModule::initClockSynchronizer(
+    double expectedFrequencyHz,
+    const std::string &id)
+{
+    return m_slink->initClockSynchronizer(expectedFrequencyHz, id);
 }
 
 } // namespace Syntalos

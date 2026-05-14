@@ -87,6 +87,8 @@ public:
     // Subscribers to receive information from module processes
     std::optional<IoxSubscriber<ErrorEvent>> subError;
     std::optional<IoxSubscriber<StateChangeEvent>> subStateChange;
+    std::optional<IoxSubscriber<SyncDetailsEvent>> subSyncDetails;
+    std::optional<IoxSubscriber<SyncOffsetEvent>> subSyncOffset;
     std::optional<IoxUntypedReqServer> srvInPortChange;
     std::optional<IoxUntypedReqServer> srvOutPortChange;
     std::optional<IoxUntypedReqResServer> srvEdlReserve;
@@ -180,6 +182,38 @@ public:
         auto rawResponse = std::move(maybeResponse).value();
         std::memcpy(rawResponse.payload_mut().data(), data.data(), data.size());
         iox2::send(iox2::assume_init(std::move(rawResponse))).value();
+    }
+
+    void checkClientSyncDetails(MLinkModule *self)
+    {
+        if (!subSyncDetails.has_value())
+            return;
+
+        while (true) {
+            auto sample = safeReceive(*subSyncDetails);
+            if (!sample.has_value())
+                break;
+            const auto &ev = sample->payload();
+            const std::string id(ev.id.unchecked_access().c_str());
+            const TimeSyncStrategies strategies(static_cast<int>(ev.strategies));
+            const microseconds_t tolerance(ev.toleranceUsec);
+            Q_EMIT self->synchronizerDetailsChanged(id, strategies, tolerance);
+        }
+    }
+
+    void checkClientSyncOffset(MLinkModule *self)
+    {
+        if (!subSyncOffset.has_value())
+            return;
+
+        while (true) {
+            auto sample = safeReceive(*subSyncOffset);
+            if (!sample.has_value())
+                break;
+            const auto &ev = sample->payload();
+            const std::string id(ev.id.unchecked_access().c_str());
+            Q_EMIT self->synchronizerOffsetChanged(id, microseconds_t(ev.offsetUsec));
+        }
     }
 
     void checkClientStateChange(MLinkModule *self)
@@ -540,6 +574,10 @@ void MLinkModule::handleIncomingControl()
     // State changes
     d->checkClientStateChange(this);
 
+    // Synchronizer notifications
+    d->checkClientSyncDetails(this);
+    d->checkClientSyncOffset(this);
+
     // Input port change requests
     if (d->srvInPortChange.has_value()) {
         while (true) {
@@ -709,6 +747,8 @@ void MLinkModule::resetConnection()
     // ensure the old connections are gone before we are trying to create new ones
     d->subError.reset();
     d->subStateChange.reset();
+    d->subSyncDetails.reset();
+    d->subSyncOffset.reset();
     d->srvInPortChange.reset();
     d->srvOutPortChange.reset();
     d->srvEdlReserve.reset();
@@ -718,6 +758,8 @@ void MLinkModule::resetConnection()
     // (re)create subscribers/servers for client -> master data channels
     d->subError.emplace(makeTypedSubscriber<ErrorEvent>(*d->node, d->svcName(ERROR_CHANNEL_ID)));
     d->subStateChange.emplace(makeTypedSubscriber<StateChangeEvent>(*d->node, d->svcName(STATE_CHANNEL_ID)));
+    d->subSyncDetails.emplace(makeTypedSubscriber<SyncDetailsEvent>(*d->node, d->svcName(SYNC_DETAILS_CHANNEL_ID)));
+    d->subSyncOffset.emplace(makeTypedSubscriber<SyncOffsetEvent>(*d->node, d->svcName(SYNC_OFFSET_CHANNEL_ID)));
     d->srvInPortChange.emplace(makeSliceServer(*d->node, d->svcName(IN_PORT_CHANGE_CHANNEL_ID)));
     d->srvOutPortChange.emplace(makeSliceServer(*d->node, d->svcName(OUT_PORT_CHANGE_CHANNEL_ID)));
     d->srvEdlReserve.emplace(makeSliceServer<IoxByteSlice>(*d->node, d->svcName(EDL_RESERVE_CALL_ID)));

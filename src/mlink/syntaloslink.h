@@ -26,6 +26,8 @@ namespace Syntalos
 {
 
 class SyntalosLink;
+class FreqCounterSynchronizer;
+class SecondaryClockSynchronizer;
 struct OutputPortChangeRequest;
 struct InputPortChangeRequest;
 struct ModuleInitOptions;
@@ -167,7 +169,7 @@ public:
     void setShowSettingsCallback(ShowSettingsFn callback);
     void setShowDisplayCallback(ShowDisplayFn callback);
 
-    [[nodiscard]] SyncTimer *timer() const;
+    [[nodiscard]] std::shared_ptr<SyncTimer> timer() const;
 
     const TestSubjectInfo &testSubject() const;
     const RunInfo &runInfo() const;
@@ -320,6 +322,31 @@ public:
     void resetPorts();
 
     bool submitOutput(const std::shared_ptr<OutputPortInfo> &oport, const BaseDataType &data);
+
+    /**
+     * @brief Create a synchronizer for a monotonic counter at the given frequency.
+     *
+     * Must be called while the module is in PREPARING, READY or RUNNING state,
+     * and is only valid for the current run..
+     *
+     * @param frequencyHz The expected sampling frequency of the counter.
+     * @param id          Optional synchronizer id; if empty, the module instance id is used.
+     */
+    std::unique_ptr<FreqCounterSynchronizer> initCounterSynchronizer(double frequencyHz, const std::string &id = {});
+
+    /**
+     * @brief Create a synchronizer for an external steady monotonic clock.
+     *
+     * Must be called while the module is in PREPARING, READY or RUNNING state,
+     * and is only valid for the current run.
+     *
+     * @param expectedFrequencyHz Optional expected acquisition frequency in Hz; if > 0 it
+     *                            auto-tunes calibration point count and tolerance.
+     * @param id                  Optional synchronizer id; if empty, the module instance id is used.
+     */
+    std::unique_ptr<SecondaryClockSynchronizer> initClockSynchronizer(
+        double expectedFrequencyHz = 0,
+        const std::string &id = {});
 
 private:
     explicit SyntalosLink(const std::string &instanceId);

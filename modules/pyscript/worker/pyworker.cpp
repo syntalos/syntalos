@@ -161,7 +161,7 @@ ModuleState PyWorker::state() const
     return m_link->state();
 }
 
-SyncTimer *PyWorker::timer() const
+std::shared_ptr<SyncTimer> PyWorker::timer() const
 {
     return m_link->timer();
 }
