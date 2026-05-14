@@ -417,7 +417,8 @@ private:
             nCols,
             dataDimNames);
 
-        // embed signal metadata as Zarr array attributes
+        // embed signal metadata as Zarr array attributes. time_unit lives on
+        // the timestamps array (which it describes), not here.
         QJsonObject dataAttrs;
         if (!m_signalNames.isEmpty()) {
             QJsonArray names;
@@ -425,8 +426,6 @@ private:
                 names.append(n);
             dataAttrs["signal_names"] = names;
         }
-        if (!m_timeUnit.isEmpty())
-            dataAttrs["time_unit"] = m_timeUnit;
         if (!m_dataUnit.isEmpty())
             dataAttrs["data_unit"] = m_dataUnit;
         if (m_currentDSet)
@@ -443,52 +442,48 @@ private:
         }
     }
 
-    void onFloatSignalBlockReceived()
+    template<typename SubPtr>
+    void handleSignalBlock(SubPtr &sub)
     {
-        const auto maybeData = m_floatSub->peekNext();
+        const auto maybeData = sub->peekNext();
         if (!maybeData.has_value() || !m_writeData)
             return;
         const auto &block = maybeData.value();
 
         ensureArraysInitialized(static_cast<int>(block.data.cols()));
+        if (!m_writeData)
+            return; // ensureArraysInitialized hit a fatal condition (channel mismatch, etc.)
 
-        // timestamps are a contiguous uint64 column vector - write directly
+        // Syntalos signal-block matrices are row-major.
+        // Verify at compile time so we can write the storage directly without a copy.
+        static_assert(
+            std::remove_reference_t<decltype(block.data)>::IsRowMajor,
+            "SignalBlock data matrix must be row-major");
+
         m_tsArray->appendBytes(block.timestamps.data(), block.timestamps.rows());
+        m_dataArray->appendBytes(block.data.data(), block.data.rows());
 
-        // Syntalos matrices are row-major, but just in case we get a column-major Eigen matrix,
-        // we convert it, since Zarr expects row-major order
-        const Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> rmMtx = block.data;
-        m_dataArray->appendBytes(rmMtx.data(), rmMtx.rows());
+        // Surface any sticky I/O error from the writer back to the user.
+        if (m_tsArray->hasError() || m_dataArray->hasError()) {
+            const QString msg = m_tsArray->hasError() ? m_tsArray->errorMessage() : m_dataArray->errorMessage();
+            raiseError(QStringLiteral("Zarr writer I/O error: ") + msg);
+            m_writeData = false;
+        }
+    }
+
+    void onFloatSignalBlockReceived()
+    {
+        handleSignalBlock(m_floatSub);
     }
 
     void onIntSignalBlockReceived()
     {
-        const auto maybeData = m_intSub->peekNext();
-        if (!maybeData.has_value() || !m_writeData)
-            return;
-        const auto &block = maybeData.value();
-
-        ensureArraysInitialized(static_cast<int>(block.data.cols()));
-
-        m_tsArray->appendBytes(block.timestamps.data(), block.timestamps.rows());
-
-        const Eigen::Matrix<int32_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> rmMtx = block.data;
-        m_dataArray->appendBytes(rmMtx.data(), rmMtx.rows());
+        handleSignalBlock(m_intSub);
     }
 
     void onUInt16SignalBlockReceived()
     {
-        const auto maybeData = m_uint16Sub->peekNext();
-        if (!maybeData.has_value() || !m_writeData)
-            return;
-        const auto &block = maybeData.value();
-
-        ensureArraysInitialized(static_cast<int>(block.data.cols()));
-
-        m_tsArray->appendBytes(block.timestamps.data(), block.timestamps.rows());
-
-        const Eigen::Matrix<uint16_t, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor> rmMtx = block.data;
-        m_dataArray->appendBytes(rmMtx.data(), rmMtx.rows());
+        handleSignalBlock(m_uint16Sub);
     }
 };
 

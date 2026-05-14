@@ -44,7 +44,9 @@ ZarrV3Array::ZarrV3Array(
       m_shardOffset(0),
       m_totalRows(0),
       m_chunkIdx(0),
-      m_chunksSinceMeta(0)
+      m_chunksSinceMeta(0),
+      m_lastMetaCheckpoint(std::chrono::steady_clock::now()),
+      m_hasError(false)
 {
     // I am lazy... We can add proper portability later, if we ever need it.
     static_assert(std::endian::native == std::endian::little, "This Zarr writer only supports little-endian hosts");
@@ -98,8 +100,14 @@ std::expected<void, QString> ZarrV3Array::open()
     ZSTD_CCtx_setParameter(m_cctx, ZSTD_c_compressionLevel, 3);
     ZSTD_CCtx_setParameter(m_cctx, ZSTD_c_checksumFlag, 1);
 
+    // Size the reusable ZSTD output buffer once - chunkBytes is constant for the run.
+    const size_t chunkBytes = static_cast<size_t>(m_chunkSize) * m_nCols * m_typeSize;
+    m_compressedScratch.resize(ZSTD_compressBound(chunkBytes));
+
     m_chunksSinceMeta = 0;
     m_lastMetaCheckpoint = std::chrono::steady_clock::now();
+    m_hasError = false;
+    m_errorMessage.clear();
 
     return {};
 }
@@ -111,19 +119,40 @@ void ZarrV3Array::setAttributes(const QJsonObject &attrs)
 
 void ZarrV3Array::appendBytes(const void *data, int64_t nRows)
 {
+    if (m_hasError)
+        return;
+
     const auto *src = static_cast<const std::byte *>(data);
     const int64_t byteCount = nRows * m_nCols * m_typeSize;
     m_buffer.insert(m_buffer.end(), src, src + byteCount);
 
     const int64_t chunkBytes = m_chunkSize * m_nCols * m_typeSize;
     while ((int64_t)m_buffer.size() >= chunkBytes) {
-        writeChunk(m_buffer.data(), m_chunkSize);
+        if (!writeChunk(m_buffer.data(), m_chunkSize))
+            return; // setError() already called inside writeChunk on failure
         m_buffer.erase(m_buffer.begin(), m_buffer.begin() + chunkBytes);
     }
 }
 
 bool ZarrV3Array::finalize()
 {
+    if (m_hasError) {
+        // If an earlier write failed, the file cursor may be inside a corrupt region
+        // (a partial chunk that never reached its full size) and our in-memory counters
+        // are out of sync with disk. The on-disk store is whatever the last successful
+        // Tier-A/B checkpoint left - already self-consistent - so the safest thing is
+        // to release resources and not touch the file any further.
+        m_buffer.clear();
+        if (m_cctx != nullptr) {
+            ZSTD_freeCCtx(m_cctx);
+            m_cctx = nullptr;
+        }
+        if (m_shardFile.isOpen())
+            m_shardFile.close();
+        m_indexBuffer.clear();
+        return false;
+    }
+
     if (!m_buffer.empty()) {
         const int64_t remainingRows = (int64_t)m_buffer.size() / (m_nCols * m_typeSize);
         if (remainingRows > 0) {
@@ -147,18 +176,25 @@ bool ZarrV3Array::finalize()
         m_cctx = nullptr;
     }
 
-    // Write the final shard index
+    // Write the final shard index, then close the file.
     if (m_shardFile.isOpen()) {
-        m_shardFile.write(
+        const qint64 idxWritten = m_shardFile.write(
             reinterpret_cast<const char *>(m_indexBuffer.data()),
             static_cast<qint64>(m_indexBuffer.size()));
+        if (idxWritten != static_cast<qint64>(m_indexBuffer.size()))
+            setError(QStringLiteral("Short write of final shard index: ") + m_shardFile.errorString());
         m_shardFile.close();
     }
     m_indexBuffer.clear();
 
     // Force a zarr.json rewrite with the final, corrected m_totalRows
     // (which may differ from what the last Tier-B checkpoint wrote).
-    return writeMetadata();
+    if (!writeMetadata()) {
+        setError(QStringLiteral("Failed to write final Zarr array metadata"));
+        return false;
+    }
+
+    return !m_hasError;
 }
 
 int64_t ZarrV3Array::totalRows() const
@@ -166,20 +202,50 @@ int64_t ZarrV3Array::totalRows() const
     return m_totalRows;
 }
 
+bool ZarrV3Array::hasError() const
+{
+    return m_hasError;
+}
+
+QString ZarrV3Array::errorMessage() const
+{
+    return m_errorMessage;
+}
+
+void ZarrV3Array::setError(const QString &msg)
+{
+    if (m_hasError)
+        return; // keep the first error - it's usually the root cause
+    m_hasError = true;
+    m_errorMessage = msg;
+}
+
 bool ZarrV3Array::writeChunk(const void *data, int64_t nRows)
 {
-    if (!m_shardFile.isOpen())
+    if (!m_shardFile.isOpen()) {
+        setError(QStringLiteral("writeChunk called with shard file closed"));
         return false;
+    }
 
     const size_t srcSize = static_cast<size_t>(nRows) * m_nCols * m_typeSize;
-    const size_t destCapacity = ZSTD_compressBound(srcSize);
-    ByteVector dest(destCapacity);
-
-    const size_t csize = ZSTD_compress2(m_cctx, dest.data(), destCapacity, data, srcSize);
-    if (ZSTD_isError(csize))
+    const size_t csize = ZSTD_compress2(m_cctx, m_compressedScratch.data(), m_compressedScratch.size(), data, srcSize);
+    if (ZSTD_isError(csize)) {
+        setError(QStringLiteral("ZSTD compression failed: ") + QString::fromUtf8(ZSTD_getErrorName(csize)));
         return false;
+    }
 
-    // Record (byte_offset, byte_length) in the shard index as raw little-endian bytes
+    // Write compressed data first
+    const qint64 written = m_shardFile.write(
+        reinterpret_cast<const char *>(m_compressedScratch.data()),
+        static_cast<qint64>(csize));
+    if (written != static_cast<qint64>(csize)) {
+        setError(
+            QStringLiteral("Short write to shard file (%1 of %2 bytes): ").arg(written).arg(csize)
+            + m_shardFile.errorString());
+        return false;
+    }
+
+    // Commit the (byte_offset, byte_length) index entry as raw little-endian bytes.
     const uint64_t indexOffset = m_shardOffset;
     const uint64_t indexLength = static_cast<uint64_t>(csize);
     const auto *offsetBytes = reinterpret_cast<const std::byte *>(&indexOffset);
@@ -187,17 +253,12 @@ bool ZarrV3Array::writeChunk(const void *data, int64_t nRows)
     m_indexBuffer.insert(m_indexBuffer.end(), offsetBytes, offsetBytes + sizeof(uint64_t));
     m_indexBuffer.insert(m_indexBuffer.end(), lengthBytes, lengthBytes + sizeof(uint64_t));
 
-    // Write compressed data
-    const qint64 written = m_shardFile.write(reinterpret_cast<const char *>(dest.data()), static_cast<qint64>(csize));
-    if (written != static_cast<qint64>(csize))
-        return false;
-
     m_shardOffset += csize;
     m_totalRows += nRows;
     m_chunkIdx++;
 
     writeCheckpoint();
-    return true;
+    return !m_hasError;
 }
 
 void ZarrV3Array::writeCheckpoint()
@@ -206,22 +267,34 @@ void ZarrV3Array::writeCheckpoint()
     // data so the shard is always self-consistent on disk. We then seek back
     // to m_shardOffset so the cursor invariant holds.
     if (m_shardFile.isOpen()) {
-        m_shardFile.seek(static_cast<qint64>(m_shardOffset));
-        m_shardFile.write(
+        if (!m_shardFile.seek(static_cast<qint64>(m_shardOffset))) {
+            setError(QStringLiteral("Failed to seek shard file for index write: ") + m_shardFile.errorString());
+            return;
+        }
+        const qint64 idxWritten = m_shardFile.write(
             reinterpret_cast<const char *>(m_indexBuffer.data()),
             static_cast<qint64>(m_indexBuffer.size()));
+        if (idxWritten != static_cast<qint64>(m_indexBuffer.size())) {
+            setError(QStringLiteral("Invalid amount of bytes written to shard index: ") + m_shardFile.errorString());
+            return;
+        }
         m_shardFile.flush();
-        m_shardFile.seek(static_cast<qint64>(m_shardOffset));
+        if (!m_shardFile.seek(static_cast<qint64>(m_shardOffset))) {
+            setError(QStringLiteral("Failed to restore shard cursor after checkpoint: ") + m_shardFile.errorString());
+            return;
+        }
     }
 
-    // Tier B: rewrite zarr.json every kJsonCheckpointEveryChunks chunks or
-    // kJsonCheckpointEverySecs seconds, whichever comes first.
+    // Tier B: rewrite zarr.json every kMetadataCheckpointMinChunks chunks or
+    // kMetadataCheckpointMinSecs seconds, whichever comes first.
     ++m_chunksSinceMeta;
     const auto now = std::chrono::steady_clock::now();
-    const auto elapsedSecs =
-        std::chrono::duration_cast<std::chrono::seconds>(now - m_lastMetaCheckpoint).count();
+    const auto elapsedSecs = std::chrono::duration_cast<std::chrono::seconds>(now - m_lastMetaCheckpoint).count();
     if (m_chunksSinceMeta >= kMetadataCheckpointMinChunks || elapsedSecs >= kMetadataCheckpointMinSecs) {
-        writeMetadata();
+        if (!writeMetadata()) {
+            setError(QStringLiteral("Failed to write Zarr array metadata"));
+            return;
+        }
         m_chunksSinceMeta = 0;
         m_lastMetaCheckpoint = now;
     }

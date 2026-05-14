@@ -38,8 +38,13 @@ namespace fs = std::filesystem;
 /**
  * @brief Incrementally write a single Zarr v3 array to a filesystem store.
  *
- * Data is appended in row-major byte layout.
- * The zarr.json index is written last once the final shape is known.
+ * Data is appended in row-major byte layout. The shard's trailing index and
+ * zarr.json are checkpointed during the run so a crash-truncated store stays
+ * readable by stock zarr-python.
+ *
+ * On I/O failure the array enters a sticky error state (hasError() / errorMessage());
+ * subsequent appendBytes() calls become no-ops so the caller can detect the
+ * failure and propagate it.
  */
 class ZarrV3Array
 {
@@ -83,10 +88,19 @@ public:
 
     [[nodiscard]] int64_t totalRows() const;
 
+    /**
+     * Whether the writer entered a sticky I/O error state. Once set,
+     * further appendBytes() / finalize() calls become no-ops apart from
+     * cleanup. The caller should propagate errorMessage() to the user.
+     */
+    [[nodiscard]] bool hasError() const;
+    [[nodiscard]] QString errorMessage() const;
+
 private:
     bool writeChunk(const void *data, int64_t nRows);
     bool writeMetadata();
     void writeCheckpoint();
+    void setError(const QString &msg);
 
     // Checkpoints so we don't lose Zarr data in a crash (of course, Syntalos never crashes,
     // but just in case...): Tier-A (index flush): every chunk. Tier-B (zarr.json rewrite):
@@ -124,6 +138,13 @@ private:
     // Tier-B checkpoint tracking
     int64_t m_chunksSinceMeta;
     std::chrono::steady_clock::time_point m_lastMetaCheckpoint;
+
+    // Reusable destination buffer for ZSTD output, sized once in open() to
+    // ZSTD_compressBound(chunkBytes). Avoids per-chunk malloc/free churn.
+    Syntalos::ByteVector m_compressedScratch;
+
+    bool m_hasError;
+    QString m_errorMessage;
 
     QJsonObject m_attributes;
 };
