@@ -1296,6 +1296,12 @@ void FlowGraphView::addItem(FlowGraphItem *item)
         }
 
         updatePortTypeColors();
+        tightenSceneRect();
+        // Make sure the just-added item is actually in view - otherwise the
+        // symmetric margin from tightenSceneRect() can leave the viewport
+        // scrolled to the rect's top-left and the user has to scroll to find
+        // it. ensureVisible is a no-op when the item is already on-screen.
+        QGraphicsView::ensureVisible(m_scene->itemsBoundingRect(), 16, 16);
     }
 }
 
@@ -1312,6 +1318,10 @@ void FlowGraphView::removeItem(FlowGraphItem *item)
             m_nodes.removeAll(node);
         }
     }
+
+    tightenSceneRect();
+    if (!m_nodes.isEmpty())
+        QGraphicsView::ensureVisible(m_scene->itemsBoundingRect(), 16, 16);
 }
 
 FlowGraphItem *FlowGraphView::currentItem(void) const
@@ -1530,6 +1540,24 @@ void FlowGraphView::mousePressEvent(QMouseEvent *event)
     m_item = nullptr;
     m_pos = QGraphicsView::mapToScene(event->pos());
 
+    if (event->button() == Qt::MiddleButton) {
+        // Pan the view by holding middle-mouse and dragging. ScrollHandDrag
+        // only reacts to the left button internally, so synthesize a left-button
+        // press at the same position.
+        QGraphicsView::setDragMode(QGraphicsView::ScrollHandDrag);
+        QMouseEvent fake(
+            QEvent::MouseButtonPress,
+            event->position(),
+            event->globalPosition(),
+            Qt::LeftButton,
+            Qt::LeftButton,
+            event->modifiers());
+        QGraphicsView::mousePressEvent(&fake);
+        m_state = DragScroll;
+        event->accept();
+        return;
+    }
+
     if (event->button() == Qt::LeftButton) {
         FlowGraphItem *item = itemAt(m_pos);
         if (item && item->type() >= QGraphicsItem::UserType)
@@ -1607,7 +1635,6 @@ void FlowGraphView::mouseMoveEvent(QMouseEvent *event)
         }
         break;
     case DragMove:
-        QGraphicsView::ensureVisible(QRectF(pos, QSizeF(2, 2)), 8, 8);
         // Move new connection line...
         if (m_connect)
             m_connect->updatePathTo(pos);
@@ -1663,6 +1690,22 @@ void FlowGraphView::mouseMoveEvent(QMouseEvent *event)
                 }
             }
             m_pos = pos2;
+            // Grow the canvas to include the items, but never shrink it
+            // mid-drag. Shrinking would happen the moment the dragged node
+            // stops being the extremum on a side - items.right (or .left
+            // etc.) would snap to the next-furthest node, collapsing the
+            // scene rect on that side and jumping the visible area. The
+            // small margin keeps the dragged node from sitting flush against
+            // the scene edge so ensureVisible() has slack to pan into. The
+            // release handler tightens the rect properly once the drag ends.
+            const qreal dragMargin = 40.0;
+            const QRectF itemsExt = m_scene->itemsBoundingRect().adjusted(
+                -dragMargin, -dragMargin, dragMargin, dragMargin);
+            const QRectF grown = m_scene->sceneRect().united(itemsExt);
+            if (grown != m_scene->sceneRect())
+                m_scene->setSceneRect(grown);
+            const QRectF itemRect = m_item->mapToScene(m_item->boundingRect()).boundingRect();
+            QGraphicsView::ensureVisible(itemRect, 16, 16);
         } else if (m_connect) {
             // Hovering ports high-lighting...
             QGraphicsItem *item = itemAt(pos);
@@ -1682,60 +1725,26 @@ void FlowGraphView::mouseMoveEvent(QMouseEvent *event)
         break;
     }
 
-    adjustSceneRect();
-
     if (nchanged > 0)
         emit changed();
 }
 
-void FlowGraphView::adjustSceneRect()
+void FlowGraphView::tightenSceneRect(qreal margin)
 {
-    // never adjust if we only have one or no node
-    if (m_nodes.count() <= 1)
+    // Recompute the scene rect to fit the current items. With margin == 0
+    // (the default, used at rest), the rect equals itemsBoundingRect - no
+    // dead space around the items. During a drag the caller passes a small
+    // margin so the dragged node doesn't sit flush against the viewport
+    // edge and ensureVisible() has a few pixels of slack to pan into.
+    if (m_nodes.isEmpty()) {
+        m_scene->setSceneRect(QRectF());
         return;
-
-    const qreal margin = 20.0;
-    const qreal minSceneSize = 200.0;
-
-    QRectF sceneRect = m_scene->sceneRect();
-    QRectF itemsBoundingRect = m_scene->itemsBoundingRect();
-
-    bool areaChanged = false;
-
-    // Check if we need to expand the scene rect
-    if (itemsBoundingRect.right() > sceneRect.right() - margin) {
-        sceneRect.setRight(itemsBoundingRect.right() + margin);
-        areaChanged = true;
-    }
-    if (itemsBoundingRect.left() < sceneRect.left() + margin) {
-        sceneRect.setLeft(itemsBoundingRect.left() - margin);
-        areaChanged = true;
-    }
-    if (itemsBoundingRect.bottom() > sceneRect.bottom() - margin) {
-        sceneRect.setBottom(itemsBoundingRect.bottom() + margin);
-        areaChanged = true;
-    }
-    if (itemsBoundingRect.top() < sceneRect.top() + margin) {
-        sceneRect.setTop(itemsBoundingRect.top() - margin);
-        areaChanged = true;
     }
 
-    // Shrink the scene rect if items are moved inward
-    if (sceneRect.width() > itemsBoundingRect.width() + 2 * minSceneSize) {
-        sceneRect.setLeft(itemsBoundingRect.left() - minSceneSize);
-        sceneRect.setRight(itemsBoundingRect.right() + minSceneSize);
-        areaChanged = true;
-    }
-    if (sceneRect.height() > itemsBoundingRect.height() + 2 * minSceneSize) {
-        sceneRect.setTop(itemsBoundingRect.top() - minSceneSize);
-        sceneRect.setBottom(itemsBoundingRect.bottom() + minSceneSize);
-        areaChanged = true;
-    }
-
-    if (areaChanged) {
-        m_scene->setSceneRect(sceneRect);
-        setSceneRect(sceneRect);
-    }
+    const QRectF items = m_scene->itemsBoundingRect();
+    const QRectF target = margin > 0.0 ? items.adjusted(-margin, -margin, margin, margin) : items;
+    if (target != m_scene->sceneRect())
+        m_scene->setSceneRect(target);
 }
 
 void FlowGraphView::mouseReleaseEvent(QMouseEvent *event)
@@ -1825,10 +1834,26 @@ void FlowGraphView::mouseReleaseEvent(QMouseEvent *event)
                 nchanged = 0;
             }
         }
+        // Re-balance the scene rect once the user lets go, so any one-sided
+        // slack accumulated during the drag is reclaimed. Don't auto-scroll
+        // here - the per-frame ensureVisible() during the drag already kept
+        // the relevant node on screen.
+        tightenSceneRect();
         break;
     case DragScroll:
     default:
-        QGraphicsView::mouseReleaseEvent(event);
+        if (event->button() == Qt::MiddleButton) {
+            QMouseEvent fake(
+                QEvent::MouseButtonRelease,
+                event->position(),
+                event->globalPosition(),
+                Qt::LeftButton,
+                event->buttons() & ~Qt::MiddleButton,
+                event->modifiers());
+            QGraphicsView::mouseReleaseEvent(&fake);
+        } else {
+            QGraphicsView::mouseReleaseEvent(event);
+        }
         QGraphicsView::setDragMode(QGraphicsView::NoDrag);
         break;
     }

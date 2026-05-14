@@ -536,7 +536,7 @@ protected:
     void updateEditorGeometry();
 
 private:
-    void adjustSceneRect();
+    void tightenSceneRect(qreal margin = 5.0);
 
     QPointF findOptimalNodePosition(FlowGraphNode *node);
     bool isPositionOccupied(const QPointF &pos, const QSizeF &size, FlowGraphNode *excludeNode = nullptr);
