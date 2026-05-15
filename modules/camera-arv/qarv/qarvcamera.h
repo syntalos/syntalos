@@ -180,6 +180,7 @@ public:
     void setExposure(double exposure);
     QPair<double, double> getExposureBounds();
     bool hasAutoExposure();
+    bool getAutoExposure();
     void setAutoExposure(bool enable);
     /**@}*/
 
@@ -189,6 +190,7 @@ public:
     void setGain(double gain);
     QPair<double, double> getGainBounds();
     bool hasAutoGain();
+    bool getAutoGain();
     void setAutoGain(bool enable);
     /**@}*/
 

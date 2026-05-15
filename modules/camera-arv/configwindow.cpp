@@ -202,8 +202,25 @@ void ArvConfigWindow::readAllValues()
     exposureSpinbox->setRange(exposurerange.first / 1000., exposurerange.second / 1000.);
     readGain();
     readExposure();
-    gainAutoButton->setEnabled(camera->hasAutoGain());
-    exposureAutoButton->setEnabled(camera->hasAutoExposure());
+
+    const auto updateAutoButton = [](QPushButton *button, bool available, bool checked) {
+        const bool blocked = button->blockSignals(true);
+        button->setEnabled(available);
+        button->setChecked(checked);
+        button->blockSignals(blocked);
+    };
+
+    const bool autoGainAvailable = camera->hasAutoGain();
+    const bool autoGainEnabled = autoGainAvailable && camera->getAutoGain();
+    updateAutoButton(gainAutoButton, autoGainAvailable, autoGainEnabled);
+    gainSlider->setEnabled(!autoGainEnabled);
+    gainSpinbox->setEnabled(!autoGainEnabled);
+
+    const bool autoExposureAvailable = camera->hasAutoExposure();
+    const bool autoExposureEnabled = autoExposureAvailable && camera->getAutoExposure();
+    updateAutoButton(exposureAutoButton, autoExposureAvailable, autoExposureEnabled);
+    exposureSlider->setEnabled(!autoExposureEnabled);
+    exposureSpinbox->setEnabled(!autoExposureEnabled);
 
     readROILimits();
     QRect roi = camera->getROI();
