@@ -233,11 +233,11 @@ syntalos_mlink    </h1>
 
 <p>LineReading : Timestamped reading from a hardware signal line.</p>
 
-<p>SignalBlockI32 : A block of 32-bit integer signal samples.</p>
+<p>SignalBlockI32 : A block of 32-bit integer samples.</p>
 
-<p>SignalBlockF32 : A block of 32-bit float signal samples.</p>
+<p>SignalBlockU16 : A block of 16-bit unsigned integer samples.</p>
 
-<p>SignalBlockU16 : A block of 16-bit unsigned integer signal samples.</p>
+<p>SignalBlockF32 : A block of 32-bit float samples.</p>
 </div>
 
 
@@ -1603,6 +1603,172 @@ or <code>list</code> of <code>int</code>/<code>str</code> values.</li>
 
 </div>
 </section>
+<section id="SecondaryClockSynchronizer">
+<div class="attr class">
+
+<span class="def">class</span>
+<span class="name">SecondaryClockSynchronizer</span>:
+
+
+</div>
+<a class="headerlink" href="#SecondaryClockSynchronizer"></a>
+
+<div class="docstring"><p>Synchronizer for an external steady monotonic clock.</p>
+
+<p>Obtain an instance via <code><a href="#SyntalosLink.init_clock_synchronizer">SyntalosLink.init_clock_synchronizer()</a></code>.</p>
+</div>
+
+
+<div id="SecondaryClockSynchronizer.process_timestamp" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">process_timestamp</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	master_timestamp_usec: &lt;class &#x27;SupportsInt&#x27;&gt;,</span><span class="param">	secondary_acq_timestamp_usec: &lt;class &#x27;SupportsInt&#x27;&gt;</span><span class="return-annotation">) -> <span class="nb">int</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#SecondaryClockSynchronizer.process_timestamp"></a>
+
+<div class="docstring"><p>Process a master/secondary timestamp pair.</p>
+
+<p>Returns the (possibly adjusted) master timestamp, in microseconds.</p>
+</div>
+
+
+</div>
+<div id="SecondaryClockSynchronizer.set_calibration_points_count" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">set_calibration_points_count</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param">count: &lt;class &#x27;SupportsInt&#x27;&gt;</span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#SecondaryClockSynchronizer.set_calibration_points_count"></a>
+
+<div class="docstring"><p>Set the number of calibration points required to compute the initial offset.</p>
+</div>
+
+
+</div>
+<div id="SecondaryClockSynchronizer.set_expected_clock_frequency_hz" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">set_expected_clock_frequency_hz</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param">frequency: &lt;class &#x27;SupportsFloat&#x27;&gt;</span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#SecondaryClockSynchronizer.set_expected_clock_frequency_hz"></a>
+
+<div class="docstring"><p>Auto-tune tolerance and required calibration points based on the expected DAQ frequency.</p>
+</div>
+
+
+</div>
+<div id="SecondaryClockSynchronizer.set_strategies" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">set_strategies</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param">strategies: &lt;class &#x27;SupportsInt&#x27;&gt;</span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#SecondaryClockSynchronizer.set_strategies"></a>
+
+<div class="docstring"><p>Set the bitset of <code><a href="#TimeSyncStrategy">TimeSyncStrategy</a></code> values the synchronizer may apply.</p>
+</div>
+
+
+</div>
+<div id="SecondaryClockSynchronizer.set_tolerance_usec" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">set_tolerance_usec</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param">tolerance_usec: &lt;class &#x27;SupportsInt&#x27;&gt;</span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#SecondaryClockSynchronizer.set_tolerance_usec"></a>
+
+<div class="docstring"><p>Set the tolerance for offset deviations, in microseconds.</p>
+</div>
+
+
+</div>
+<div id="SecondaryClockSynchronizer.start" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">start</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span></span><span class="return-annotation">) -> <span class="nb">bool</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#SecondaryClockSynchronizer.start"></a>
+
+<div class="docstring"><p>Initialize and begin synchronization. Returns <code>True</code> on success.</p>
+</div>
+
+
+</div>
+<div id="SecondaryClockSynchronizer.stop" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">stop</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#SecondaryClockSynchronizer.stop"></a>
+
+<div class="docstring"><p>Finalize and close the time-sync file (if any).</p>
+</div>
+
+
+</div>
+<div id="SecondaryClockSynchronizer.clock_correction_offset_usec" class="classattr">
+<div class="attr variable">
+<span class="name">clock_correction_offset_usec</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#SecondaryClockSynchronizer.clock_correction_offset_usec"></a>
+
+<div class="docstring"><p>The current dynamic clock-correction offset, in microseconds.</p>
+
+<p>Negative values indicate the secondary clock is running too slow, positive values
+indicate it is running too fast.</p>
+</div>
+
+
+</div>
+<div id="SecondaryClockSynchronizer.expected_offset_to_master_usec" class="classattr">
+<div class="attr variable">
+<span class="name">expected_offset_to_master_usec</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#SecondaryClockSynchronizer.expected_offset_to_master_usec"></a>
+
+<div class="docstring"><p>The expected offset from the secondary clock to the master clock, in microseconds.</p>
+</div>
+
+
+</div>
+<div id="SecondaryClockSynchronizer.is_calibrated" class="classattr">
+<div class="attr variable">
+<span class="name">is_calibrated</span><span class="annotation">: bool</span>
+
+
+</div>
+<a class="headerlink" href="#SecondaryClockSynchronizer.is_calibrated"></a>
+
+<div class="docstring"><p>Whether the synchronizer has completed its calibration phase.</p>
+</div>
+
+
+</div>
+</section>
 <section id="SignalBlockF32">
 <div class="attr class">
 
@@ -1986,6 +2152,38 @@ Must be called inside <code><a href="#SyntalosLink.on_prepare">on_prepare</a></c
 
 
 </div>
+<div id="SyntalosLink.init_clock_synchronizer" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">init_clock_synchronizer</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	expected_frequency_hz: &lt;class &#x27;SupportsFloat&#x27;&gt; = 0.0,</span><span class="param">	<span class="nb">id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span></span><span class="return-annotation">) -> <span class="n"><a href="#SecondaryClockSynchronizer">SecondaryClockSynchronizer</a></span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.init_clock_synchronizer"></a>
+
+<div class="docstring"><p>Create a synchronizer for an external steady monotonic clock.</p>
+
+<p>Must be called while the module is preparing or running (typically inside
+<code><a href="#SyntalosLink.on_prepare">on_prepare</a></code>).</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>expected_frequency_hz</strong>:  Optional expected acquisition frequency in Hz; if
+greater than zero it auto-tunes the calibration point count and tolerance.</li>
+<li><strong>id</strong>:  Optional synchronizer id; defaults to the module instance id.</li>
+</ul>
+
+<h6 id="returns">Returns</h6>
+
+<blockquote>
+<p>A new <code><a href="#SecondaryClockSynchronizer">SecondaryClockSynchronizer</a></code>.</p>
+</blockquote>
+</div>
+
+
+</div>
 <div id="SyntalosLink.register_input_port" class="classattr">
 <div class="attr function">
 
@@ -2262,6 +2460,124 @@ bytes-like payload (<code>bytes</code> or <code>bytearray</code>). If not regist
 </div>
 
 
+</section>
+<section id="TimeSyncStrategy">
+<div class="attr class">
+
+<span class="def">class</span>
+<span class="name">TimeSyncStrategy</span>:
+
+
+</div>
+<a class="headerlink" href="#TimeSyncStrategy"></a>
+
+<div class="docstring"><p>Strategies a synchronizer may apply to keep a secondary timeline aligned with the master clock.</p>
+
+<p>Values are bit flags and may be combined with <code>|</code>.</p>
+
+<p>Members:</p>
+
+<p>NONE : Do nothing.</p>
+
+<p>SHIFT_TIMESTAMPS_FWD : Move timestamps forward to match the master clock.</p>
+
+<p>SHIFT_TIMESTAMPS_BWD : Move timestamps backward to match the master clock.</p>
+
+<p>ADJUST_CLOCK : Adjust the secondary clock to match the master clock without changing timestamps.</p>
+
+<p>WRITE_TSYNCFILE : Write a time-sync file for offline offset correction in postprocessing.</p>
+</div>
+
+
+<div id="TimeSyncStrategy.__init__" class="classattr">
+<div class="attr function">
+
+<span class="name">TimeSyncStrategy</span><span class="signature pdoc-code condensed">(<span class="param">value: &lt;class &#x27;SupportsInt&#x27;&gt;</span>)</span>
+
+
+</div>
+<a class="headerlink" href="#TimeSyncStrategy.__init__"></a>
+
+
+
+</div>
+<div id="TimeSyncStrategy.ADJUST_CLOCK" class="classattr">
+<div class="attr variable">
+<span class="name">ADJUST_CLOCK</span><span class="annotation">: ClassVar[<a href="#TimeSyncStrategy">TimeSyncStrategy</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#TimeSyncStrategy.ADJUST_CLOCK"></a>
+
+
+
+</div>
+<div id="TimeSyncStrategy.NONE" class="classattr">
+<div class="attr variable">
+<span class="name">NONE</span><span class="annotation">: ClassVar[<a href="#TimeSyncStrategy">TimeSyncStrategy</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#TimeSyncStrategy.NONE"></a>
+
+
+
+</div>
+<div id="TimeSyncStrategy.SHIFT_TIMESTAMPS_BWD" class="classattr">
+<div class="attr variable">
+<span class="name">SHIFT_TIMESTAMPS_BWD</span><span class="annotation">: ClassVar[<a href="#TimeSyncStrategy">TimeSyncStrategy</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#TimeSyncStrategy.SHIFT_TIMESTAMPS_BWD"></a>
+
+
+
+</div>
+<div id="TimeSyncStrategy.SHIFT_TIMESTAMPS_FWD" class="classattr">
+<div class="attr variable">
+<span class="name">SHIFT_TIMESTAMPS_FWD</span><span class="annotation">: ClassVar[<a href="#TimeSyncStrategy">TimeSyncStrategy</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#TimeSyncStrategy.SHIFT_TIMESTAMPS_FWD"></a>
+
+
+
+</div>
+<div id="TimeSyncStrategy.WRITE_TSYNCFILE" class="classattr">
+<div class="attr variable">
+<span class="name">WRITE_TSYNCFILE</span><span class="annotation">: ClassVar[<a href="#TimeSyncStrategy">TimeSyncStrategy</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#TimeSyncStrategy.WRITE_TSYNCFILE"></a>
+
+
+
+</div>
+<div id="TimeSyncStrategy.name" class="classattr">
+<div class="attr variable">
+<span class="name">name</span><span class="annotation">: str</span>
+
+
+</div>
+<a class="headerlink" href="#TimeSyncStrategy.name"></a>
+
+
+
+</div>
+<div id="TimeSyncStrategy.value" class="classattr">
+<div class="attr variable">
+<span class="name">value</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#TimeSyncStrategy.value"></a>
+
+
+
+</div>
 </section>
 <section id="await_data">
 <div class="attr function">
