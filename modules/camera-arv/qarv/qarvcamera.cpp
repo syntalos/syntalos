@@ -330,6 +330,10 @@ bool QArvCamera::hasAutoExposure() {
     return arv_camera_is_exposure_auto_available(camera, nullptr);
 }
 
+bool QArvCamera::getAutoExposure() {
+    return arv_camera_get_exposure_time_auto(camera, nullptr) != ARV_AUTO_OFF;
+}
+
 void QArvCamera::setAutoExposure(bool enable) {
     auto mode = enable ? ARV_AUTO_CONTINUOUS : ARV_AUTO_OFF;
     arv_camera_set_exposure_time_auto(camera, mode, nullptr);
@@ -359,6 +363,10 @@ QPair< double, double > QArvCamera::getGainBounds() {
 
 bool QArvCamera::hasAutoGain() {
     return arv_camera_is_gain_auto_available(camera, nullptr);
+}
+
+bool QArvCamera::getAutoGain() {
+    return arv_camera_get_gain_auto(camera, nullptr) != ARV_AUTO_OFF;
 }
 
 void QArvCamera::setAutoGain(bool enable) {
