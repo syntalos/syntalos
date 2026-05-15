@@ -628,6 +628,11 @@ bool NetworkController::startControllerMode()
     if (d->controllerActive)
         return true;
 
+    if (d->config.instanceId.isEmpty()) {
+        LOG_ERROR(d->log, "Cannot start in network controller mode: Instance ID is not set.");
+        return false;
+    }
+
     d->stopWorker();
     d->controllerActive = true;
     d->startWorker();
@@ -650,6 +655,11 @@ bool NetworkController::startListenerMode()
 {
     if (d->listenerActive)
         return true;
+
+    if (d->config.instanceId.isEmpty()) {
+        LOG_ERROR(d->log, "Cannot start in network listener mode: Instance ID is not set.");
+        return false;
+    }
 
     d->stopWorker();
     d->listenerActive = true;

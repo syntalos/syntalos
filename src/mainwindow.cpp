@@ -665,20 +665,24 @@ void MainWindow::stopActionTriggered()
 
 void MainWindow::onActionNetControllerToggled(bool checked)
 {
-    if (checked)
+    if (checked) {
+        applyNetControllerConfig();
         m_engine->netController()->startControllerMode();
-    else
+    } else {
         m_engine->netController()->stopControllerMode();
+    }
 
     updateManualRunPossible();
 }
 
 void MainWindow::onActionNetListenerToggled(bool checked)
 {
-    if (checked)
+    if (checked) {
+        applyNetControllerConfig();
         m_engine->netController()->startListenerMode();
-    else
+    } else {
         m_engine->netController()->stopListenerMode();
+    }
 
     updateManualRunPossible();
 }

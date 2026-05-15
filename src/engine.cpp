@@ -340,6 +340,7 @@ Engine::Engine(QWidget *parentWidget)
     d->active = false;
     d->running = false;
     d->simpleStorageNames = true;
+    d->useCollectionMoniker = false;
     d->clockTimeInExportDir = false;
     d->flatExportDirName = false;
     d->exportDirLayout = {

@@ -276,7 +276,8 @@ QString GlobalConfig::netInstanceId() const
 
 void GlobalConfig::setInstanceId(const QString &id)
 {
-    m_s->setValue("instance_id", id);
+    // never persist an empty ID
+    m_s->setValue("instance_id", id.isEmpty() ? netInstanceId() : id);
 }
 
 QString GlobalConfig::lastProjectDir() const
