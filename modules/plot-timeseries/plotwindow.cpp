@@ -83,46 +83,78 @@ void PlotWindow::refreshChannelTable()
     // Wipe rows + cell widgets first so old QCheckBox children of the table
     // can't briefly render at the table's top-left before being reparented.
     t->setRowCount(0);
-    t->setRowCount(m_canvas->channelCount());
 
-    for (int i = 0; i < m_canvas->channelCount(); ++i) {
-        const auto info = m_canvas->channelInfo(i);
+    // Group channels by portId so each port can contribute a contiguous block
+    // of rows (and a placeholder row when no data has arrived yet).
+    QMap<QString, QList<int>> channelsByPort;
+    for (int i = 0; i < m_canvas->channelCount(); ++i)
+        channelsByPort[m_canvas->channelInfo(i).portId].append(i);
 
-        // Resolve port title (fall back to id) by looking it up on the module.
-        QString portTitle = info.portId;
-        for (const auto &port : m_mod->inPorts()) {
-            if (port->id() == info.portId) {
-                portTitle = port->title();
-                break;
-            }
+    int row = 0;
+    for (const auto &port : m_mod->inPorts()) {
+        const QString portId = port->id();
+        const QString portTitle = port->title();
+        const auto &channels = channelsByPort.value(portId);
+
+        if (channels.isEmpty()) {
+            // Placeholder row so the port can be selected and removed even
+            // before any data has flowed through it.
+            t->insertRow(row);
+
+            auto portItem = new QTableWidgetItem(portTitle);
+            portItem->setFlags(portItem->flags() & ~Qt::ItemIsEditable);
+            portItem->setData(Qt::UserRole, portId);
+            t->setItem(row, 0, portItem);
+
+            auto placeholder = new QTableWidgetItem(QStringLiteral("(no data yet)"));
+            placeholder->setFlags(placeholder->flags() & ~Qt::ItemIsEditable);
+            auto font = placeholder->font();
+            font.setItalic(true);
+            placeholder->setFont(font);
+            placeholder->setForeground(QBrush(t->palette().color(QPalette::Disabled, QPalette::Text)));
+            t->setItem(row, 1, placeholder);
+
+            ++row;
+            continue;
         }
 
-        auto portItem = new QTableWidgetItem(portTitle);
-        portItem->setFlags(portItem->flags() & ~Qt::ItemIsEditable);
-        portItem->setData(Qt::UserRole, info.portId);
-        t->setItem(i, 0, portItem);
+        for (int idx = 0; idx < channels.size(); ++idx) {
+            const int channelIndex = channels[idx];
+            const auto info = m_canvas->channelInfo(channelIndex);
+            t->insertRow(row);
 
-        auto chanItem = new QTableWidgetItem(info.signalName);
-        chanItem->setFlags(chanItem->flags() & ~Qt::ItemIsEditable);
-        t->setItem(i, 1, chanItem);
+            // Show the port title only on the first row of each group to
+            // visually convey grouping; subsequent rows leave col 0 blank but
+            // still carry the portId in UserRole so removal works from any row.
+            auto portItem = new QTableWidgetItem(idx == 0 ? portTitle : QString());
+            portItem->setFlags(portItem->flags() & ~Qt::ItemIsEditable);
+            portItem->setData(Qt::UserRole, portId);
+            t->setItem(row, 0, portItem);
 
-        // Create with no parent - setCellWidget reparents to t->viewport().
-        // Parenting to `t` directly causes a brief (0,0) render in the table.
-        auto showCb = new QCheckBox();
-        showCb->setChecked(info.enabled);
-        showCb->setEnabled(!m_running);
-        connect(showCb, &QCheckBox::toggled, this, [this, i](bool checked) {
-            onShowToggled(i, checked);
-        });
-        t->setCellWidget(i, 2, showCb);
+            auto chanItem = new QTableWidgetItem(info.signalName);
+            chanItem->setFlags(chanItem->flags() & ~Qt::ItemIsEditable);
+            t->setItem(row, 1, chanItem);
 
-        auto digCb = new QCheckBox();
-        digCb->setChecked(info.digital);
-        digCb->setEnabled(!m_running);
-        connect(digCb, &QCheckBox::toggled, this, [this, i](bool checked) {
-            onDigitalToggled(i, checked);
-        });
-        t->setCellWidget(i, 3, digCb);
+            // Create with no parent - setCellWidget reparents to t->viewport().
+            // Parenting to `t` directly causes a brief (0,0) render in the table.
+            auto showCb = new QCheckBox();
+            showCb->setChecked(info.enabled);
+            showCb->setEnabled(!m_running);
+            connect(showCb, &QCheckBox::toggled, this, [this, channelIndex](bool checked) {
+                onShowToggled(channelIndex, checked);
+            });
+            t->setCellWidget(row, 2, showCb);
+
+            auto digCb = new QCheckBox();
+            digCb->setChecked(info.digital);
+            digCb->setEnabled(!m_running);
+            connect(digCb, &QCheckBox::toggled, this, [this, channelIndex](bool checked) {
+                onDigitalToggled(channelIndex, checked);
+            });
+            t->setCellWidget(row, 3, digCb);
+
+            ++row;
+        }
     }
 }
 
@@ -243,6 +275,7 @@ void PlotWindow::on_addPortBtn_clicked()
 
     const auto newPortId = QStringLiteral("sigs%1-in").arg(newPortNumber);
     m_mod->registerInputPortByTypeId(streamSignalTypeMap[item], newPortId, title);
+    m_canvas->registerPort(newPortId, 1000.0, QStringLiteral("y"));
     refreshChannelTable();
 }
 

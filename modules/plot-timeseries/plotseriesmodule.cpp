@@ -59,8 +59,8 @@ public:
         : AbstractModule(parent)
     {
         // Register default input ports
-        registerInputPort<SignalBlockF32>(QStringLiteral("sigs1-in"), QStringLiteral("Float 1"));
-        registerInputPort<SignalBlockI32>(QStringLiteral("sigs2-in"), QStringLiteral("Integer 1"));
+        registerInputPort<SignalBlockF32>(QStringLiteral("default-float-in"), QStringLiteral("Float 1"));
+        registerInputPort<SignalBlockI32>(QStringLiteral("default-int-in"), QStringLiteral("Integer 1"));
 
         m_plotWindow = new PlotWindow(this);
         m_plotWindow->setWindowIcon(modInfo->icon());
