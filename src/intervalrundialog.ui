@@ -14,8 +14,7 @@
    <string>Interval Run Configuration</string>
   </property>
   <property name="windowIcon">
-   <iconset theme="view-time-schedule-edit">
-    <normaloff>.</normaloff>.</iconset>
+   <iconset theme="view-time-schedule-edit"/>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <property name="spacing">
@@ -149,13 +148,13 @@ increasing with each successful run.
             <number>2</number>
            </property>
            <property name="minimum">
-            <double>0.150000000000000</double>
+            <double>0.100000000000000</double>
            </property>
            <property name="maximum">
             <double>999.000000000000000</double>
            </property>
            <property name="singleStep">
-            <double>0.500000000000000</double>
+            <double>0.250000000000000</double>
            </property>
            <property name="value">
             <double>5.000000000000000</double>
@@ -165,7 +164,7 @@ increasing with each successful run.
          <item>
           <spacer name="horizontalSpacer">
            <property name="orientation">
-            <enum>Qt::Horizontal</enum>
+            <enum>Qt::Orientation::Horizontal</enum>
            </property>
            <property name="sizeHint" stdset="0">
             <size>
@@ -212,7 +211,10 @@ increasing with each successful run.
             <double>999.000000000000000</double>
            </property>
            <property name="singleStep">
-            <double>0.500000000000000</double>
+            <double>0.250000000000000</double>
+           </property>
+           <property name="value">
+            <double>0.050000000000000</double>
            </property>
           </widget>
          </item>
@@ -226,7 +228,7 @@ increasing with each successful run.
          <item>
           <spacer name="horizontalSpacer_2">
            <property name="orientation">
-            <enum>Qt::Horizontal</enum>
+            <enum>Qt::Orientation::Horizontal</enum>
            </property>
            <property name="sizeHint" stdset="0">
             <size>
@@ -242,7 +244,7 @@ increasing with each successful run.
       <item>
        <spacer name="verticalSpacer">
         <property name="orientation">
-         <enum>Qt::Vertical</enum>
+         <enum>Qt::Orientation::Vertical</enum>
         </property>
         <property name="sizeHint" stdset="0">
          <size>
@@ -258,10 +260,10 @@ increasing with each successful run.
    <item>
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="orientation">
-      <enum>Qt::Horizontal</enum>
+      <enum>Qt::Orientation::Horizontal</enum>
      </property>
      <property name="standardButtons">
-      <set>QDialogButtonBox::Close</set>
+      <set>QDialogButtonBox::StandardButton::Close</set>
      </property>
     </widget>
    </item>

@@ -38,9 +38,15 @@ public:
     ~IntervalRunDialog();
 
     bool intervalRunEnabled() const;
+
     int runsN() const;
+    void setRunsN(int n);
+
     double runDurationMin() const;
+    void setRunDurationMin(double m);
+
     double delayMin() const;
+    void setDelayMin(double m);
 
 private:
     Ui::IntervalRunDialog *ui;

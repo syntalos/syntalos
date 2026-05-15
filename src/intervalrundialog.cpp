@@ -44,12 +44,27 @@ int IntervalRunDialog::runsN() const
     return ui->spinBoxRunsN->value();
 }
 
+void IntervalRunDialog::setRunsN(int n)
+{
+    ui->spinBoxRunsN->setValue(n);
+}
+
 double IntervalRunDialog::runDurationMin() const
 {
     return ui->spinBoxDuration->value();
 }
 
+void IntervalRunDialog::setRunDurationMin(double m)
+{
+    ui->spinBoxDuration->setValue(m);
+}
+
 double IntervalRunDialog::delayMin() const
 {
     return ui->spinBoxDelay->value();
+}
+
+void IntervalRunDialog::setDelayMin(double m)
+{
+    ui->spinBoxDelay->setValue(m);
 }

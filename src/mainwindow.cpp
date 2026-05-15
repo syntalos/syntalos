@@ -715,6 +715,9 @@ bool MainWindow::saveConfiguration(const QString &fileName)
         .netListenerEnabled = ui->actionNetRunListener->isChecked(),
         .netExpectedClientCount = ui->sbNetExpectedClients->value(),
         .netControlTimeoutMs = ui->sbNetTimeout->value(),
+        .intervalRunCount = m_intervalRunDialog->runsN(),
+        .intervalRunDurationMin = m_intervalRunDialog->runDurationMin(),
+        .intervalRunDelayMin = m_intervalRunDialog->delayMin(),
     };
 
     const auto res = saveProjectConfiguration(
@@ -796,6 +799,11 @@ bool MainWindow::loadConfiguration(const QString &fileName)
 
     ui->sbNetExpectedClients->setValue(ps.netExpectedClientCount);
     ui->sbNetTimeout->setValue(ps.netControlTimeoutMs);
+
+    m_intervalRunDialog->setRunsN(ps.intervalRunCount);
+    m_intervalRunDialog->setRunDurationMin(ps.intervalRunDurationMin);
+    m_intervalRunDialog->setDelayMin(ps.intervalRunDelayMin);
+
     // Push the full network config (ports, host, instance ID, project settings)
     // before activating modes so the worker starts with the right settings.
     applyNetControllerConfig();

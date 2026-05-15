@@ -92,6 +92,17 @@ static bool saveProjectConfigInternal(
     netSettings.insert("timeout_ms", ps.netControlTimeoutMs);
     settings.insert("network", netSettings);
 
+    // interval-run settings (only when non-default to keep project files clean)
+    const bool ivrNonDefault = ps.intervalRunCount != 2 || ps.intervalRunDurationMin != 5.0
+                               || ps.intervalRunDelayMin != 0.05;
+    if (ivrNonDefault) {
+        QVariantHash ivrSettings;
+        ivrSettings.insert("count", ps.intervalRunCount);
+        ivrSettings.insert("duration_min", ps.intervalRunDurationMin);
+        ivrSettings.insert("delay_min", ps.intervalRunDelayMin);
+        settings.insert("interval_run", ivrSettings);
+    }
+
     // basic configuration
     tar.writeFile("main.toml", qVariantHashToTomlData(settings));
 
@@ -277,6 +288,12 @@ bool loadProjectConfigurationInteractive(
     outSettings.netListenerEnabled = netObj.value("listener_enabled", false).toBool();
     outSettings.netExpectedClientCount = netObj.value("expected_listener_count", 0).toInt();
     outSettings.netControlTimeoutMs = netObj.value("timeout_ms", 6000).toInt();
+
+    // interval-run settings
+    auto ivrObj = rootObj.value("interval_run").toHash();
+    outSettings.intervalRunCount = ivrObj.value("count", 2).toInt();
+    outSettings.intervalRunDurationMin = ivrObj.value("duration_min", 5.0).toDouble();
+    outSettings.intervalRunDelayMin = ivrObj.value("delay_min", 0.05).toDouble();
 
     // load list of subjects
     subjectList->clear();

@@ -45,6 +45,10 @@ struct ProjectSettings {
     bool netListenerEnabled{false};
     int netExpectedClientCount{0};
     int netControlTimeoutMs{6000};
+
+    int intervalRunCount{2};
+    double intervalRunDurationMin{5.0};
+    double intervalRunDelayMin{0.0};
 };
 
 using StatusMessageFn = std::function<void(const QString &)>;
