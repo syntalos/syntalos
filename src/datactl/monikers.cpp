@@ -74,8 +74,12 @@ public:
     {
         ensureBuilt();
         const uint32_t start = m_starts[idx];
-        const uint32_t next = (idx + 1 < m_starts.size()) ? m_starts[idx + 1]
-                                                          : static_cast<uint32_t>(m_blob.size() + 1);
+        // For the last entry, use size() as sentinel when the file ends with '\n'
+        // so that end = size()-1 (the '\n' position) and substr correctly excludes it.
+        const bool lastEntry = (idx + 1 >= m_starts.size());
+        const uint32_t next = lastEntry ? static_cast<uint32_t>(
+                                              m_blob.size() + (!m_blob.empty() && m_blob.back() == '\n' ? 0 : 1))
+                                        : m_starts[idx + 1];
         // next points one past the line separator; strip it (and a CR if present).
         std::size_t end = next - 1;
         if (end > start && m_blob[end - 1] == '\r')
