@@ -311,7 +311,8 @@ protected:
     {
         if (!m_stopped)
             return;
-        if (kind == UsbHotplugEventKind::DEVICE_ARRIVED || kind == UsbHotplugEventKind::DEVICES_CHANGE)
+        if (kind == UsbHotplugEventKind::DEVICE_ARRIVED || kind == UsbHotplugEventKind::DEVICES_CHANGE
+            || kind == UsbHotplugEventKind::DEVICE_LEFT)
             m_configWindow->refreshCameras();
     }
 };

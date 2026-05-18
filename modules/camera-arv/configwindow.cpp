@@ -1032,6 +1032,26 @@ void ArvConfigWindow::refreshCameras()
             pendingIndex = i;
     }
 
+    // If the previously selected camera is no longer in the device list (i.e. it
+    // was unplugged), release the now-stale QArvCamera and remember the camera ID
+    // so we can automatically restore the selection when the device comes back.
+    if (camera && newIndex < 0 && oldCam.id != nullptr && oldCam.id[0] != '\0') {
+        if (started)
+            toggleVideoPreview(false);
+
+        if (m_pendingCameraId.isEmpty()) {
+            m_pendingCameraId = QString::fromUtf8(oldCam.id);
+            logMessage() << "Camera" << oldCam.id << "was unplugged; will restore selection if it reappears.";
+        } else {
+            logMessage() << "Camera" << oldCam.id << "was unplugged, but a different pending camera is already queued;"
+                         << "skipping auto-restore for this device.";
+        }
+
+        decoder.reset();
+        camera.reset();
+        Q_EMIT cameraSelected(camera, decoder);
+    }
+
     cameraSelector->setCurrentIndex(newIndex);
     refreshCamerasButton->setEnabled(true);
     cameraSelector->setEnabled(true);
@@ -1052,7 +1072,8 @@ void ArvConfigWindow::refreshCameras()
     }
 
     logMessage() << "Saved camera became available again, applying deferred settings.";
-    loadSettings(m_pendingCamSettings.first, m_pendingCamSettings.second);
+    if (!m_pendingCamSettings.first.isEmpty())
+        loadSettings(m_pendingCamSettings.first, m_pendingCamSettings.second);
     m_pendingCamSettings = qMakePair(QVariantHash(), QByteArray());
     m_pendingCameraId.clear();
 }

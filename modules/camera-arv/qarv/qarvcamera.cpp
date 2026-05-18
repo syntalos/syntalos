@@ -466,12 +466,33 @@ std::expected<void, QString> QArvCamera::startAcquisition(bool zeroCopy, bool dr
     dropInvalid = dropInvalidFrames;
     fnNewFrameBuffer = newBufferCb;
     if (acquiring) return {};
-    unsigned int framesize = arv_camera_get_payload(camera, nullptr);
-    if (framesize == 0)
+
+    // Probe the device before touching the stream - fails gracefully if the
+    // ArvCamera* handle is stale (unplug/replug, GigE link drop) rather than
+    // SIGFPE-ing inside libaravis during stream object construction.
+    {
+        g_autoptr(GError) probeErr = nullptr;
+        (void)arv_camera_get_vendor_name(camera, &probeErr);
+        if (probeErr != nullptr)
+            return std::unexpected(
+                QStringLiteral("Camera is no longer reachable: %1").arg(probeErr->message));
+    }
+
+    g_autoptr(GError) payloadErr = nullptr;
+    unsigned int framesize = arv_camera_get_payload(camera, &payloadErr);
+    if (payloadErr != nullptr || framesize == 0)
         return std::unexpected(QStringLiteral(
-            "Camera reported a payload size of zero. "
-            "Ensure ROI dimensions and pixel format are properly configured."));
-    stream = arv_camera_create_stream(camera, QArvStreamCallbackWrap, this, nullptr);
+            "Camera reported an invalid payload size (%1). "
+            "Ensure ROI dimensions and pixel format are properly configured.")
+            .arg(payloadErr ? payloadErr->message : QStringLiteral("size=0")));
+
+    g_autoptr(GError) streamErr = nullptr;
+    stream = arv_camera_create_stream(camera, QArvStreamCallbackWrap, this, &streamErr);
+    if (stream == nullptr || streamErr != nullptr) {
+        QString msg = streamErr ? QString::fromUtf8(streamErr->message) : QStringLiteral("unknown error");
+        return std::unexpected(QStringLiteral("Failed to create acquisition stream: %1").arg(msg));
+    }
+
     for (uint i = 0; i < frameQueueSize; i++) {
         arv_stream_push_buffer(stream, arv_buffer_new(framesize, NULL));
     }
