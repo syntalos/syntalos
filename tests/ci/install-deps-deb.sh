@@ -81,3 +81,7 @@ eatmydata apt-get install -yq --no-install-recommends \
     python3-zarr \
     python3-zmq \
     rtkit
+
+# requirements to build iceoryx2 from source
+eatmydata apt-get install -yq --no-install-recommends \
+    cargo

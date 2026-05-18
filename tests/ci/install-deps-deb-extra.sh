@@ -55,25 +55,3 @@ else
         tiscamera-dev \
         libminiscope-dev
 fi;
-
-# NOTE: TEMPORARILY BUILD & INSTALL ICEORYX HERE
-eatmydata apt-get install -yq --no-install-recommends \
-    cargo
-
-mkdir -p 3rdparty && cd 3rdparty
-
-# Iceoryx2
-git clone --depth 1 https://github.com/eclipse-iceoryx/iceoryx2.git iceoryx2
-cd iceoryx2
-cmake -B build -GNinja \
-    -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-    -DBUILD_CXX=ON \
-    -DBUILD_TESTING=OFF \
-    -DBUILD_EXAMPLES=OFF \
-    -DIOX2_FEATURE_LIBC_PLATFORM=ON
-cmake --build build
-cmake --install build
-cd ..
-
-# cleanup
-cd .. && rm -rf 3rdparty
