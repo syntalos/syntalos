@@ -1071,9 +1071,15 @@ void ArvConfigWindow::refreshCameras()
         return;
     }
 
-    logMessage() << "Saved camera became available again, applying deferred settings.";
-    if (!m_pendingCamSettings.first.isEmpty())
+    if (m_pendingCamSettings.first.isEmpty()) {
+        logMessage() << "Known camera became available again; syncing GUI to its current state.";
+        // Update GUI values from the reconnected camera
+        readAllValues();
+        readROILimits();
+    } else {
+        logMessage() << "Known camera became available again, applying deferred settings.";
         loadSettings(m_pendingCamSettings.first, m_pendingCamSettings.second);
+    }
     m_pendingCamSettings = qMakePair(QVariantHash(), QByteArray());
     m_pendingCameraId.clear();
 }
