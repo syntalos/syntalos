@@ -119,8 +119,9 @@ public:
         m_tfParams = m_configWindow->currentTransformParams();
 
         const auto roi = m_camera->getROI();
-        m_expectedWidth = roi.width();
-        m_expectedHeight = roi.height();
+        const bool swapsAxes = m_tfParams->rot == 1 || m_tfParams->rot == 3;
+        m_expectedWidth = swapsAxes ? roi.height() : roi.width();
+        m_expectedHeight = swapsAxes ? roi.width() : roi.height();
 
         // set the required stream metadata for video capture
         m_outStream->setMetadataValue("size", MetaSize(m_expectedWidth, m_expectedHeight));
