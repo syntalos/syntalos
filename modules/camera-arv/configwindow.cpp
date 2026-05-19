@@ -905,6 +905,7 @@ void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArra
             }
         }
     }
+    updateImageTransform();
 
     // ensure any timers run to update the list of available cameras or modify settings
     QApplication::processEvents();
