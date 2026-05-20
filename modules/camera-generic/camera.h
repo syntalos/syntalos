@@ -21,6 +21,7 @@
 #define GENERIC_CAMERA_H
 
 #include <QSize>
+#include <expected>
 #include <opencv2/core.hpp>
 
 #include "logging.h"
@@ -64,8 +65,8 @@ public:
     cv::Size resolution() const;
     void setResolution(const cv::Size &size);
 
-    int framerate() const;
-    void setFramerate(int fps);
+    double framerate() const;
+    void setFramerate(double fps);
 
     double exposure() const;
     void setExposure(double value);
@@ -104,6 +105,13 @@ private:
     std::unique_ptr<CameraData> d;
 
     void fail(const QString &msg);
+    std::expected<double, QString> setCameraProperty(
+        int propertyId,
+        double value,
+        bool check = true,
+        // Camera backends might quantize hardware properties before reporting them back.
+        double tolerance = 0.5);
+    void warnIfCameraReportsDifferent(int propertyId, double requestedValue, double reportedValue, double tolerance) const;
 };
 
 #endif // GENERIC_CAMERA_H

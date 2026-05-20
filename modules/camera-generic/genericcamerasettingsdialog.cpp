@@ -53,12 +53,12 @@ cv::Size GenericCameraSettingsDialog::resolution() const
     return cv::Size(ui->spinBoxWidth->value(), ui->spinBoxHeight->value());
 }
 
-int GenericCameraSettingsDialog::framerate() const
+double GenericCameraSettingsDialog::framerate() const
 {
     return ui->fpsSpinBox->value();
 }
 
-void GenericCameraSettingsDialog::setFramerate(int fps)
+void GenericCameraSettingsDialog::setFramerate(double fps)
 {
     ui->fpsSpinBox->setValue(fps);
 }

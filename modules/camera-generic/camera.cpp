@@ -19,7 +19,9 @@
 
 #include "camera.h"
 
+#include <array>
 #include <QFileInfo>
+#include <cmath>
 #include <fcntl.h>
 #include <libv4l2.h>
 #include <linux/videodev2.h>
@@ -27,6 +29,46 @@
 #include <opencv2/videoio.hpp>
 #include <sys/ioctl.h>
 #include "datactl/frametype.h"
+
+struct CameraPropertyInfo
+{
+    int id;
+    const char *name;
+};
+
+static QString cameraPropertyName(int propertyId)
+{
+    static const std::array<CameraPropertyInfo, 11> propertyNames = {{
+        {cv::CAP_PROP_FRAME_WIDTH, "frame width"},
+        {cv::CAP_PROP_FRAME_HEIGHT, "frame height"},
+        {cv::CAP_PROP_FPS, "framerate"},
+        {cv::CAP_PROP_EXPOSURE, "exposure"},
+        {cv::CAP_PROP_BRIGHTNESS, "brightness"},
+        {cv::CAP_PROP_CONTRAST, "contrast"},
+        {cv::CAP_PROP_SATURATION, "saturation"},
+        {cv::CAP_PROP_HUE, "hue"},
+        {cv::CAP_PROP_GAIN, "gain"},
+        {cv::CAP_PROP_AUTO_EXPOSURE, "auto exposure"},
+        {cv::CAP_PROP_FOURCC, "pixel format"},
+    }};
+
+    for (const auto &property : propertyNames) {
+        if (property.id == propertyId)
+            return QString::fromUtf8(property.name);
+    }
+
+    return QStringLiteral("OpenCV property %1").arg(propertyId);
+}
+
+static bool isPositiveFinite(double value)
+{
+    return std::isfinite(value) && value > 0.0;
+}
+
+static bool differsFromRequested(double reported, double requested, double tolerance = 0.5)
+{
+    return !std::isfinite(reported) || std::abs(reported - requested) >= tolerance;
+}
 
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
@@ -46,7 +88,9 @@ public:
     cv::VideoCapture *cam{};
     int camId;
 
-    int fps{};
+    // Fractional rates exist, e.g. V4L2: `Interval: Discrete 0.133s (7.500 fps)`
+    double fps{};
+    double activeFps{};
     cv::Size frameSize;
     CameraPixelFormat captureFormat;
 
@@ -77,6 +121,7 @@ Camera::Camera(QuillLogger *logger)
     // set some default values
     d->frameSize = cv::Size(960, 720);
     d->fps = 30;
+    d->activeFps = d->fps;
     d->exposure = 10;
     d->brightness = 0;
     d->contrast = 0;
@@ -111,6 +156,56 @@ void Camera::fail(const QString &msg)
     d->lastError = msg;
 }
 
+std::expected<double, QString> Camera::setCameraProperty(int propertyId, double value, bool check, double tolerance)
+{
+    if (!d->cam || !d->cam->isOpened())
+        return std::unexpected(QStringLiteral("Camera is not open."));
+
+    const auto name = cameraPropertyName(propertyId);
+    if (!d->cam->set(propertyId, value)) {
+        const auto cameraValue = d->cam->get(propertyId);
+        const auto msg = QStringLiteral(
+                             "Failed to set camera property '%1' to %2. Camera reports %3. "
+                             "For more OpenCV video I/O details, run Syntalos with: "
+                             "OPENCV_LOG_LEVEL=DEBUG OPENCV_VIDEOIO_DEBUG=1")
+                             .arg(name)
+                             .arg(value)
+                             .arg(cameraValue);
+        LOG_WARNING(
+            d->log,
+            "{}",
+            msg);
+        return std::unexpected(msg);
+    }
+
+    const auto reportedValue = d->cam->get(propertyId);
+    if (check)
+        warnIfCameraReportsDifferent(propertyId, value, reportedValue, tolerance);
+
+    return reportedValue;
+}
+
+void Camera::warnIfCameraReportsDifferent(
+    int propertyId,
+    double requestedValue,
+    double reportedValue,
+    double tolerance) const
+{
+    if (!d->cam || !d->cam->isOpened())
+        return;
+    if (!differsFromRequested(reportedValue, requestedValue, tolerance))
+        return;
+
+    const auto name = cameraPropertyName(propertyId);
+    LOG_WARNING(
+        d->log,
+        "Requested camera property '{}' value {}, but the backend reports {}. "
+        "Keeping the requested value for future connection attempts.",
+        name,
+        requestedValue,
+        reportedValue);
+}
+
 void Camera::setCamId(int id)
 {
     d->camId = id;
@@ -129,22 +224,47 @@ void Camera::setStartTime(const symaster_timepoint &time)
 void Camera::setResolution(const cv::Size &size)
 {
     d->frameSize = size;
-    d->cam->set(cv::CAP_PROP_FRAME_WIDTH, d->frameSize.width);
-    d->cam->set(cv::CAP_PROP_FRAME_HEIGHT, d->frameSize.height);
+
+    const double requestedWidth = d->frameSize.width;
+    const double requestedHeight = d->frameSize.height;
+    const auto reportedWidth = setCameraProperty(cv::CAP_PROP_FRAME_WIDTH, requestedWidth, false);
+    const auto reportedHeight = setCameraProperty(cv::CAP_PROP_FRAME_HEIGHT, requestedHeight, false);
+    const auto backendReportsDifferentResolution =
+        (reportedWidth && differsFromRequested(*reportedWidth, requestedWidth)) ||
+        (reportedHeight && differsFromRequested(*reportedHeight, requestedHeight));
+
+    if (d->cam && d->cam->isOpened() && backendReportsDifferentResolution) {
+        const auto reportedWidthValue = reportedWidth ? *reportedWidth : requestedWidth;
+        const auto reportedHeightValue = reportedHeight ? *reportedHeight : requestedHeight;
+        LOG_WARNING(
+            d->log,
+            "Requested camera output resolution {}x{}, but the backend reports capture resolution {}x{}. "
+            "Captured frames will be scaled to the requested output resolution.",
+            requestedWidth,
+            requestedHeight,
+            reportedWidthValue,
+            reportedHeightValue);
+    }
 }
 
-int Camera::framerate() const
+double Camera::framerate() const
 {
-    const int capFps = d->cam->get(cv::CAP_PROP_FPS);
-    if (capFps <= 0)
-        return d->fps;
-    return capFps;
+    return isPositiveFinite(d->activeFps) ? d->activeFps : d->fps;
 }
 
-void Camera::setFramerate(int fps)
+void Camera::setFramerate(double fps)
 {
     d->fps = fps;
-    d->cam->set(cv::CAP_PROP_FPS, d->fps);
+    d->activeFps = d->fps;
+
+    const auto reportedFps = setCameraProperty(cv::CAP_PROP_FPS, d->fps, true, 0.5);
+    if (reportedFps && isPositiveFinite(*reportedFps)) {
+        d->activeFps = *reportedFps;
+    } else if (d->cam && d->cam->isOpened()) {
+        const auto currentFps = d->cam->get(cv::CAP_PROP_FPS);
+        if (isPositiveFinite(currentFps))
+            d->activeFps = currentFps;
+    }
 }
 
 cv::Size Camera::resolution() const
@@ -165,7 +285,7 @@ void Camera::setExposure(double value)
         value = 2047;
 
     d->exposure = value;
-    d->cam->set(cv::CAP_PROP_EXPOSURE, value);
+    setCameraProperty(cv::CAP_PROP_EXPOSURE, value);
 }
 
 double Camera::brightness() const
@@ -181,7 +301,7 @@ void Camera::setBrightness(double value)
         value = -100;
 
     d->brightness = value;
-    d->cam->set(cv::CAP_PROP_BRIGHTNESS, value);
+    setCameraProperty(cv::CAP_PROP_BRIGHTNESS, value);
 }
 
 double Camera::contrast() const
@@ -197,7 +317,7 @@ void Camera::setContrast(double value)
         value = 255;
 
     d->contrast = value;
-    d->cam->set(cv::CAP_PROP_CONTRAST, value);
+    setCameraProperty(cv::CAP_PROP_CONTRAST, value);
 }
 
 double Camera::saturation() const
@@ -211,7 +331,7 @@ void Camera::setSaturation(double value)
         value = 255;
 
     d->saturation = value;
-    d->cam->set(cv::CAP_PROP_SATURATION, value);
+    setCameraProperty(cv::CAP_PROP_SATURATION, value);
 }
 
 double Camera::hue() const
@@ -227,7 +347,7 @@ void Camera::setHue(double value)
         value = -100;
 
     d->hue = value;
-    d->cam->set(cv::CAP_PROP_HUE, value);
+    setCameraProperty(cv::CAP_PROP_HUE, value);
 }
 
 double Camera::gain() const
@@ -241,7 +361,7 @@ void Camera::setGain(double value)
         value = 255;
 
     d->gain = value;
-    d->cam->set(cv::CAP_PROP_GAIN, value);
+    setCameraProperty(cv::CAP_PROP_GAIN, value);
 }
 
 int Camera::autoExposureRaw() const
@@ -252,6 +372,7 @@ int Camera::autoExposureRaw() const
 void Camera::setAutoExposureRaw(int value)
 {
     d->autoExposureRaw = value;
+    setCameraProperty(cv::CAP_PROP_AUTO_EXPOSURE, d->autoExposureRaw, true, 0.5);
 }
 
 bool Camera::connect()
@@ -281,23 +402,30 @@ bool Camera::connect()
         LOG_INFO(d->log, "Unable to use preferred camera backend for {} falling back to autodetection.", d->camId);
         ret = d->cam->open(d->camId);
     }
+    if (!ret) {
+        const auto msg = QStringLiteral("Unable to open camera %1.").arg(d->camId);
+        LOG_ERROR(d->log, "{}", msg);
+        fail(msg);
+        return false;
+    }
 
-    d->cam->set(cv::CAP_PROP_FPS, d->fps);
-    d->cam->set(cv::CAP_PROP_AUTO_EXPOSURE, d->autoExposureRaw);
+    d->failed = false;
+    d->lastError.clear();
 
     // set initial defaults
     setPixelFormat(d->captureFormat);
+    setFramerate(d->fps);
+    setAutoExposureRaw(d->autoExposureRaw);
     setExposure(d->exposure);
     setBrightness(d->brightness);
     setContrast(d->contrast);
     setSaturation(d->saturation);
     setHue(d->hue);
+    setGain(d->gain);
 
-    d->cam->set(cv::CAP_PROP_FRAME_WIDTH, d->frameSize.width);
-    d->cam->set(cv::CAP_PROP_FRAME_HEIGHT, d->frameSize.height);
+    setResolution(d->frameSize);
 
     // we are connected now
-    d->failed = false;
     d->connected = true;
 
     // temporary dummy timepoint, until the actual reference starting
@@ -314,6 +442,7 @@ void Camera::disconnect()
     if (d->connected)
         LOG_INFO(d->log, "Disconnected camera {}", d->camId);
     d->connected = false;
+    d->activeFps = d->fps;
 }
 
 QList<CameraPixelFormat> Camera::readPixelFormats()
@@ -348,8 +477,21 @@ void Camera::setPixelFormat(const CameraPixelFormat &pixFmt)
         return;
 
     LOG_INFO(d->log, "Setting pixel format to: {}", pixFmt.fourcc);
-    d->cam->set(cv::CAP_PROP_FOURCC, pixFmt.fourcc);
     d->captureFormat = pixFmt;
+
+    const auto actualFourcc = setCameraProperty(cv::CAP_PROP_FOURCC, pixFmt.fourcc, false);
+    const auto backendReportsDifferentFormat =
+        actualFourcc && (!isPositiveFinite(*actualFourcc) || std::round(*actualFourcc) != pixFmt.fourcc);
+
+    if (d->cam && d->cam->isOpened() && backendReportsDifferentFormat) {
+        LOG_WARNING(
+            d->log,
+            "Requested camera pixel format '{}' ({}), but the backend reports {}. "
+            "Keeping the selected pixel format for future connection attempts.",
+            pixFmt.name,
+            pixFmt.fourcc,
+            *actualFourcc);
+    }
 }
 
 bool Camera::recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)

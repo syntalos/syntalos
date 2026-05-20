@@ -39,8 +39,8 @@ public:
     QVariant selectedCamera() const;
     cv::Size resolution() const;
 
-    int framerate() const;
-    void setFramerate(int fps);
+    double framerate() const;
+    void setFramerate(double fps);
 
     bool quirksEnabled();
     void setQuirksEnabled(bool enabled);

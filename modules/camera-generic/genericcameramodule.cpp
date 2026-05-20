@@ -24,6 +24,8 @@
 #include "camera.h"
 #include "genericcamerasettingsdialog.h"
 
+#include <cmath>
+
 SYNTALOS_MODULE(GenericCameraModule)
 
 class GenericCameraModule : public AbstractModule
@@ -89,16 +91,41 @@ public:
             return false;
         }
 
+        constexpr auto fpsTolerance = 0.5;
+        const auto requestedFps = m_camSettingsWindow->framerate();
+        if (!std::isfinite(requestedFps) || requestedFps <= 0) {
+            raiseError(QStringLiteral("Unable to continue: Invalid camera framerate %1fps requested.").arg(requestedFps));
+            return false;
+        }
+
         statusMessage("Connecting camera...");
         m_camera->setResolution(m_camSettingsWindow->resolution());
         if (!m_camera->connect()) {
             raiseError(QStringLiteral("Unable to connect camera: %1").arg(m_camera->lastError()));
             return false;
         }
+        m_camera->setFramerate(requestedFps);
+
+        const auto actualFps = m_camera->framerate();
+        auto effectiveFps = actualFps;
+        if (!std::isfinite(actualFps) || actualFps <= 0) {
+            LOG_ERROR(
+                m_log,
+                "Camera backend reported invalid framerate {}fps. Using requested {}fps.",
+                actualFps,
+                requestedFps);
+            effectiveFps = requestedFps;
+        } else if (std::isfinite(actualFps) && actualFps > 0 && std::abs(actualFps - requestedFps) >= fpsTolerance) {
+            LOG_ERROR(
+                m_log,
+                "Requested camera framerate {}fps, but the backend reports {}fps. Using backend-reported framerate.",
+                requestedFps,
+                actualFps);
+            effectiveFps = actualFps;
+        }
 
         m_camSettingsWindow->setRunning(true);
-        m_fps = m_camSettingsWindow->framerate();
-        m_camera->setFramerate(m_fps);
+        m_fps = effectiveFps;
 
         // set the required stream metadata for video capture
         m_outStream->setMetadataValue("size", MetaSize(m_camera->resolution().width, m_camera->resolution().height));
@@ -220,7 +247,7 @@ public:
         m_camera->setSaturation(settings.value("saturation").toDouble());
         m_camera->setHue(settings.value("hue").toDouble());
         m_camera->setGain(settings.value("gain").toDouble());
-        m_camSettingsWindow->setFramerate(settings.value("fps").toInt());
+        m_camSettingsWindow->setFramerate(settings.value("fps").toDouble());
 
         auto quirks = settings.value("quirks").toHash();
         bool haveQuirks = quirks.value("enabled", false).toBool();
