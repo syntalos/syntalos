@@ -119,12 +119,16 @@ public:
         m_tfParams = m_configWindow->currentTransformParams();
 
         const auto roi = m_camera->getROI();
-        const bool swapsAxes = m_tfParams->rot == 1 || m_tfParams->rot == 3;
-        m_expectedWidth = swapsAxes ? roi.height() : roi.width();
-        m_expectedHeight = swapsAxes ? roi.width() : roi.height();
+        // expectedWidth/Height are the dimensions produced directly by Aravis / the decoder
+        m_expectedWidth = roi.width();
+        m_expectedHeight = roi.height();
 
-        // set the required stream metadata for video capture
-        m_outStream->setMetadataValue("size", MetaSize(m_expectedWidth, m_expectedHeight));
+        // The runtime rotation pipeline swaps axes for 90°/270°; report the
+        // post-rotation size to downstream consumers.
+        const bool swapsAxes = m_tfParams->rot == 1 || m_tfParams->rot == 3;
+        const int outWidth = swapsAxes ? m_expectedHeight : m_expectedWidth;
+        const int outHeight = swapsAxes ? m_expectedWidth : m_expectedHeight;
+        m_outStream->setMetadataValue("size", MetaSize(outWidth, outHeight));
         m_outStream->setMetadataValue("framerate", m_camera->getFPS());
 
         // start the stream
