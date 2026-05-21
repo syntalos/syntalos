@@ -953,7 +953,11 @@ void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArra
         roiSettings["height"].toInt()));
 
     // reload pixel format and update decoder with new ROI as well
-    on_pixelFormatSelector_currentIndexChanged(pixelFormatSelector->currentIndex());
+    const int pixelFormatIndex = pixelFormatSelector->currentIndex();
+    if (pixelFormatIndex >= 0)
+        on_pixelFormatSelector_currentIndexChanged(pixelFormatIndex);
+    else
+        updateDecoder();
 
     // if no advanced features were saved, we can skip loading them
     if (!saveAdvancedCb->isChecked())
