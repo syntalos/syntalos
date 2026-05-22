@@ -1,3 +1,2 @@
-tar-ignore=*.a
 tar-ignore=*.o
 tar-ignore=moc_*
