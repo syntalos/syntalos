@@ -131,6 +131,10 @@ void VTransformListModel::fromVariantHash(const QVariantHash &var)
             tf = new CropTransform;
         else if (objType == ScaleTransform::staticMetaObject.className())
             tf = new ScaleTransform;
+        else if (objType == RotateTransform::staticMetaObject.className())
+            tf = new RotateTransform;
+        else if (objType == MirrorTransform::staticMetaObject.className())
+            tf = new MirrorTransform;
         else if (objType == FalseColorTransform::staticMetaObject.className())
             tf = new FalseColorTransform;
         else if (objType == HistNormTransform::staticMetaObject.className())

@@ -150,6 +150,53 @@ private:
 };
 
 /**
+ * @brief Rotate frames by a right-angle amount
+ */
+class RotateTransform : public VideoTransform
+{
+    Q_OBJECT
+public:
+    explicit RotateTransform(int degrees = 90);
+
+    [[nodiscard]] QString name() const override;
+    [[nodiscard]] QIcon icon() const override;
+    void createSettingsUi(QWidget *parent) override;
+
+    MetaSize resultSize() override;
+    void process(cv::Mat &image) override;
+
+    QVariantHash toVariantHash() override;
+    void fromVariantHash(const QVariantHash &settings) override;
+
+private:
+    int m_degrees{90};
+};
+
+/**
+ * @brief Mirror frames along an axis
+ */
+class MirrorTransform : public VideoTransform
+{
+    Q_OBJECT
+public:
+    enum class Axis { X, Y };
+
+    explicit MirrorTransform(Axis axis = Axis::X);
+
+    [[nodiscard]] QString name() const override;
+    [[nodiscard]] QIcon icon() const override;
+    void createSettingsUi(QWidget *parent) override;
+
+    void process(cv::Mat &image) override;
+
+    QVariantHash toVariantHash() override;
+    void fromVariantHash(const QVariantHash &settings) override;
+
+private:
+    Axis m_axis{Axis::X};
+};
+
+/**
  * @brief Apply a false-color transformation to the video
  */
 class FalseColorTransform : public VideoTransform
