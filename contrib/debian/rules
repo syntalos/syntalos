@@ -42,6 +42,12 @@ endif
 
 	cd $(CURDIR) && dh_auto_configure -- $(SY_CONFIGURE_ARGS)
 
+override_dh_auto_install:
+	dh_auto_install
+
+	rm -rf $(CURDIR)/debian/tmp/usr/include/quill
+	rm -f $(CURDIR)/debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/pkgconfig/quill.pc
+
 override_dh_auto_test:
 	:
 
