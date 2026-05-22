@@ -56,6 +56,8 @@ module_args = [
     '-Wno-error=unused-but-set-variable',
 ]
 
+subdir('udev')
+
 #
 # Generic module setup
 #
