@@ -25,7 +25,7 @@ mkdir build && cd build
 meson \
     -Dmaintainer=true \
     -Dgui-tests=true \
-    -Dmodules="camera-arv,camera-tis,miniscope,plot${extra_modules}" \
+    -Dmodules="camera-arv,camera-tis,miniscope${extra_modules}" \
     ..
 
 # Build, Install & Test
