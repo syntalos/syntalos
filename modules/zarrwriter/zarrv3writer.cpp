@@ -163,19 +163,44 @@ bool ZarrV3Array::finalize()
             ByteVector paddedChunk(chunkBytes, std::byte{0});
             std::memcpy(paddedChunk.data(), m_buffer.data(), m_buffer.size());
 
+            // writeChunk() writes compressed bytes at the current cursor, which
+            // the previous checkpoint left at m_shardOffset - exactly where the
+            // old shard index lives. A short write here partially overwrites that
+            // index, so we must be able to restore it. Snapshot the pre-write
+            // shard state so we can roll the shard back to the last successful
+            // checkpoint on failure.
+            const uint64_t prevShardOffset = m_shardOffset;
+            const ByteVector prevIndexBuffer = m_indexBuffer;
+            const int64_t prevTotalRows = m_totalRows;
+            const int64_t prevChunkIdx = m_chunkIdx;
+
             const int64_t trueTotal = m_totalRows + remainingRows;
             if (!writeChunk(paddedChunk.data(), m_chunkSize)) {
-                // Final-chunk write failed: do not advance m_totalRows, do not write
-                // the shard index, do not rewrite zarr.json. Leave the on-disk store
-                // at the last successful Tier-A/B checkpoint, matching the m_hasError
-                // branch at the top of this function.
+                // Final-chunk write failed. Roll the shard back to the previous
+                // checkpoint. The on-disk store is left at the last successful Tier-A/B
+                // checkpoint.
+                m_shardOffset = prevShardOffset;
+                m_indexBuffer = prevIndexBuffer;
+                m_totalRows = prevTotalRows;
+                m_chunkIdx = prevChunkIdx;
+
+                if (m_shardFile.isOpen()) {
+                    if (m_shardFile.resize(static_cast<qint64>(prevShardOffset))
+                        && m_shardFile.seek(static_cast<qint64>(prevShardOffset))) {
+                        const qint64 idxWritten = m_shardFile.write(
+                            reinterpret_cast<const char *>(m_indexBuffer.data()),
+                            static_cast<qint64>(m_indexBuffer.size()));
+                        if (idxWritten == static_cast<qint64>(m_indexBuffer.size()))
+                            m_shardFile.flush();
+                    }
+                    m_shardFile.close();
+                }
+
                 m_buffer.clear();
                 if (m_cctx != nullptr) {
                     ZSTD_freeCCtx(m_cctx);
                     m_cctx = nullptr;
                 }
-                if (m_shardFile.isOpen())
-                    m_shardFile.close();
                 m_indexBuffer.clear();
                 return false;
             }
