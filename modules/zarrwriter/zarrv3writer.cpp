@@ -164,8 +164,22 @@ bool ZarrV3Array::finalize()
             std::memcpy(paddedChunk.data(), m_buffer.data(), m_buffer.size());
 
             const int64_t trueTotal = m_totalRows + remainingRows;
-            writeChunk(paddedChunk.data(), m_chunkSize); // increments m_totalRows by m_chunkSize
-            m_totalRows = trueTotal;                     // correct back to actual row count
+            if (!writeChunk(paddedChunk.data(), m_chunkSize)) {
+                // Final-chunk write failed: do not advance m_totalRows, do not write
+                // the shard index, do not rewrite zarr.json. Leave the on-disk store
+                // at the last successful Tier-A/B checkpoint, matching the m_hasError
+                // branch at the top of this function.
+                m_buffer.clear();
+                if (m_cctx != nullptr) {
+                    ZSTD_freeCCtx(m_cctx);
+                    m_cctx = nullptr;
+                }
+                if (m_shardFile.isOpen())
+                    m_shardFile.close();
+                m_indexBuffer.clear();
+                return false;
+            }
+            m_totalRows = trueTotal; // correct back to actual row count
         }
     }
 
