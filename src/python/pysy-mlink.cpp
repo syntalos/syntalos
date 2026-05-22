@@ -94,21 +94,29 @@ struct InputPort {
     {
         _on_data_cb = std::move(fn);
         if (!_on_data_cb) {
-            _iport->setNewDataRawCallback(nullptr);
+            _iport->setNewDataCallback(nullptr);
             return;
         }
 
-        _iport->setNewDataRawCallback([this](const void *data, size_t size) {
+        // Resolve the typed py::cast function once, based on our declared input type.
+        // SyntalosLink does the source-to-declared type conversion before invoking us, so
+        // we only need to find the concrete C++ class matching dataTypeId once here.
+        std::function<py::object(BaseDataType &)> caster;
+        forEachStreamType([&](auto tag) {
+            using T = typename decltype(tag)::type;
+            if (syDataTypeId<T>() != _dataTypeId)
+                return false;
+            caster = [](BaseDataType &d) {
+                return py::cast(std::move(static_cast<T &>(d)));
+            };
+            return true;
+        });
+        if (!caster)
+            throw SyntalosPyError(std::format("Unknown declared input type on port: {}", _id));
+
+        _iport->setNewDataCallback([this, caster = std::move(caster)](BaseDataType &data) {
             try {
-                const bool handled = forEachStreamType([&](auto tag) {
-                    using T = typename decltype(tag)::type;
-                    if (syDataTypeId<T>() != _dataTypeId)
-                        return false;
-                    _on_data_cb(py::cast(T::fromMemory(data, size)));
-                    return true;
-                });
-                if (!handled)
-                    throw SyntalosPyError(std::format("Received data of unknown type on input port: {}", _id));
+                _on_data_cb(caster(data));
             } catch (py::error_already_set &e) {
                 if (!handlePyError(getActiveLink(), e))
                     throw;

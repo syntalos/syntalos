@@ -190,8 +190,11 @@ protected:
             return res;
 
         auto iport = *res;
-        iport->setNewDataRawCallback([instance, fn](const void *data, size_t size) {
-            std::invoke(fn, instance, T::fromMemory(data, size));
+        // SyntalosLink does the source-to-target deserialization (and any compatible-type
+        // conversion) at connect time, then invokes this callback with the already-typed value.
+        // So a single static_cast to T is safe here.
+        iport->setNewDataCallback([instance, fn](BaseDataType &data) {
+            std::invoke(fn, instance, static_cast<const T &>(data));
         });
 
         return iport;
@@ -276,7 +279,7 @@ public:
 
     void setMetadataVar(const std::string &key, const MetaValue &value)
     {
-        m_info->setMetadataVar(key, value);
+        m_info->setMetadataValue(key, value);
         m_mod->m_slink->updateOutputPort(m_info);
     }
 

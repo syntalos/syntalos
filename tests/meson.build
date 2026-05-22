@@ -123,6 +123,7 @@ test_manifests = [
     'scenarios/ipc-test-simple.toml',
     'scenarios/ipc-test-complex.toml',
     'scenarios/zarr-writer-test.toml',
+    'scenarios/streamtype-conversions-test.toml',
     'scenarios/disabled-inputs-test.toml',
     'scenarios/netctl-control-test.toml',
     'scenarios/netctl-listen-test.toml',

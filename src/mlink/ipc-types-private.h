@@ -361,6 +361,11 @@ struct ConnectInputRequest {
     iox2::bb::StaticString<SY_IOX_ID_MAX_LEN> instanceId;
     iox2::bb::StaticString<SY_IOX_ID_MAX_LEN> channelId;
     IpcServiceTopology topology;
+
+    // BaseDataType::TypeId of the source output port's native (on-wire) stream type.
+    // The worker uses this to convert into its declared input type when the two differ
+    // (but are compatible via a converting constructor). 0 means "same as declared type".
+    int32_t sourceTypeId;
 };
 static const std::string CONNECT_INPUT_CALL_ID = "ConnectInputPort";
 

@@ -1197,6 +1197,10 @@ void MLinkModule::markIncomingForExport(StreamExporter *exporter)
             details->channelId.toUtf8().constData(),
             details->channelId.toUtf8().size());
         req.topology = makeIpcServiceTopology(1, iport->outPort()->streamVar()->subscriberCount());
+        // Tell the worker which native type the wire bytes are serialized as, so it
+        // can deserialize-and-convert when its declared input type is a different
+        // (but compatible) type.
+        req.sourceTypeId = static_cast<int32_t>(iport->outPort()->streamVar()->dataTypeId());
 
         bool ret = d->callClientSimple<ConnectInputRequest>(this, CONNECT_INPUT_CALL_ID, [&req](auto &payload) {
             payload = req;

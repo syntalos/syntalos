@@ -28,6 +28,7 @@
 
 #include "mlink/ipc-types-private.h"
 #include "mlink/ipc-iox-private.h"
+#include "datactl/datatypes.h"
 #include "datactl/priv/rtkit.h"
 #include "datactl/priv/cpuaffinity.h"
 #include "datactl/loginternal.h"
@@ -134,6 +135,7 @@ public:
           id(pc.id),
           title(pc.title),
           dataTypeId(pc.dataTypeId),
+          sourceTypeId(0),
           metadata(pc.metadata),
           throttleItemsPerSec(0)
     {
@@ -147,9 +149,11 @@ public:
     std::string id;
     std::string title;
     int dataTypeId;
+    int sourceTypeId;
     MetaStringMap metadata;
 
-    NewDataRawFn newDataCb;
+    NewDataRawFn newDataRawCb;
+    NewDataFn newDataCb;
     uint throttleItemsPerSec;
 };
 
@@ -168,6 +172,11 @@ int InputPortInfo::dataTypeId() const
     return d->dataTypeId;
 }
 
+int InputPortInfo::sourceTypeId() const
+{
+    return d->sourceTypeId;
+}
+
 std::string InputPortInfo::title() const
 {
     return d->title;
@@ -175,7 +184,17 @@ std::string InputPortInfo::title() const
 
 void InputPortInfo::setNewDataRawCallback(NewDataRawFn callback)
 {
+    d->newDataRawCb = std::move(callback);
+}
+
+void InputPortInfo::setNewDataCallback(NewDataFn callback)
+{
     d->newDataCb = std::move(callback);
+    if (!d->newDataCb) {
+        // Clearing the variant callback also invalidates any raw callback the connect
+        // handler resolved from it (that closure holds a pointer to newDataCb).
+        d->newDataRawCb = nullptr;
+    }
 }
 
 void InputPortInfo::setThrottleItemsPerSec(uint itemsPerSec)
@@ -620,9 +639,9 @@ public:
             if (!iport->d->ioxGuard.has_value() || !attachmentId.has_event_from(*iport->d->ioxGuard))
                 continue;
 
-            if (iport->d->newDataCb) {
+            if (iport->d->newDataRawCb) {
                 iport->d->ioxSub->handleEvents([&](const IoxImmutableByteSlice &pl) {
-                    iport->d->newDataCb(pl.data(), pl.number_of_bytes());
+                    iport->d->newDataRawCb(pl.data(), pl.number_of_bytes());
                 });
             } else {
                 // Still drain to prevent the queue filling up even if there's no callback.
@@ -868,6 +887,68 @@ void SyntalosLink::processPendingControl()
 
         // connect the port
         iport->d->connected = true;
+        // record the source's native (on-wire) type id. If the master sent 0, fall
+        // back to the declared type (assume the wire type matches).
+        iport->d->sourceTypeId = (r.sourceTypeId != 0) ? r.sourceTypeId : iport->d->dataTypeId;
+
+        // If the consumer registered a typed (variant) callback rather than a raw one, resolve
+        // the source-to-target deserialization path exactly once here, then build a raw
+        // callback that does the right thing on every sample with zero per-sample type-id
+        // lookup. Compatible-type conversions (e.g. U16->I32) are applied here, mirroring
+        // the in-process wrapSubscriptionForType() conversion set.
+        if (iport->d->newDataCb) {
+            const int srcId = iport->d->sourceTypeId;
+            const int dstId = iport->d->dataTypeId;
+            NewDataFn *varCbPtr = &iport->d->newDataCb;
+            NewDataRawFn resolved;
+
+            if (srcId == dstId) {
+                // Identity path: deserialize directly as the declared type.
+                forEachStreamType([&](auto tag) {
+                    using T = typename decltype(tag)::type;
+                    if (T::staticTypeId() != dstId)
+                        return false;
+                    resolved = [varCbPtr](const void *data, size_t size) {
+                        T value = T::fromMemory(data, size);
+                        (*varCbPtr)(value);
+                    };
+                    return true;
+                });
+            } else {
+                // Conversion path: deserialize as the source type, then construct the declared
+                // type from it via the compatible converting constructor.
+                forEachStreamType([&](auto fromTag) {
+                    using From = typename decltype(fromTag)::type;
+                    if (From::staticTypeId() != srcId)
+                        return false;
+                    return forEachStreamType([&](auto toTag) {
+                        using To = typename decltype(toTag)::type;
+                        if constexpr (!std::same_as<From, To> && std::constructible_from<To, From>) {
+                            if (To::staticTypeId() != dstId)
+                                return false;
+                            resolved = [varCbPtr](const void *data, size_t size) {
+                                To value(From::fromMemory(data, size));
+                                (*varCbPtr)(value);
+                            };
+                            return true;
+                        } else {
+                            return false;
+                        }
+                    });
+                });
+            }
+
+            if (resolved) {
+                iport->d->newDataRawCb = std::move(resolved);
+            } else {
+                SY_LOG_ERROR(
+                    logSyLink,
+                    "Cannot resolve conversion from wire type {} to declared input type {} on port {}",
+                    srcId,
+                    dstId,
+                    iport->d->id);
+            }
+        }
 
         // MUST reset the WaitSet guard BEFORE replacing the old subscriber
         iport->d->ioxGuard.reset();

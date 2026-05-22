@@ -162,7 +162,14 @@ auto StreamExporter::publishStreamByPort(const std::shared_ptr<VarStreamInputPor
 
     StreamExportData edata;
     edata.self = this;
+    // Use the source's native-type subscription for serialization, bypassing any
+    // per-input-port type-conversion adapter the consumer installed. This guarantees
+    // the wire format is always the source's native type, regardless of which consumer
+    // registered first; cross-process consumers with different (but compatible)
+    // declared input types convert on the worker side.
     edata.subscription = iport->subscriptionVar();
+    if (auto inner = edata.subscription->sourceSubscriptionVar())
+        edata.subscription = std::move(inner);
 
     // The output port may have multiple MLink consumers; size the IPC service
     // from the currently connected downstream subscribers.

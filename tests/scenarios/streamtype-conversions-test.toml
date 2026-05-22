@@ -1,0 +1,16 @@
+[test]
+name = "Stream-Type Conversions Test"
+project_file = "projects/streamtype-conversions.syct"
+run_duration_sec = 6
+expected_exit_code = 0
+expected_datasets = ["u16-to-i32-direct", "u16-to-i32-mlinkpy"]
+expected_stdout_contains = ["Module start order: Devel: DataSource ⇢ Zarr Writer ⇢ Python Script ⇢ Zarr Writer 2"]
+validator_script = "streamtype_conversions_validator.py"
+
+[[test.expected_output_files]]
+path = "attributes.toml"
+toml_fields = ["machine_node", "success"]
+
+[[test.expected_output_files]]
+path = "manifest.toml"
+toml_fields = ["collection_id", "format_version", "time_created", "type", "generator"]

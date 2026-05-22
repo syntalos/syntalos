@@ -42,6 +42,7 @@ using StartFn = std::function<void()>;
 using StopFn = std::function<void()>;
 using ShutdownFn = std::function<void()>;
 using NewDataRawFn = std::function<void(const void *data, size_t size)>;
+using NewDataFn = std::function<void(BaseDataType &data)>;
 
 using ShowSettingsFn = std::function<void(void)>;
 using ShowDisplayFn = std::function<void(void)>;
@@ -53,7 +54,21 @@ class InputPortInfo
 {
 public:
     std::string id() const;
+
+    /**
+     * @brief The data type ID of data returned by this port.
+     */
     int dataTypeId() const;
+
+    /**
+     * @brief The native data type id of the connected source output port.
+     *
+     * May differ from dataTypeId() when the source is a compatible (constructible-from)
+     * type rather than an exact match. Returns 0 if the port is not (yet) connected,
+     * in which case callers should treat the wire type as identical to dataTypeId().
+     */
+    int sourceTypeId() const;
+
     std::string title() const;
     MetaStringMap metadata() const;
 
@@ -61,11 +76,36 @@ public:
     InputPortInfo &operator=(const InputPortInfo &) = delete;
 
     /**
-     * @brief Sets a function to be called when new data arrives
+     * @brief Set a low-level callback invoked with raw wire bytes on every sample.
      *
-     * The data memory block passed to this function is only valid during the call.
+     * The memory block passed to this function is only valid during the call. The bytes
+     * are in the source output port's native serialization format, which may differ from
+     * this input port's declared type if the source is a compatible-but-different type -
+     * the callback is responsible for deserialization and any conversion.
+     *
+     * Most consumers should use setNewDataCallback() instead: it has deserialization
+     * already resolved. The raw callback is meant for advanced cases that need to
+     * inspect the wire format directly.
+     *
+     * If both this and setNewDataCallback() are set, the variant callback wins.
      */
     void setNewDataRawCallback(NewDataRawFn callback);
+
+    /**
+     * @brief Set a typed-data callback that receives an already-deserialized BaseDataType.
+     *
+     * The value passed to the callback is always of this port's declared input type (with
+     * any compatible-type conversion from the source already applied). The callback can
+     * therefore `static_cast<const T&>(data)` to its known declared type without
+     * per-sample type-id dispatch.
+     *
+     * Setting a non-null callback here causes the connect handler to install a resolved
+     * raw callback at connect time, overriding any setNewDataRawCallback() set earlier.
+     * Passing nullptr clears both this callback and any resolved raw callback derived
+     * from it.
+     */
+    void setNewDataCallback(NewDataFn callback);
+
     void setThrottleItemsPerSec(uint itemsPerSec);
 
     /**

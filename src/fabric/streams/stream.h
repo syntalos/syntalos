@@ -95,6 +95,19 @@ public:
 
     // used internally by Syntalos
     virtual void forcePushNullopt() = 0;
+
+    /**
+     * @brief If this subscription is a type-conversion view, return the underlying
+     * source-typed subscription it adapts; otherwise return nullptr.
+     *
+     * Used by the IPC stream exporter to serialize the source's native type onto
+     * the wire (so cross-process consumers with different but compatible declared
+     * input types each get correctly-decoded samples).
+     */
+    virtual std::shared_ptr<VariantStreamSubscription> sourceSubscriptionVar()
+    {
+        return nullptr;
+    }
 };
 
 class VariantDataStream
@@ -891,6 +904,11 @@ public:
     void forcePushNullopt() override
     {
         m_inner->forcePushNullopt();
+    }
+
+    std::shared_ptr<VariantStreamSubscription> sourceSubscriptionVar() override
+    {
+        return m_inner;
     }
 
 private:
