@@ -1048,7 +1048,7 @@ void FlowGraphEdge::updatePathTo(const QPointF &pos)
     // Cache the anchor for the type-conversion indicator while the path is
     // still bezier-only - pointAtPercent() walks the polygon perimeter once
     // the arrow shape is added below.
-    m_convIndicatorPos = path.pointAtPercent(is_out0 ? 0.92 : 0.08);
+    m_convIndicatorPos = path.pointAtPercent(0.92);
     path.cubicTo(pos3, pos2, pos1);
     const qreal arrow_size = 12.0;
     QVector<QPointF> arrow;
