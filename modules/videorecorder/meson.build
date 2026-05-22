@@ -65,6 +65,7 @@ mod = shared_module(module_name,
     cpp_args: module_args,
     install: true,
     install_dir: mod_install_dir,
+    install_rpath: sy_libdir,
 )
 
 mod_data = configuration_data()
