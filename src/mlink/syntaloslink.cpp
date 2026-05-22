@@ -182,6 +182,65 @@ std::string InputPortInfo::title() const
     return d->title;
 }
 
+/**
+ * Resolve the variant (typed) callback into a per-sample raw callback once, using
+ * the recorded source-on-wire type ID and the declared input type ID. Compatible
+ * stream type castings are applied here.
+ *
+ * Port has to be connected (sourceTypeId != 0) and d.newDataCb should be set.
+ */
+void resolveTypedNewDataCallback(InputPortInfo *iport)
+{
+    const int srcId = iport->d->sourceTypeId;
+    const int dstId = iport->d->dataTypeId;
+    NewDataFn *varCbPtr = &iport->d->newDataCb;
+    NewDataRawFn resolved;
+
+    if (srcId == dstId) {
+        forEachStreamType([&](auto tag) {
+            using T = typename decltype(tag)::type;
+            if (T::staticTypeId() != dstId)
+                return false;
+            resolved = [varCbPtr](const void *data, size_t size) {
+                T value = T::fromMemory(data, size);
+                (*varCbPtr)(value);
+            };
+            return true;
+        });
+    } else {
+        forEachStreamType([&](auto fromTag) {
+            using From = typename decltype(fromTag)::type;
+            if (From::staticTypeId() != srcId)
+                return false;
+            return forEachStreamType([&](auto toTag) {
+                using To = typename decltype(toTag)::type;
+                if constexpr (!std::same_as<From, To> && std::constructible_from<To, From>) {
+                    if (To::staticTypeId() != dstId)
+                        return false;
+                    resolved = [varCbPtr](const void *data, size_t size) {
+                        To value(From::fromMemory(data, size));
+                        (*varCbPtr)(value);
+                    };
+                    return true;
+                } else {
+                    return false;
+                }
+            });
+        });
+    }
+
+    if (resolved) {
+        iport->d->newDataRawCb = std::move(resolved);
+    } else {
+        SY_LOG_ERROR(
+            logSyLink,
+            "Cannot resolve conversion from wire type {} to declared input type {} on port {}",
+            srcId,
+            dstId,
+            iport->d->id);
+    }
+}
+
 void InputPortInfo::setNewDataRawCallback(NewDataRawFn callback)
 {
     d->newDataRawCb = std::move(callback);
@@ -191,10 +250,15 @@ void InputPortInfo::setNewDataCallback(NewDataFn callback)
 {
     d->newDataCb = std::move(callback);
     if (!d->newDataCb) {
-        // Clearing the variant callback also invalidates any raw callback the connect
-        // handler resolved from it (that closure holds a pointer to newDataCb).
+        // Clearing the variant callback also invalidates any raw callback we resolved
+        // from it (that closure holds a pointer to newDataCb).
         d->newDataRawCb = nullptr;
+        return;
     }
+
+    // If the port is already connected (source type known), resolve right away!
+    if (d->sourceTypeId != 0)
+        resolveTypedNewDataCallback(this);
 }
 
 void InputPortInfo::setThrottleItemsPerSec(uint itemsPerSec)
@@ -891,64 +955,9 @@ void SyntalosLink::processPendingControl()
         // back to the declared type (assume the wire type matches).
         iport->d->sourceTypeId = (r.sourceTypeId != 0) ? r.sourceTypeId : iport->d->dataTypeId;
 
-        // If the consumer registered a typed (variant) callback rather than a raw one, resolve
-        // the source-to-target deserialization path exactly once here, then build a raw
-        // callback that does the right thing on every sample with zero per-sample type-id
-        // lookup. Compatible-type conversions (e.g. U16->I32) are applied here, mirroring
-        // the in-process wrapSubscriptionForType() conversion set.
-        if (iport->d->newDataCb) {
-            const int srcId = iport->d->sourceTypeId;
-            const int dstId = iport->d->dataTypeId;
-            NewDataFn *varCbPtr = &iport->d->newDataCb;
-            NewDataRawFn resolved;
-
-            if (srcId == dstId) {
-                // Identity path: deserialize directly as the declared type.
-                forEachStreamType([&](auto tag) {
-                    using T = typename decltype(tag)::type;
-                    if (T::staticTypeId() != dstId)
-                        return false;
-                    resolved = [varCbPtr](const void *data, size_t size) {
-                        T value = T::fromMemory(data, size);
-                        (*varCbPtr)(value);
-                    };
-                    return true;
-                });
-            } else {
-                // Conversion path: deserialize as the source type, then construct the declared
-                // type from it via the compatible converting constructor.
-                forEachStreamType([&](auto fromTag) {
-                    using From = typename decltype(fromTag)::type;
-                    if (From::staticTypeId() != srcId)
-                        return false;
-                    return forEachStreamType([&](auto toTag) {
-                        using To = typename decltype(toTag)::type;
-                        if constexpr (!std::same_as<From, To> && std::constructible_from<To, From>) {
-                            if (To::staticTypeId() != dstId)
-                                return false;
-                            resolved = [varCbPtr](const void *data, size_t size) {
-                                To value(From::fromMemory(data, size));
-                                (*varCbPtr)(value);
-                            };
-                            return true;
-                        } else {
-                            return false;
-                        }
-                    });
-                });
-            }
-
-            if (resolved) {
-                iport->d->newDataRawCb = std::move(resolved);
-            } else {
-                SY_LOG_ERROR(
-                    logSyLink,
-                    "Cannot resolve conversion from wire type {} to declared input type {} on port {}",
-                    srcId,
-                    dstId,
-                    iport->d->id);
-            }
-        }
+        // If a typed (variant) callback was registered before connect, resolve it now!
+        if (iport->d->newDataCb)
+            resolveTypedNewDataCallback(iport.get());
 
         // MUST reset the WaitSet guard BEFORE replacing the old subscriber
         iport->d->ioxGuard.reset();

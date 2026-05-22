@@ -127,8 +127,8 @@ public:
 private:
     friend SyntalosLink;
     explicit InputPortInfo(const InputPortChangeRequest &pc);
+    friend void resolveTypedNewDataCallback(InputPortInfo *iport);
 
-private:
     class Private;
     std::unique_ptr<Private> d;
 };
