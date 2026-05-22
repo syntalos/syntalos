@@ -160,10 +160,7 @@ void HWLineOutputWidget::onPinIdChange(int)
     submitNewPinCommand();
 }
 
-HWLineInputWidget::HWLineInputWidget(
-    std::shared_ptr<DataStream<LineCommand>> fmCtlStream,
-    bool analog,
-    QWidget *parent)
+HWLineInputWidget::HWLineInputWidget(std::shared_ptr<DataStream<LineCommand>> fmCtlStream, bool analog, QWidget *parent)
     : QWidget(parent),
       m_isAnalog(analog),
       m_fmCtlStream(fmCtlStream)
