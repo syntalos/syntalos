@@ -8,6 +8,7 @@
 #
 
 import os
+import re
 import sys
 import shutil
 import fnmatch
@@ -27,11 +28,47 @@ EXCLUDE_MATCH = [
     '*/tests/rwqueue/*',
 ]
 
+MIN_CLANG_FORMAT_VERSION = 22
+CLANG_FORMAT_FALLBACKS = ['clang-format-24', 'clang-format-23', 'clang-format-22']
 
-def format_cpp_sources(sources):
+
+def get_clang_format_version(executable):
+    """Return the major version of the given clang-format executable, or None on failure."""
+
+    try:
+        result = subprocess.run(
+            [executable, '--version'], capture_output=True, text=True, check=True
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+    match = re.search(r'version\s+(\d+)', result.stdout)
+    if not match:
+        return None
+    return int(match.group(1))
+
+
+def find_clang_format():
+    """Find a suitable clang-format executable."""
+
+    candidates = []
+    if shutil.which('clang-format'):
+        candidates.append('clang-format')
+    for name in CLANG_FORMAT_FALLBACKS:
+        if shutil.which(name):
+            candidates.append(name)
+
+    for exe in candidates:
+        version = get_clang_format_version(exe)
+        if version is not None and version >= MIN_CLANG_FORMAT_VERSION:
+            return exe, version
+
+    return None, None
+
+
+def format_cpp_sources(executable, sources):
     """Format C/C++ sources with clang-format."""
 
-    command = ['clang-format', '-i']
+    command = [executable, '-i']
     command.extend(sources)
     subprocess.run(command, check=True)
 
@@ -53,11 +90,23 @@ def format_python_sources(sources):
 
 def run(current_dir, args):
     # check for tools
-    if not shutil.which('clang-format'):
-        print(
-            'The `clang-format` formatter is not installed. Please install it to continue!',
-            file=sys.stderr,
-        )
+    clang_format_exe, clang_format_version = find_clang_format()
+    if not clang_format_exe:
+        if shutil.which('clang-format'):
+            current_version = get_clang_format_version('clang-format')
+            print(
+                'Found `clang-format` version {}, but version {} or newer is required. '
+                'Please install clang-format >= {}.'.format(
+                    current_version, MIN_CLANG_FORMAT_VERSION, MIN_CLANG_FORMAT_VERSION
+                ),
+                file=sys.stderr,
+            )
+        else:
+            print(
+                'The `clang-format` formatter (version {} or newer) is not installed. '
+                'Please install it to continue!'.format(MIN_CLANG_FORMAT_VERSION),
+                file=sys.stderr,
+            )
         return 1
     if not shutil.which('black'):
         print(
@@ -95,7 +144,7 @@ def run(current_dir, args):
 
     # format
     format_python_sources(py_sources)
-    format_cpp_sources(cpp_sources)
+    format_cpp_sources(clang_format_exe, cpp_sources)
 
     return 0
 
