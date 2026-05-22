@@ -1,24 +1,24 @@
-# Build definitions for module: firmata-userctl
+# Build definitions for module: hwline-userctl
 
 module_hdr = [
-    'firmatauserctlmod.h'
+    'hwlineuserctlmod.h'
 ]
 module_moc_hdr = [
-    'firmatactldialog.h'
+    'hwlinectldialog.h'
 ]
 
 module_src = [
-    'firmatauserctlmod.cpp',
-    'firmatactldialog.cpp'
+    'hwlineuserctlmod.cpp',
+    'hwlinectldialog.cpp'
 ]
 module_moc_src = []
 
-module_ui = ['firmatactldialog.ui']
+module_ui = ['hwlinectldialog.ui']
 
 module_deps = []
 
 module_data = [
-    'firmata-userctl.svg',
+    'hwline-userctl.svg',
 ]
 
 #

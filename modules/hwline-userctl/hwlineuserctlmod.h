@@ -24,7 +24,7 @@
 
 SYNTALOS_DECLARE_MODULE
 
-class FirmataUserCtlModuleInfo : public ModuleInfo
+class HWLineUserCtlModuleInfo : public ModuleInfo
 {
 public:
     QString id() const final;

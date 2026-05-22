@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2018-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -17,15 +17,15 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "firmatactldialog.h"
-#include "ui_firmatactldialog.h"
+#include "hwlinectldialog.h"
+#include "ui_hwlinectldialog.h"
 
 #include <QInputDialog>
 #include <QLabel>
 #include <QPushButton>
 #include <QSpinBox>
 
-FirmataOutputWidget::FirmataOutputWidget(
+HWLineOutputWidget::HWLineOutputWidget(
     std::shared_ptr<DataStream<LineCommand>> fmCtlStream,
     bool analog,
     QWidget *parent)
@@ -122,22 +122,22 @@ FirmataOutputWidget::FirmataOutputWidget(
     onPinIdChange(m_sbPinId->value());
 }
 
-bool FirmataOutputWidget::isAnalog() const
+bool HWLineOutputWidget::isAnalog() const
 {
     return m_isAnalog;
 }
 
-int FirmataOutputWidget::pinId() const
+int HWLineOutputWidget::pinId() const
 {
     return m_sbPinId->value();
 }
 
-void FirmataOutputWidget::setPinId(int pinId)
+void HWLineOutputWidget::setPinId(int pinId)
 {
     m_sbPinId->setValue(pinId);
 }
 
-void FirmataOutputWidget::submitNewPinCommand()
+void HWLineOutputWidget::submitNewPinCommand()
 {
     // Configure pin as output
     LineCommand pinModeCmd(LineCommandKind::SET_MODE, static_cast<uint16_t>(m_sbPinId->value()));
@@ -145,22 +145,22 @@ void FirmataOutputWidget::submitNewPinCommand()
     m_fmCtlStream->push(pinModeCmd);
 }
 
-int FirmataOutputWidget::value() const
+int HWLineOutputWidget::value() const
 {
     return m_sbValue->value();
 }
 
-void FirmataOutputWidget::setValue(int value)
+void HWLineOutputWidget::setValue(int value)
 {
     m_sbValue->setValue(value);
 }
 
-void FirmataOutputWidget::onPinIdChange(int)
+void HWLineOutputWidget::onPinIdChange(int)
 {
     submitNewPinCommand();
 }
 
-FirmataInputWidget::FirmataInputWidget(
+HWLineInputWidget::HWLineInputWidget(
     std::shared_ptr<DataStream<LineCommand>> fmCtlStream,
     bool analog,
     QWidget *parent)
@@ -214,22 +214,22 @@ FirmataInputWidget::FirmataInputWidget(
     setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Minimum);
 }
 
-bool FirmataInputWidget::isAnalog() const
+bool HWLineInputWidget::isAnalog() const
 {
     return m_isAnalog;
 }
 
-int FirmataInputWidget::pinId() const
+int HWLineInputWidget::pinId() const
 {
     return m_sbPinId->value();
 }
 
-void FirmataInputWidget::setPinId(int pinId)
+void HWLineInputWidget::setPinId(int pinId)
 {
     m_sbPinId->setValue(pinId);
 }
 
-void FirmataInputWidget::setValue(int value)
+void HWLineInputWidget::setValue(int value)
 {
     if (m_isAnalog)
         m_lblValue->setText(QString::number(value));
@@ -237,7 +237,7 @@ void FirmataInputWidget::setValue(int value)
         m_lblValue->setText((value > 0) ? QStringLiteral("true") : QStringLiteral("false"));
 }
 
-void FirmataInputWidget::submitNewPinCommand()
+void HWLineInputWidget::submitNewPinCommand()
 {
     // Configure pin as input
     LineCommand pinModeCmd(LineCommandKind::SET_MODE, static_cast<uint16_t>(m_sbPinId->value()));
@@ -245,14 +245,14 @@ void FirmataInputWidget::submitNewPinCommand()
     m_fmCtlStream->push(pinModeCmd);
 }
 
-void FirmataInputWidget::onPinIdChange(int)
+void HWLineInputWidget::onPinIdChange(int)
 {
     submitNewPinCommand();
 }
 
-FirmataCtlDialog::FirmataCtlDialog(std::shared_ptr<DataStream<LineCommand>> fmCtlStream, QWidget *parent)
+HWLineCtlDialog::HWLineCtlDialog(std::shared_ptr<DataStream<LineCommand>> fmCtlStream, QWidget *parent)
     : QDialog(parent),
-      ui(new Ui::FirmataCtlDialog),
+      ui(new Ui::HWLineCtlDialog),
       m_lastPinId(0),
       m_fmCtlStream(fmCtlStream)
 {
@@ -260,32 +260,32 @@ FirmataCtlDialog::FirmataCtlDialog(std::shared_ptr<DataStream<LineCommand>> fmCt
     setWindowIcon(QIcon(":/icons/generic-view"));
 }
 
-FirmataCtlDialog::~FirmataCtlDialog()
+HWLineCtlDialog::~HWLineCtlDialog()
 {
     delete ui;
 }
 
-void FirmataCtlDialog::initializeAllPins()
+void HWLineCtlDialog::initializeAllPins()
 {
     for (const auto w : ui->saOutputContents->children()) {
-        const auto ow = qobject_cast<FirmataOutputWidget *>(w);
+        const auto ow = qobject_cast<HWLineOutputWidget *>(w);
         if (ow == nullptr)
             continue;
         ow->submitNewPinCommand();
     }
 
     for (const auto w : ui->saInputContents->children()) {
-        const auto iw = qobject_cast<FirmataInputWidget *>(w);
+        const auto iw = qobject_cast<HWLineInputWidget *>(w);
         if (iw == nullptr)
             continue;
         iw->submitNewPinCommand();
     }
 }
 
-void FirmataCtlDialog::pinValueChanged(const LineReading &data)
+void HWLineCtlDialog::pinValueChanged(const LineReading &data)
 {
     for (const auto w : ui->saInputContents->children()) {
-        const auto iw = qobject_cast<FirmataInputWidget *>(w);
+        const auto iw = qobject_cast<HWLineInputWidget *>(w);
         if (iw == nullptr)
             continue;
         if (iw->pinId() == data.lineId) {
@@ -295,13 +295,13 @@ void FirmataCtlDialog::pinValueChanged(const LineReading &data)
     }
 }
 
-QVariantHash FirmataCtlDialog::serializeSettings()
+QVariantHash HWLineCtlDialog::serializeSettings()
 {
     QVariantList outputCtls;
     QVariantList inputViews;
 
     for (const auto w : ui->saOutputContents->children()) {
-        const auto ow = qobject_cast<FirmataOutputWidget *>(w);
+        const auto ow = qobject_cast<HWLineOutputWidget *>(w);
         if (ow == nullptr)
             continue;
         QVariantHash var;
@@ -313,7 +313,7 @@ QVariantHash FirmataCtlDialog::serializeSettings()
     }
 
     for (const auto w : ui->saInputContents->children()) {
-        const auto iw = qobject_cast<FirmataInputWidget *>(w);
+        const auto iw = qobject_cast<HWLineInputWidget *>(w);
         if (iw == nullptr)
             continue;
         QVariantHash var;
@@ -328,16 +328,16 @@ QVariantHash FirmataCtlDialog::serializeSettings()
     return settings;
 }
 
-void FirmataCtlDialog::restoreFromSettings(const QVariantHash &settings)
+void HWLineCtlDialog::restoreFromSettings(const QVariantHash &settings)
 {
     for (const auto w : ui->saOutputContents->children()) {
-        const auto ow = qobject_cast<FirmataOutputWidget *>(w);
+        const auto ow = qobject_cast<HWLineOutputWidget *>(w);
         if (ow == nullptr)
             continue;
         delete ow;
     }
     for (const auto w : ui->saInputContents->children()) {
-        const auto iw = qobject_cast<FirmataInputWidget *>(w);
+        const auto iw = qobject_cast<HWLineInputWidget *>(w);
         if (iw == nullptr)
             continue;
         delete iw;
@@ -351,7 +351,7 @@ void FirmataCtlDialog::restoreFromSettings(const QVariantHash &settings)
 
     for (const auto &varRaw : outputCtls) {
         const auto var = varRaw.toHash();
-        auto w = new FirmataOutputWidget(m_fmCtlStream, var.value("is_analog", false).toBool(), ui->saOutputContents);
+        auto w = new HWLineOutputWidget(m_fmCtlStream, var.value("is_analog", false).toBool(), ui->saOutputContents);
         const auto layout = qobject_cast<QVBoxLayout *>(ui->saOutputContents->layout());
         layout->insertWidget(layout->count() - 1, w);
         w->setPinId(var.value("pin_id", 0).toInt());
@@ -361,14 +361,14 @@ void FirmataCtlDialog::restoreFromSettings(const QVariantHash &settings)
 
     for (const auto &varRaw : inputViews) {
         const auto var = varRaw.toHash();
-        auto w = new FirmataInputWidget(m_fmCtlStream, var.value("is_analog", false).toBool(), ui->saInputContents);
+        auto w = new HWLineInputWidget(m_fmCtlStream, var.value("is_analog", false).toBool(), ui->saInputContents);
         const auto layout = qobject_cast<QVBoxLayout *>(ui->saInputContents->layout());
         layout->insertWidget(layout->count() - 1, w);
         w->setPinId(var.value("pin_id", 0).toInt());
     }
 }
 
-void FirmataCtlDialog::on_btnAddOutputControl_clicked()
+void HWLineCtlDialog::on_btnAddOutputControl_clicked()
 {
     bool ok;
     auto item = QInputDialog::getItem(
@@ -383,7 +383,7 @@ void FirmataCtlDialog::on_btnAddOutputControl_clicked()
     if (!ok || item.isEmpty())
         return;
 
-    auto w = new FirmataOutputWidget(m_fmCtlStream, item.startsWith(QStringLiteral("Analog")), ui->saOutputContents);
+    auto w = new HWLineOutputWidget(m_fmCtlStream, item.startsWith(QStringLiteral("Analog")), ui->saOutputContents);
     const auto layout = qobject_cast<QVBoxLayout *>(ui->saOutputContents->layout());
     layout->insertWidget(layout->count() - 1, w);
 
@@ -393,7 +393,7 @@ void FirmataCtlDialog::on_btnAddOutputControl_clicked()
         m_lastPinId = 0;
 }
 
-void FirmataCtlDialog::on_btnAddInputWatch_clicked()
+void HWLineCtlDialog::on_btnAddInputWatch_clicked()
 {
     bool ok;
     auto item = QInputDialog::getItem(
@@ -408,7 +408,7 @@ void FirmataCtlDialog::on_btnAddInputWatch_clicked()
     if (!ok || item.isEmpty())
         return;
 
-    auto w = new FirmataInputWidget(m_fmCtlStream, item.startsWith(QStringLiteral("Analog")), ui->saInputContents);
+    auto w = new HWLineInputWidget(m_fmCtlStream, item.startsWith(QStringLiteral("Analog")), ui->saInputContents);
     const auto layout = qobject_cast<QVBoxLayout *>(ui->saInputContents->layout());
     layout->insertWidget(layout->count() - 1, w);
 

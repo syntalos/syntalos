@@ -52,7 +52,7 @@ subdir('triled-tracker')
 
 # Device support
 subdir('firmata-io')
-subdir('firmata-userctl')
+subdir('hwline-userctl')
 subdir('galdur-stim')
 subdir('onix-commutator')
 subdir('sp210-pressuresense')

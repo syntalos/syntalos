@@ -17,37 +17,37 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "firmatauserctlmod.h"
+#include "hwlineuserctlmod.h"
 
-#include "firmatactldialog.h"
+#include "hwlinectldialog.h"
 #include <QTimer>
 
-SYNTALOS_MODULE(FirmataUserCtlModule)
+SYNTALOS_MODULE(HWLineUserCtlModule)
 
-class FirmataUserCtlModule : public AbstractModule
+class HWLineUserCtlModule : public AbstractModule
 {
 private:
     std::shared_ptr<StreamInputPort<LineReading>> m_fmInPort;
     std::shared_ptr<DataStream<LineCommand>> m_fmCtlStream;
-    FirmataCtlDialog *m_ctlDialog;
+    HWLineCtlDialog *m_ctlDialog;
     QTimer *m_evTimer;
     std::shared_ptr<StreamSubscription<LineReading>> m_fmInSub;
 
 public:
-    explicit FirmataUserCtlModule(QObject *parent = nullptr)
+    explicit HWLineUserCtlModule(QObject *parent = nullptr)
         : AbstractModule(parent)
     {
-        m_fmInPort = registerInputPort<LineReading>(QStringLiteral("firmata-in"), QStringLiteral("Line Readings"));
-        m_fmCtlStream = registerOutputPort<LineCommand>(QStringLiteral("firmata-out"), QStringLiteral("Line Control"));
-        m_ctlDialog = new FirmataCtlDialog(m_fmCtlStream);
+        m_fmInPort = registerInputPort<LineReading>(QStringLiteral("hwline-in"), QStringLiteral("Line Readings"));
+        m_fmCtlStream = registerOutputPort<LineCommand>(QStringLiteral("hwline-out"), QStringLiteral("Line Control"));
+        m_ctlDialog = new HWLineCtlDialog(m_fmCtlStream);
         addDisplayWindow(m_ctlDialog);
 
         m_evTimer = new QTimer(this);
         m_evTimer->setInterval(50); // we only fetch new values every 50msec
-        connect(m_evTimer, &QTimer::timeout, this, &FirmataUserCtlModule::readFirmataEvents);
+        connect(m_evTimer, &QTimer::timeout, this, &HWLineUserCtlModule::readHWLineEvents);
     }
 
-    ~FirmataUserCtlModule() override = default;
+    ~HWLineUserCtlModule() override = default;
 
     ModuleFeatures features() const override
     {
@@ -79,7 +79,7 @@ public:
         m_fmCtlStream->stop();
     }
 
-    void readFirmataEvents()
+    void readHWLineEvents()
     {
         const auto maybeData = m_fmInSub->peekNext();
         if (!maybeData.has_value())
@@ -101,27 +101,27 @@ public:
 private:
 };
 
-QString FirmataUserCtlModuleInfo::id() const
+QString HWLineUserCtlModuleInfo::id() const
 {
-    return QStringLiteral("firmata-userctl");
+    return QStringLiteral("hwline-userctl");
 }
 
-QString FirmataUserCtlModuleInfo::name() const
+QString HWLineUserCtlModuleInfo::name() const
 {
-    return QStringLiteral("Firmata User Control");
+    return QStringLiteral("Manual Line Control");
 }
 
-QString FirmataUserCtlModuleInfo::description() const
+QString HWLineUserCtlModuleInfo::description() const
 {
-    return QStringLiteral("A simple control panel to manually change Firmata output and view raw input data.");
+    return QStringLiteral("A simple control panel to manually drive hardware-line outputs and view input readings.");
 }
 
-ModuleCategories FirmataUserCtlModuleInfo::categories() const
+ModuleCategories HWLineUserCtlModuleInfo::categories() const
 {
     return ModuleCategory::SCRIPTING | ModuleCategory::PROCESSING;
 }
 
-AbstractModule *FirmataUserCtlModuleInfo::createModule(QObject *parent)
+AbstractModule *HWLineUserCtlModuleInfo::createModule(QObject *parent)
 {
-    return new FirmataUserCtlModule(parent);
+    return new HWLineUserCtlModule(parent);
 }

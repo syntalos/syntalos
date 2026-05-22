@@ -27,12 +27,12 @@ class QSpinBox;
 class QPushButton;
 class QLabel;
 
-class FirmataOutputWidget : public QWidget
+class HWLineOutputWidget : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit FirmataOutputWidget(
+    explicit HWLineOutputWidget(
         std::shared_ptr<DataStream<LineCommand>> fmCtlStream,
         bool analog,
         QWidget *parent = nullptr);
@@ -61,12 +61,12 @@ private:
     std::shared_ptr<DataStream<LineCommand>> m_fmCtlStream;
 };
 
-class FirmataInputWidget : public QWidget
+class HWLineInputWidget : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit FirmataInputWidget(
+    explicit HWLineInputWidget(
         std::shared_ptr<DataStream<LineCommand>> fmCtlStream,
         bool analog,
         QWidget *parent = nullptr);
@@ -95,16 +95,16 @@ private:
 
 namespace Ui
 {
-class FirmataCtlDialog;
+class HWLineCtlDialog;
 }
 
-class FirmataCtlDialog : public QDialog
+class HWLineCtlDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit FirmataCtlDialog(std::shared_ptr<DataStream<LineCommand>> fmCtlStream, QWidget *parent = nullptr);
-    ~FirmataCtlDialog();
+    explicit HWLineCtlDialog(std::shared_ptr<DataStream<LineCommand>> fmCtlStream, QWidget *parent = nullptr);
+    ~HWLineCtlDialog();
 
     void initializeAllPins();
     void pinValueChanged(const LineReading &data);
@@ -117,7 +117,7 @@ private slots:
     void on_btnAddInputWatch_clicked();
 
 private:
-    Ui::FirmataCtlDialog *ui;
+    Ui::HWLineCtlDialog *ui;
 
     int m_lastPinId;
     std::shared_ptr<DataStream<LineCommand>> m_fmCtlStream;
