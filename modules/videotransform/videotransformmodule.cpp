@@ -194,7 +194,8 @@ QString VideoTransformModuleInfo::name() const
 
 QString VideoTransformModuleInfo::description() const
 {
-    return QStringLiteral("Perform common transformations on frames, such as cropping and scaling.");
+    return QStringLiteral(
+        "Perform common transformations on frames, such as cropping, scaling, rotating and mirroring.");
 }
 
 ModuleCategories VideoTransformModuleInfo::categories() const

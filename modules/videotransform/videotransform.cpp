@@ -19,6 +19,7 @@
 
 #include "videotransform.h"
 
+#include <QComboBox>
 #include <QFormLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -80,7 +81,7 @@ CropTransform::CropTransform()
 
 QString CropTransform::name() const
 {
-    return QStringLiteral("Crop Frames");
+    return QStringLiteral("Crop");
 }
 
 QIcon CropTransform::icon() const
@@ -447,7 +448,7 @@ ScaleTransform::ScaleTransform()
 
 QString ScaleTransform::name() const
 {
-    return QStringLiteral("Scale Frames");
+    return QStringLiteral("Scale");
 }
 
 QIcon ScaleTransform::icon() const
@@ -503,6 +504,140 @@ bool ScaleTransform::needsIndependentCopy() const
 {
     // Only need a copy if we're actually scaling (scale factor != 1.0)
     return std::abs(m_scaleFactor - 1.0) >= 1e-6;
+}
+
+static int normalizeRotationDegrees(int degrees)
+{
+    switch (degrees) {
+    case 90:
+    case 180:
+    case 270:
+        return degrees;
+    default:
+        return 90;
+    }
+}
+
+RotateTransform::RotateTransform(int degrees)
+    : VideoTransform(),
+      m_degrees(normalizeRotationDegrees(degrees))
+{
+}
+
+QString RotateTransform::name() const
+{
+    return QStringLiteral("Rotate");
+}
+
+QIcon RotateTransform::icon() const
+{
+    return QIcon::fromTheme("object-rotate-right");
+}
+
+void RotateTransform::createSettingsUi(QWidget *parent)
+{
+    auto *rotationSelector = new QComboBox(parent);
+    rotationSelector->addItem(QStringLiteral("90 degrees"), 90);
+    rotationSelector->addItem(QStringLiteral("180 degrees"), 180);
+    rotationSelector->addItem(QStringLiteral("270 degrees"), 270);
+    rotationSelector->setCurrentIndex(rotationSelector->findData(m_degrees));
+    connect(rotationSelector, qOverload<int>(&QComboBox::currentIndexChanged), [this, rotationSelector](int index) {
+        m_degrees = normalizeRotationDegrees(rotationSelector->itemData(index).toInt());
+    });
+
+    auto formLayout = new QFormLayout(parent);
+    formLayout->addRow(QStringLiteral("Rotation:"), rotationSelector);
+    parent->setLayout(formLayout);
+}
+
+MetaSize RotateTransform::resultSize()
+{
+    if (m_degrees == 90 || m_degrees == 270)
+        return {m_originalSize.height, m_originalSize.width};
+    return m_originalSize;
+}
+
+void RotateTransform::process(cv::Mat &image)
+{
+    switch (m_degrees) {
+    case 90:
+        cv::transpose(image, image);
+        cv::flip(image, image, 1);
+        break;
+    case 180:
+        cv::flip(image, image, -1);
+        break;
+    case 270:
+        cv::transpose(image, image);
+        cv::flip(image, image, 0);
+        break;
+    default:
+        return;
+    }
+}
+
+QVariantHash RotateTransform::toVariantHash()
+{
+    QVariantHash var;
+    var.insert("rotation_degrees", m_degrees);
+    return var;
+}
+
+void RotateTransform::fromVariantHash(const QVariantHash &settings)
+{
+    m_degrees = normalizeRotationDegrees(settings.value("rotation_degrees", 90).toInt());
+}
+
+MirrorTransform::MirrorTransform(Axis axis)
+    : VideoTransform(),
+      m_axis(axis)
+{
+}
+
+QString MirrorTransform::name() const
+{
+    return QStringLiteral("Mirror");
+}
+
+QIcon MirrorTransform::icon() const
+{
+    if (m_axis == Axis::X)
+        return QIcon::fromTheme("object-flip-horizontal");
+    return QIcon::fromTheme("object-flip-vertical");
+}
+
+void MirrorTransform::createSettingsUi(QWidget *parent)
+{
+    auto *axisSelector = new QComboBox(parent);
+    axisSelector->addItem(QStringLiteral("X"), QStringLiteral("x"));
+    axisSelector->addItem(QStringLiteral("Y"), QStringLiteral("y"));
+    axisSelector->setCurrentIndex(m_axis == Axis::X ? 0 : 1);
+    connect(axisSelector, qOverload<int>(&QComboBox::currentIndexChanged), [this, axisSelector](int index) {
+        const auto axisStr = axisSelector->itemData(index).toString();
+        m_axis = axisStr == QStringLiteral("y") ? Axis::Y : Axis::X;
+    });
+
+    auto formLayout = new QFormLayout(parent);
+    formLayout->addRow(QStringLiteral("Axis:"), axisSelector);
+    parent->setLayout(formLayout);
+}
+
+void MirrorTransform::process(cv::Mat &image)
+{
+    cv::flip(image, image, m_axis == Axis::X ? 1 : 0);
+}
+
+QVariantHash MirrorTransform::toVariantHash()
+{
+    QVariantHash var;
+    var.insert("mirror_axis", m_axis == Axis::X ? QStringLiteral("x") : QStringLiteral("y"));
+    return var;
+}
+
+void MirrorTransform::fromVariantHash(const QVariantHash &settings)
+{
+    const auto axisStr = settings.value("mirror_axis", QStringLiteral("x")).toString().toLower();
+    m_axis = axisStr == QStringLiteral("y") ? Axis::Y : Axis::X;
 }
 
 FalseColorTransform::FalseColorTransform()

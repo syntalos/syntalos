@@ -49,10 +49,12 @@ VTransformCtlDialog::~VTransformCtlDialog()
 
 void VTransformCtlDialog::setRunning(bool running)
 {
-    if (running != m_running)
-        updateUi();
+    if (running == m_running)
+        return;
+
     m_running = running;
     ui->modButtonsWidget->setEnabled(!m_running);
+    updateUi();
 }
 
 void VTransformCtlDialog::updateUi()
@@ -112,8 +114,10 @@ void VTransformCtlDialog::on_btnAdd_clicked()
         QStringLiteral("New Transformation:"),
         QStringList() << "Crop"
                       << "Scale"
+                      << "Rotate"
+                      << "Mirror"
                       << "False Color"
-                      << "Normalize Histogram", // TODO: Remove Color; Flip; Reduce Rate
+                      << "Normalize Histogram", // TODO: Remove Color; Reduce Rate
         0,
         false,
         &ok);
@@ -125,6 +129,10 @@ void VTransformCtlDialog::on_btnAdd_clicked()
         tfPtr = new ScaleTransform;
     else if (item == "Crop")
         tfPtr = new CropTransform;
+    else if (item == "Rotate")
+        tfPtr = new RotateTransform;
+    else if (item == "Mirror")
+        tfPtr = new MirrorTransform;
     else if (item == "False Color")
         tfPtr = new FalseColorTransform;
     else if (item == "Normalize Histogram")
