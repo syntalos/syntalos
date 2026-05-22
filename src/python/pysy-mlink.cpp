@@ -193,7 +193,7 @@ struct OutputPort {
     void _set_metadata_value_private(const std::string &key, const MetaValue &value)
     {
         auto slink = getActiveLink();
-        _oport->setMetadataVar(key, value);
+        _oport->setMetadataValue(key, value);
         slink->updateOutputPort(_oport);
     }
 
@@ -251,6 +251,13 @@ struct OutputPort {
 
         const auto seq = value.cast<py::sequence>();
         _set_metadata_value_private(key, MetaSize(seq[0].cast<int32_t>(), seq[1].cast<int32_t>()));
+    }
+
+    void set_metadata(const MetaStringMap &metadata)
+    {
+        auto slink = getActiveLink();
+        _oport->setMetadata(metadata);
+        slink->updateOutputPort(_oport);
     }
 
     std::string _id;
@@ -345,8 +352,10 @@ public:
 
         // Drop all C++ callbacks that capture Python objects while the interpreter
         // is still in a valid state.
-        for (const auto &iport : m_slink->inputPorts())
+        for (const auto &iport : m_slink->inputPorts()) {
             iport->setNewDataRawCallback(nullptr);
+            iport->setNewDataCallback(nullptr);
+        }
 
         m_slink->setPrepareRunCallback(nullptr);
         m_slink->setStartCallback(nullptr);
@@ -1183,7 +1192,19 @@ PYBIND11_MODULE(syntalos_mlink, m)
             ":param key: Metadata key string.\n"
             ":param value: Either a :class:`MetaSize` object or a sequence of exactly two integers ``[width, "
             "height]``.\n"
-            ":raises SyntalosPyError: If ``value`` does not have exactly two elements.");
+            ":raises SyntalosPyError: If ``value`` does not have exactly two elements.")
+        .def(
+            "set_metadata",
+            &OutputPort::set_metadata,
+            py::arg("metadata"),
+            "Set a metadata for this port, overriding all previous data.\n"
+            "\n"
+            "Metadata must be set before the run starts (i.e. in ``prepare()``); it is immutable once\n"
+            "acquisition begins.\n"
+            "This function overrides all metadata that was previously set. You usually want to use "
+            ":meth:`set_metadata_value` instead."
+            "\n"
+            ":param metadata: Metadata to set.");
 
     /**
      ** Hardware lines

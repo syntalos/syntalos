@@ -251,9 +251,14 @@ int OutputPortInfo::dataTypeId() const
     return d->dataTypeId;
 }
 
-void OutputPortInfo::setMetadataVar(const std::string &key, const MetaValue &value)
+void OutputPortInfo::setMetadataValue(const std::string &key, const MetaValue &value)
 {
     d->metadata[key] = value;
+}
+
+void OutputPortInfo::setMetadata(const MetaStringMap &metadata)
+{
+    d->metadata = metadata;
 }
 
 class SyntalosLink::Private

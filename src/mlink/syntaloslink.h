@@ -104,7 +104,8 @@ public:
 
     std::string id() const;
     int dataTypeId() const;
-    void setMetadataVar(const std::string &key, const MetaValue &value);
+    void setMetadataValue(const std::string &key, const MetaValue &value);
+    void setMetadata(const MetaStringMap &metadata);
 
 private:
     friend SyntalosLink;
