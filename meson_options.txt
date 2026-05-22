@@ -11,18 +11,21 @@ option('modules',
            'intan-rhx',      # Intan RHX DAQ module
            'miniscope',      # UCLA Miniscope module
            'open-ephys-acq', # Open Ephys Acquisition Board module
-           'plot',           # Plotting modules using ImGui
        ],
        value : [
            'camera-arv',
            'intan-rhx',
            'miniscope',
            'open-ephys-acq',
-           'plot',
        ],
        description: 'Select modules to enable.'
 )
 
+option('imgui',
+    type : 'boolean',
+    value : true,
+    description : 'Build modules that require ImGui/ImPlot'
+)
 option('wayland',
        type : 'feature',
        value : 'auto',

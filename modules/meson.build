@@ -20,9 +20,7 @@ subdir('devel.latencytest')
 # Display / Aux modules
 subdir('canvas')
 subdir('table')
-if 'plot' in modules_enabled
-    subdir('plot-timeseries')
-endif
+subdir('plot-timeseries')
 
 # Audio
 subdir('audiosource')

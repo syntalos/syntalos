@@ -4,6 +4,7 @@ subdir('datactl')
 subdir('mlink')
 subdir('fabric')
 subdir('python')
+subdir('imgui')
 
 syntalos_src = [
     'aboutdialog.h',

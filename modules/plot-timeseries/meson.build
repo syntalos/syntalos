@@ -2,17 +2,13 @@
 
 module_hdr = [
     'plotseriesmodule.h',
-    'qtimgui.h',
 ]
 module_moc_hdr = [
-    'imgui-renderer.h',
     'plotcanvas.h',
     'plotwindow.h',
 ]
 
 module_src = [
-    'imgui-renderer.cpp',
-    'qtimgui.cpp',
     'plotcanvas.cpp',
     'plotwindow.cpp',
 ]
@@ -24,10 +20,7 @@ module_ui = [
     'plotwindow.ui',
 ]
 
-#imgui_dep = dependency('imgui', version: '>= 1.86',
-#                       fallback: ['imgui', 'imgui_dep'])
-
-module_deps = [qt_opengl_dep, imgui_dep, implot_dep]
+module_deps = [syntalos_imgui_dep]
 
 module_data = [
     'plot-timeseries.svg',

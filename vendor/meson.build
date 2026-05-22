@@ -1,6 +1,10 @@
 # Build definitions for vendored 3rd-party code
 
-if 'plot' in get_option('modules')
+imgui_dep = disabler()
+implot_dep = disabler()
+imgui_inc = []
+implot_inc = []
+if get_option('imgui')
 
 #
 # ImGUI
@@ -8,7 +12,10 @@ if 'plot' in get_option('modules')
 if not fs.is_file('imgui/imgui.h')
     error('ImGui submodule is missing. Did you run `git submodule update --init`?')
 endif
-imgui_inc = include_directories('imgui/')
+imgui_inc = [
+    include_directories('imgui/'),
+    include_directories('.')
+]
 imgui_src = files(
   'imgui/imconfig.h',
   'imgui/imgui.cpp',
@@ -25,12 +32,12 @@ imgui_src = files(
 imgui_lib = static_library(
   'imgui',
   imgui_src,
-  include_directories: [imgui_inc, include_directories('.')],
+  include_directories: imgui_inc,
   cpp_args: ['-DIMGUI_USER_CONFIG="sy_imconfig.h"'],
 )
 imgui_dep = declare_dependency(
-  link_with : imgui_lib,
-  include_directories: [imgui_inc, include_directories('.')],
+  link_whole: imgui_lib,
+  include_directories: imgui_inc,
   compile_args: ['-DIMGUI_USER_CONFIG="sy_imconfig.h"'],
 )
 
@@ -40,7 +47,7 @@ imgui_dep = declare_dependency(
 if not fs.is_file('implot/implot.h')
     error('ImPlot submodule is missing. Did you run `git submodule update --init`?')
 endif
-implot_inc = include_directories('implot/')
+implot_inc = [include_directories('implot/'), imgui_inc]
 implot_src = files(
   'implot/implot.h',
   'implot/implot.cpp',
@@ -50,16 +57,19 @@ implot_src = files(
 implot_lib = static_library(
   'implot',
   implot_src,
-  dependencies: imgui_dep,
   include_directories: implot_inc,
-  cpp_args: ['-Wno-missing-declarations'],
+  cpp_args: [
+    '-Wno-missing-declarations',
+    '-DIMGUI_USER_CONFIG="sy_imconfig.h"'
+  ],
 )
 implot_dep = declare_dependency(
-  link_with: implot_lib,
+  link_whole: implot_lib,
   include_directories: implot_inc,
 )
 
-endif # 'plot' in get_option('modules')
+endif # get_option('imgui')
+
 
 if 'open-ephys-acq' in get_option('modules')
 
