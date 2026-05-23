@@ -250,6 +250,15 @@ public:
             return false;
         }
 
+        // Refuse to start if the user explicitly asked for hardware but the active backend isn't the ONI board.
+        if (m_backendChoice == OeAcqSettingsDialog::BackendDevice
+            && m_board->getBoardType() != AcquisitionBoard::BoardType::ONI) {
+            raiseError(QStringLiteral(
+                "Hardware backend is selected, but no Open Ephys Acquisition Board is currently connected. Refusing to "
+                "start a run on the simulated backend."));
+            return false;
+        }
+
         // Pick up the TTL subscription if anything is wired into us.
         if (m_ttlIn && m_ttlIn->hasSubscription())
             m_ttlSub = m_ttlIn->subscription();
@@ -458,7 +467,30 @@ public:
 
         const auto savedList = settings.value(QStringLiteral("disabled_channels")).toStringList();
         m_disabledChannels = QSet<QString>(savedList.cbegin(), savedList.cend());
-        rebuildOutputPorts();
+
+        // initialize() set up a backend before settings were loaded, so
+        // m_board may not match the saved choice. setBackendChoice() on
+        // the dialog blocks signals, so updating the combo below will not
+        // trigger a re-setup either. Drive it directly here.
+        const auto currentType = m_board ? m_board->getBoardType() : AcquisitionBoard::BoardType::None;
+        bool choiceSatisfied = false;
+        switch (m_backendChoice) {
+        case OeAcqSettingsDialog::BackendAuto:
+            choiceSatisfied =
+                (currentType == AcquisitionBoard::BoardType::ONI
+                 || currentType == AcquisitionBoard::BoardType::Simulated);
+            break;
+        case OeAcqSettingsDialog::BackendDevice:
+            choiceSatisfied = (currentType == AcquisitionBoard::BoardType::ONI);
+            break;
+        case OeAcqSettingsDialog::BackendSimulated:
+            choiceSatisfied = (currentType == AcquisitionBoard::BoardType::Simulated);
+            break;
+        }
+        if (!choiceSatisfied)
+            setupBackend();
+        else
+            rebuildOutputPorts();
 
         if (m_settingsDlg) {
             m_settingsDlg->setSampleRateHz(m_sampleRateHz);
@@ -510,11 +542,16 @@ private:
                 next = std::move(oni);
                 LOG_INFO(m_log, "Using ONI Acquisition Board backend.");
             } else if (deviceMandatory) {
-                LOG_WARNING(
-                    m_log,
-                    "Device backend was requested but no Open Ephys Acquisition Board "
-                    "was detected. Falling back to the simulated backend; press "
-                    "\"Reconnect\" once the board is plugged in.");
+                raiseError(QStringLiteral(
+                    "Acquisition from hardware was requested but no Open Ephys "
+                    "Acquisition Board was detected. Connect the board and press "
+                    "\"Reconnect\", or switch the backend choice."));
+                if (m_settingsDlg) {
+                    m_settingsDlg->setActiveBackendLabel(QStringLiteral("(no device detected)"));
+                    m_settingsDlg->setHeadstageSummary({});
+                }
+                rebuildOutputPorts();
+                return false;
             } else {
                 LOG_INFO(m_log, "No ONI Acquisition Board detected; using simulated backend.");
             }
