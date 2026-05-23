@@ -269,7 +269,7 @@ public:
         m_board->setSampleRate(m_sampleRateHz);
         m_board->enableAuxChannels(m_acquireAux);
         m_board->enableAdcChannels(m_acquireAdc);
-        m_board->setNamingScheme(GLOBAL_INDEX);
+        m_board->setNamingScheme(m_namingScheme);
 
         const auto headstages = m_board->getHeadstages();
         if (headstages.empty()) {
@@ -337,8 +337,12 @@ public:
         }
 
         while (m_running) {
-            if (!m_board->pumpSamples(std::span<AcqSampleChunk>(chunks.data(), chunks.size())))
+            if (!m_board->pumpSamples(std::span<AcqSampleChunk>(chunks.data(), chunks.size()))) {
+                raiseError(QStringLiteral(
+                    "Open Ephys acquisition read failed. The run has been aborted; "
+                    "captured data may be incomplete."));
                 break;
+            }
 
             // FIXME: Perform proper time synchronization!
             const auto blockRecvTime = m_syTimer->timeSinceStartUsec();
