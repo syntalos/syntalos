@@ -274,6 +274,20 @@ void PlotCanvas::setUpdateInterval(int frequency)
         d->updateTimer->setInterval(d->runningIntervalMs);
 }
 
+float PlotCanvas::historyLength() const
+{
+    return d->historyLen;
+}
+
+void PlotCanvas::setHistoryLength(float seconds)
+{
+    if (seconds < 0.25f)
+        seconds = 0.25f;
+    if (seconds > 15.0f)
+        seconds = 15.0f;
+    d->historyLen = seconds;
+}
+
 void PlotCanvas::setBufferSize(size_t size)
 {
     if (size < 10)

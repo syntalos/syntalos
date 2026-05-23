@@ -63,55 +63,55 @@ toml::date_time qDateTimeToToml(const QDateTime &qdt)
 // way to do this with the current version of TOML++ that needs to know types
 // immediately for template instanciation and can't infer anything at runtime
 // This macro needs a GCC-compliant compiler (GCC and Clang will work)
-#define CONVERT_SIMPLE_QTYPE_TO_TOMLTYPE(func, var)                                        \
-    ({                                                                                     \
-        bool __success = true;                                                             \
-        if ((var).typeId() == QMetaType::Bool) {                                           \
-            func((var).toBool());                                                          \
-        }                                                                                  \
-                                                                                           \
-        else if ((var).isNull()) {                                                         \
-            /* leave out the value */                                                      \
-        }                                                                                  \
-                                                                                           \
-        else if ((var).typeId() == QMetaType::QString) {                                   \
-            func((var).toString().toStdString());                                          \
-        }                                                                                  \
-                                                                                           \
-        else if ((var).typeId() == QMetaType::Int) {                                       \
-            func((var).toInt());                                                           \
-        }                                                                                  \
-                                                                                           \
-        else if ((var).typeId() == QMetaType::Double) {                                    \
-            func((var).toDouble());                                                        \
-        }                                                                                  \
-                                                                                           \
-        else if ((var).canConvert<int64_t>()) {                                            \
-            func((var).value<int64_t>());                                                  \
-        }                                                                                  \
-                                                                                           \
-        else if ((var).canConvert<QDateTime>()) {                                          \
-            func(qDateTimeToToml((var).toDateTime()));                                     \
-        }                                                                                  \
-                                                                                           \
-        else if ((var).typeId() == QMetaType::QTime) {                                     \
-            func(qTimeToToml((var).toTime()));                                             \
-        }                                                                                  \
-                                                                                           \
-        else if ((var).typeId() == QMetaType::QDate) {                                     \
-            func(qDateToToml((var).toDate()));                                             \
-        }                                                                                  \
-                                                                                           \
-        /* check Qt knows how to convert the unknown value  to a string representation. */ \
-        else if ((var).canConvert<QString>()) {                                            \
-            func((var).toString().toStdString());                                          \
-        }                                                                                  \
-                                                                                           \
-        else {                                                                             \
-            /* unable to convert this value */                                             \
-            __success = false;                                                             \
-        }                                                                                  \
-        __success;                                                                         \
+#define CONVERT_SIMPLE_QTYPE_TO_TOMLTYPE(func, var)                                           \
+    ({                                                                                        \
+        bool __success = true;                                                                \
+        if ((var).typeId() == QMetaType::Bool) {                                              \
+            func((var).toBool());                                                             \
+        }                                                                                     \
+                                                                                              \
+        else if ((var).isNull()) {                                                            \
+            /* leave out the value */                                                         \
+        }                                                                                     \
+                                                                                              \
+        else if ((var).typeId() == QMetaType::QString) {                                      \
+            func((var).toString().toStdString());                                             \
+        }                                                                                     \
+                                                                                              \
+        else if ((var).typeId() == QMetaType::Int) {                                          \
+            func((var).toInt());                                                              \
+        }                                                                                     \
+                                                                                              \
+        else if ((var).typeId() == QMetaType::Double || (var).typeId() == QMetaType::Float) { \
+            func((var).toDouble());                                                           \
+        }                                                                                     \
+                                                                                              \
+        else if ((var).canConvert<int64_t>()) {                                               \
+            func((var).value<int64_t>());                                                     \
+        }                                                                                     \
+                                                                                              \
+        else if ((var).canConvert<QDateTime>()) {                                             \
+            func(qDateTimeToToml((var).toDateTime()));                                        \
+        }                                                                                     \
+                                                                                              \
+        else if ((var).typeId() == QMetaType::QTime) {                                        \
+            func(qTimeToToml((var).toTime()));                                                \
+        }                                                                                     \
+                                                                                              \
+        else if ((var).typeId() == QMetaType::QDate) {                                        \
+            func(qDateToToml((var).toDate()));                                                \
+        }                                                                                     \
+                                                                                              \
+        /* check Qt knows how to convert the unknown value  to a string representation. */    \
+        else if ((var).canConvert<QString>()) {                                               \
+            func((var).toString().toStdString());                                             \
+        }                                                                                     \
+                                                                                              \
+        else {                                                                                \
+            /* unable to convert this value */                                                \
+            __success = false;                                                                \
+        }                                                                                     \
+        __success;                                                                            \
     })
 
 toml::array qVariantListToTomlArray(const QVariantList &varList)

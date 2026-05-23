@@ -47,6 +47,9 @@ public:
     void setBufferSize(size_t size);
     void setRunning(bool running);
 
+    float historyLength() const;
+    void setHistoryLength(float seconds);
+
     // Port lifecycle
     void registerPort(const QString &portId, double timestampDivisor, const QString &yLabel);
     void unregisterPort(const QString &portId);
