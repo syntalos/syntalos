@@ -5,16 +5,44 @@ version = "3.0.0"
 title = "Welcome to Syntalos 3.0!"
 body = """
 <p>Syntalos 3.0 is a major new release that introduces breaking changes
-to project files and the module API.</p>
-<p>Existing projects from the 2.x series may need some adjustments, and
-out-of-tree modules will need to be ported before they can be used again.
-Please read the porting guide before opening older projects.</p>
+to the module API and to some streamed data types.</p>
+<p>Existing projects from the 2.x series may need adjustments, and
+out-of-tree modules and custom PyScript snippets will need to be ported
+before they can be used again. Please read the porting guide
+<b>before</b> trying to use older projects.</p>
 
-<h3>Porting</h3>
-<p>To port to the new release, we provide a
-<a href="https://syntalos.org/docs/porting-2to3/">porting guide</a> on our
-website, which summarizes the most important changes.</p>
+<h3>Porting from 2.x</h3>
+<p>The
+<a href="https://syntalos.org/docs/porting-2to3/">2.x → 3.0 porting guide</a>
+summarizes all breaking changes, with side-by-side code examples for the
+most common cases. Please have a look!
 
-<h3>New modules</h3>
-<p>This release introduces several new modules.</p>
+<h3>What's new</h3>
+<ul>
+  <li><b>Network control:</b> Syntalos can now control, or be controlled by,
+      other Syntalos instances over the network — enabling synchronized runs
+      across a fleet of machines, even across operating systems.</li>
+  <li><b>New modules:</b> A <i>Zarr Writer</i> for writing Zarr v3 array stores,
+      a <i>Prism</i> module to split / merge / drop image color channels, and an
+      experimental preview module for the Open Ephys AcqBoard.</li>
+  <li><b>Wayland:</b> Proper, explicit Wayland support, using xx-zones for window
+      positioning where available.</li>
+  <li><b>IPC:</b> Migrated from iceoryx1 to iceoryx2. Latency has improved in
+      our tests, but please re-validate your experiments!</li>
+  <li><b>Memory:</b> Syntalos now uses the mimalloc allocator internally,
+      reducing memory use and improving throughput in heavily-threaded paths.
+      External processes keep the default allocator.</li>
+  <li><b>Stream type casting:</b> Compatible data streams (e.g. uint16 matrices
+      into int32) can now be connected directly; the UI shows a cast indicator.</li>
+  <li><b>Human-friendly recording monikers:</b> In addition to the unique
+      recording ID, Syntalos can produce a short, human-readable name for each
+      run. Enable it in the project settings.</li>
+  <li><b>Plot &amp; canvas:</b> The time-series plot has drastically faster
+      rendering, and the image canvas now supports native 16-bit display.</li>
+</ul>
+
+<h3>Heads-up</h3>
+<p>Support for the SDK behind the <code>camera-tis</code> module has been
+discontinued by The Imaging Source. The module is now disabled by default for
+builds from source, and may not be available on all platforms going forward.</p>
 """

@@ -1,3 +1,224 @@
+Version 3.0.0
+-------------
+Released: 2026-05-24
+
+### Notes:
+ * All externally-accessible APIs of Syntalos, such as libsyntalos-mlink, -datactl and the Python
+   interface, have stopped depending on Qt and now only depend on GLib and the C/C++ standard
+   libraries. This ensures better compatibility, especially in Python environments, but it also
+   breaks *all* APIs. External modules will need to be ported to the new interfaces, and will
+   not work with this release.
+ * This release switches from the iceoryx1 IPC middleware to iceoryx2. This may impact
+   latencies to any module that uses the Syntalos MLink API, such as the "Python Script" modules.
+   So far, latency has been better than before, but please re-test your individual experiments!
+ * This release uses the mimalloc allocator for many operations, which performs a lot better in
+   tests within Syntalos' heavily threaded environment. It also reduces memory usage significantly
+   during certain operations. This is a major change, please report any issues with memory management
+   that you may encounter. All external APIs and processes retain the default allocator.
+ * Some new modules have been added: A "Zarr Writer" module for writing Zarr array stores,
+   a "Prism" module for splitting/merging/removing frame color channels and a preview module
+   for the "Open Ephys AcqBoard". The latter is not yet finished, use it only for testing!
+ * Syntalos can now be controlled over the network, or control other Syntalos instances over the
+   network, allowing for even larger experiments on a fleet of computers that may even run different
+   operating systems. Check the documentation for information on how to use this feature!
+ * Besides the unique ID for every recording, Syntalos can now also create a human-friendly,
+   but less-unique moniker for recordings. You can enable this feature in the project settings.
+ * Support for the SDK required by the `camera-tis` module has been discontinued by
+   The Imaging Source. This module is therefore disabled by default, and may not longer be built
+   for all our platform targets.
+ * This release renames multiple data types, like the SignalBlock types, to include their precision,
+   and also changes the Firmata types to be more generally applicable and less protocol-specific.
+   This change requires changes in external module code, and potentially in custom "Python Script"
+   scripts as well. Check the porting guide in the documentation for a summary of the changes,
+   with code examples to make porting easier.
+ * Some data streams can now be cast into each other, e.g. from uint16 precision matrices
+   into int32 matrices. Syntalos indicates type-casting streams in the UI. When downcasting
+   data, make sure the source range actually fits into the target type.
+
+### Features:
+ * Add proper, explicit support for Wayland, making use of xx-zones if available
+ * engine: Improve start/stop ordering function
+ * engine: Decide slightly smarter thread niceness allocations when constrained
+ * Allow modules to transitively mark their ports as dormant
+ * Allow adding the wall clock time to storage directory names
+ * Allow setting project export directory order
+ * Allow user to set arbitrary export path component order
+ * Give user the option to save data into a flat directory hierarchy
+ * ui: Improve module selector dialog filter behavior
+ * ui: Add UI and settings elements for network control support
+ * ui: Improve board graph cursor-only navigation
+ * ui: Add a visual stream type casting indicator
+ * Refactor stream type system to allow connecting "compatible" ports
+ * Port Syntalos from iceoryx1 to iceoryx2 v0.9.0
+ * ipc: Adapt interfaces for iox2
+ * ipc: Add simple ping request to check if a worker process is alive
+ * datactl: Permit use of mimalloc for serialized data, reuse memory regions if possible
+ * datactl: Finish implementation of sample buffer reuse
+ * datactl: Always include frame type by default, but allow to disable it
+ * datactl: Port away from Qt to only use standard C++ types.
+ * datactl: Replace Qt logging with external dispatch function
+ * Drop utils library and fold it into fabric or datactl
+ * rtkit: Use GDBus instead of QDBus
+ * Refactor stream metadata handling to not use Qt
+ * mlink: Rebuild dirty waitset sooner and allow setting a custom event function
+ * mlink: Add IPC API level check, replacing the previous handshake ping
+ * mlink: Add API to set worker working-dir
+ * mlink: Remove Qt dependency
+ * mlink: Allow modules to configure async-start behavior individually
+ * mlink: Make port registration behavior identical for Python and C++
+ * mlink: Allow modules to save data in any state, like all other modules
+ * mlink: Give linked modules full access to EDL storage facilities
+ * mlink: Permit OOP modules access to synchronizer infrastructure
+ * Use mimalloc as OpenCV matrix allocator
+ * Use mimalloc as polymorphic allocator, use PMR types across component bounds
+ * Pin public library's min/max GLib version
+ * Generalize the Firmata stream data types into generic hardware line controls
+ * datactl: Make copy actions on stream datatypes explicit
+ * Use row-major ordering for our default matrix types
+ * fabric: Allow modules to attach arbitrary callables to be called on new-data
+ * fabric: Create new, shared logging system
+ * Refactor default module logging system
+ * logging: Relay Qt log messages through Quill loggers
+ * Add Zarr writer module
+ * Add new "prism" module to split or merge image color channels
+ * Add new experimental open-ephys-acq module
+ * audiosource: Allow selection of target audio device
+ * audiosource: Properly tear down pipeline when module is removed
+ * cpp-wbench: Fix build with IPC changes, make awaitDataForever event-loop agnostic
+ * cpp-workbench: Use newer Qt, C++ and work better with recent Meson
+ * canvas: Ensure submatrices are cloned before deferred use
+ * camera-arv: Avoid QByteArray refcounting in image acquisition path
+ * camera-arv: Apply deferred settings if camera shows up late
+ * camera-arv: Replace udev rules with upstream-proposed one
+ * plot-timeseries: Improve performance at high-frequency input
+ * plot-timeseries: Start with signals being invisible by default
+ * plot-timeseries: Drastically improve render performance
+ * pyscript: Add native option to run script under gdb
+ * pyscript: Set unbuffered Python externally, instead of from within the worker
+ * table: Pick better column width defaults
+ * zarrwriter: Enabled checksumming for zstd-compressed blocks
+ * zarrwriter: Add write checkpoints to increase robustness
+ * Streamline Python doc generation
+ * python: Auto-relaunch a Python-based module that crashed during a run
+ * python: Actually honor the "use base venv for pyscript" setting
+ * python: Automatically recreate out-of-date virtualenvs
+ * python: Use ByteVector instead of QByteArray where possible
+ * python: Order ports last, so they know about data types
+ * python: Don't explicitly register VectorDouble
+ * python: Allow Python modules to dynamically declare their ports at runtime
+ * python: Add converters for new variant types
+ * python: Map size metadata to an explicit type
+ * python: Make Python modules run standalone, without wrapper
+ * python: Allow read access to callback properties
+ * python: Identify data types by their typeId, not strings
+ * python: Improve type annotations and API descriptions
+ * python: Properly express type conversions with different input/output types
+ * python: Allow Python modules to have their process auto-renamed
+ * python: Add object-based convenience functions for hardware line commands
+ * python: Make API for SecondaryClockSynchronizer available
+ * python: Fix numpy annotations and create docs from stub file
+ * Streamline settings handling in out-of-process modules
+ * vendor: Update imgui & implot
+ * vendor: oni: Build the FT600 ONI driver as well
+ * edl: Use UUIDv7 for UUIDs
+ * edl: Allow supplying a UUID externally when creating a new collection
+ * Read module categories from a TOML list, if possible
+ * Move metatype registration for Qt out of datactl and into the main app
+ * Split project-file writing code into its own file
+ * Implement support for controlling Syntalos via the network
+ * Improve lifecycle & cleanup when running under remote control
+ * Add facilities to create monikers for data
+ * Save interval run settings with project files
+ * Add data scale transform metadata to signal blocks
+ * Split ImGui code into an internal helper shared library
+ * Add a "What's new?" dialog when upgrading from a previous release
+ * tests: Allow scripts to run arbitrary validator helpers
+ * tests: Expand OOP test scenarios, add prism smoketest
+ * tests: Add tests for new IPC serialization
+ * tests: Test both the network controller and network listener
+
+### Bugfixes:
+ * engine: Ensure modules are set to initialized after succeeding init
+ * engine: Move hotplug event notification into the UI event loop
+ * engine: Ensure IPC/UI data after stop is explicitly drained
+ * engine: Don't commit metadata on active streams
+ * engine: Mark inactive modules dormant early, to allow dormancy propagation
+ * Ensure we correctly install & detect udev rules
+ * ipc: Stop sample publishers from talking to themselves
+ * ipc: Suspend unneeded streams in split-stream scenarios
+ * ipc: Ensure async arriving metadata is committed before the deadline
+ * ipc: Ensure late-joining modules are connected properly on slow startup
+ * Allocate thread niceness in a smarter way, respecting limits
+ * mlink: Don't wait for requests on dead modules
+ * mlink: Ensure we do not access iox resources from two threads when stopping
+ * mlink: Defer input-subscriber reset when stop() was called
+ * mlink: Improve port topology and metadata negotiation determinism
+ * mlink: Properly handle exclusive mlink->mlink and mixed-type subscriptions
+ * mlink: Wait for reply even in ERROR state when sending a stop request
+ * datactl: ipc: Ensure non-continuous frames are transmitted correctly
+ * Autoload OOP extension modules from supported directories as well
+ * ui: Fix up project settings panel header alignments
+ * ui: Show windows via queued callbacks to avoid QXcbEventQueue race
+ * ui: Fix initial settings window positioning on X11
+ * ui: Prevent the graph from sometimes jumping around on clicks on empty space
+ * plot-timeseries: Make context menu text and labels show up again
+ * plot-timeseries: Modernize render adaptor for newer ImGui
+ * plot-timeseries: Refactor to display graphs efficiently in a compact layout
+ * plot-timeseries: Burn less CPU/GPU compute at idle
+ * videotransform: Don't touch ROI if crop selection dialog result is unchanged
+ * videotransform: Round deterministically when adjusting for crop selector zoom
+ * videotransform: Safeguard against lying input sources
+ * camera-arv: Only rescan if USB devices arrived/changed, but not if one left
+ * camera-arv: Reapply settings faster
+ * camera-arv: Don't construct full ArvCamera just to read id/vendor/model
+ * camera-arv: Exit earlier when finishing to apply camera settings
+ * camera-arv: Do not try to run a camera that reported a bad payload size
+ * camera-arv: Improve robustness in case camera is unplugged between runs
+ * camera-arv: Sync GUI to a reconnecting device
+ * camera-arv: Propagate image rotation to output size metadata
+ * firmata-io: Don't build in debug mode
+ * Fix rare crash in videotransform due to stale event callbacks from old runs
+ * python: Don't idle & unnecessarily kill Python modules on error-shutdown
+ * python: Convert even non-str sequences into str sequences for TableRow
+ * python: Don't reload script on prepare for persistent workers
+ * python: Perform a cleaner reset when loading a script over an existing one
+ * python: Move firmata return datatypes instead of copying them
+ * python: Allow using print() instead of syl.println()
+ * net: Prevent crashes when clicking the network control buttons rapidly
+ * net: Ensure we never have an empty instance ID if network control is used
+ * tests: Relax time and size limits a bit more, for slow CI
+ * tests: Stay noninteractive even when multiple error messages arrive in test mode
+ * tests: Give function timer a bit more leeway to work more reliably in containers
+ * Prevent guinea pigs from having our tests fail
+
+### Miscellaneous:
+ * Add glibc allocator tuning function
+ * engine: Make the run routine a bit easier to read with scope guards
+ * camera-tis: No longer enable this module by default
+ * devel-pyooptest: Run worker through GDB by default, if available
+ * Move vendored code to a toplevel directory
+ * tests: Add back project UI smoketest framework
+ * fabric: Avoid linking against the mlink library
+ * Add option to build mimalloc in guarded/strict-debug mode
+ * ci: Deploy packages to Cloudsmith instead of GitHub Pages
+ * ci: Use debspawn action for package builds
+ * ci: Build & test in debspawn containers instead of podman containers
+ * ci: Build dbgsym packages on Ubuntu as well
+ * debian: Include git while building deb package, for snapshot version numbers
+ * debian: Include prebuild static libs for open-ephys
+ * README: Add Cloudsmith to sponsors
+ * doc: python: Don't show source for pure Python interfaces
+ * Add generic mlink example module
+ * Update CONTRIBUTING.md
+ * tools: Add helper to convert project files into pure text
+ * Drop devel.pyooptest: No longer needed debug module
+ * Drop -Winline from maintainer flags
+ * autoformat: Ensure we have a supported clang-format version
+ * modules: Add rpath to all modules
+
+### Contributors:
+ Matthias Klumpp, Victor Negîrneac
+
 Version 2.1.3
 -------------
 Released: 2026-03-16
