@@ -792,6 +792,83 @@ static void decimateMinMax(
     }
 }
 
+/**
+ * Mirrors ImPlot's NiceNum (vendor/implot/implot.cpp). Kept local so we can
+ * derive a tick list identical in spirit to the default locator but shared
+ * across all stacked plots.
+ */
+static double niceNum(double x, bool round)
+{
+    if (x <= 0.0)
+        return 0.0;
+    const int expv = (int)std::floor(std::log10(x));
+    const double f = x / std::pow(10.0, (double)expv);
+    double nf;
+    if (round) {
+        if (f < 1.5)
+            nf = 1;
+        else if (f < 3)
+            nf = 2;
+        else if (f < 7)
+            nf = 5;
+        else
+            nf = 10;
+    } else {
+        if (f <= 1)
+            nf = 1;
+        else if (f <= 2)
+            nf = 2;
+        else if (f <= 5)
+            nf = 5;
+        else
+            nf = 10;
+    }
+    return nf * std::pow(10.0, (double)expv);
+}
+
+/**
+ * Compute major tick positions for the time axis in the same way ImPlot's
+ * default locator does, but from a single reference pixel width so every
+ * stacked plot gets identical ticks (and therefore aligned gridlines).
+ */
+static void computeTimeMajorTicks(double xMin, double xMax, float refPixels, std::vector<double> &out)
+{
+    out.clear();
+    if (!(xMax > xMin))
+        return;
+    const int nMajor = std::max(2, (int)std::lround(refPixels / 400.0f));
+    const double niceRange = niceNum((xMax - xMin) * 0.99, false);
+    const double interval = niceNum(niceRange / (nMajor - 1), true);
+    if (!(interval > 0.0))
+        return;
+    const double graphMin = std::floor(xMin / interval) * interval;
+    const double graphMax = std::ceil(xMax / interval) * interval;
+    out.reserve((size_t)((graphMax - graphMin) / interval) + 2);
+    for (double major = graphMin; major < graphMax + 0.5 * interval; major += interval) {
+        if (major >= xMin && major <= xMax)
+            out.push_back(major);
+    }
+}
+
+/**
+ * Fixed-width y-axis tick formatter. ImGui's default font renders digits and
+ * space with the same advance width (tabular figures), so right-aligning every
+ * tick label into the same character count makes the y-axis gutter — and thus
+ * each plot's inner rectangle left edge - identical across stacked plots.
+ * Without this, plots with different auto-fit y-ranges end up with different
+ * label widths, shifting their inner rects horizontally and misaligning the
+ * shared x-axis gridlines.
+ */
+static int yTickFormatter(double value, char *buff, int size, void * /*user*/)
+{
+    char tmp[64];
+    const int n = std::snprintf(tmp, sizeof(tmp), "%.4g", value);
+    constexpr int width = 7;
+    if (n >= width)
+        return std::snprintf(buff, size, "%s", tmp);
+    return std::snprintf(buff, size, "%*s", width, tmp);
+}
+
 void PlotCanvas::initializeGL()
 {
     initializeOpenGLFunctions();
@@ -968,6 +1045,14 @@ void PlotCanvas::paintGL()
     ImPlot::PushStyleVar(ImPlotStyleVar_LegendPadding, ImVec2(4, 2));
     ImPlot::PushStyleVar(ImPlotStyleVar_LegendInnerPadding, ImVec2(2, 2));
 
+    // Compute shared x-axis ticks once per frame so that every stacked plot
+    // draws gridlines at identical x positions. Without this, ImPlot's default
+    // per-plot locator picks slightly different intervals when the inner plot
+    // width varies (different y-label widths, bottom-axis label space, etc.).
+    const float refPlotW = std::max(64.0f, d->lastFrameWidth);
+    std::vector<double> xMajors;
+    computeTimeMajorTicks(d->xLinkMin, d->xLinkMax, refPlotW, xMajors);
+
     for (int idx = 0; idx < nVis; ++idx) {
         auto &gs = d->graphSnaps[visIdx[idx]];
         const float h = heights[idx];
@@ -1001,6 +1086,9 @@ void PlotCanvas::paintGL()
         if (ImPlot::BeginPlot(plotIdUtf8.constData(), ImVec2(-1, h), plotFlags)) {
             ImPlot::SetupAxes(isBottom ? "time [s]" : nullptr, yLabelUtf8.constData(), xFlags, ImPlotAxisFlags_AutoFit);
             ImPlot::SetupAxisLinks(ImAxis_X1, &d->xLinkMin, &d->xLinkMax);
+            if (!xMajors.empty())
+                ImPlot::SetupAxisTicks(ImAxis_X1, xMajors.data(), (int)xMajors.size(), nullptr, false);
+            ImPlot::SetupAxisFormat(ImAxis_Y1, yTickFormatter, nullptr);
 
             // Cache the plot pixel width for the decimation threshold next frame.
             const float pw = ImPlot::GetPlotSize().x;
