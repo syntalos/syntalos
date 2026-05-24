@@ -263,7 +263,7 @@ void GlobalConfig::setNetControlHost(const QString &host)
 
 QString GlobalConfig::netInstanceId() const
 {
-    auto id = m_s->value("instance_id").toString();
+    auto id = m_s->value("app/instance_id").toString();
     if (id.isEmpty()) {
         auto uniqId = QSysInfo::machineUniqueId();
         if (uniqId.isEmpty())
@@ -277,7 +277,7 @@ QString GlobalConfig::netInstanceId() const
 void GlobalConfig::setInstanceId(const QString &id)
 {
     // never persist an empty ID
-    m_s->setValue("instance_id", id.isEmpty() ? netInstanceId() : id);
+    m_s->setValue("app/instance_id", id.isEmpty() ? netInstanceId() : id);
 }
 
 QString GlobalConfig::lastProjectDir() const
@@ -289,6 +289,21 @@ QString GlobalConfig::lastProjectDir() const
 void GlobalConfig::setLastProjectDir(const QString &dir)
 {
     m_s->setValue("project/last_project_dir", dir);
+}
+
+QString GlobalConfig::lastSeenAppVersion() const
+{
+    return m_s->value("app/last_seen_version").toString();
+}
+
+void GlobalConfig::setLastSeenAppVersion(const QString &version)
+{
+    m_s->setValue("app/last_seen_version", version);
+}
+
+bool GlobalConfig::hasStoredSettings() const
+{
+    return !m_s->allKeys().isEmpty();
 }
 
 QString Syntalos::colorModeToString(ColorMode mode)

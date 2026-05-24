@@ -90,6 +90,11 @@ QStringList qStringSplitLimit(
 QString syntalosVersionFull();
 
 /**
+ * @brief Return just the project version (without VCS information).
+ */
+QString syntalosVersion();
+
+/**
  * @brief Check if Syntalos is running in a Flatpak sandbox.
  */
 bool isInFlatpakSandbox();

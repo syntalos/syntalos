@@ -204,6 +204,7 @@ private:
     QString m_currentProjectFname;
     bool m_isIntervalRun;
     bool m_configLoadInProgress;
+    bool m_whatsNewChecked;
     seconds_t m_runMaxDuration;
 
     int m_netCtlPortOverride{-1};

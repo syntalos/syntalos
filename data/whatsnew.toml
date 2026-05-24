@@ -1,0 +1,20 @@
+# What's-New entries shown after a Syntalos upgrade.
+
+[[entry]]
+version = "3.0.0"
+title = "Welcome to Syntalos 3.0!"
+body = """
+<p>Syntalos 3.0 is a major new release that introduces breaking changes
+to project files and the module API.</p>
+<p>Existing projects from the 2.x series may need some adjustments, and
+out-of-tree modules will need to be ported before they can be used again.
+Please read the porting guide before opening older projects.</p>
+
+<h3>Porting</h3>
+<p>To port to the new release, we provide a
+<a href="https://syntalos.org/docs/porting-2to3/">porting guide</a> on our
+website, which summarizes the most important changes.</p>
+
+<h3>New modules</h3>
+<p>This release introduces several new modules.</p>
+"""

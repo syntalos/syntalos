@@ -72,5 +72,6 @@
     </qresource>
     <qresource prefix="/texts">
         <file>greetings.toml</file>
+        <file>whatsnew.toml</file>
     </qresource>
 </RCC>

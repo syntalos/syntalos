@@ -59,6 +59,7 @@
 #include "intervalrundialog.h"
 #include "sysinfodialog.h"
 #include "timingsdialog.h"
+#include "whatsnewdialog.h"
 
 #include "executils.h"
 #include "projectfile.h"
@@ -68,6 +69,7 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
       ui(new Ui::MainWindow),
       m_configLoadInProgress(false),
+      m_whatsNewChecked(false),
       m_runMaxDuration(0)
 {
     m_log = getLogger("main");
@@ -985,6 +987,29 @@ void MainWindow::showEvent(QShowEvent *event)
     restoreGeometry(m_gconf->mainWinGeometry());
 #endif
     restoreState(m_gconf->mainWinState());
+
+    // On the first show after startup, check if Syntalos has been upgraded
+    // since the last run and surface a "what's new" dialog if so.
+    if (!m_whatsNewChecked) {
+        m_whatsNewChecked = true;
+        const QString current = syntalosVersion();
+        QString lastSeen = m_gconf->lastSeenAppVersion();
+        if (lastSeen.isEmpty() && !m_gconf->hasStoredSettings()) {
+            // fresh install: just record the current version, no dialog
+            m_gconf->setLastSeenAppVersion(current);
+        } else {
+            // an empty value means we upgraded from a pre-versioning Syntalos
+            if (lastSeen.isEmpty())
+                lastSeen = QStringLiteral("0.0");
+            if (lastSeen != current) {
+                m_gconf->setLastSeenAppVersion(current);
+                QTimer::singleShot(0, this, [this, lastSeen, current]() {
+                    WhatsNewDialog dlg(lastSeen, current, this);
+                    dlg.exec();
+                });
+            }
+        }
+    }
 }
 
 void MainWindow::closeEvent(QCloseEvent *event)

@@ -111,6 +111,11 @@ QString syntalosVersionFull()
     return syVcs.isEmpty() ? syVersion : QStringLiteral("%1 (%2)").arg(syVersion, syVcs);
 }
 
+QString syntalosVersion()
+{
+    return QStringLiteral(PROJECT_VERSION);
+}
+
 bool isInFlatpakSandbox()
 {
     if (qEnvironmentVariable("container") == QStringLiteral("flatpak"))

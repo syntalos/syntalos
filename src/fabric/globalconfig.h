@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -107,6 +107,11 @@ public:
 
     QString lastProjectDir() const;
     void setLastProjectDir(const QString &dir);
+
+    QString lastSeenAppVersion() const;
+    void setLastSeenAppVersion(const QString &version);
+
+    bool hasStoredSettings() const;
 
 private:
     QSettings *m_s;

@@ -52,6 +52,8 @@ syntalos_src = [
     'sysinfodialog.cpp',
     'timingsdialog.h',
     'timingsdialog.cpp',
+    'whatsnewdialog.h',
+    'whatsnewdialog.cpp',
 ]
 
 syntalos_memory_src = [
@@ -68,7 +70,8 @@ syntalos_ui = [
     'modulegraphform.ui',
     'moduleselectdialog.ui',
     'sysinfodialog.ui',
-    'timingsdialog.ui'
+    'timingsdialog.ui',
+    'whatsnewdialog.ui',
 ]
 
 syntalos_res = ['../data/resources.qrc']
