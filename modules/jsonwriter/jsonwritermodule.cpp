@@ -273,6 +273,8 @@ public:
         QStringList columns;
         QString timeUnit;
         QString dataUnit;
+        double dataScale = 1.0;
+        double dataOffset = 0.0;
         QTextStream &stream = *m_textStream;
 
         switch (m_isrcKind) {
@@ -282,6 +284,8 @@ public:
                     columns << QString::fromStdString(*s);
             timeUnit = QString::fromStdString(m_floatSub->metadataValue("time_unit", std::string{}));
             dataUnit = QString::fromStdString(m_floatSub->metadataValue("data_unit", std::string{}));
+            dataScale = m_floatSub->metadataValue("data_scale", 1.0);
+            dataOffset = m_floatSub->metadataValue("data_offset", 0.0);
             break;
         case InputSourceKind::INT:
             for (const auto &v : m_intSub->metadataValue("signal_names", MetaArray{}))
@@ -289,6 +293,8 @@ public:
                     columns << QString::fromStdString(*s);
             timeUnit = QString::fromStdString(m_intSub->metadataValue("time_unit", std::string{}));
             dataUnit = QString::fromStdString(m_intSub->metadataValue("data_unit", std::string{}));
+            dataScale = m_intSub->metadataValue("data_scale", 1.0);
+            dataOffset = m_intSub->metadataValue("data_offset", 0.0);
             break;
         case InputSourceKind::ROW:
             for (const auto &v : m_rowSub->metadataValue("table_header", MetaArray{}))
@@ -343,6 +349,14 @@ public:
             m_currentDSet->insertAttribute("json_time_unit", timeUnit.toStdString());
         if (!dataUnit.isEmpty())
             m_currentDSet->insertAttribute("json_data_unit", dataUnit.toStdString());
+        // Persist the affine raw->physical transform alongside data_unit
+        // so consumers of the EDL manifest can reconstruct physical
+        // values. Skip identity values to avoid noise on streams that
+        // never advertised the keys.
+        if (dataScale != 1.0)
+            m_currentDSet->insertAttribute("json_data_scale", dataScale);
+        if (dataOffset != 0.0)
+            m_currentDSet->insertAttribute("json_data_offset", dataOffset);
 
         // try to write the header to disk as soon as we can
         stream.flush();

@@ -142,6 +142,8 @@ private:
     QStringList m_signalNames;
     QString m_timeUnit;
     QString m_dataUnit;
+    double m_dataScale = 1.0;
+    double m_dataOffset = 0.0;
 
     std::unique_ptr<ZarrV3Array> m_tsArray;
     std::unique_ptr<ZarrV3Array> m_dataArray;
@@ -245,6 +247,8 @@ public:
                     m_signalNames << QString::fromStdString(*s);
             m_timeUnit = QString::fromStdString(m_floatSub->metadataValue("time_unit", std::string{}));
             m_dataUnit = QString::fromStdString(m_floatSub->metadataValue("data_unit", std::string{}));
+            m_dataScale = m_floatSub->metadataValue("data_scale", 1.0);
+            m_dataOffset = m_floatSub->metadataValue("data_offset", 0.0);
             m_chunkCount = chunkCountFromSampleRate(m_floatSub->metadataValue("sample_rate", -1.0));
             break;
         }
@@ -256,6 +260,8 @@ public:
                     m_signalNames << QString::fromStdString(*s);
             m_timeUnit = QString::fromStdString(m_intSub->metadataValue("time_unit", std::string{}));
             m_dataUnit = QString::fromStdString(m_intSub->metadataValue("data_unit", std::string{}));
+            m_dataScale = m_intSub->metadataValue("data_scale", 1.0);
+            m_dataOffset = m_intSub->metadataValue("data_offset", 0.0);
             m_chunkCount = chunkCountFromSampleRate(m_intSub->metadataValue("sample_rate", -1.0));
             break;
         }
@@ -267,6 +273,8 @@ public:
                     m_signalNames << QString::fromStdString(*s);
             m_timeUnit = QString::fromStdString(m_uint16Sub->metadataValue("time_unit", std::string{}));
             m_dataUnit = QString::fromStdString(m_uint16Sub->metadataValue("data_unit", std::string{}));
+            m_dataScale = m_uint16Sub->metadataValue("data_scale", 1.0);
+            m_dataOffset = m_uint16Sub->metadataValue("data_offset", 0.0);
             m_chunkCount = chunkCountFromSampleRate(m_uint16Sub->metadataValue("sample_rate", -1.0));
             break;
         }
@@ -325,6 +333,8 @@ public:
         m_signalNames.clear();
         m_timeUnit.clear();
         m_dataUnit.clear();
+        m_dataScale = 1.0;
+        m_dataOffset = 0.0;
         m_storePath.clear();
     }
 
@@ -428,6 +438,10 @@ private:
         }
         if (!m_dataUnit.isEmpty())
             dataAttrs["data_unit"] = m_dataUnit;
+        if (m_dataScale != 1.0)
+            dataAttrs["data_scale"] = m_dataScale;
+        if (m_dataOffset != 0.0)
+            dataAttrs["data_offset"] = m_dataOffset;
         if (m_currentDSet)
             dataAttrs["collection_id"] = QString::fromStdString(m_currentDSet->collectionId().toHex());
         if (!dataAttrs.isEmpty())

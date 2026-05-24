@@ -51,7 +51,12 @@ public:
     void setHistoryLength(float seconds);
 
     // Port lifecycle
-    void registerPort(const QString &portId, double timestampDivisor, const QString &yLabel);
+    void registerPort(
+        const QString &portId,
+        double timestampDivisor,
+        const QString &yLabel,
+        double dataScale = 1.0,
+        double dataOffset = 0.0);
     void unregisterPort(const QString &portId);
     void clearAll();
     void clearRuntimeData();

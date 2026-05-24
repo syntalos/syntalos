@@ -159,7 +159,9 @@ public:
         }
 
         const QString yLabel = QString::fromStdString(sd.sub->metadataValue("data_unit", std::string{"y"}));
-        m_plotWindow->canvas()->registerPort(sd.portId, sd.timestampDivisor, yLabel);
+        const double dataScale = sd.sub->metadataValue("data_scale", 1.0);
+        const double dataOffset = sd.sub->metadataValue("data_offset", 0.0);
+        m_plotWindow->canvas()->registerPort(sd.portId, sd.timestampDivisor, yLabel, dataScale, dataOffset);
 
         // Pre-create channel entries from any signal_names metadata so the table
         // is populated before data starts flowing.

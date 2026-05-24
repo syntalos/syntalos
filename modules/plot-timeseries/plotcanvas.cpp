@@ -160,6 +160,12 @@ struct PortData {
     QString id;
     float timestampDivisor = 1000.0;
     QString yLabel = QStringLiteral("y");
+
+    // Affine transform applied to incoming samples before display:
+    //   displayed = dataScale * raw + dataOffset
+    float dataScale = 1.0f;
+    float dataOffset = 0.0f;
+
     RingBuffer<float> timestamps;
 };
 
@@ -316,13 +322,20 @@ void PlotCanvas::setRunning(bool running)
     }
 }
 
-void PlotCanvas::registerPort(const QString &portId, double timestampDivisor, const QString &yLabel)
+void PlotCanvas::registerPort(
+    const QString &portId,
+    double timestampDivisor,
+    const QString &yLabel,
+    double dataScale,
+    double dataOffset)
 {
     const std::lock_guard<std::mutex> lock(d->dataMutex);
     auto &p = d->ports[portId];
     p.id = portId;
     p.timestampDivisor = timestampDivisor;
     p.yLabel = yLabel.isEmpty() ? QStringLiteral("y") : yLabel;
+    p.dataScale = static_cast<float>(dataScale);
+    p.dataOffset = static_cast<float>(dataOffset);
     if (p.timestamps.size() == 0)
         p.timestamps.setCapacity(d->bufferSize);
 }
@@ -480,6 +493,8 @@ void PlotCanvas::appendBlockF(
         d->tsConvBuf[i] = (float)timestamps(i) / div;
     it->timestamps.add(d->tsConvBuf.data(), n);
 
+    const float scale = it->dataScale;
+    const float offset = it->dataOffset;
     d->sampleConvBuf.resize(n);
     for (int c = 0; c < nCols; ++c) {
         const int ci = channelIdx[c];
@@ -489,7 +504,7 @@ void PlotCanvas::appendBlockF(
         if (!ch.enabled)
             continue;
         for (int i = 0; i < n; ++i)
-            d->sampleConvBuf[i] = data(i, c);
+            d->sampleConvBuf[i] = scale * data(i, c) + offset;
         ch.samples.add(d->sampleConvBuf.data(), n);
     }
 }
@@ -515,6 +530,8 @@ void PlotCanvas::appendBlockI(
         d->tsConvBuf[i] = (float)timestamps(i) / div;
     it->timestamps.add(d->tsConvBuf.data(), n);
 
+    const float scale = it->dataScale;
+    const float offset = it->dataOffset;
     d->sampleConvBuf.resize(n);
     for (int c = 0; c < nCols; ++c) {
         const int ci = channelIdx[c];
@@ -524,7 +541,7 @@ void PlotCanvas::appendBlockI(
         if (!ch.enabled)
             continue;
         for (int i = 0; i < n; ++i)
-            d->sampleConvBuf[i] = (float)data(i, c);
+            d->sampleConvBuf[i] = scale * (float)data(i, c) + offset;
         ch.samples.add(d->sampleConvBuf.data(), n);
     }
 }

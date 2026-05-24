@@ -925,8 +925,9 @@ private:
 
             g.stream->setMetadataValue("sample_rate", static_cast<double>(sampleRate));
             g.stream->setMetadataValue("time_unit", std::string{"index"});
-            g.stream->setMetadataValue("data_unit", std::string{"raw_uint16"});
-            g.stream->setMetadataValue("bit_volts", static_cast<double>(m_board->getBitVolts(g.kind)));
+            g.stream->setMetadataValue("data_unit", std::string{"µV"});
+            g.stream->setMetadataValue("data_scale", static_cast<double>(m_board->getBitVolts(g.kind)));
+            g.stream->setMetadataValue("data_offset", 0.0);
             g.stream->setMetadataValue("signal_names", namesMeta);
         }
     }
