@@ -1502,6 +1502,31 @@ downstream device.</p>
 </div>
 
 
+<div id="OutputPort.set_metadata" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">set_metadata</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">metadata</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">typing</span><span class="o">.</span><span class="n">Any</span><span class="p">]</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#OutputPort.set_metadata"></a>
+
+<div class="docstring"><p>Set a metadata for this port, overriding all previous data.</p>
+
+<p>Metadata must be set before the run starts (i.e. in <code>prepare()</code>); it is immutable once
+acquisition begins.
+This function overrides all metadata that was previously set. You usually want to use <code><a href="#OutputPort.set_metadata_value">set_metadata_value()</a></code> instead.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>metadata</strong>:  Metadata to set.</li>
+</ul>
+</div>
+
+
+</div>
 <div id="OutputPort.set_metadata_value" class="classattr">
 <div class="attr function">
 
