@@ -129,6 +129,10 @@ test_manifests = [
     'scenarios/netctl-listen-test.toml',
 ]
 
+if 'open-ephys-acq' in get_option('modules')
+    test_manifests += 'scenarios/openephys-acq-smoketest.toml'
+endif
+
 if get_option('gui-tests')
     foreach manifest : test_manifests
         test_name = 'sy-test-project-@0@'.format(manifest.split('/')[-1].split('.')[0])
