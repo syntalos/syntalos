@@ -42,6 +42,15 @@ jobs:
       with:
         submodules: true
 
+    - name: Setup & start resource sampler
+      run: |
+        sudo apt-get install -yq python3-psutil python3-matplotlib
+
+        nohup python3 tests/ci/ci-resource-sampler.py /tmp/ci-resources.csv \
+          > /tmp/ci-resources.sampler.log 2>&1 &
+        echo $! > /tmp/ci-resources.pid
+        : > /tmp/ci-resources.markers
+
     - name: Create Build Environment
       uses: ximion/debspawn-action/setup@v1
       with:
@@ -63,6 +72,10 @@ jobs:
           # install extra dependencies
           ./tests/ci/install-deps-deb-extra.sh
 
+    - name: Mark build phase
+      run: |
+        echo "build-start,$(date +%s.%N)" >> /tmp/ci-resources.markers
+
     - name: Build
       uses: ximion/debspawn-action/run@v1
       with:
@@ -72,11 +85,9 @@ jobs:
         commands: |
           CC=gcc CXX=g++ ./tests/ci/ci-build.sh
 
-    - name: Collect Workflow Telemetry
-      uses: catchpoint/workflow-telemetry-action@v2
-      with:
-        metric_frequency: 1
-        comment_on_pr: false
+    - name: Mark test phase
+      run: |
+        echo "test-start,$(date +%s.%N)" >> /tmp/ci-resources.markers
 
     - name: Test
       uses: ximion/debspawn-action/run@v1
@@ -86,3 +97,31 @@ jobs:
         summary: "Test Syntalos on ${{ matrix.display_name }}"
         commands: |
           ./tests/ci/ci-test.sh
+
+    - name: Stop sampler and render report
+      if: always()
+      run: |
+        echo "end,$(date +%s.%N)" >> /tmp/ci-resources.markers
+        if [ -f /tmp/ci-resources.pid ]; then
+          kill "$(cat /tmp/ci-resources.pid)" 2>/dev/null || true
+          sleep 3
+        fi
+        python3 tests/ci/ci-resource-plot.py \
+          /tmp/ci-resources.csv \
+          /tmp/ci-resources.markers \
+          "${{ matrix.display_name }}" \
+          /tmp/ci-resources.png \
+          >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Upload instrumentation samples
+      if: always()
+      uses: actions/upload-artifact@v7
+      with:
+        name: resource-samples-${{ matrix.id }}
+        path: |
+          /tmp/ci-resources.csv
+          /tmp/ci-resources.markers
+          /tmp/ci-resources.sampler.log
+          /tmp/ci-resources.png
+        if-no-files-found: warn
+        retention-days: 7
