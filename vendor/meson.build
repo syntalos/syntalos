@@ -89,8 +89,14 @@ liboni_lib = shared_library(
     'oni',
     liboni_src,
     include_directories: liboni_inc,
-    c_args: ['-Wall', '-W', '-O3', '-Wno-error=shadow'],
-    dependencies: [c_compiler.find_library('dl', required: true)],
+    dependencies: [
+        c_compiler.find_library('dl', required: true)
+    ],
+    c_args: [
+        '-Wno-error=missing-prototypes',
+        '-Wno-error=shadow',
+        '-Wno-error=unused-but-set-variable',
+    ],
     soversion: '1',
     install: true,
     install_dir: sy_libdir,
@@ -117,18 +123,17 @@ libonidriver_ft600 = shared_library(
     ft600_src,
     include_directories: [liboni_inc, ft600_inc],
     c_args: [
-        '-Wall', '-W', '-O2',
         '-Wno-error=missing-prototypes',
-        '-Wno-error=missing-declarations',
         '-Wno-error=shadow',
-        '-Wno-error=sign-compare',
-        '-Wno-error=unused-variable',
         '-Wno-error=unused-but-set-variable',
-        '-Wno-error=unused-function',
-        '-Wno-error=incompatible-pointer-types',
-        '-Wno-error=int-conversion',
+        # FIXME: onidriver_ft600.c declares oni_ft600_reset_ctx
+        # as plain `inline` (C99 inline-definition only), so when the compiler
+        # chooses not to inline a call site there is no external symbol to link
+        # against. GNU89 inline semantics also emit an out-of-line definition.
+        # Remove once liboni is fixed upstream.
+        '-fgnu89-inline',
     ],
-    link_args: [ft3dxx_static, '-lstdc++'],
+    link_args: [ft3dxx_static],
     dependencies: [
         c_compiler.find_library('dl', required: true),
         c_compiler.find_library('pthread', required: true),
