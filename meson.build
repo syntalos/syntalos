@@ -312,7 +312,7 @@ glib_api_limit_flags = [
 ]
 
 # handle iceoryx2 (build it from source or find a system version)
-iox2_min_ver = '0.9.0'
+iox2_min_ver = '0.9.1'
 iox2_dep = dependency('iceoryx2-cxx',
                       modules: ['iceoryx2-cxx::shared-lib-cxx'],
                       version: f'>= @iox2_min_ver@',
