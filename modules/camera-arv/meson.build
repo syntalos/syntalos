@@ -107,7 +107,7 @@ module_args = [
 ]
 
 # Install udev rules to make GenICam cameras readable for normal users
-install_data('90-syntalos-cameras.rules',
+install_data('70-syntalos-cameras.rules',
     install_dir: join_paths(udevdir, 'rules.d')
 )
 
