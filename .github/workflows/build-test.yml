@@ -63,11 +63,26 @@ jobs:
           # install extra dependencies
           ./tests/ci/install-deps-deb-extra.sh
 
-    - name: Build & Test
+    - name: Build
       uses: ximion/debspawn-action/run@v1
       with:
         name: ci-${{ matrix.id }}
         suite: ${{ matrix.suite }}
-        summary: "Build & Test Syntalos on ${{ matrix.display_name }}"
+        summary: "Build Syntalos on ${{ matrix.display_name }}"
         commands: |
-          CC=gcc CXX=g++ ./tests/ci/build-and-test.sh
+          CC=gcc CXX=g++ ./tests/ci/ci-build.sh
+
+    - name: Collect Workflow Telemetry
+      uses: catchpoint/workflow-telemetry-action@v2
+      with:
+        metric_frequency: 1
+        comment_on_pr: false
+
+    - name: Test
+      uses: ximion/debspawn-action/run@v1
+      with:
+        name: ci-${{ matrix.id }}
+        suite: ${{ matrix.suite }}
+        summary: "Test Syntalos on ${{ matrix.display_name }}"
+        commands: |
+          ./tests/ci/ci-test.sh

@@ -2,7 +2,7 @@
 set -e
 
 #
-# This script is supposed to run inside the Syntalos Docker container
+# This script is supposed to run inside the Syntalos CI container
 # on the CI system.
 #
 
@@ -28,16 +28,6 @@ meson \
     -Dmodules="camera-arv,camera-tis,miniscope${extra_modules}" \
     ..
 
-# Build, Install & Test
+# Build & Install
 ninja
 DESTDIR=/tmp/install_root/ ninja install
-
-# We need a (fake) display, because GUI tests are enabled
-if [ -z "$DISPLAY" ] && [ -z "$WAYLAND_DISPLAY" ]; then
-    echo "Running headless with xvfb and dbus"
-    xvfb-run -a -s "-screen 0 1400x900x24" \
-            dbus-run-session -- \
-            meson test -v --print-errorlogs
-else
-    meson test --print-errorlogs
-fi
