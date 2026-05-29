@@ -223,7 +223,7 @@ public:
             // The dialog locks unchecked boxes off during a run, so this
             // signal only fires for channels with an output column.
             for (auto &g : m_groups) {
-                const int idx = g.outChannelIds.indexOf(id);
+                const auto idx = g.outChannelIds.indexOf(id);
                 if (idx >= 0) {
                     g.mutedOutputColumns[idx].store(!enabled, std::memory_order_relaxed);
                     break;

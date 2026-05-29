@@ -254,7 +254,7 @@ struct SignalBlockU16;
  *
  * Generic data type to stream commands to other modules.
  */
-struct ControlCommand : BaseDataType {
+struct ControlCommand final : BaseDataType {
     SY_DEFINE_DATA_TYPE(ControlCommand)
 
     ControlCommandKind kind{ControlCommandKind::UNKNOWN}; /// The command type
@@ -312,7 +312,7 @@ struct ControlCommand : BaseDataType {
  *
  * Generic type emitted for adding a table row.
  */
-struct TableRow : BaseDataType {
+struct TableRow final : BaseDataType {
     SY_DEFINE_DATA_TYPE(TableRow)
 
     std::vector<std::string> data;
@@ -393,7 +393,7 @@ using LineModeFlags = Flags<LineModeFlag>;
  *
  * Generic, protocol-agnostic outbound control message.
  */
-struct LineCommand : BaseDataType {
+struct LineCommand final : BaseDataType {
     SY_DEFINE_DATA_TYPE(LineCommand)
 
     LineCommandKind kind{LineCommandKind::UNKNOWN};
@@ -464,7 +464,7 @@ struct LineCommand : BaseDataType {
  * observations from a hardware line; bulk multi-channel acquisitions
  * should use {Int,Float}SignalBlock instead.
  */
-struct LineReading : BaseDataType {
+struct LineReading final : BaseDataType {
     SY_DEFINE_DATA_TYPE(LineReading)
 
     uint16_t lineId{0};
@@ -516,7 +516,7 @@ enum class SignalDataType {
 /**
  * @brief A block of 32-bit signed integer signal data with timestamps.
  */
-struct SignalBlockI32 : BaseDataType {
+struct SignalBlockI32 final : BaseDataType {
     SY_DEFINE_DATA_TYPE(SignalBlockI32)
 
     VectorXu64 timestamps;
@@ -573,7 +573,7 @@ struct SignalBlockI32 : BaseDataType {
  *
  * Used by DAQ hardware that natively produces 16-bit samples.
  */
-struct SignalBlockU16 : BaseDataType {
+struct SignalBlockU16 final : BaseDataType {
     SY_DEFINE_DATA_TYPE(SignalBlockU16)
 
     VectorXu64 timestamps;
@@ -628,7 +628,7 @@ struct SignalBlockU16 : BaseDataType {
 /**
  * @brief A block of 32-bit floating-point timestamped signal data.
  */
-struct SignalBlockF32 : BaseDataType {
+struct SignalBlockF32 final : BaseDataType {
     SY_DEFINE_DATA_TYPE(SignalBlockF32)
 
     VectorXu64 timestamps;

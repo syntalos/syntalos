@@ -40,7 +40,7 @@ ColorMode colorModeFromString(const QString &str);
 void findSyntalosLibraryPaths(QString &pkgConfigPath, QString &ldLibraryPath, QString &includePath);
 QStringList findSyntalosMlinkPyModulePaths();
 
-class GlobalConfig : public QObject
+class GlobalConfig final : public QObject
 {
     Q_OBJECT
 

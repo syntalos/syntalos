@@ -179,7 +179,10 @@ class MirrorTransform : public VideoTransform
 {
     Q_OBJECT
 public:
-    enum class Axis { X, Y };
+    enum class Axis {
+        X,
+        Y
+    };
 
     explicit MirrorTransform(Axis axis = Axis::X);
 

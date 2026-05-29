@@ -23,7 +23,7 @@
 #include <QLabel>
 #include <QWidget>
 
-class ElidedLabel : public QLabel
+class ElidedLabel final : public QLabel
 {
     Q_OBJECT
 #if !defined(DOXYGEN_SHOULD_SKIP_THIS)

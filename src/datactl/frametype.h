@@ -35,7 +35,7 @@ namespace Syntalos
  * a complete video.
  * Each frame is timestamped with the exact time of its acquisition.
  */
-struct Frame : BaseDataType {
+struct Frame final : BaseDataType {
     SY_DEFINE_DATA_TYPE(Frame)
 
     explicit Frame() {}

@@ -203,7 +203,7 @@ private:
  * A set of data files which belongs together
  * (usually data of the same modality from the same source)
  */
-class EDLDataset : public EDLUnit
+class EDLDataset final : public EDLUnit
 {
 public:
     explicit EDLDataset(EDLGroup *parent = nullptr);
@@ -323,7 +323,7 @@ private:
 /**
  * @brief A collection of groups and datasets
  */
-class EDLCollection : public EDLGroup
+class EDLCollection final : public EDLGroup
 {
 public:
     explicit EDLCollection(const std::string &name = {}, const Uuid &uuid = {});

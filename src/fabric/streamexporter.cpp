@@ -74,6 +74,7 @@ StreamExporter::StreamExporter(const QString &threadName, QObject *parent)
       d(new StreamExporter::Private)
 {
     d->log = getLogger("stream-exporter");
+    g_logSExport = d->log;
     d->activeLoop = nullptr;
     d->running = false;
     d->failed = false;
