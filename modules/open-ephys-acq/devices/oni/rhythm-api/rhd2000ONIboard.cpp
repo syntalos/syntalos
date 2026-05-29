@@ -923,7 +923,7 @@ void Rhd2000ONIBoard::setExternalFastSettleChannel (int channel)
 // selected SPI port will be controlled in real time via one of the 16 TTL inputs.
 void Rhd2000ONIBoard::enableExternalDigOut (BoardPort port, bool enable)
 {
-    oni_reg_addr_t reg = EXTERNAL_DIGOUT_A + port;
+    oni_reg_addr_t reg = (uint32_t)EXTERNAL_DIGOUT_A + port;
     oni_reg_val_t val = enable ? 1 << 4 : 0;
     oni_write_reg_mask (ctx, DEVICE_RHYTHM, reg, val, 1 << 4);
 }
@@ -938,7 +938,7 @@ void Rhd2000ONIBoard::setExternalDigOutChannel (BoardPort port, int channel)
         return;
     }
 
-    oni_reg_addr_t reg = EXTERNAL_DIGOUT_A + port;
+    oni_reg_addr_t reg = (uint32_t)EXTERNAL_DIGOUT_A + port;
     oni_reg_val_t val = channel;
     oni_write_reg_mask (ctx, DEVICE_RHYTHM, reg, val, 0x0F);
 }

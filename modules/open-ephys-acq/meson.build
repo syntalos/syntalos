@@ -45,11 +45,6 @@ module_data = [
     'open-ephys-acq.svg',
 ]
 
-# Ignore some issues in the Open Ephys rhythm-api vendor sources
-module_args = [
-    '-Wno-error=deprecated-enum-enum-conversion',
-]
-
 subdir('udev')
 
 #
