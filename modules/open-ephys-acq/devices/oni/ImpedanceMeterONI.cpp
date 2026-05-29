@@ -244,7 +244,6 @@ void ImpedanceMeterONI::runImpedanceMeasurement(Impedances &impedances)
 void ImpedanceMeterONI::runImpedanceMeasurementInternal(Impedances &impedances)
 {
     int commandSequenceLength, stream, channel, capRange;
-    double cSeries;
     std::vector<int> commandList;
 
     reportProgress(0.0);
@@ -356,7 +355,7 @@ void ImpedanceMeterONI::runImpedanceMeasurementInternal(Impedances &impedances)
         }
     }
 
-    double distance, minDistance, current, Cseries;
+    double distance, minDistance, current, cSeries;
     double impedanceMagnitude, impedancePhase;
 
     const double bestAmplitude = 250.0; // we favor voltage readings closest to 250 µV: not too large, not too small
@@ -484,18 +483,18 @@ void ImpedanceMeterONI::runImpedanceMeasurementInternal(Impedances &impedances)
             }
             switch (bestAmplitudeIndex) {
             case 0:
-                Cseries = 0.1e-12;
+                cSeries = 0.1e-12;
                 break;
             case 1:
-                Cseries = 1.0e-12;
+                cSeries = 1.0e-12;
                 break;
             case 2:
-                Cseries = 10.0e-12;
+                cSeries = 10.0e-12;
                 break;
             }
 
             // Calculate current amplitude produced by on-chip voltage DAC.
-            current = TWO_PI * actualImpedanceFreq * dacVoltageAmplitude * Cseries;
+            current = TWO_PI * actualImpedanceFreq * dacVoltageAmplitude * cSeries;
 
             // Calculate impedance magnitude from calculated current and measured voltage.
             impedanceMagnitude = 1.0e-6 * (measuredMagnitude[stream][channel + chOffset][bestAmplitudeIndex] / current)

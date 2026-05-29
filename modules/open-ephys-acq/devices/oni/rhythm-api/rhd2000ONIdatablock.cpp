@@ -326,9 +326,9 @@ void Rhd2000ONIDataBlock::writeWordLittleEndian (std::ofstream& outputStream, in
 // Write contents of data block to a binary output stream (saveOut) in little endian format.
 void Rhd2000ONIDataBlock::write (std::ofstream& saveOut, int numDataStreams) const
 {
-    int t, channel, stream, i;
+    int channel, stream;
 
-    for (t = 0; t < samplesPerBlock; ++t)
+    for (uint t = 0; t < samplesPerBlock; ++t)
     {
         writeWordLittleEndian (saveOut, timeStamp[t]);
         for (channel = 0; channel < 32; ++channel)
@@ -345,7 +345,7 @@ void Rhd2000ONIDataBlock::write (std::ofstream& saveOut, int numDataStreams) con
                 writeWordLittleEndian (saveOut, auxiliaryData[stream][channel][t]);
             }
         }
-        for (i = 0; i < 8; ++i)
+        for (uint i = 0; i < 8; ++i)
         {
             writeWordLittleEndian (saveOut, boardAdcData[i][t]);
         }

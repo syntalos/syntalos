@@ -45,15 +45,9 @@ module_data = [
     'open-ephys-acq.svg',
 ]
 
-# The Open Ephys rhythm-api vendor sources under devices/oni/rhythm-api/ trip a
-# handful of warnings (sign-compare, enum-enum arithmetic, the occasional
-# unused variable) that Syntalos otherwise treats as errors. Vendor code is
-# kept as-is, so we relax these specific diagnostics for this module only.
+# Ignore some issues in the Open Ephys rhythm-api vendor sources
 module_args = [
-    '-Wno-error=sign-compare',
     '-Wno-error=deprecated-enum-enum-conversion',
-    '-Wno-error=unused-variable',
-    '-Wno-error=unused-but-set-variable',
 ]
 
 subdir('udev')

@@ -531,7 +531,7 @@ void Rhd2000ONIBoard::uploadCommandList (const std::vector<int>& commandList, Au
 // (PortA, PortB, PortC, or PortD) on the FPGA.
 void Rhd2000ONIBoard::selectAuxCommandBank (BoardPort port, AuxCmdSlot auxCommandSlot, int bank)
 {
-    int bitShift;
+    int bitShift = 0;
 
     if (auxCommandSlot != AuxCmd1 && auxCommandSlot != AuxCmd2 && auxCommandSlot != AuxCmd3)
     {
@@ -660,7 +660,7 @@ bool Rhd2000ONIBoard::isRunning() const
 // based on the clock frequency!
 void Rhd2000ONIBoard::setCableDelay (BoardPort port, int delay)
 {
-    int bitShift;
+    int bitShift = 0;
 
     if (delay < 0 || delay > 15)
     {
@@ -1387,6 +1387,8 @@ void Rhd2000ONIBoard::enableBnoStream (const uint32_t port, bool enabled)
     oni_dev_idx_t device = DEVICE_BNO_A + port * 2;
 
     int rc = oni_write_reg (ctx, device, (oni_reg_addr_t) BnoRegisters::ENABLE_BNO, static_cast<int> (enabled));
+    if (rc != ONI_ESUCCESS)
+        std::cerr << "Error enabling BNO stream on port " << port << ": " << oni_error_str (rc) << std::endl;
 }
 
 bool Rhd2000ONIBoard::isBnoEnabled (const uint32_t port)
@@ -1425,7 +1427,7 @@ void Rhd2000ONIBoard::debug_printDevTable() const
         return;
 
     oni_get_opt (ctx, ONI_OPT_DEVICETABLE, devs, &optSize);
-    for (int i = 0; i < tableSize; i++)
+    for (uint32_t i = 0; i < tableSize; i++)
     {
         printf ("N: %d Idx %x Id %x Ver: %x Rd %x Wr %x\n", i, devs[i].idx, devs[i].id, devs[i].version, devs[i].read_size, devs[i].write_size);
     }
