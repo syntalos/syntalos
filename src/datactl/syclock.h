@@ -189,11 +189,11 @@ private:
 /**
  * Compute a timestamp for "when this function acquired a value".
  * This is assumed to be the mean between function start and end time,
- * rounded to milliseconds.
+ * rounded to microseconds.
  * For example, if the function F acquires a timestamp'ed value,
  * this macro should return the equivalent timestamp on our timer T.
  * This should balance out context switches if they are not too bad,
- * and produce a reasonably accurate result in milliseconds.
+ * and produce a reasonably accurate result in microseconds.
  * It is superior to measuring our timestamp for alignment after the other
  * timestamping function was run.
  *
