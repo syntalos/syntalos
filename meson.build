@@ -63,9 +63,13 @@ if get_option('maintainer')
          '-Winit-self',
          '-Wnull-dereference',
          '-Wmaybe-uninitialized',
+         # GCC's flow-sensitive null-dereference analysis at -O2 fires inside
+         # vendored iceoryx2 expected.inl on inlined .value() calls; keep the
+         # warning visible but don't let third-party header noise break the build.
+         # FIXME: Drop this once iceoryx2 is fixed or has dropped its legacy::expected
+         '-Wno-error=null-dereference',
     ]
     maintainer_cpp_args = [
-        '-Wsuggest-final-methods'
     ]
 
     add_project_arguments(maintainer_c_args, language: 'c')
