@@ -34,6 +34,10 @@
 #include "Headstage.h"
 #include "ImpedanceMeter.h"
 
+#include "datactl/timesync.h"
+
+using namespace Syntalos;
+
 /**
  * Type of continuous channel.
  */
@@ -173,6 +177,11 @@ public:
 
     virtual bool isReady() = 0;
 
+    void setSyncTimer(std::shared_ptr<SyncTimer> syTimer)
+    {
+        m_syTimer = std::move(syTimer);
+    }
+
     /** Start streaming samples from the board. */
     virtual bool startAcquisition() = 0;
 
@@ -185,9 +194,14 @@ public:
      * span entry corresponds to one headstage / stream; the board fills @c
      * numSamples and @c samples in place.
      *
+     * The returned @p blockAcqTimestamp is the best guesstimate of the master-clock
+     * time at which the *last* sample of the chunk was physically acquired by the
+     * hardware (i.e. on-board buffer latency has been subtracted out where the
+     * board can observe it).
+     *
      * @return true if a chunk was produced, false on stop / error.
      */
-    virtual bool pumpSamples(std::span<AcqSampleChunk> sinks) = 0;
+    virtual bool pumpSamples(std::span<AcqSampleChunk> sinks, microseconds_t &blockAcqTimestamp) = 0;
 
     // ---------------- analog / DSP / DAC settings ----------------
 
@@ -338,6 +352,8 @@ protected:
     bool updateSettingsDuringAcquisition = false;
 
     BoardType boardType = BoardType::None;
+
+    std::shared_ptr<SyncTimer> m_syTimer;
 
     void emitMessage(MessageSeverity sev, const std::string &message) const
     {

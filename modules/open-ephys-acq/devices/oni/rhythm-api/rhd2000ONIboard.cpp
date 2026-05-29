@@ -1105,7 +1105,7 @@ bool Rhd2000ONIBoard::readDataBlock (Rhd2000ONIDataBlock* dataBlock, int nSample
             return false;
         }
 
-        memcpy (usbBuffer + offset, frame->data + 8, frame->data_sz - 8);
+        memcpy (usbBuffer + offset, (uint8_t*)frame->data + 8, frame->data_sz - 8);
         offset += frame->data_sz - 8;
         oni_destroy_frame (frame);
     }
@@ -1137,7 +1137,7 @@ bool Rhd2000ONIBoard::readDataBlocks (int numBlocks, std::queue<Rhd2000ONIDataBl
             free (usbBuffer);
             return false;
         }
-        memcpy (usbBuffer + offset, frame->data + 8, frame->data_sz - 8);
+        memcpy (usbBuffer + offset, (uint8_t*)frame->data + 8, frame->data_sz - 8);
         offset += frame->data_sz - 8;
         oni_destroy_frame (frame);
     }

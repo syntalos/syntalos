@@ -289,12 +289,16 @@ public:
         for (auto &port : outPorts())
             port->startStream();
 
-        // FIXME: Do proper time synchronization!
-        // THIS IS A PLACEHOLDER!
-        m_clockSync = initCounterSynchronizer(static_cast<double>(m_board->getSampleRate()));
-        if (m_clockSync) {
-            m_clockSync->setTolerance(std::chrono::microseconds(1400));
-            if (!m_clockSync->start()) {
+        // initialize timesync
+        const auto sampleRate = static_cast<double>(m_board->getSampleRate());
+        m_fcSync = initCounterSynchronizer(sampleRate);
+        if (m_fcSync) {
+            m_fcSync->setTolerance(std::chrono::microseconds(1400));
+            // Only calibrate on roughly the first 20 seconds of data, so the offset
+            // estimate isn't skewed by startup transients. One processTimestamps() call
+            // corresponds to one 128-sample pump cycle (see AcqBoardONI::pumpSamples).
+            m_fcSync->setCalibrationBlocksCount(static_cast<int>((sampleRate / 128.0) * 20.0));
+            if (!m_fcSync->start()) {
                 raiseError(QStringLiteral("Unable to start time synchronizer."));
                 return false;
             }
@@ -331,21 +335,20 @@ public:
 
         startWaitCondition->wait(this);
 
+        m_board->setSyncTimer(m_syTimer);
         if (!m_board->startAcquisition()) {
             raiseError(QStringLiteral("Failed to start acquisition."));
             return;
         }
 
         while (m_running) {
-            if (!m_board->pumpSamples(std::span<AcqSampleChunk>(chunks.data(), chunks.size()))) {
+            microseconds_t blockAcqTS;
+            if (!m_board->pumpSamples(std::span<AcqSampleChunk>(chunks.data(), chunks.size()), blockAcqTS)) {
                 raiseError(QStringLiteral(
                     "Open Ephys acquisition read failed. The run has been aborted; "
                     "captured data may be incomplete."));
                 break;
             }
-
-            // FIXME: Perform proper time synchronization!
-            const auto blockRecvTime = m_syTimer->timeSinceStartUsec();
 
             for (size_t gi = 0; gi < chunks.size(); ++gi) {
                 auto &chunk = chunks[gi];
@@ -374,9 +377,9 @@ public:
                     g.block->timestamps(s) = chunk.sampleIndices[s];
                 }
 
-                if (m_clockSync) {
-                    m_clockSync->processTimestamps(
-                        blockRecvTime,
+                if (m_fcSync) {
+                    m_fcSync->processTimestamps(
+                        blockAcqTS,
                         0, // blockIndex
                         1, // blockCount
                         g.block->timestamps);
@@ -434,9 +437,9 @@ public:
 
     void stop() override
     {
-        if (m_clockSync) {
-            const auto last = m_clockSync->lastMasterAssumedAcqTS();
-            safeStopSynchronizer(m_clockSync, last);
+        if (m_fcSync) {
+            const auto last = m_fcSync->lastMasterAssumedAcqTS();
+            safeStopSynchronizer(m_fcSync, last);
         }
 
         AbstractModule::stop();
@@ -934,7 +937,7 @@ private:
 
     std::unique_ptr<AcquisitionBoard> m_board;
     std::vector<GroupStream> m_groups;
-    std::unique_ptr<FreqCounterSynchronizer> m_clockSync;
+    std::unique_ptr<FreqCounterSynchronizer> m_fcSync;
     OeAcqSettingsDialog *m_settingsDlg = nullptr;
 
     std::shared_ptr<StreamInputPort<LineCommand>> m_ttlIn;
@@ -974,6 +977,11 @@ QString OpenEphysAcqModuleInfo::authors() const
         "Aarón Cuevas López\n"
         "Brandon Parks\n"
         "Matthias Klumpp");
+}
+
+QString OpenEphysAcqModuleInfo::license() const
+{
+    return QStringLiteral("Copyright © 2024-2026 Open Ephys & Syntalos Projects, GPL-3.0+ licensed");
 }
 
 ModuleCategories OpenEphysAcqModuleInfo::categories() const

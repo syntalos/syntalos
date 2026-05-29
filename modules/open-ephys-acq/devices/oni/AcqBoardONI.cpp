@@ -1107,6 +1107,8 @@ bool AcqBoardONI::startAcquisition()
     dataSampleNumber = 0;
     memorySampleNumber = 0;
     bnoSampleNumbers = {0, 0, 0, 0};
+    m_lastMemUsed = 0;
+    m_rhythmFrameBytes = 0;
 
     return true;
 }
@@ -1130,7 +1132,7 @@ bool AcqBoardONI::stopAcquisition()
     return true;
 }
 
-bool AcqBoardONI::pumpSamples(std::span<AcqSampleChunk> sinks)
+bool AcqBoardONI::pumpSamples(std::span<AcqSampleChunk> sinks, microseconds_t &blockAcqTimestamp)
 {
     if (!deviceFound || !isTransmitting)
         return false;
@@ -1166,6 +1168,9 @@ bool AcqBoardONI::pumpSamples(std::span<AcqSampleChunk> sinks)
                 oni_destroy_frame(frame);
             return false;
         }
+        // Set timestamp right after the last sample of this block was read
+        if (samp == nSamps - 1)
+            blockAcqTimestamp = m_syTimer->timeSinceStartUsec();
 
         if (frame->dev_idx != Rhd2000ONIBoard::DEVICE_RHYTHM) {
             // BNO frames are dropped (not exposed as a Syntalos port yet).
@@ -1173,6 +1178,8 @@ bool AcqBoardONI::pumpSamples(std::span<AcqSampleChunk> sinks)
             // routed up to the module so it can show buffer fill % live.
             if (frame->dev_idx == Rhd2000ONIBoard::DEVICE_MEMORY && totalMemory > 0) {
                 const auto *data = static_cast<const uint32_t *>(static_cast<const void *>(frame->data));
+                // Remember the latest device-buffer fill for buffer-latency back-calculation below
+                m_lastMemUsed = static_cast<int64_t>(*(data + 2));
                 const float memPct = 100.0f * static_cast<float>(*(data + 2)) / static_cast<float>(totalMemory);
                 if (m_lastReportedMemPct < 0.0f || std::abs(memPct - m_lastReportedMemPct) >= 1.0f) {
                     emitMessage(MessageSeverity::Info, std::format("buffer:{}%", Syntalos::numToString(memPct)));
@@ -1180,7 +1187,7 @@ bool AcqBoardONI::pumpSamples(std::span<AcqSampleChunk> sinks)
                 }
             }
             oni_destroy_frame(frame);
-            // Re-try this iteration — the outer loop expects nSamps RHYTHM frames.
+            // Re-try this iteration - the outer loop expects nSamps RHYTHM frames.
             samp--;
             continue;
         }
@@ -1190,6 +1197,10 @@ bool AcqBoardONI::pumpSamples(std::span<AcqSampleChunk> sinks)
             samp--;
             continue;
         }
+
+        // Remember the on-board byte cost of one Rhythm frame so we can translate the
+        // device-buffer fill into a buffered-sample count.
+        m_rhythmFrameBytes = frame->data_sz;
 
         unsigned char *bufferPtr = reinterpret_cast<unsigned char *>(frame->data) + 8; // skip ONI timestamps
         int index = 0;
@@ -1369,6 +1380,22 @@ bool AcqBoardONI::pumpSamples(std::span<AcqSampleChunk> sinks)
 
         dataSampleNumber++;
         oni_destroy_frame(frame);
+    }
+
+    // Back-calculate the true hardware acquisition time of the block's last sample by
+    // subtracting the on-board buffer latency. Data still queued in memory after our
+    // read is *newer* than the last sample we read, so that sample was acquired
+    // bufferedSamples / sampleRate earlier than "now".
+    if (hasMemoryMonitorSupport && m_lastMemUsed > 0 && m_rhythmFrameBytes > 0) {
+        // The memory monitor reports words *used* in 32-bit FIFO words (same unit as
+        // the TOTAL_MEM register; cf. oni_fifo_dat_t / BYTE_TO_FIFO_SHIFT==2 in onidefs.h),
+        // so convert to bytes by *4. The on-device memory also holds non-Rhythm frames, so
+        // dividing by the Rhythm frame size slightly overestimates the buffered sample count.
+        // This is acceptable, as Rhythm dominates the byte rate at >=1 kHz.
+        const double bufferedBytes = static_cast<double>(m_lastMemUsed) * 4.0;
+        const double bufferedSamples = bufferedBytes / static_cast<double>(m_rhythmFrameBytes);
+        const int64_t latencyUs = std::llround(1e6 * bufferedSamples / static_cast<double>(getSampleRate()));
+        blockAcqTimestamp -= microseconds_t(std::min(latencyUs, blockAcqTimestamp.count()));
     }
 
     // ---- live settings updates that were queued from the GUI thread ----

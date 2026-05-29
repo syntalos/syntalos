@@ -93,7 +93,7 @@ public:
     bool startAcquisition() override;
     bool stopAcquisition() override;
 
-    bool pumpSamples(std::span<AcqSampleChunk> sinks) override;
+    bool pumpSamples(std::span<AcqSampleChunk> sinks, microseconds_t &blockAcqTimestamp) override;
 
     double setUpperBandwidth(double upperBandwidth) override;
     double setLowerBandwidth(double lowerBandwidth) override;
@@ -219,6 +219,12 @@ private:
 
     /** Last memory-monitor percentage we reported up to the module, to avoid spamming setStatusMessage. */
     float m_lastReportedMemPct = -1.0f;
+
+    /** Most recent on-board buffer fill (in 32-bit words) seen from a memory-monitor frame */
+    int64_t m_lastMemUsed = 0;
+
+    /** Size in bytes of a Rhythm data frame, captured during acquisition */
+    uint32_t m_rhythmFrameBytes = 0;
 
     Syntalos::QuillLogger *m_log;
 };

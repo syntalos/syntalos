@@ -174,7 +174,7 @@ bool AcqBoardSim::stopAcquisition()
     return true;
 }
 
-bool AcqBoardSim::pumpSamples(std::span<AcqSampleChunk> sinks)
+bool AcqBoardSim::pumpSamples(std::span<AcqSampleChunk> sinks, microseconds_t &blockAcqTimestamp)
 {
     if (!isAcquiring)
         return false;
@@ -249,6 +249,11 @@ bool AcqBoardSim::pumpSamples(std::span<AcqSampleChunk> sinks)
     const auto now = std::chrono::steady_clock::now();
     if (target > now)
         std::this_thread::sleep_for(target - now);
+
+    // Set the "acquisition" timestamp *after* the real-time throttle, so it reflects
+    // when the block's last sample arrives in real time (the simulated board has no
+    // buffer backlog, so recv == acq).
+    blockAcqTimestamp = m_syTimer->timeSinceStartUsec();
 
     drainElapsedDigitalDeadlines();
     // Sim board ignores actual digital output state; just drain the queue.

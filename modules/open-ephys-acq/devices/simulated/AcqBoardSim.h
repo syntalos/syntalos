@@ -68,7 +68,7 @@ public:
     bool startAcquisition() override;
     bool stopAcquisition() override;
 
-    bool pumpSamples(std::span<AcqSampleChunk> sinks) override;
+    bool pumpSamples(std::span<AcqSampleChunk> sinks, microseconds_t &blockAcqTimestamp) override;
 
     double setUpperBandwidth(double upperBandwidth) override;
     double setLowerBandwidth(double lowerBandwidth) override;

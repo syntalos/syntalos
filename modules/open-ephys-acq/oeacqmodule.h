@@ -31,6 +31,7 @@ public:
     QString name() const final;
     QString description() const final;
     QString authors() const final;
+    QString license() const final;
     ModuleCategories categories() const final;
     AbstractModule *createModule(QObject *parent = nullptr) final;
 };
