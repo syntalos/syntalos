@@ -92,11 +92,9 @@ liboni_lib = shared_library(
     dependencies: [
         c_compiler.find_library('dl', required: true)
     ],
-    c_args: [
-        '-Wno-error=missing-prototypes',
-        '-Wno-error=shadow',
-        '-Wno-error=unused-but-set-variable',
-    ],
+    # Ignore pointer sign errors for now, see
+    # https://github.com/open-ephys/liboni/pull/64 for details.
+    c_args: ['-Wno-pointer-sign'],
     soversion: '1',
     install: true,
     install_dir: sy_libdir,
@@ -122,17 +120,6 @@ libonidriver_ft600 = shared_library(
     'onidriver_ft600',
     ft600_src,
     include_directories: [liboni_inc, ft600_inc],
-    c_args: [
-        '-Wno-error=missing-prototypes',
-        '-Wno-error=shadow',
-        '-Wno-error=unused-but-set-variable',
-        # FIXME: onidriver_ft600.c declares oni_ft600_reset_ctx
-        # as plain `inline` (C99 inline-definition only), so when the compiler
-        # chooses not to inline a call site there is no external symbol to link
-        # against. GNU89 inline semantics also emit an out-of-line definition.
-        # Remove once liboni is fixed upstream.
-        '-fgnu89-inline',
-    ],
     link_args: [ft3dxx_static],
     dependencies: [
         c_compiler.find_library('dl', required: true),
