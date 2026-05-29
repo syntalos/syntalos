@@ -21,8 +21,12 @@ else
 fi
 
 # configure Syntalos build with all flags enabled
+# NOTE: We do enable optimizations (but not LTO), so tests can run a bit
+# faster and more reliably on the low core-count CI runners.
 mkdir build && cd build
-meson \
+meson setup \
+    -Dbuildtype=debugoptimized \
+    -Db_lto=false \
     -Dmaintainer=true \
     -Dgui-tests=true \
     -Dmodules="camera-arv,camera-tis,miniscope${extra_modules}" \
