@@ -107,9 +107,6 @@ jobs:
         git submodule update --init --recursive
         meson subprojects download || true
 
-        # TODO: Remove this one iceoryx2 is available as package
-        git clone --depth=1 https://github.com/eclipse-iceoryx/iceoryx2.git vendor/iceoryx2
-
     - name: Build Package
       uses: ximion/debspawn-action/build@v1
       with:
