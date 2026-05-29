@@ -235,4 +235,17 @@ private:
         std::chrono::duration_cast<microseconds_t>(symaster_clock::now() - (INIT_TIME)); \
     })
 
+/**
+ * Like FUNC_DONE_TIMESTAMP, but uses a SyncTimer instead of a raw
+ * initial timestamp.
+ *
+ * The resulting timestamp is in µs
+ */
+#define TIMER_FUNC_DONE_TIMESTAMP(T, F) \
+    ({                                  \
+        F;                              \
+        T->timeSinceStartUsec();        \
+    })
+#define MTIMER_FUNC_DONE_TIMESTAMP(F) (TIMER_FUNC_DONE_TIMESTAMP(m_syTimer, F))
+
 } // namespace Syntalos
