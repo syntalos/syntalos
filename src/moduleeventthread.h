@@ -55,7 +55,19 @@ public:
 
     void setFailed(bool failed);
 
-    void run(QList<AbstractModule *> mods, OptionalWaitCondition *waitCondition);
+    /**
+     * @brief Start the event thread for the given modules.
+     *
+     * The thread may be elevated as a whole: if @p realtime is set it switches to
+     * realtime (SCHED_RR) scheduling at @p rtPriority, otherwise - if @p niceness is
+     * negative - it lowers its niceness.
+     */
+    void run(
+        QList<AbstractModule *> mods,
+        OptionalWaitCondition *waitCondition,
+        bool realtime = false,
+        int rtPriority = 0,
+        int niceness = 0);
     void stop();
 
     QuillLogger *logger() const;
@@ -69,7 +81,12 @@ private:
     std::unique_ptr<Private> d;
 
     void shutdownThread();
-    void moduleEventThreadFunc(QList<AbstractModule *> mods, OptionalWaitCondition *waitCondition);
+    void moduleEventThreadFunc(
+        QList<AbstractModule *> mods,
+        OptionalWaitCondition *waitCondition,
+        bool realtime,
+        int rtPriority,
+        int niceness);
 };
 
 } // namespace Syntalos

@@ -1094,6 +1094,16 @@ protected:
     int defaultThreadNiceness() const;
 
     /**
+     * @brief Returns true if this module's dedicated thread is approved for realtime scheduling
+     *
+     * The engine computes this once before any module is prepared, taking the global
+     * configuration and the system's shared RtKit slot budget into account. Only modules
+     * for which this returns true should request SCHED_RR realtime priority; all others
+     * use niceness (or no) elevation instead.
+     */
+    bool isRealtimeApproved() const;
+
+    /**
      * @brief Returns true if the currently ongoing or last run is/was ephemeral
      *
      * An emphameral (or volatile) run is a type of run where no data is stored permanently.
@@ -1144,6 +1154,7 @@ private:
     void setPotentialNoaffinityCPUCount(uint coreN);
     void setDefaultRTPriority(int prio);
     void setDefaultThreadNiceness(int nice);
+    void setRealtimeApproved(bool approved);
     void setEphemeralRun(bool isEphemeral);
 };
 

@@ -1304,9 +1304,11 @@ bool MLinkModule::prepare(const TestSubject &subject)
         }))
         return false;
 
-    // set module process realtime priority
+    // set module process realtime priority, but only if the engine approved this
+    // module for realtime scheduling within the shared RtKit budget (otherwise the
+    // worker would self-elevate past the limit). A priority of 0 disables realtime.
     if (!d->callClientSimple<SetMaxRealtimePriority>(this, SET_MAX_RT_PRIORITY_CALL_ID, [&](auto &req) {
-            req.priority = defaultRealtimePriority();
+            req.priority = isRealtimeApproved() ? defaultRealtimePriority() : 0;
         }))
         return false;
 

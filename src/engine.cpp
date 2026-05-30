@@ -50,6 +50,7 @@
 #include <QThread>
 #include <QTimer>
 #include <QVector>
+#include <algorithm>
 #include <memory>
 #include <functional>
 #include <filesystem>
@@ -94,13 +95,15 @@ public:
     explicit ThreadDetails()
         : name(createRandomString(8)),
           niceness(0),
-          allowedRTPriority(0)
+          allowedRTPriority(0),
+          realtime(false)
     {
     }
 
     QString name;
     int niceness;
     int allowedRTPriority;
+    bool realtime;
     std::vector<uint> cpuAffinity;
 };
 
@@ -209,17 +212,17 @@ private:
         auto self = static_cast<SyThread *>(udata);
         pthread_setname_np(pthread_self(), qPrintable(self->m_td.name.mid(0, 15)));
 
-        // set higher niceness for this thread
-        if (self->m_td.niceness != 0)
-            setCurrentThreadNiceness(self->m_td.niceness);
-
         // set CPU affinity
         if (!self->m_td.cpuAffinity.empty())
             thread_set_affinity_from_vec(pthread_self(), self->m_td.cpuAffinity);
 
-        if (self->m_mod->features().testFlag(ModuleFeature::REALTIME)) {
+        // Apply exactly one priority elevation for this thread: realtime takes
+        // precedence over niceness.
+        if (self->m_td.realtime) {
             if (setCurrentThreadRealtime(self->m_td.allowedRTPriority))
                 LOG_INFO(getEngineLog, "Module thread for '{}' set to realtime mode.", self->m_mod->name());
+        } else if (self->m_td.niceness != 0) {
+            setCurrentThreadNiceness(self->m_td.niceness);
         }
 
         self->m_mod->runThread(self->m_waitCond);
@@ -1723,90 +1726,203 @@ void Engine::setInactiveModulePortsSuspended(const Engine::ModuleRunOrder &modOr
 }
 
 /**
- * @brief Distribute niceness elevation slots among all module threads for a run.
+ * @brief Group event-driven modules into the event threads they will share.
  *
- * RtKit enforces a per-user limit across all elevated threads that we do not know,
- * but guess to be around 16 (it is hardcoded at 25, but other processes have elevated
- * priorities as well).
- * This function pre-assigns which threads get elevation, so that:
- *   a) we never make D-Bus calls that will likely be rejected, and
- *   b) the most important threads - those whose modules appear earliest in the topological
- *      run order - are prioritized across both  in-process dedicated threads and
- *      out-of-process workers.
+ * Both the priority-budget allocation and the actual thread launch need to agree on which
+ * shared event threads (ModuleEventThread) exist and which modules run on each, so this
+ * grouping logic lives in one place. The result is keyed by the thread's group ID:
+ *   - all EVENTS_SHARED modules land on a single "shared_0" thread,
+ *   - EVENTS_DEDICATED modules are grouped per module ID, split across multiple threads
+ *     if the module caps how many of its instances share one thread.
+ */
+static QHash<QString, QList<AbstractModule *>> computeEventThreadGroups(const QList<AbstractModule *> &startMods)
+{
+    QHash<QString, int> remainingEvModCountById;
+    for (const auto &mod : startMods) {
+        if ((mod->driver() == ModuleDriverKind::EVENTS_SHARED)
+            || (mod->driver() == ModuleDriverKind::EVENTS_DEDICATED)) {
+            if (!remainingEvModCountById.contains(mod->id()))
+                remainingEvModCountById[mod->id()] = 0;
+            remainingEvModCountById[mod->id()] += 1;
+        }
+    }
+
+    QHash<QString, QList<AbstractModule *>> groups;
+    for (const auto &mod : startMods) {
+        QString evGroupId;
+        if (mod->driver() == ModuleDriverKind::EVENTS_SHARED) {
+            evGroupId = QStringLiteral("shared_0");
+        } else if (mod->driver() == ModuleDriverKind::EVENTS_DEDICATED) {
+            if (mod->eventsMaxModulesPerThread() <= 0) {
+                evGroupId = QStringLiteral("m:%1").arg(mod->id());
+                remainingEvModCountById[mod->id()] -= 1;
+            } else {
+                // reduce number first to get "0 / eventsMaxModulesPerThread" last
+                remainingEvModCountById[mod->id()] -= 1;
+                int evGroupPerModIdx = static_cast<int>(
+                    remainingEvModCountById[mod->id()] / mod->eventsMaxModulesPerThread());
+                evGroupId = QStringLiteral("m:%1_%2").arg(mod->id(), evGroupPerModIdx);
+            }
+        } else {
+            // not an event-driven module
+            continue;
+        }
+
+        groups[evGroupId].append(mod);
+    }
+
+    return groups;
+}
+
+/**
+ * @brief Distribute the shared RtKit elevation budget across all module threads for a run.
  *
- * One slot is always reserved for the main engine thread (it is never in the returned set).
- * The remaining slots are distributed in topological order across all module types.
+ * RtKit enforces a per-user limit shared across ALL elevated threads of the user -
+ * realtime and high-priority (niceness) threads alike count against the same counter.
+ * We do not know the exact value, but guess conservatively (default 16; the daemon default is 25,
+ * but other processes - PipeWire, KWin and friends - claim slots too). Niceness cannot be inherited
+ * either, as RtKit sets SCHED_RESET_ON_FORK, so every elevated thread needs its own slot.
+ *
+ * This function pre-assigns exactly one elevation per module - realtime XOR niceness -
+ * and counts every assignment against a single budget, so that:
+ *   a) we try to avoid making a D-Bus call that would be rejected for exceeding the limit, and
+ *   b) the most important threads are served first.
+ *
+ * Spend order, each tier walked in topological run order:
+ *   1. modules explicitly requesting ModuleFeature::REALTIME -> realtime (SCHED_RR)
+ *   2. data sources - DEVICES / GENERATORS                   -> realtime (SCHED_RR)
+ *   3. WRITERS                                               -> niceness
+ * Everything else is left at default priority (no elevation). One slot is reserved for the
+ * main engine thread (niced separately, never realtime). Modules that do not fit the budget
+ * keep the default priority.
+ *
+ * Only THREAD_DEDICATED and out-of-process (MLink) modules are elevated individually,
+ * EVENTS_DEDICATED / EVENTS_SHARED threads are elevated if one module in them is eligible
+ * for higher priority.
  *
  * @param modOrder          The pre-computed module run order for this run.
- * @param maxRtThreads      Maximum amount of concurrent RT threads.
+ * @param maxRtThreads      Maximum amount of concurrent elevated threads (shared budget).
  * @param defaultThreadNice The configured default thread niceness (0 = no elevation wanted).
  */
-void Engine::allocateNicenessBudget(const ModuleRunOrder &modOrder, uint maxRtThreads, int defaultThreadNice)
+void Engine::allocatePriorityBudget(const ModuleRunOrder &modOrder, uint maxRtThreads, int defaultThreadNice)
 {
-    // Initialize all modules to default priority (0). We then assign elevated
-    // niceness to the selected eligible modules later.
-    for (auto &mod : modOrder.start)
+    // Initialize all modules to no elevation. We then assign realtime or niceness
+    // to the selected eligible modules below.
+    for (auto &mod : modOrder.start) {
         mod->setDefaultThreadNiceness(0);
+        mod->setRealtimeApproved(false);
+    }
 
     // If elevation is not wanted at all, we are done.
     if (defaultThreadNice == 0 || maxRtThreads == 0)
         return;
 
-    QList<AbstractModule *> deviceEligibleMods;
-    QList<AbstractModule *> otherEligibleMods;
+    // What a single module wants, if anything. Realtime beats niceness.
+    enum class Want {
+        None,
+        Niceness,
+        Realtime
+    };
+    auto wantOf = [&](AbstractModule *mod) -> Want {
+        // an explicit realtime request always wins, regardless of category
+        if (mod->features().testFlag(ModuleFeature::REALTIME))
+            return Want::Realtime;
+        const auto info = d->modLibrary->moduleInfo(mod->id());
+        const auto cats = info ? info->categories() : ModuleCategories();
+        if (cats.testFlag(ModuleCategory::DEVICES) || cats.testFlag(ModuleCategory::GENERATORS))
+            return Want::Realtime;
+        if (cats.testFlag(ModuleCategory::WRITERS))
+            return Want::Niceness;
+        return Want::None;
+    };
+
+    // An elevation unit is one OS thread that draws from the shared RtKit budget: a
+    // dedicated in-process thread, an out-of-process (MLink) worker, or a shared event
+    // thread. An event thread is elevated as a whole if at least one of its modules is
+    // eligible, so all modules on it benefit from a single slot. The unit is elevated to
+    // the strongest tier any of its modules asks for.
+    struct ElevUnit {
+        QList<AbstractModule *> mods; // modules sharing this unit's thread
+        bool realtime;                // realtime (SCHED_RR) vs. niceness
+        bool explicitReq;             // a module explicitly requested REALTIME (served first)
+    };
+    QList<ElevUnit> units;
+
+    // dedicated in-process threads and out-of-process workers: one module, one thread
     for (auto &mod : modOrder.start) {
         const bool isMLink = qobject_cast<MLinkModule *>(mod) != nullptr;
         const bool isDedicated = mod->driver() == ModuleDriverKind::THREAD_DEDICATED;
         if (!isMLink && !isDedicated)
             continue;
 
-        const auto info = d->modLibrary->moduleInfo(mod->id());
-        const bool isDevice = info && info->categories().testFlag(ModuleCategory::DEVICES);
-        if (isDevice)
-            deviceEligibleMods.append(mod);
-        else
-            otherEligibleMods.append(mod);
+        const auto want = wantOf(mod);
+        if (want == Want::None)
+            continue;
+        units.append(ElevUnit{{mod}, want == Want::Realtime, mod->features().testFlag(ModuleFeature::REALTIME)});
     }
 
-    if (deviceEligibleMods.isEmpty() && otherEligibleMods.isEmpty())
+    // shared event threads: one thread per group, elevated for the whole group
+    const auto evGroups = computeEventThreadGroups(modOrder.start);
+    for (auto it = evGroups.constBegin(); it != evGroups.constEnd(); ++it) {
+        bool wantsRt = false;
+        bool wantsNice = false;
+        bool explicitReq = false;
+        for (auto *mod : it.value()) {
+            switch (wantOf(mod)) {
+            case Want::Realtime:
+                wantsRt = true;
+                if (mod->features().testFlag(ModuleFeature::REALTIME))
+                    explicitReq = true;
+                break;
+            case Want::Niceness:
+                wantsNice = true;
+                break;
+            case Want::None:
+                break;
+            }
+        }
+        if (!wantsRt && !wantsNice)
+            continue;
+        units.append(ElevUnit{it.value(), wantsRt, explicitReq});
+    }
+
+    if (units.isEmpty())
         return;
 
-    // Reserve 1 slot for the main engine thread (always elevated, starts first).
-    // Distribute the remaining slots in topological order across all module types.
-    const size_t totalWanting = deviceEligibleMods.length() + otherEligibleMods.length();
-    const size_t slotsForModules = std::max(0LL, maxRtThreads - 1LL);
+    // Spend order: explicit realtime requests first, then the remaining realtime units
+    // (devices/generators), then niceness units (writers). stable_sort keeps the
+    // topological run order within each rank.
+    std::stable_sort(units.begin(), units.end(), [](const ElevUnit &a, const ElevUnit &b) {
+        auto rank = [](const ElevUnit &u) {
+            if (u.realtime)
+                return u.explicitReq ? 0 : 1;
+            return 2;
+        };
+        return rank(a) < rank(b);
+    });
 
-    if (slotsForModules >= totalWanting) {
-        for (auto &mod : deviceEligibleMods)
-            mod->setDefaultThreadNiceness(defaultThreadNice);
-        for (auto &mod : otherEligibleMods)
-            mod->setDefaultThreadNiceness(defaultThreadNice);
-        return; // everything fits - elevated all eligible modules
-    }
+    // Reserve one slot for the main engine thread (niced separately, starts first).
+    size_t remaining = (maxRtThreads > 1) ? (maxRtThreads - 1) : 0;
 
-    LOG_WARNING(
-        d->log,
-        "Concurrent RT thread limit is {} (1 main + {} total requested). Only the first {} module threads will be "
-        "elevated to niceness {}; the remaining {} will run at default priority.",
-        maxRtThreads,
-        totalWanting,
-        slotsForModules,
-        defaultThreadNice,
-        (totalWanting - slotsForModules));
+    if (static_cast<size_t>(units.length()) > remaining)
+        LOG_WARNING(
+            d->log,
+            "Concurrent priority-elevation limit is {} (1 main + {} requested). Only the first {} threads "
+            "will be elevated; the remaining {} will run at default priority.",
+            maxRtThreads,
+            units.length(),
+            remaining,
+            (units.length() - remaining));
 
-    // Generally walk in topological order, but prioritize DEVICE modules first.
-    auto remaining = slotsForModules;
-    for (auto &mod : deviceEligibleMods) {
-        if (remaining <= 0)
+    for (const auto &unit : units) {
+        if (remaining == 0)
             break;
-        mod->setDefaultThreadNiceness(defaultThreadNice);
-        --remaining;
-    }
-
-    for (auto &mod : otherEligibleMods) {
-        if (remaining <= 0)
-            break;
-        mod->setDefaultThreadNiceness(defaultThreadNice);
+        for (auto *mod : unit.mods) {
+            if (unit.realtime)
+                mod->setRealtimeApproved(true);
+            else
+                mod->setDefaultThreadNiceness(defaultThreadNice);
+        }
         --remaining;
     }
 }
@@ -2042,7 +2158,7 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
     qApp->processEvents();
 
     // distribute niceness slots across all module threads before preparing any module
-    allocateNicenessBudget(modOrder, d->gconf->defaultRtKitThreadsMax(), defaultThreadNice);
+    allocatePriorityBudget(modOrder, d->gconf->defaultRtKitThreadsMax(), defaultThreadNice);
 
     // mark all inactive modules and their ports as dormant *before* PREPARE, so dormancy can propagate
     for (auto &mod : modOrder.inactive) {
@@ -2203,8 +2319,15 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
             mod->setState(ModuleState::PREPARING);
 
             ThreadDetails td;
-            td.niceness = mod->defaultThreadNiceness();
             td.allowedRTPriority = defaultRTPriority;
+
+            // Out-of-process (MLink) modules carry their elevation on the worker process
+            // (applied via IPC in MLinkModule::prepare). The in-process thread here only
+            // relays data to/from that worker, so we leave it unelevated - otherwise the
+            // module would consume two shared RtKit slots while the budget counted one.
+            const bool isMLink = qobject_cast<MLinkModule *>(mod) != nullptr;
+            td.niceness = isMLink ? 0 : mod->defaultThreadNiceness();
+            td.realtime = isMLink ? false : mod->isRealtimeApproved();
 
             if (modCPUMap.contains(mod)) {
                 td.cpuAffinity = modCPUMap[mod];
@@ -2226,45 +2349,9 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
         }
         assert(dThreads.size() == (size_t)threadedModules.size());
 
-        // collect all modules which do some kind of event-based execution
-        {
-            QHash<QString, int> remainingEvModCountById;
-            for (auto &mod : modOrder.start) {
-                if ((mod->driver() == ModuleDriverKind::EVENTS_SHARED)
-                    || (mod->driver() == ModuleDriverKind::EVENTS_DEDICATED)) {
-                    if (!remainingEvModCountById.contains(mod->id()))
-                        remainingEvModCountById[mod->id()] = 0;
-                    remainingEvModCountById[mod->id()] += 1;
-                }
-            }
-
-            // assign modules to their threads and give the groups an ID
-            for (auto &mod : modOrder.start) {
-                QString evGroupId;
-                if (mod->driver() == ModuleDriverKind::EVENTS_SHARED) {
-                    evGroupId = QStringLiteral("shared_0");
-                } else if (mod->driver() == ModuleDriverKind::EVENTS_DEDICATED) {
-                    if (mod->eventsMaxModulesPerThread() <= 0) {
-                        evGroupId = QStringLiteral("m:%1").arg(mod->id());
-                        remainingEvModCountById[mod->id()] -= 1;
-                    } else {
-                        // reduce number first to get "0 / eventsMaxModulesPerThread" last
-                        remainingEvModCountById[mod->id()] -= 1;
-                        int evGroupPerModIdx = static_cast<int>(
-                            remainingEvModCountById[mod->id()] / mod->eventsMaxModulesPerThread());
-                        evGroupId = QStringLiteral("m:%1_%2").arg(mod->id(), evGroupPerModIdx);
-                    }
-                } else {
-                    // not an event-driven module
-                    continue;
-                }
-
-                // add module to hash map
-                if (!eventModules.contains(evGroupId))
-                    eventModules[evGroupId] = QList<AbstractModule *>();
-                eventModules[evGroupId].append(mod);
-            }
-        }
+        // collect all modules which do some kind of event-based execution, grouped into
+        // the event threads they share (same grouping the priority allocator counted)
+        eventModules = computeEventThreadGroups(modOrder.start);
 
         // give modules which roll their own threads their own start-wait-conditions at this point
         // (right before the PREPARE stage is reached)
@@ -2274,15 +2361,25 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
         // run special threads with built-in event loops for modules that selected an event-based driver
         for (auto it = eventModules.constBegin(); it != eventModules.constEnd(); ++it) {
             const auto &evThreadKey = it.key();
+            const auto &evMods = eventModules[evThreadKey];
+
+            // elevate the whole event thread to the strongest priority the engine approved
+            // for any of its modules (realtime beats niceness)
+            bool evRealtime = false;
+            int evRtPriority = 0;
+            int evNiceness = 0;
+            for (auto *mod : evMods) {
+                if (mod->isRealtimeApproved()) {
+                    evRealtime = true;
+                    evRtPriority = std::max(evRtPriority, mod->defaultRealtimePriority());
+                }
+                evNiceness = std::min(evNiceness, mod->defaultThreadNiceness());
+            }
 
             std::shared_ptr<ModuleEventThread> evThread(new ModuleEventThread(evThreadKey));
-            evThread->run(eventModules[evThreadKey], startWaitCondition.get());
+            evThread->run(evMods, startWaitCondition.get(), evRealtime, evRtPriority, evNiceness);
             evThreads[evThreadKey] = evThread;
-            LOG_INFO(
-                d->log,
-                "Started event thread '{}' with {} participating modules",
-                evThreadKey,
-                eventModules[evThreadKey].length());
+            LOG_INFO(d->log, "Started event thread '{}' with {} participating modules", evThreadKey, evMods.length());
         }
 
         LOG_INFO(d->log, "Module and engine threads created in {} msec", timeDiffToNowMsec(lastPhaseTimepoint).count());

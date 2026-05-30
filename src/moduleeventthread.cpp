@@ -19,9 +19,11 @@
 
 #include "moduleeventthread.h"
 
+#include <algorithm>
 #include <glib.h>
 #include <thread>
 
+#include "datactl/priv/rtkit.h"
 #include "utils/misc.h"
 
 using namespace Syntalos;
@@ -211,9 +213,24 @@ static GSource *efd_signal_source_new(int event_fd)
     return (GSource *)source;
 }
 
-void ModuleEventThread::moduleEventThreadFunc(QList<AbstractModule *> mods, OptionalWaitCondition *waitCondition)
+void ModuleEventThread::moduleEventThreadFunc(
+    QList<AbstractModule *> mods,
+    OptionalWaitCondition *waitCondition,
+    bool realtime,
+    int rtPriority,
+    int niceness)
 {
     pthread_setname_np(pthread_self(), qPrintable(d->threadName.mid(0, 15)));
+
+    // Elevate this shared event thread as a whole, if the engine approved it. Realtime
+    // takes precedence over niceness.
+    if (realtime) {
+        if (setCurrentThreadRealtime(rtPriority))
+            LOG_INFO(d->log, "Event thread '{}' set to realtime mode.", d->threadName);
+    } else if (niceness != 0) {
+        setCurrentThreadNiceness(niceness);
+    }
+
     g_autoptr(GMainContext) context = g_main_context_new();
     g_main_context_push_thread_default(context);
     g_autoptr(GMainLoop) loop = g_main_loop_new(context, FALSE);
@@ -317,14 +334,26 @@ out:
     }
 }
 
-void ModuleEventThread::run(QList<AbstractModule *> mods, OptionalWaitCondition *waitCondition)
+void ModuleEventThread::run(
+    QList<AbstractModule *> mods,
+    OptionalWaitCondition *waitCondition,
+    bool realtime,
+    int rtPriority,
+    int niceness)
 {
     if (d->threadActive)
         return;
 
     d->running = true;
     d->threadActive = true;
-    d->thread = std::thread(&ModuleEventThread::moduleEventThreadFunc, this, mods, waitCondition);
+    d->thread = std::thread(
+        &ModuleEventThread::moduleEventThreadFunc,
+        this,
+        mods,
+        waitCondition,
+        realtime,
+        rtPriority,
+        niceness);
 }
 
 void ModuleEventThread::stop()

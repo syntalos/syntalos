@@ -560,6 +560,7 @@ public:
           id(QString()),
           name(QString()),
           modIndex(-1),
+          realtimeApproved(false),
           simpleStorageNames(true),
           initialized(false)
     {
@@ -574,6 +575,7 @@ public:
     uint potentialNoaffinityCPUCount;
     int defaultRealtimePriority;
     int defaultThreadNiceness;
+    bool realtimeApproved;
     static int s_eventsMaxModulesPerThread;
 
     QList<QPair<QWidget *, bool>> displayWindows;
@@ -1253,6 +1255,11 @@ int AbstractModule::defaultThreadNiceness() const
     return d->defaultThreadNiceness;
 }
 
+bool AbstractModule::isRealtimeApproved() const
+{
+    return d->realtimeApproved;
+}
+
 bool AbstractModule::isEphemeralRun() const
 {
     return d->runIsEmphemeral;
@@ -1410,6 +1417,11 @@ void AbstractModule::setDefaultRTPriority(int prio)
 void AbstractModule::setDefaultThreadNiceness(int nice)
 {
     d->defaultThreadNiceness = nice;
+}
+
+void AbstractModule::setRealtimeApproved(bool approved)
+{
+    d->realtimeApproved = approved;
 }
 
 void AbstractModule::setEphemeralRun(bool isEphemeral)

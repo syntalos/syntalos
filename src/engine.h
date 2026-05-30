@@ -235,7 +235,7 @@ private:
         const QList<AbstractModule *> &activeModules);
     void setInactiveModulePortsSuspended(const Engine::ModuleRunOrder &modOrder, bool suspended);
 
-    void allocateNicenessBudget(const ModuleRunOrder &modOrder, uint maxRtThreads, int defaultThreadNice);
+    void allocatePriorityBudget(const ModuleRunOrder &modOrder, uint maxRtThreads, int defaultThreadNice);
     bool validateModuleNames(const ModuleRunOrder &modOrder);
     bool waitForModulesReady(const ModuleRunOrder &modOrder);
     bool runInternal(const QString &exportDirPath, const Uuid &recordingId = {});
