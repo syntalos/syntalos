@@ -35,6 +35,7 @@
 #include <QSet>
 #include <QStringList>
 #include <chrono>
+#include <cmath>
 #include <memory>
 #include <vector>
 #include <atomic>
@@ -293,6 +294,9 @@ public:
         const auto sampleRate = static_cast<double>(m_board->getSampleRate());
         m_fcSync = initCounterSynchronizer(sampleRate);
         if (m_fcSync) {
+            // Shift the sample indices in place to track the master clock (no tsync file);
+            // we convert the corrected indices to absolute master-clock times downstream.
+            m_fcSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD);
             m_fcSync->setTolerance(std::chrono::microseconds(1400));
             // Only calibrate on roughly the first 20 seconds of data, so the offset
             // estimate isn't skewed by startup transients. One processTimestamps() call
@@ -333,6 +337,9 @@ public:
             chunks.push_back(std::move(c));
         }
 
+        // get the current sampling rate
+        const auto sampleRateHz = static_cast<double>(m_board->getSampleRate());
+
         startWaitCondition->wait(this);
 
         m_board->setSyncTimer(m_syTimer);
@@ -340,6 +347,17 @@ public:
             raiseError(QStringLiteral("Failed to start acquisition."));
             return;
         }
+
+        // Offset the sample indices so index 0 corresponds to the master-clock time at
+        // acquisition start: e.g. starting 1000 µs into a 20 kHz run begins at index 20.
+        // This makes index / sample_rate an absolute master-clock time already; the
+        // synchronizer then shifts the indices to track ongoing drift.
+        const int64_t startSampleOffset = std::llround(
+            static_cast<double>(m_syTimer->timeSinceStartUsec().count()) * sampleRateHz / 1e6);
+
+        // Synchronized per-sample index vector, computed once per block and shared by all
+        // groups (reused across pumps to avoid reallocation).
+        VectorXu64 syncedTs;
 
         while (m_running) {
             microseconds_t blockAcqTS;
@@ -349,6 +367,12 @@ public:
                     "captured data may be incomplete."));
                 break;
             }
+
+            // All modalities are acquired on the same device clock, so every group in this
+            // pump shares the identical sample-index sequence. Synchronize once per block
+            // (the synchronizer is a stateful estimator and must see exactly one call per
+            // acquired block) and reuse the corrected vector for all groups.
+            bool haveSync = false;
 
             for (size_t gi = 0; gi < chunks.size(); ++gi) {
                 auto &chunk = chunks[gi];
@@ -360,8 +384,24 @@ public:
                 const int rawCps = chunk.channelsPerSample; // hardware width
                 const int outCps = g.channelsPerSample;     // masked width
 
+                // Build and synchronize the shared timestamp vector on the first active
+                // group; subsequent groups reuse it unchanged.
+                if (!haveSync) {
+                    syncedTs.resize(n);
+                    for (int s = 0; s < n; ++s)
+                        syncedTs(s) = static_cast<uint64_t>(
+                            startSampleOffset + static_cast<int64_t>(chunk.sampleIndices[s]));
+                    if (m_fcSync)
+                        m_fcSync->processTimestamps(
+                            blockAcqTS,
+                            0,         // blockIndex
+                            1,         // blockCount
+                            syncedTs); // shifted in place to track the master clock
+                    haveSync = true;
+                }
+
                 g.block->data.resize(n, outCps);
-                g.block->timestamps.resize(n);
+                g.block->timestamps = syncedTs;
 
                 // Row-major copy with mask: pick enabledLocalIndices[outCol]
                 // from each raw row, copy values, and zero-fill any
@@ -374,15 +414,6 @@ public:
                         else
                             g.block->data(s, oc) = row[g.enabledLocalIndices[oc]];
                     }
-                    g.block->timestamps(s) = chunk.sampleIndices[s];
-                }
-
-                if (m_fcSync) {
-                    m_fcSync->processTimestamps(
-                        blockAcqTS,
-                        0, // blockIndex
-                        1, // blockCount
-                        g.block->timestamps);
                 }
 
                 g.stream->push(*g.block);
