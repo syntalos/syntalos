@@ -4,4 +4,4 @@ project_file = "projects/openephys-acq-smoketest.syct"
 run_duration_sec = 5
 expected_exit_code = 0
 expected_datasets = []
-expected_stdout_contains = ["Open Ephys AcqBoard ⇢ Zarr Writer ⇢ Plot Time Series"]
+expected_stdout_contains = ["Module start order: Open Ephys AcqBoard ⇢ Zarr ADC Writer ⇢ Plot Time Series ⇢ Zarr HS Writer"]
