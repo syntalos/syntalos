@@ -521,6 +521,11 @@ ModuleCategories ZarrWriterModuleInfo::categories() const
     return ModuleCategory::WRITERS;
 }
 
+QColor ZarrWriterModuleInfo::color() const
+{
+    return QColor::fromString("#e58077");
+}
+
 AbstractModule *ZarrWriterModuleInfo::createModule(QObject *parent)
 {
     return new ZarrWriterModule(this, parent);
