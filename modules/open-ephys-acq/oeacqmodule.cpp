@@ -400,6 +400,16 @@ public:
                     haveSync = true;
                 }
 
+                // Reusing the synchronized vector is only valid because every active chunk
+                // in a pump shares one device-clock index sequence (both producers emit a
+                // fixed 128-sample block with identical sampleIndices). Guard that invariant
+                // so a future per-modality length/decimation change can't silently emit a
+                // block whose timestamps and data rows disagree.
+                if (static_cast<int>(syncedTs.size()) != n) [[unlikely]] {
+                       LOG_CRITICAL(m_log, "all active chunks in a pump must share one sample-index sequence");
+                       continue;
+                }
+
                 g.block->data.resize(n, outCps);
                 g.block->timestamps = syncedTs;
 
