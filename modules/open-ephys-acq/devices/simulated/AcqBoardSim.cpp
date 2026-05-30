@@ -212,11 +212,11 @@ bool AcqBoardSim::pumpSamples(std::span<AcqSampleChunk> sinks, microseconds_t &b
 
         // Pre-pull one value per source for this sample tick.
         const float spikeUv = data.spikes[(idx * skip) % availableSpikeSamples];
-        const uint16_t spikeCount = uvToCount(spikeUv);
+        const uint16_t spikeCount = uvToCount(spikeUv, getBitVolts(ChannelKind::Electrode));
         const float sineSample = data.sine_wave[(idx * skip) % availableSineSamples] * 0.01f;
-        const uint16_t sineCount = uvToCount(sineSample);
+        const uint16_t sineCount = uvToCount(sineSample, getBitVolts(ChannelKind::Aux));
         const float adcSample = data.adc[(idx * skip) % availableAdcSamples];
-        const uint16_t adcCount = uvToCount(adcSample);
+        const uint16_t adcCount = uvToCount(adcSample, getBitVolts(ChannelKind::Adc));
 
         for (auto &sink : sinks) {
             if (sink.numSamples != N)

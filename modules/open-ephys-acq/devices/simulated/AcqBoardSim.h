@@ -104,10 +104,17 @@ public:
 private:
     bool enableHeadstage(int hsNum, bool enabled, int nStr = 1, int strChans = 32);
 
-    /** Convert a microvolt sample to offset-binary uint16 (1 LSB = 0.195 µV). */
-    static uint16_t uvToCount(float uv)
+    /**
+     * Convert a physical sample to offset-binary uint16 using the per-kind LSB.
+     *
+     * The chunk stores raw offset-binary counts; downstream reconstructs physical
+     * units as (count - 32768) * data_scale, where data_scale == getBitVolts(kind).
+     * So the encoding MUST use the same per-kind LSB the module advertises as
+     * data_scale, otherwise the recovered value is mis-scaled (electrode 0.195 µV,
+     * aux 0.0000374, ADC bit-volts). Defaults to the electrode LSB.
+     */
+    static uint16_t uvToCount(float uv, float lsb = 0.195f)
     {
-        constexpr float lsb = 0.195f;
         const float counts = uv / lsb + 32768.0f;
         if (counts <= 0.0f)
             return 0;

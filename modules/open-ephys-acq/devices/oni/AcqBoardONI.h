@@ -82,6 +82,7 @@ public:
     bool areAdcChannelsEnabled() const override;
 
     float getBitVolts(ChannelKind kind) const override;
+    DataScaling getDataScaling(ChannelKind kind) const override;
 
     void measureImpedances() override;
     void impedanceMeasurementFinished() override;
@@ -226,5 +227,5 @@ private:
     /** Size in bytes of a Rhythm data frame, captured during acquisition */
     uint32_t m_rhythmFrameBytes = 0;
 
-    Syntalos::QuillLogger *m_log;
+    QuillLogger *m_log;
 };

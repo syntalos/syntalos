@@ -907,6 +907,22 @@ float AcqBoardONI::getBitVolts(ChannelKind kind) const
     return 1.0f;
 }
 
+AcquisitionBoard::DataScaling AcqBoardONI::getDataScaling(ChannelKind kind) const
+{
+    // The ADC channels do not use the offset-binary mid-scale convention:
+    //   v3:     thisSample = -(bitVolts * raw - 5)        => scale = -bitVolts, offset = +5
+    //   non-v3: thisSample =  bitVolts * raw - 5 - 0.4096 => scale =  bitVolts, offset = -5.4096
+    if (kind == ChannelKind::Adc) {
+        const double bitVolts = getBitVolts(kind);
+        if (deviceId == DEVICE_ID_V3)
+            return {-bitVolts, 5.0};
+        return {bitVolts, -5.0 - 0.4096};
+    }
+
+    // electrode / aux: (raw - 32768) * bitVolts
+    return AcquisitionBoard::getDataScaling(kind);
+}
+
 void AcqBoardONI::measureImpedances()
 {
     if (!impedanceMeter)

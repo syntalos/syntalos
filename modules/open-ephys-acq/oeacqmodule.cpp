@@ -926,11 +926,15 @@ private:
             for (const auto &n : g.channelNames)
                 namesMeta.push_back(MetaValue{n});
 
+            // Reconstruct physical units:
+            // physical = data_scale * raw + data_offset. getDataScaling() folds in the
+            // offset-binary mid-scale and any ADC-specific affine terms (v3 sign, offsets).
+            const auto scaling = m_board->getDataScaling(g.kind);
             g.stream->setMetadataValue("sample_rate", static_cast<double>(sampleRate));
             g.stream->setMetadataValue("time_unit", std::string{"index"});
-            g.stream->setMetadataValue("data_unit", std::string{"µV"});
-            g.stream->setMetadataValue("data_scale", static_cast<double>(m_board->getBitVolts(g.kind)));
-            g.stream->setMetadataValue("data_offset", 0.0);
+            g.stream->setMetadataValue("data_unit", std::string{g.kind == ChannelKind::Adc ? "V" : "µV"});
+            g.stream->setMetadataValue("data_scale", scaling.scale);
+            g.stream->setMetadataValue("data_offset", scaling.offset);
             g.stream->setMetadataValue("signal_names", namesMeta);
         }
     }

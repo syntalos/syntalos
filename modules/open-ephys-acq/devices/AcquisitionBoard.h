@@ -145,6 +145,29 @@ public:
     /** bitVolts scaling (microvolts per LSB) for each channel kind. */
     virtual float getBitVolts(ChannelKind kind) const = 0;
 
+    /**
+     * Affine mapping from a stored raw offset-binary uint16 sample to its physical
+     * value: physical = scale * raw + offset (this is exactly how consumers such as
+     * the time-series plot and writers reconstruct the signal).
+     */
+    struct DataScaling {
+        double scale;
+        double offset;
+    };
+
+    /**
+     * Scale/offset that for physical conversion for @p kind.
+     *
+     * The samples we store are raw offset-binary counts (mid-scale 32768). The original
+     * code converts electrode/aux as (raw - 32768) * bitVolts, which is the default here.
+     * Boards whose ADC (or other) conversion has extra affine terms override this.
+     */
+    virtual DataScaling getDataScaling(ChannelKind kind) const
+    {
+        const double bitVolts = getBitVolts(kind);
+        return {bitVolts, -32768.0 * bitVolts};
+    }
+
     // ---------------- impedances ----------------
 
     virtual void measureImpedances() = 0;
