@@ -406,8 +406,8 @@ public:
                 // so a future per-modality length/decimation change can't silently emit a
                 // block whose timestamps and data rows disagree.
                 if (static_cast<int>(syncedTs.size()) != n) [[unlikely]] {
-                       LOG_CRITICAL(m_log, "all active chunks in a pump must share one sample-index sequence");
-                       continue;
+                    LOG_CRITICAL(m_log, "all active chunks in a pump must share one sample-index sequence");
+                    continue;
                 }
 
                 g.block->data.resize(n, outCps);
