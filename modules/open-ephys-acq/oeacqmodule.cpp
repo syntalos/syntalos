@@ -977,6 +977,7 @@ private:
             g.stream->setMetadataValue("data_scale", scaling.scale);
             g.stream->setMetadataValue("data_offset", scaling.offset);
             g.stream->setMetadataValue("signal_names", namesMeta);
+            g.stream->setSuggestedDataName(QStringLiteral("oe-acq-%1/%1").arg(g.portId, g.portId));
         }
     }
 
