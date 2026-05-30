@@ -43,6 +43,10 @@ struct StreamExportData {
 
     StreamExporter *self{};
     GSource *source{};
+
+    // source to watch the publisher's control-listener FD,
+    // to handle SubscriberConnected events explicitly
+    GSource *cevSource{};
 };
 
 #pragma GCC diagnostic push
@@ -239,9 +243,18 @@ static gboolean recvStreamEventDispatch(gpointer udata)
             break;
     }
 
-    // handle any auxiliary publisher events
-    ed->publisher->handleEvents();
+    return TRUE;
+}
 
+/**
+ * Dispatched when a publisher's control listener FD signals (e.g. a SubscriberConnected event).
+ * Drains the publisher's events so update_connections() runs and the new subscriber is woken up.
+ */
+static gboolean pubEventDispatch(gpointer udata)
+{
+    const auto ed = static_cast<StreamExportData *>(udata);
+    if (ed->publisher.has_value())
+        ed->publisher->handleEvents();
     return TRUE;
 }
 
@@ -294,6 +307,43 @@ static GSource *efd_signal_source_new(int event_fd)
     return (GSource *)source;
 }
 
+// A GSource that watches a file descriptor for readability but, unlike EFDSignalSource, never
+// read()s it. This is required for the IOX listener FD: it is a readiness-multiplexing FD
+// (SynchronousMultiplexing) whose underlying events must be consumed by the listener's own
+// try_wait_one() loop (inside SyPublisher::handleEvents()), not by a raw read() - reading it
+// ourselves would corrupt iceoryx2's notification state.
+typedef struct {
+    GSource source;
+    gpointer fd_tag;
+} IoxFdSource;
+
+static gboolean iox_fd_source_dispatch(GSource *source, GSourceFunc callback, gpointer user_data)
+{
+    auto self = (IoxFdSource *)source;
+    unsigned events = g_source_query_unix_fd(source, self->fd_tag);
+    if (events & G_IO_HUP || events & G_IO_ERR || events & G_IO_NVAL)
+        return G_SOURCE_REMOVE;
+
+    gboolean result_continue = G_SOURCE_CONTINUE;
+    if (events & G_IO_IN)
+        result_continue = callback(user_data);
+    g_source_set_ready_time(source, -1);
+    return result_continue;
+}
+
+static GSourceFuncs iox_fd_source_funcs =
+    {.prepare = efd_signal_source_prepare, .check = NULL, .dispatch = iox_fd_source_dispatch, .finalize = NULL};
+
+static GSource *iox_fd_source_new(int fd)
+{
+    auto source = (IoxFdSource *)g_source_new(&iox_fd_source_funcs, sizeof(IoxFdSource));
+    source->fd_tag = g_source_add_unix_fd(
+        (GSource *)source,
+        fd,
+        (GIOCondition)(G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_NVAL));
+    return (GSource *)source;
+}
+
 void StreamExporter::streamEventThreadFunc(OptionalWaitCondition *waitCondition)
 {
     pthread_setname_np(pthread_self(), qPrintable(d->threadName.mid(0, 15)));
@@ -309,6 +359,14 @@ void StreamExporter::streamEventThreadFunc(OptionalWaitCondition *waitCondition)
         ed.source = efd_signal_source_new(eventfd);
         g_source_set_callback(ed.source, &recvStreamEventDispatch, &ed, NULL);
         g_source_attach(ed.source, context);
+
+        // Also watch the publisher's control-listener FD so SubscriberConnected events are
+        // serviced event-driven, even for streams that emit no data of their own.
+        if (ed.publisher.has_value()) {
+            ed.cevSource = iox_fd_source_new(ed.publisher->file_descriptor().unsafe_native_handle());
+            g_source_set_callback(ed.cevSource, &pubEventDispatch, &ed, NULL);
+            g_source_attach(ed.cevSource, context);
+        }
     }
 
     // wait for us to start
@@ -352,6 +410,12 @@ out:
         // clean up sources (shouldn't be necessary, but we do it anyway)
         g_source_destroy(ed.source);
         g_source_unref(ed.source);
+
+        if (ed.cevSource != nullptr) {
+            g_source_destroy(ed.cevSource);
+            g_source_unref(ed.cevSource);
+            ed.cevSource = nullptr;
+        }
 
         // drain any pending data
         ed.subscription->clearPending();

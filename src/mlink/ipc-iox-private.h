@@ -294,7 +294,19 @@ public:
 
             switch (eventId) {
             case SyPubSubEvent::SubscriberConnected: {
+                // Register the new subscriber and back-fill the history into its buffer.
                 m_publisher.update_connections().value();
+
+                // Wake the just-connected subscriber so it drains the history sample we just
+                // back-filled. deliver_sample_history() places the bytes in the subscriber's buffer
+                // but fires NO Sample event; the only wakeup is this explicit notification.
+                // Without it, a subscriber on a sparse/idle stream would never wake to read the
+                // history and would receive zero data for the whole run (discovered as the root cause
+                // of a rare CI-only flake in the ipc-test-complex deep table chain). An extra Sample
+                // notification with no new live sample is harmless: the subscriber wakes, receive()
+                // returns the history sample (or nothing), and its drain loop handles the rest.
+                m_notifier.notify_with_custom_event_id(iox2::EventId(static_cast<size_t>(SyPubSubEvent::Sample)))
+                    .value();
                 break;
             }
             case SyPubSubEvent::SubscriberDisconnected: {
