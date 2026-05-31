@@ -786,13 +786,6 @@ bool LcCamera::getFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
         return false;
     }
 
-    // the kernel capture timestamp (nanoseconds, CLOCK_BOOTTIME) is far more precise
-    // than our observation moment; feed it as the secondary clock so the synchronizer
-    // can lock onto the device's actual frame cadence and remove our observation jitter
-    const auto devTime = std::chrono::duration_cast<microseconds_t>(
-        nanoseconds_t(static_cast<int64_t>(buffer->metadata().timestamp)));
-    clockSync->processTimestamp(frameRecvTime, devTime);
-
     auto mapIt = d->mapped.find(buffer);
     if (mapIt == d->mapped.end()) {
         requeue();
@@ -814,6 +807,13 @@ bool LcCamera::getFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
         requeue();
         return false;
     }
+
+    // the kernel capture timestamp (nanoseconds, CLOCK_BOOTTIME) is far more precise than
+    // our observation moment, so it can lock onto the device's frame cadence and remove
+    // our observation jitter. processTimestamp() adjusts frameRecvTime in place.
+    const auto devTime = std::chrono::duration_cast<microseconds_t>(
+        nanoseconds_t(static_cast<int64_t>(buffer->metadata().timestamp)));
+    clockSync->processTimestamp(frameRecvTime, devTime);
 
     frame.mat = mat;
     frame.time = frameRecvTime;
