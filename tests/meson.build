@@ -116,6 +116,7 @@ test_manifests = [
     'scenarios/inactive-subscriptions-test.toml',
     'scenarios/jsonwriter-test.toml',
     'scenarios/plotter-smoketest.toml',
+    'scenarios/latencycheck-smoketest.toml',
     'scenarios/prism-smoketest.toml',
     'scenarios/video-transform-crop.toml',
     'scenarios/ipc-test-pycpp-mods.toml',

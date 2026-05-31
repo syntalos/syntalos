@@ -1,0 +1,9 @@
+[test]
+name = "LatencyCheck Smoketest"
+project_file = "projects/latencycheck-smoketest.syct"
+run_duration_sec = 5
+expected_exit_code = 0
+expected_datasets = []
+expected_stdout_contains = [
+    "Module start order: Python Script ⇢ Latency Inline ⇢ Latency Diff ⇢ Zarr Writer ⇢ Zarr Writer 2"
+]

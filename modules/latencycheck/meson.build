@@ -1,20 +1,26 @@
-# Build definitions for module: devel.latencytest
+# Build definitions for module: latencycheck
 
 module_hdr = [
-    'latencytestmodule.h'
+    'latencycheckmodule.h'
 ]
-module_moc_hdr = []
+module_moc_hdr = [
+    'latencycanvas.h',
+]
 
-module_src = []
+module_src = [
+    'latencycanvas.cpp',
+]
 module_moc_src = [
-    'latencytestmodule.cpp',
+    'latencycheckmodule.cpp',
 ]
 
 module_ui = []
 
-module_deps = []
+module_deps = [syntalos_imgui_dep]
 
-module_data = []
+module_data = [
+    'latencycheck.svg',
+]
 
 #
 # Generic module setup

@@ -15,12 +15,12 @@ module_args = []
 # Developer modules
 subdir('devel.clock')
 subdir('devel.datasource')
-subdir('devel.latencytest')
 
 # Display / Aux modules
 subdir('canvas')
 subdir('table')
 subdir('plot-timeseries')
+subdir('latencycheck')
 
 # Audio
 subdir('audiosource')
