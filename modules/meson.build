@@ -15,6 +15,7 @@ module_args = []
 # Developer modules
 subdir('devel.clock')
 subdir('devel.datasource')
+subdir('flowmeter')
 
 # Display / Aux modules
 subdir('canvas')
