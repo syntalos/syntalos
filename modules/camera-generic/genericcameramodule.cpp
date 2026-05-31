@@ -25,6 +25,7 @@
 #include "genericcamerasettingsdialog.h"
 
 #include <cmath>
+#include <thread>
 
 SYNTALOS_MODULE(GenericCameraModule)
 
@@ -182,18 +183,21 @@ public:
                 }
                 continue;
             }
+            // the failure threshold targets consecutive failures, so reset after a good frame
+            frameRecordFailedCount = 0;
 
             // emit this frame on our output port
             m_outStream->push(frame);
 
-            const auto totalTime = timeDiffToNowMsec(cycleStartTime);
-            currentFps = static_cast<int>(1 / (totalTime.count() / static_cast<double>(1000)));
+            const auto totalMsec = timeDiffToNowMsec(cycleStartTime).count();
+            if (totalMsec > 0)
+                currentFps = 1000.0 / static_cast<double>(totalMsec);
 
             // warn if there is a bigger framerate drop
             if (currentFps < (m_fps - 2)) {
                 fpsLow = true;
                 setStatusMessage(QStringLiteral("<html><font color=\"red\"><b>Framerate (%1fps) is too low!</b></font>")
-                                     .arg(currentFps));
+                                     .arg(currentFps, 0, 'f', 1));
             } else if (fpsLow) {
                 fpsLow = false;
                 statusMessage("Acquiring frames...");
@@ -208,8 +212,8 @@ public:
         statusMessage("Cleaning up...");
         AbstractModule::stop();
 
-        while (!m_stopped) {
-        }
+        while (!m_stopped)
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
         m_camera->disconnect();
         m_camSettingsWindow->setRunning(false);

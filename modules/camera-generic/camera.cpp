@@ -525,6 +525,9 @@ bool Camera::recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
         return false;
     }
 
+    // we recovered, so reset the consecutive-failure counter
+    d->droppedFrameCount = 0;
+
     if (frame.mat.cols != d->frameSize.width || frame.mat.rows != d->frameSize.height) {
         fail(QStringLiteral("Received frame with unexpected dimensions (%1x%2, expected %3x%4)")
                  .arg(frame.mat.cols)
