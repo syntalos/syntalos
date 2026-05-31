@@ -30,27 +30,28 @@
 #include <sys/ioctl.h>
 #include "datactl/frametype.h"
 
-struct CameraPropertyInfo
-{
+struct CameraPropertyInfo {
     int id;
     const char *name;
 };
 
 static QString cameraPropertyName(int propertyId)
 {
-    static const std::array<CameraPropertyInfo, 11> propertyNames = {{
-        {cv::CAP_PROP_FRAME_WIDTH, "frame width"},
-        {cv::CAP_PROP_FRAME_HEIGHT, "frame height"},
-        {cv::CAP_PROP_FPS, "framerate"},
-        {cv::CAP_PROP_EXPOSURE, "exposure"},
-        {cv::CAP_PROP_BRIGHTNESS, "brightness"},
-        {cv::CAP_PROP_CONTRAST, "contrast"},
-        {cv::CAP_PROP_SATURATION, "saturation"},
-        {cv::CAP_PROP_HUE, "hue"},
-        {cv::CAP_PROP_GAIN, "gain"},
-        {cv::CAP_PROP_AUTO_EXPOSURE, "auto exposure"},
-        {cv::CAP_PROP_FOURCC, "pixel format"},
-    }};
+    static const std::array<CameraPropertyInfo, 11> propertyNames = {
+        {
+         {cv::CAP_PROP_FRAME_WIDTH, "frame width"},
+         {cv::CAP_PROP_FRAME_HEIGHT, "frame height"},
+         {cv::CAP_PROP_FPS, "framerate"},
+         {cv::CAP_PROP_EXPOSURE, "exposure"},
+         {cv::CAP_PROP_BRIGHTNESS, "brightness"},
+         {cv::CAP_PROP_CONTRAST, "contrast"},
+         {cv::CAP_PROP_SATURATION, "saturation"},
+         {cv::CAP_PROP_HUE, "hue"},
+         {cv::CAP_PROP_GAIN, "gain"},
+         {cv::CAP_PROP_AUTO_EXPOSURE, "auto exposure"},
+         {cv::CAP_PROP_FOURCC, "pixel format"},
+         }
+    };
 
     for (const auto &property : propertyNames) {
         if (property.id == propertyId)
@@ -83,7 +84,7 @@ public:
     {
     }
 
-    QuillLogger *log;
+    QuillLogger *log{};
     std::chrono::time_point<symaster_clock> startTime;
     cv::VideoCapture *cam{};
     int camId;
@@ -171,10 +172,7 @@ std::expected<double, QString> Camera::setCameraProperty(int propertyId, double 
                              .arg(name)
                              .arg(value)
                              .arg(cameraValue);
-        LOG_WARNING(
-            d->log,
-            "{}",
-            msg);
+        LOG_WARNING(d->log, "{}", msg);
         return std::unexpected(msg);
     }
 
@@ -185,11 +183,8 @@ std::expected<double, QString> Camera::setCameraProperty(int propertyId, double 
     return reportedValue;
 }
 
-void Camera::warnIfCameraReportsDifferent(
-    int propertyId,
-    double requestedValue,
-    double reportedValue,
-    double tolerance) const
+void Camera::warnIfCameraReportsDifferent(int propertyId, double requestedValue, double reportedValue, double tolerance)
+    const
 {
     if (!d->cam || !d->cam->isOpened())
         return;
@@ -229,9 +224,10 @@ void Camera::setResolution(const cv::Size &size)
     const double requestedHeight = d->frameSize.height;
     const auto reportedWidth = setCameraProperty(cv::CAP_PROP_FRAME_WIDTH, requestedWidth, false);
     const auto reportedHeight = setCameraProperty(cv::CAP_PROP_FRAME_HEIGHT, requestedHeight, false);
-    const auto backendReportsDifferentResolution =
-        (reportedWidth && differsFromRequested(*reportedWidth, requestedWidth)) ||
-        (reportedHeight && differsFromRequested(*reportedHeight, requestedHeight));
+    const auto backendReportsDifferentResolution = (reportedWidth
+                                                    && differsFromRequested(*reportedWidth, requestedWidth))
+                                                   || (reportedHeight
+                                                       && differsFromRequested(*reportedHeight, requestedHeight));
 
     if (d->cam && d->cam->isOpened() && backendReportsDifferentResolution) {
         const auto reportedWidthValue = reportedWidth ? *reportedWidth : requestedWidth;
@@ -480,8 +476,9 @@ void Camera::setPixelFormat(const CameraPixelFormat &pixFmt)
     d->captureFormat = pixFmt;
 
     const auto actualFourcc = setCameraProperty(cv::CAP_PROP_FOURCC, pixFmt.fourcc, false);
-    const auto backendReportsDifferentFormat =
-        actualFourcc && (!isPositiveFinite(*actualFourcc) || std::round(*actualFourcc) != pixFmt.fourcc);
+    const auto backendReportsDifferentFormat = actualFourcc
+                                               && (!isPositiveFinite(*actualFourcc)
+                                                   || std::round(*actualFourcc) != pixFmt.fourcc);
 
     if (d->cam && d->cam->isOpened() && backendReportsDifferentFormat) {
         LOG_WARNING(
@@ -529,8 +526,14 @@ bool Camera::recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
         return false;
     }
 
-    // adjust to selected resolution
-    cv::resize(frame.mat, frame.mat, d->frameSize);
+    if (frame.mat.cols != d->frameSize.width || frame.mat.rows != d->frameSize.height) {
+        fail(QStringLiteral("Received frame with unexpected dimensions (%1x%2, expected %3x%4)")
+                 .arg(frame.mat.cols)
+                 .arg(frame.mat.rows)
+                 .arg(d->frameSize.width)
+                 .arg(d->frameSize.height));
+        return false;
+    }
 
     return true;
 }

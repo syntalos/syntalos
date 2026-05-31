@@ -111,7 +111,8 @@ private:
         bool check = true,
         // Camera backends might quantize hardware properties before reporting them back.
         double tolerance = 0.5);
-    void warnIfCameraReportsDifferent(int propertyId, double requestedValue, double reportedValue, double tolerance) const;
+    void warnIfCameraReportsDifferent(int propertyId, double requestedValue, double reportedValue, double tolerance)
+        const;
 };
 
 #endif // GENERIC_CAMERA_H

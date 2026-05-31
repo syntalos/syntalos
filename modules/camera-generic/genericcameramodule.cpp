@@ -94,17 +94,18 @@ public:
         constexpr auto fpsTolerance = 0.5;
         const auto requestedFps = m_camSettingsWindow->framerate();
         if (!std::isfinite(requestedFps) || requestedFps <= 0) {
-            raiseError(QStringLiteral("Unable to continue: Invalid camera framerate %1fps requested.").arg(requestedFps));
+            raiseError(
+                QStringLiteral("Unable to continue: Invalid camera framerate %1fps requested.").arg(requestedFps));
             return false;
         }
 
         statusMessage("Connecting camera...");
         m_camera->setResolution(m_camSettingsWindow->resolution());
+        m_camera->setFramerate(requestedFps);
         if (!m_camera->connect()) {
             raiseError(QStringLiteral("Unable to connect camera: %1").arg(m_camera->lastError()));
             return false;
         }
-        m_camera->setFramerate(requestedFps);
 
         const auto actualFps = m_camera->framerate();
         auto effectiveFps = actualFps;
@@ -115,7 +116,7 @@ public:
                 actualFps,
                 requestedFps);
             effectiveFps = requestedFps;
-        } else if (std::isfinite(actualFps) && actualFps > 0 && std::abs(actualFps - requestedFps) >= fpsTolerance) {
+        } else if (std::abs(actualFps - requestedFps) >= fpsTolerance) {
             LOG_ERROR(
                 m_log,
                 "Requested camera framerate {}fps, but the backend reports {}fps. Using backend-reported framerate.",

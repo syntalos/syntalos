@@ -148,7 +148,7 @@
            <item>
             <spacer name="horizontalSpacer_3">
              <property name="orientation">
-              <enum>Qt::Horizontal</enum>
+              <enum>Qt::Orientation::Horizontal</enum>
              </property>
              <property name="sizeHint" stdset="0">
               <size>
@@ -174,7 +174,7 @@
            <string>Frames per second</string>
           </property>
           <property name="decimals">
-           <number>3</number>
+           <number>2</number>
           </property>
           <property name="minimum">
            <double>4.000000000000000</double>
@@ -186,7 +186,7 @@
            <double>1.000000000000000</double>
           </property>
           <property name="value">
-           <double>20.000000000000000</double>
+           <double>30.000000000000000</double>
           </property>
          </widget>
         </item>
@@ -284,8 +284,7 @@
               <string/>
              </property>
              <property name="icon">
-              <iconset theme="emblem-question">
-               <normaloff>.</normaloff>.</iconset>
+              <iconset theme="emblem-question"/>
              </property>
              <property name="iconSize">
               <size>
@@ -301,7 +300,7 @@
            <item>
             <spacer name="horizontalSpacer">
              <property name="orientation">
-              <enum>Qt::Horizontal</enum>
+              <enum>Qt::Orientation::Horizontal</enum>
              </property>
              <property name="sizeHint" stdset="0">
               <size>
@@ -394,7 +393,7 @@
               <number>240</number>
              </property>
              <property name="orientation">
-              <enum>Qt::Horizontal</enum>
+              <enum>Qt::Orientation::Horizontal</enum>
              </property>
             </widget>
            </item>
@@ -410,7 +409,7 @@
               <string>Adjust camera exposure</string>
              </property>
              <property name="buttonSymbols">
-              <enum>QAbstractSpinBox::PlusMinus</enum>
+              <enum>QAbstractSpinBox::ButtonSymbols::PlusMinus</enum>
              </property>
              <property name="decimals">
               <number>2</number>
@@ -479,7 +478,7 @@
               <number>128</number>
              </property>
              <property name="orientation">
-              <enum>Qt::Horizontal</enum>
+              <enum>Qt::Orientation::Horizontal</enum>
              </property>
             </widget>
            </item>
@@ -554,7 +553,7 @@
               <number>128</number>
              </property>
              <property name="orientation">
-              <enum>Qt::Horizontal</enum>
+              <enum>Qt::Orientation::Horizontal</enum>
              </property>
             </widget>
            </item>
@@ -629,7 +628,7 @@
               <number>100</number>
              </property>
              <property name="orientation">
-              <enum>Qt::Horizontal</enum>
+              <enum>Qt::Orientation::Horizontal</enum>
              </property>
             </widget>
            </item>
@@ -701,7 +700,7 @@
               <number>255</number>
              </property>
              <property name="orientation">
-              <enum>Qt::Horizontal</enum>
+              <enum>Qt::Orientation::Horizontal</enum>
              </property>
             </widget>
            </item>
@@ -763,7 +762,7 @@
               <number>128</number>
              </property>
              <property name="orientation">
-              <enum>Qt::Horizontal</enum>
+              <enum>Qt::Orientation::Horizontal</enum>
              </property>
             </widget>
            </item>
