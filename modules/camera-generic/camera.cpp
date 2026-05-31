@@ -19,6 +19,7 @@
 
 #include "camera.h"
 
+#include <algorithm>
 #include <array>
 #include <QFileInfo>
 #include <cmath>
@@ -219,27 +220,10 @@ void Camera::setResolution(const cv::Size &size)
 {
     d->frameSize = size;
 
-    const double requestedWidth = d->frameSize.width;
-    const double requestedHeight = d->frameSize.height;
-    const auto reportedWidth = setCameraProperty(cv::CAP_PROP_FRAME_WIDTH, requestedWidth, false);
-    const auto reportedHeight = setCameraProperty(cv::CAP_PROP_FRAME_HEIGHT, requestedHeight, false);
-    const auto backendReportsDifferentResolution = (reportedWidth
-                                                    && differsFromRequested(*reportedWidth, requestedWidth))
-                                                   || (reportedHeight
-                                                       && differsFromRequested(*reportedHeight, requestedHeight));
-
-    if (d->cam && d->cam->isOpened() && backendReportsDifferentResolution) {
-        const auto reportedWidthValue = reportedWidth ? *reportedWidth : requestedWidth;
-        const auto reportedHeightValue = reportedHeight ? *reportedHeight : requestedHeight;
-        LOG_WARNING(
-            d->log,
-            "Requested camera output resolution {}x{}, but the backend reports capture resolution {}x{}. "
-            "Captured frames will be scaled to the requested output resolution.",
-            requestedWidth,
-            requestedHeight,
-            reportedWidthValue,
-            reportedHeightValue);
-    }
+    // The supported resolutions are enumerated up front (see readFrameSizes()), so we just request
+    // the chosen size here.
+    setCameraProperty(cv::CAP_PROP_FRAME_WIDTH, d->frameSize.width, false);
+    setCameraProperty(cv::CAP_PROP_FRAME_HEIGHT, d->frameSize.height, false);
 }
 
 double Camera::framerate() const
@@ -462,6 +446,42 @@ QList<CameraPixelFormat> Camera::readPixelFormats()
         fmtdesc.index++;
     }
     v4l2_close(fd);
+
+    return result;
+}
+
+CameraFrameSizes Camera::readFrameSizes(unsigned int fourcc)
+{
+    CameraFrameSizes result;
+    if (d->camId < 0)
+        return result;
+
+    int fd = v4l2_open(qPrintable(QStringLiteral("/dev/video%1").arg(d->camId)), O_RDWR);
+    if (fd == -1)
+        return result;
+
+    struct v4l2_frmsizeenum frmsize;
+    memset(&frmsize, 0, sizeof(frmsize));
+    frmsize.pixel_format = fourcc;
+    while (ioctl(fd, VIDIOC_ENUM_FRAMESIZES, &frmsize) == 0) {
+        if (frmsize.type == V4L2_FRMSIZE_TYPE_DISCRETE) {
+            result.discrete.append(cv::Size(frmsize.discrete.width, frmsize.discrete.height));
+            frmsize.index++;
+        } else {
+            // stepwise/continuous ranges are reported as a single entry
+            result.continuous = true;
+            result.min = cv::Size(frmsize.stepwise.min_width, frmsize.stepwise.min_height);
+            result.max = cv::Size(frmsize.stepwise.max_width, frmsize.stepwise.max_height);
+            result.step = cv::Size(frmsize.stepwise.step_width, frmsize.stepwise.step_height);
+            break;
+        }
+    }
+    v4l2_close(fd);
+
+    // present discrete sizes largest-first for a tidy selection list
+    std::sort(result.discrete.begin(), result.discrete.end(), [](const cv::Size &a, const cv::Size &b) {
+        return (a.width * a.height) > (b.width * b.height);
+    });
 
     return result;
 }

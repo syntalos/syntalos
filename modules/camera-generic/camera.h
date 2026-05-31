@@ -49,6 +49,14 @@ struct CameraPixelFormat {
 };
 Q_DECLARE_METATYPE(CameraPixelFormat)
 
+struct CameraFrameSizes {
+    bool continuous = false;  // true => stepwise/continuous range; use min/max/step
+    QList<cv::Size> discrete; // discrete supported sizes (sorted largest-first)
+    cv::Size min;             // continuous: minimum size
+    cv::Size max;             // continuous: maximum size
+    cv::Size step;            // continuous: width/height step
+};
+
 class CameraData;
 class Camera
 {
@@ -94,6 +102,8 @@ public:
 
     QList<CameraPixelFormat> readPixelFormats();
     void setPixelFormat(const CameraPixelFormat &pixFmt);
+
+    CameraFrameSizes readFrameSizes(unsigned int fourcc);
 
     bool recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync);
 

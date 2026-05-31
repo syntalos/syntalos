@@ -77,10 +77,13 @@ private slots:
     void on_autoExposureRawInfoButton_clicked();
 
 private:
+    void refreshResolutions();
+
     Ui::GenericCameraSettingsDialog *ui;
 
     Camera *m_camera;
     QString m_pixFmtName;
+    bool m_useResolutionList;
 };
 
 #endif // GENERICCAMERASETTINGSDIALOG_H

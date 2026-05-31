@@ -29,6 +29,7 @@ GenericCameraSettingsDialog::GenericCameraSettingsDialog(Camera *camera, QWidget
     ui->setupUi(this);
     setWindowIcon(QIcon(":/icons/generic-config"));
     m_camera = camera;
+    m_useResolutionList = false;
 
     auto cameras = Camera::availableCameras();
     for (const auto &cameraInfo : cameras) {
@@ -45,6 +46,11 @@ GenericCameraSettingsDialog::~GenericCameraSettingsDialog()
 
 cv::Size GenericCameraSettingsDialog::resolution() const
 {
+    if (m_useResolutionList && ui->resolutionComboBox->count() > 0) {
+        const auto s = ui->resolutionComboBox->currentData().toSize();
+        return cv::Size(s.width(), s.height());
+    }
+
     return cv::Size(ui->spinBoxWidth->value(), ui->spinBoxHeight->value());
 }
 
@@ -137,6 +143,56 @@ void GenericCameraSettingsDialog::on_captureFormatComboBox_currentIndexChanged(i
     const auto pixFmt = ui->captureFormatComboBox->currentData().value<CameraPixelFormat>();
     m_camera->setPixelFormat(pixFmt);
     m_pixFmtName = pixFmt.name;
+
+    // the set of supported frame sizes depends on the pixel format, so refresh them here
+    refreshResolutions();
+}
+
+void GenericCameraSettingsDialog::refreshResolutions()
+{
+    const auto pixFmt = ui->captureFormatComboBox->currentData().value<CameraPixelFormat>();
+    const auto frameSizes = m_camera->readFrameSizes(pixFmt.fourcc);
+    const auto currentRes = m_camera->resolution();
+
+    if (!frameSizes.discrete.isEmpty()) {
+        // camera advertises a fixed set of resolutions: offer them in a dropdown
+        ui->resolutionComboBox->clear();
+        int selectIndex = 0;
+        for (const auto &size : frameSizes.discrete) {
+            ui->resolutionComboBox->addItem(
+                QStringLiteral("%1 x %2").arg(size.width).arg(size.height),
+                QVariant(QSize(size.width, size.height)));
+            if (size.width == currentRes.width && size.height == currentRes.height)
+                selectIndex = ui->resolutionComboBox->count() - 1;
+        }
+        ui->resolutionComboBox->setCurrentIndex(selectIndex);
+
+        m_useResolutionList = true;
+        ui->resolutionComboBox->setVisible(true);
+        ui->spinBoxWidth->setVisible(false);
+        ui->label->setVisible(false);
+        ui->spinBoxHeight->setVisible(false);
+    } else {
+        // continuous/stepwise range (or enumeration failed): fall back to free-form spin boxes
+        if (frameSizes.continuous) {
+            ui->spinBoxWidth->setMinimum(frameSizes.min.width);
+            ui->spinBoxWidth->setMaximum(frameSizes.max.width);
+            ui->spinBoxHeight->setMinimum(frameSizes.min.height);
+            ui->spinBoxHeight->setMaximum(frameSizes.max.height);
+            if (frameSizes.step.width > 0)
+                ui->spinBoxWidth->setSingleStep(frameSizes.step.width);
+            if (frameSizes.step.height > 0)
+                ui->spinBoxHeight->setSingleStep(frameSizes.step.height);
+        }
+        ui->spinBoxWidth->setValue(currentRes.width);
+        ui->spinBoxHeight->setValue(currentRes.height);
+
+        m_useResolutionList = false;
+        ui->resolutionComboBox->setVisible(false);
+        ui->spinBoxWidth->setVisible(true);
+        ui->label->setVisible(true);
+        ui->spinBoxHeight->setVisible(true);
+    }
 }
 
 void GenericCameraSettingsDialog::on_sbExposure_valueChanged(double arg1)
