@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -8,33 +8,33 @@
  * the Free Software Foundation, either version 3 of the license, or
  * (at your option) any later version.
  *
- * This program is distributed in the hope that it will be useful,
+ * This software is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Lesser General Public License for more details.
  *
  * You should have received a copy of the GNU Lesser General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "genericcameramodule.h"
+#include "libcameramodule.h"
 
 #include "datactl/frametype.h"
 
-#include "camera.h"
-#include "genericcamerasettingsdialog.h"
+#include "lccamera.h"
+#include "lcsettingsdialog.h"
 
 #include <cmath>
 #include <thread>
 
-SYNTALOS_MODULE(GenericCameraModule)
+SYNTALOS_MODULE(LibcameraModule)
 
-class GenericCameraModule : public AbstractModule
+class LibcameraModule : public AbstractModule
 {
     Q_OBJECT
 private:
-    Camera *m_camera;
-    GenericCameraSettingsDialog *m_camSettingsWindow;
+    LcCamera *m_camera;
+    LcSettingsDialog *m_camSettingsWindow;
 
     std::atomic_bool m_stopped;
     double m_fps;
@@ -43,22 +43,23 @@ private:
     std::unique_ptr<SecondaryClockSynchronizer> m_clockSync;
 
 public:
-    explicit GenericCameraModule(QObject *parent = nullptr)
-        : AbstractModule(parent),
-          m_camera(new Camera(m_log)),
+    explicit LibcameraModule(const ModuleInfo *info = nullptr, QObject *parent = nullptr)
+        : AbstractModule(info, parent),
+          m_camera(new LcCamera(m_log)),
           m_camSettingsWindow(nullptr),
           m_stopped(true)
     {
         m_outStream = registerOutputPort<Frame>(QStringLiteral("video"), QStringLiteral("Video"));
 
-        m_camSettingsWindow = new GenericCameraSettingsDialog(m_camera);
+        m_camSettingsWindow = new LcSettingsDialog(m_camera);
+        m_camSettingsWindow->setWindowIcon(info->icon());
         addSettingsWindow(m_camSettingsWindow);
 
         // set initial window titles
         setName(name());
     }
 
-    ~GenericCameraModule() override
+    ~LibcameraModule() override
     {
         delete m_camera;
     }
@@ -87,12 +88,11 @@ public:
 
     bool prepare(const TestSubject &) override
     {
-        if (m_camera->camId() < 0) {
+        if (m_camera->cameraId().isEmpty()) {
             raiseError("Unable to continue: No valid camera was selected!");
             return false;
         }
 
-        constexpr auto fpsTolerance = 0.5;
         const auto requestedFps = m_camSettingsWindow->framerate();
         if (!std::isfinite(requestedFps) || requestedFps <= 0) {
             raiseError(
@@ -103,31 +103,14 @@ public:
         statusMessage("Connecting camera...");
         m_camera->setResolution(m_camSettingsWindow->resolution());
         m_camera->setFramerate(requestedFps);
+        m_camera->setPixelFormat(m_camSettingsWindow->pixelFormatName());
         if (!m_camera->connect()) {
             raiseError(QStringLiteral("Unable to connect camera: %1").arg(m_camera->lastError()));
             return false;
         }
 
-        const auto actualFps = m_camera->framerate();
-        auto effectiveFps = actualFps;
-        if (!std::isfinite(actualFps) || actualFps <= 0) {
-            LOG_ERROR(
-                m_log,
-                "Camera backend reported invalid framerate {}fps. Using requested {}fps.",
-                actualFps,
-                requestedFps);
-            effectiveFps = requestedFps;
-        } else if (std::abs(actualFps - requestedFps) >= fpsTolerance) {
-            LOG_ERROR(
-                m_log,
-                "Requested camera framerate {}fps, but the backend reports {}fps. Using backend-reported framerate.",
-                requestedFps,
-                actualFps);
-            effectiveFps = actualFps;
-        }
-
         m_camSettingsWindow->setRunning(true);
-        m_fps = effectiveFps;
+        m_fps = requestedFps;
 
         // set the required stream metadata for video capture
         m_outStream->setMetadataValue("size", MetaSize(m_camera->resolution().width, m_camera->resolution().height));
@@ -162,18 +145,19 @@ public:
     void runThread(OptionalWaitCondition *waitCondition) override
     {
         auto fpsLow = false;
-        auto currentFps = m_fps;
         auto frameRecordFailedCount = 0;
         m_stopped = false;
 
         // wait until we actually start acquiring data
         waitCondition->wait(this);
 
-        while (m_running) {
-            const auto cycleStartTime = currentTimePoint();
+        // the framerate is measured over a sliding window
+        auto windowStartTime = currentTimePoint();
+        uint windowFrameCount = 0;
 
+        while (m_running) {
             Frame frame;
-            if (!m_camera->recordFrame(frame, m_clockSync.get())) {
+            if (!m_camera->getFrame(frame, m_clockSync.get())) {
                 frameRecordFailedCount++;
                 if (frameRecordFailedCount > 32) {
                     m_running = false;
@@ -189,18 +173,23 @@ public:
             // emit this frame on our output port
             m_outStream->push(frame);
 
-            const auto totalMsec = timeDiffToNowMsec(cycleStartTime).count();
-            if (totalMsec > 0)
-                currentFps = 1000.0 / static_cast<double>(totalMsec);
+            // evaluate the average framerate roughly once per second
+            windowFrameCount++;
+            const auto windowMsec = timeDiffToNowMsec(windowStartTime).count();
+            if (windowMsec >= 1000) {
+                const auto currentFps = (windowFrameCount * 1000.0) / static_cast<double>(windowMsec);
+                windowStartTime = currentTimePoint();
+                windowFrameCount = 0;
 
-            // warn if there is a bigger framerate drop
-            if (currentFps < (m_fps - 2)) {
-                fpsLow = true;
-                setStatusMessage(QStringLiteral("<html><font color=\"red\"><b>Framerate (%1fps) is too low!</b></font>")
-                                     .arg(currentFps, 0, 'f', 1));
-            } else if (fpsLow) {
-                fpsLow = false;
-                statusMessage("Acquiring frames...");
+                // warn only if the sustained average framerate is too low
+                if (currentFps < (m_fps - 2)) {
+                    fpsLow = true;
+                    setStatusMessage(QStringLiteral("<b><font color=\"red\">Framerate (%1fps) is too low!</font></b>")
+                                         .arg(currentFps, 0, 'f', 1));
+                } else if (fpsLow) {
+                    fpsLow = false;
+                    statusMessage("Acquiring frames...");
+                }
             }
         }
 
@@ -223,43 +212,33 @@ public:
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
     {
-        settings.insert("camera", m_camera->camId());
+        settings.insert("camera", m_camera->cameraId());
         settings.insert("capture_format", m_camSettingsWindow->pixelFormatName());
         settings.insert("width", m_camSettingsWindow->resolution().width);
         settings.insert("height", m_camSettingsWindow->resolution().height);
         settings.insert("fps", m_camSettingsWindow->framerate());
-        settings.insert("exposure", m_camera->exposure());
+        settings.insert("auto_exposure", m_camera->autoExposure());
+        settings.insert("exposure", m_camera->exposureTime());
+        settings.insert("gain", m_camera->gain());
         settings.insert("brightness", m_camera->brightness());
         settings.insert("contrast", m_camera->contrast());
         settings.insert("saturation", m_camera->saturation());
-        settings.insert("hue", m_camera->hue());
-        settings.insert("gain", m_camera->gain());
-
-        QVariantHash quirks;
-        quirks.insert("enabled", m_camSettingsWindow->quirksEnabled());
-        quirks.insert("auto_exposure_raw", m_camera->autoExposureRaw());
-        settings.insert("quirks", quirks);
+        settings.insert("power_line_frequency", m_camera->powerLineFrequency());
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
-        m_camera->setCamId(settings.value("camera").toInt());
-        m_camSettingsWindow->setPixelFormatName(settings.value("capture_format").toString());
+        m_camera->setCameraId(settings.value("camera").toString());
         m_camera->setResolution(cv::Size(settings.value("width").toInt(), settings.value("height").toInt()));
-        m_camera->setExposure(settings.value("exposure").toDouble());
+        m_camera->setAutoExposure(settings.value("auto_exposure", true).toBool());
+        m_camera->setExposureTime(settings.value("exposure").toDouble());
+        m_camera->setGain(settings.value("gain").toDouble());
         m_camera->setBrightness(settings.value("brightness").toDouble());
         m_camera->setContrast(settings.value("contrast").toDouble());
         m_camera->setSaturation(settings.value("saturation").toDouble());
-        m_camera->setHue(settings.value("hue").toDouble());
-        m_camera->setGain(settings.value("gain").toDouble());
+        m_camera->setPowerLineFrequency(settings.value("power_line_frequency", 1).toInt());
         m_camSettingsWindow->setFramerate(settings.value("fps").toDouble());
-
-        auto quirks = settings.value("quirks").toHash();
-        bool haveQuirks = quirks.value("enabled", false).toBool();
-        m_camSettingsWindow->setQuirksEnabled(haveQuirks);
-        if (haveQuirks) {
-            m_camera->setAutoExposureRaw(quirks.value("auto_exposure_raw", 1).toInt());
-        }
+        m_camSettingsWindow->setPixelFormatName(settings.value("capture_format").toString());
 
         m_camSettingsWindow->updateValues();
         return true;
@@ -273,39 +252,34 @@ public:
     }
 };
 
-QString GenericCameraModuleInfo::id() const
+QString LibcameraModuleInfo::id() const
 {
-    return QStringLiteral("camera-generic");
+    return QStringLiteral("camera-lc");
 }
 
-QString GenericCameraModuleInfo::name() const
+QString LibcameraModuleInfo::name() const
 {
-    return QStringLiteral("OpenCV Camera");
+    return QStringLiteral("Camera");
 }
 
-QString GenericCameraModuleInfo::description() const
+QString LibcameraModuleInfo::description() const
 {
-    return QStringLiteral("Record video with a regular camera compatible with OpenCV and Linux' V4L API.");
+    return QStringLiteral("Record video using the modern libcamera Linux camera stack.");
 }
 
-ModuleCategories GenericCameraModuleInfo::categories() const
+ModuleCategories LibcameraModuleInfo::categories() const
 {
     return ModuleCategory::DEVICES;
 }
 
-QIcon GenericCameraModuleInfo::icon() const
+QColor LibcameraModuleInfo::color() const
 {
-    return QIcon(":/module/camera-generic");
+    return QColor::fromRgba(qRgba(67, 192, 235, 180)).darker();
 }
 
-QColor GenericCameraModuleInfo::color() const
+AbstractModule *LibcameraModuleInfo::createModule(QObject *parent)
 {
-    return QColor::fromRgba(qRgba(29, 158, 246, 180)).darker();
+    return new LibcameraModule(this, parent);
 }
 
-AbstractModule *GenericCameraModuleInfo::createModule(QObject *parent)
-{
-    return new GenericCameraModule(parent);
-}
-
-#include "genericcameramodule.moc"
+#include "libcameramodule.moc"

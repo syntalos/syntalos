@@ -35,6 +35,9 @@ subdir('camera-generic')
 if 'camera-arv' in modules_enabled
     subdir('camera-arv')
 endif
+if 'camera-lc' in modules_enabled
+    subdir('camera-lc')
+endif
 if 'camera-tis' in modules_enabled
     subdir('camera-tis')
 endif

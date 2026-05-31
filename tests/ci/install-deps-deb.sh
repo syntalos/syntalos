@@ -30,6 +30,7 @@ eatmydata apt-get install -yq --no-install-recommends \
     libavformat-dev \
     libavutil-dev \
     libblake3-dev \
+    libcamera-dev \
     libegl-dev \
     libeigen3-dev \
     libglib2.0-dev \

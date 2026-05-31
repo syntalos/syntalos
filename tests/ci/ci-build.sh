@@ -29,7 +29,7 @@ meson setup \
     -Db_lto=false \
     -Dmaintainer=true \
     -Dgui-tests=true \
-    -Dmodules="camera-arv,camera-tis,miniscope${extra_modules}" \
+    -Dmodules="camera-arv,camera-lc,camera-tis,miniscope${extra_modules}" \
     ..
 
 # Build & Install

@@ -6,6 +6,7 @@ option('modules',
        choices: [
            'camera-arv',     # Module for GenICam camera support via Aravis
            'camera-flir',    # FLIR camera module using the Spinnaker API
+           'camera-lc',      # Camera module using libcamera
            'camera-tis',     # Camera module for The Imaging Source cameras
            'camera-ueye',    # uEye camera module
            'intan-rhx',      # Intan RHX DAQ module
@@ -14,6 +15,7 @@ option('modules',
        ],
        value : [
            'camera-arv',
+           'camera-lc',
            'intan-rhx',
            'miniscope',
            'open-ephys-acq',
