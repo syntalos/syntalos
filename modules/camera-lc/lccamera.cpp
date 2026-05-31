@@ -97,6 +97,18 @@ struct MappedPlane {
     size_t length;
 };
 
+/**
+ * @brief  Camera lifecycle phase
+ *
+ * Streaming covers both "started" and "fully connected", as
+ * nothing can fail between those two points.
+ */
+enum class CamState {
+    Disconnected, /// no camera acquired
+    Acquired,     /// acquire() succeeded, not yet streaming
+    Streaming,    /// start() succeeded; streaming and ready for getFrame()
+};
+
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
 class LcCameraData
@@ -138,7 +150,9 @@ public:
     bool ctlSaturation{false};
     bool ctlFrameDuration{false};
 
-    bool connected{false};
+    CamState state{CamState::Disconnected};
+
+    // teardown signal
     bool stopping{false};
     QString lastError;
 
@@ -150,6 +164,15 @@ public:
     uint64_t frameIndex{0};
 };
 #pragma GCC diagnostic pop
+
+/**
+ * @brief The camera to operate on: the already-connected one, or a transient lookup
+ *        (without acquiring) for capability enumeration before connecting.
+ */
+static std::shared_ptr<Camera> currentCamera(LcCameraData *d)
+{
+    return d->state == CamState::Streaming ? d->cam : resolveCamera(d->camId);
+}
 
 LcCamera::LcCamera(QuillLogger *logger)
     : d(new LcCameraData())
@@ -338,7 +361,7 @@ static bool withV4l2Node(const std::shared_ptr<Camera> &cam, Fn &&fn)
 
 bool LcCamera::powerLineFrequencySupported()
 {
-    auto cam = d->connected ? d->cam : resolveCamera(d->camId);
+    auto cam = currentCamera(d.get());
     return withV4l2Node(cam, [](int fd) {
         struct v4l2_queryctrl q;
         memset(&q, 0, sizeof(q));
@@ -351,7 +374,7 @@ bool LcCamera::powerLineFrequencySupported()
 
 int LcCamera::readPowerLineFrequency()
 {
-    auto cam = d->connected ? d->cam : resolveCamera(d->camId);
+    auto cam = currentCamera(d.get());
     int value = -1;
     withV4l2Node(cam, [&value](int fd) {
         struct v4l2_control c;
@@ -368,7 +391,7 @@ int LcCamera::readPowerLineFrequency()
 
 bool LcCamera::isConnected() const
 {
-    return d->connected;
+    return d->state == CamState::Streaming;
 }
 
 QString LcCamera::lastError() const
@@ -413,7 +436,7 @@ QList<QPair<QString, QString>> LcCamera::availableCameras()
 QList<QString> LcCamera::readPixelFormats()
 {
     QList<QString> result;
-    auto cam = d->connected ? d->cam : resolveCamera(d->camId);
+    auto cam = currentCamera(d.get());
     if (!cam)
         return result;
 
@@ -430,7 +453,7 @@ QList<QString> LcCamera::readPixelFormats()
 QList<cv::Size> LcCamera::readFrameSizes(const QString &pixfmt)
 {
     QList<cv::Size> result;
-    auto cam = d->connected ? d->cam : resolveCamera(d->camId);
+    auto cam = currentCamera(d.get());
     if (!cam)
         return result;
 
@@ -455,7 +478,7 @@ QList<cv::Size> LcCamera::readFrameSizes(const QString &pixfmt)
 LcControlRange LcCamera::controlRange(const QString &name)
 {
     LcControlRange range;
-    auto cam = d->connected ? d->cam : resolveCamera(d->camId);
+    auto cam = currentCamera(d.get());
     if (!cam)
         return range;
 
@@ -527,7 +550,7 @@ static void applyControls(LcCameraData *d, ControlList &ctrls)
 
 bool LcCamera::connect()
 {
-    if (d->connected)
+    if (d->state == CamState::Streaming)
         return true;
 
     auto mgr = globalCameraManager();
@@ -547,6 +570,7 @@ bool LcCamera::connect()
         d->cam.reset();
         return false;
     }
+    d->state = CamState::Acquired;
 
     // apply the power-line (anti-flicker) frequency out-of-band via V4L2, since
     // libcamera does not expose this control for UVC cameras
@@ -673,13 +697,14 @@ bool LcCamera::connect()
         disconnect();
         return false;
     }
+    // streaming now; nothing below can fail, so this is also the fully-connected state
+    d->state = CamState::Streaming;
 
     d->stopping = false;
     d->frameIndex = 0;
     for (auto &request : d->requests)
         d->cam->queueRequest(request.get());
 
-    d->connected = true;
     return true;
 }
 
@@ -737,7 +762,7 @@ static cv::Mat convertToBgr(LcCameraData *d, FrameBuffer *buffer, void *base)
 
 bool LcCamera::getFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
 {
-    if (!d->connected)
+    if (d->state != CamState::Streaming)
         return false;
 
     Request *request = nullptr;
@@ -834,7 +859,7 @@ void LcCamera::disconnect()
 
     if (d->cam) {
         d->cam->requestCompleted.disconnect(this);
-        if (d->connected)
+        if (d->state == CamState::Streaming)
             d->cam->stop();
     }
 
@@ -856,12 +881,12 @@ void LcCamera::disconnect()
     }
 
     if (d->cam) {
-        if (d->connected)
+        if (d->state != CamState::Disconnected)
             d->cam->release();
         d->cam.reset();
     }
 
     d->config.reset();
     d->stream = nullptr;
-    d->connected = false;
+    d->state = CamState::Disconnected;
 }
