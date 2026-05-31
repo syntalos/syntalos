@@ -280,7 +280,7 @@ void Camera::setExposure(double value)
         value = 2047;
 
     d->exposure = value;
-    setCameraProperty(cv::CAP_PROP_EXPOSURE, value);
+    setCameraProperty(cv::CAP_PROP_EXPOSURE, value, false);
 }
 
 double Camera::brightness() const
@@ -296,7 +296,7 @@ void Camera::setBrightness(double value)
         value = -100;
 
     d->brightness = value;
-    setCameraProperty(cv::CAP_PROP_BRIGHTNESS, value);
+    setCameraProperty(cv::CAP_PROP_BRIGHTNESS, value, false);
 }
 
 double Camera::contrast() const
@@ -312,7 +312,7 @@ void Camera::setContrast(double value)
         value = 255;
 
     d->contrast = value;
-    setCameraProperty(cv::CAP_PROP_CONTRAST, value);
+    setCameraProperty(cv::CAP_PROP_CONTRAST, value, false);
 }
 
 double Camera::saturation() const
@@ -326,7 +326,7 @@ void Camera::setSaturation(double value)
         value = 255;
 
     d->saturation = value;
-    setCameraProperty(cv::CAP_PROP_SATURATION, value);
+    setCameraProperty(cv::CAP_PROP_SATURATION, value, false);
 }
 
 double Camera::hue() const
@@ -342,7 +342,7 @@ void Camera::setHue(double value)
         value = -100;
 
     d->hue = value;
-    setCameraProperty(cv::CAP_PROP_HUE, value);
+    setCameraProperty(cv::CAP_PROP_HUE, value, false);
 }
 
 double Camera::gain() const
@@ -356,7 +356,7 @@ void Camera::setGain(double value)
         value = 255;
 
     d->gain = value;
-    setCameraProperty(cv::CAP_PROP_GAIN, value);
+    setCameraProperty(cv::CAP_PROP_GAIN, value, false);
 }
 
 int Camera::autoExposureRaw() const
