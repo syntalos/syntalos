@@ -43,11 +43,6 @@ GenericCameraSettingsDialog::~GenericCameraSettingsDialog()
     delete ui;
 }
 
-QVariant GenericCameraSettingsDialog::selectedCamera() const
-{
-    return ui->cameraComboBox->currentData();
-}
-
 cv::Size GenericCameraSettingsDialog::resolution() const
 {
     return cv::Size(ui->spinBoxWidth->value(), ui->spinBoxHeight->value());

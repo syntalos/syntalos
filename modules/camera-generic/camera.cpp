@@ -28,7 +28,6 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/videoio.hpp>
 #include <sys/ioctl.h>
-#include "datactl/frametype.h"
 
 struct CameraPropertyInfo {
     int id;

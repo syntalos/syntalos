@@ -34,9 +34,8 @@ class GenericCameraSettingsDialog : public QDialog
 
 public:
     explicit GenericCameraSettingsDialog(Camera *camera, QWidget *parent = nullptr);
-    ~GenericCameraSettingsDialog();
+    ~GenericCameraSettingsDialog() override;
 
-    QVariant selectedCamera() const;
     cv::Size resolution() const;
 
     double framerate() const;
