@@ -177,7 +177,7 @@ public:
     {
         m_lrAInPort = registerInputPort<LineReading>(QStringLiteral("line-a-in"), QStringLiteral("Line A"));
         m_lrBInPort = registerInputPort<LineReading>(QStringLiteral("line-b-in"), QStringLiteral("Line B"));
-        m_lcStream = registerOutputPort<LineCommand>(QStringLiteral("line-out"), QStringLiteral("Line Control"));
+        m_lcStream = registerOutputPort<LineCommand>(QStringLiteral("line-out"), QStringLiteral("Line Cmd"));
         m_latStream = registerOutputPort<SignalBlockI32>(QStringLiteral("latencies-out"), QStringLiteral("Latencies"));
 
         m_canvas = new LatencyCanvas;
