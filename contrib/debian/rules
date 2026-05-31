@@ -8,11 +8,6 @@ ifneq (,$(filter $(DEB_HOST_ARCH), amd64))
 	SY_ENABLED_MODULES := $(SY_ENABLED_MODULES),intan-rhx,open-ephys-acq
 endif
 
-# FIXME: Super dirty hack to get tiscamera to build for the PPA - should be replaced
-# by building a proper tiscam package eventually.
-export PKG_CONFIG_PATH=$(CURDIR)/contrib/vendor/tiscam/i/lib/pkgconfig/
-TCAM_DIR=$(CURDIR)/contrib/vendor/tiscam
-
 SY_CONFIGURE_ARGS = \
     -Doptimize-modern-amd64=true \
     -Dmodules=$(SY_ENABLED_MODULES)
@@ -21,25 +16,6 @@ SY_CONFIGURE_ARGS = \
 	dh $@
 
 override_dh_auto_configure:
-	# FIXME: Ugly hack to avoid us shipping with the tiscamera packages in our PPA
-ifneq ($(wildcard $(TCAM_DIR)/*),)
-	mkdir $(TCAM_DIR)/b
-	cd $(TCAM_DIR)/b && cmake -GNinja \
-		-DTCAM_BUILD_DOCUMENTATION=OFF \
-		-DTCAM_BUILD_WITH_GUI=OFF \
-		-DTCAM_DOWNLOAD_MESON=OFF \
-		-DTCAM_INTERNAL_ARAVIS=OFF \
-		-DTCAM_INSTALL_FORCE_PREFIX=ON \
-		-DCMAKE_INSTALL_LIBDIR=lib \
-		-DTCAM_PROPERTY_INSTALL_LIB=lib \
-		-DTCAM_PROPERTY_INSTALL_PKGCONFIG=$(TCAM_DIR)/i/lib/pkgconfig \
-		-DGOBJECT_INTROSPECTION_1.0_GIRDIR=$(TCAM_DIR)/i/share/gir-1.0/ \
-		-DGOBJECT_INTROSPECTION_1.0_TYPELIBDIR=$(TCAM_DIR)/i/lib/girepository-1.0 \
-		-DCMAKE_INSTALL_PREFIX=$(TCAM_DIR)/i \
-		..
-	cd $(TCAM_DIR)/b && ninja && ninja install
-endif
-
 	cd $(CURDIR) && dh_auto_configure -- $(SY_CONFIGURE_ARGS)
 
 override_dh_auto_install:
