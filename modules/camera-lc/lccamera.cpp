@@ -114,18 +114,17 @@ public:
     }
 
 protected:
+    // libcamera serializes writes to its log output and emits each message as one complete,
+    // newline-terminated write, so no locking is needed here.
     int overflow(int ch) override
     {
-        if (ch != traits_type::eof()) {
-            std::lock_guard<std::mutex> lock(m_mutex);
+        if (ch != traits_type::eof())
             appendChar(static_cast<char>(ch));
-        }
         return ch;
     }
 
     std::streamsize xsputn(const char *s, std::streamsize n) override
     {
-        std::lock_guard<std::mutex> lock(m_mutex);
         for (std::streamsize i = 0; i < n; i++)
             appendChar(s[i]);
         return n;
@@ -145,7 +144,6 @@ private:
     }
 
     QuillLogger *m_logger;
-    std::mutex m_mutex;
     std::string m_buffer;
 };
 
