@@ -26,7 +26,11 @@
 #include <linux/videodev2.h>
 #include <map>
 #include <mutex>
+#include <ostream>
 #include <queue>
+#include <streambuf>
+#include <string>
+#include <string_view>
 #include <tuple>
 #include <utility>
 #include <sys/ioctl.h>
@@ -47,20 +51,7 @@
 #undef signals
 #undef emit
 #endif
-
-#include <libcamera/camera.h>
-#include <libcamera/camera_manager.h>
-#include <libcamera/control_ids.h>
-#include <libcamera/controls.h>
-#include <libcamera/formats.h>
-#include <libcamera/framebuffer.h>
-#include <libcamera/framebuffer_allocator.h>
-#include <libcamera/geometry.h>
-#include <libcamera/pixel_format.h>
-#include <libcamera/property_ids.h>
-#include <libcamera/request.h>
-#include <libcamera/stream.h>
-
+#include <libcamera/libcamera.h>
 #ifdef _SYTMP_QT_KW_DEFINED
 #define signals Q_SIGNALS
 #define slots   Q_SLOTS
@@ -73,6 +64,106 @@ using namespace libcamera;
 static std::shared_ptr<Camera> resolveCamera(const QString &id);
 
 /**
+ * @brief Forward one libcamera log line to a Quill logger.
+ *
+ * libcamera has no structured logging, only preformatted text lines like
+ * "[timestamp] [tid] LEVEL category file:line message". To stay robust against
+ * format changes we log the whole line verbatim and only scan the first few tokens
+ * for a level keyword, so a real error still surfaces at error severity.
+ */
+static void emitLibcameraLine(QuillLogger *logger, const std::string &line)
+{
+    // scan the leading tokens (level normally sits after the [ts] [tid] brackets)
+    std::string_view sv(line);
+    std::string_view level;
+    for (int token = 0; token < 5 && !sv.empty(); token++) {
+        while (!sv.empty() && sv.front() == ' ')
+            sv.remove_prefix(1);
+        const auto end = sv.find(' ');
+        const std::string_view tok = sv.substr(0, end);
+        if (tok == "DEBUG" || tok == "INFO" || tok == "WARN" || tok == "ERROR" || tok == "FATAL") {
+            level = tok;
+            break;
+        }
+        if (end == std::string_view::npos)
+            break;
+        sv.remove_prefix(end + 1);
+    }
+
+    if (level == "DEBUG")
+        LOG_DEBUG(logger, "{}", line);
+    else if (level == "WARN")
+        LOG_WARNING(logger, "{}", line);
+    else if (level == "ERROR")
+        LOG_ERROR(logger, "{}", line);
+    else if (level == "FATAL")
+        LOG_CRITICAL(logger, "{}", line);
+    else // INFO or unrecognised
+        LOG_INFO(logger, "{}", line);
+}
+
+/**
+ * @brief std::streambuf that forwards complete lines to a Quill logger.
+ */
+class QuillLogStreambuf : public std::streambuf
+{
+public:
+    explicit QuillLogStreambuf(QuillLogger *logger)
+        : m_logger(logger)
+    {
+    }
+
+protected:
+    int overflow(int ch) override
+    {
+        if (ch != traits_type::eof()) {
+            std::lock_guard<std::mutex> lock(m_mutex);
+            appendChar(static_cast<char>(ch));
+        }
+        return ch;
+    }
+
+    std::streamsize xsputn(const char *s, std::streamsize n) override
+    {
+        std::lock_guard<std::mutex> lock(m_mutex);
+        for (std::streamsize i = 0; i < n; i++)
+            appendChar(s[i]);
+        return n;
+    }
+
+private:
+    void appendChar(char c)
+    {
+        if (c == '\n') {
+            if (!m_buffer.empty()) {
+                emitLibcameraLine(m_logger, m_buffer);
+                m_buffer.clear();
+            }
+        } else if (c != '\r') {
+            m_buffer.push_back(c);
+        }
+    }
+
+    QuillLogger *m_logger;
+    std::mutex m_mutex;
+    std::string m_buffer;
+};
+
+/**
+ * @brief Route libcamera's logging through Quill (once, process-wide).
+ *
+ * Must run before the CameraManager starts so its own startup messages are captured.
+ * The stream/streambuf are intentionally leaked so they live for the whole process and
+ * avoid static-destruction ordering issues with late libcamera logging.
+ */
+static void installLibcameraLogBridge()
+{
+    static auto logBuf = new QuillLogStreambuf(getLogger("libcamera"));
+    static auto logStream = new std::ostream(logBuf);
+    libcamera::logSetStream(logStream, false);
+}
+
+/**
  * @brief Lazily-created, process-wide libcamera CameraManager.
  *
  * libcamera mandates a single CameraManager per process; it owns the camera
@@ -83,6 +174,9 @@ static std::shared_ptr<CameraManager> globalCameraManager()
     static std::shared_ptr<CameraManager> manager;
     static std::once_flag onceFlag;
     std::call_once(onceFlag, []() {
+        // redirect libcamera's stderr logging into Quill before anything starts
+        installLibcameraLogBridge();
+
         auto mgr = std::make_shared<CameraManager>();
         if (mgr->start() < 0)
             return;
