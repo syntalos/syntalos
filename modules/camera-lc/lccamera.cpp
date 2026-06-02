@@ -21,11 +21,14 @@
 
 #include <algorithm>
 #include <array>
+#include <cerrno>
 #include <condition_variable>
+#include <cstdint>
 #include <fcntl.h>
 #include <linux/videodev2.h>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <ostream>
 #include <queue>
 #include <streambuf>
@@ -189,6 +192,19 @@ struct MappedPlane {
     size_t length;
 };
 
+struct LcControlState {
+    bool autoExposure{true};
+    double exposureTime{10000};
+    double gain{1.0};
+    double brightness{0.0};
+    double contrast{1.0};
+    double saturation{1.0};
+    double gamma{2.2};
+    int powerLineFreq{1};
+
+    bool operator==(const LcControlState &) const = default;
+};
+
 /**
  * @brief  Camera lifecycle phase
  *
@@ -223,16 +239,13 @@ public:
     QString pixFmt;
     PixelFormat activeFormat;
 
-    bool autoExposure{true};
-    double exposureTime{10000};
-    double gain{1.0};
-    double brightness{0.0};
-    double contrast{1.0};
-    double saturation{1.0};
-    double gamma{2.2};
+    std::mutex controlMutex;
+    // desired* is protected by controlMutex; runtime* is owned by the request queueing path.
+    LcControlState desiredControls;
+    uint64_t desiredGeneration{0};
 
-    // V4L2 power-line frequency; default to 50 Hz (1)
-    int powerLineFreq{1};
+    LcControlState runtimeControls;
+    std::optional<uint64_t> lastAppliedRuntimeGeneration;
 
     // control availability for the connected camera
     bool ctlAe{false};
@@ -258,6 +271,20 @@ public:
     uint64_t frameIndex{0};
 };
 #pragma GCC diagnostic pop
+
+static LcControlState desiredControlState(LcCameraData *d)
+{
+    std::lock_guard<std::mutex> lock(d->controlMutex);
+    return d->desiredControls;
+}
+
+template<typename UpdateFunc>
+static void updateDesiredControls(LcCameraData *d, UpdateFunc update)
+{
+    std::lock_guard<std::mutex> lock(d->controlMutex);
+    update(d->desiredControls);
+    ++d->desiredGeneration;
+}
 
 /**
  * @brief The camera to operate on: the already-connected one, or a transient lookup
@@ -338,82 +365,98 @@ void LcCamera::setPixelFormat(const QString &fmt)
 
 bool LcCamera::autoExposure() const
 {
-    return d->autoExposure;
+    return desiredControlState(d.get()).autoExposure;
 }
 
 void LcCamera::setAutoExposure(bool enabled)
 {
-    d->autoExposure = enabled;
+    updateDesiredControls(d.get(), [enabled](LcControlState &state) {
+        state.autoExposure = enabled;
+    });
 }
 
 double LcCamera::exposureTime() const
 {
-    return d->exposureTime;
+    return desiredControlState(d.get()).exposureTime;
 }
 
 void LcCamera::setExposureTime(double micros)
 {
-    d->exposureTime = micros;
+    updateDesiredControls(d.get(), [micros](LcControlState &state) {
+        state.exposureTime = micros;
+    });
 }
 
 double LcCamera::gain() const
 {
-    return d->gain;
+    return desiredControlState(d.get()).gain;
 }
 
 void LcCamera::setGain(double value)
 {
-    d->gain = value;
+    updateDesiredControls(d.get(), [value](LcControlState &state) {
+        state.gain = value;
+    });
 }
 
 double LcCamera::brightness() const
 {
-    return d->brightness;
+    return desiredControlState(d.get()).brightness;
 }
 
 void LcCamera::setBrightness(double value)
 {
-    d->brightness = value;
+    updateDesiredControls(d.get(), [value](LcControlState &state) {
+        state.brightness = value;
+    });
 }
 
 double LcCamera::contrast() const
 {
-    return d->contrast;
+    return desiredControlState(d.get()).contrast;
 }
 
 void LcCamera::setContrast(double value)
 {
-    d->contrast = value;
+    updateDesiredControls(d.get(), [value](LcControlState &state) {
+        state.contrast = value;
+    });
 }
 
 double LcCamera::saturation() const
 {
-    return d->saturation;
+    return desiredControlState(d.get()).saturation;
 }
 
 void LcCamera::setSaturation(double value)
 {
-    d->saturation = value;
+    updateDesiredControls(d.get(), [value](LcControlState &state) {
+        state.saturation = value;
+    });
 }
 
 double LcCamera::gamma() const
 {
-    return d->gamma;
+    return desiredControlState(d.get()).gamma;
 }
 
 void LcCamera::setGamma(double value)
 {
-    d->gamma = value;
+    updateDesiredControls(d.get(), [value](LcControlState &state) {
+        state.gamma = value;
+    });
 }
 
 int LcCamera::powerLineFrequency() const
 {
-    return d->powerLineFreq;
+    return desiredControlState(d.get()).powerLineFreq;
 }
 
 void LcCamera::setPowerLineFrequency(int value)
 {
-    d->powerLineFreq = value;
+    updateDesiredControls(d.get(), [value](LcControlState &state) {
+        state.powerLineFreq = value;
+    });
 }
 
 /**
@@ -461,6 +504,45 @@ static bool withV4l2Node(const std::shared_ptr<Camera> &cam, Fn &&fn)
     ::close(fd);
 
     return ok;
+}
+
+enum class V4l2ControlResult {
+    Applied,
+    Unsupported,
+    Failed,
+};
+
+static V4l2ControlResult setV4l2PowerLineFrequency(const std::shared_ptr<Camera> &cam, int value)
+{
+    auto result = V4l2ControlResult::Failed;
+    const bool nodeOpened = withV4l2Node(cam, [&result, value](int fd) {
+        struct v4l2_queryctrl q;
+        memset(&q, 0, sizeof(q));
+        q.id = V4L2_CID_POWER_LINE_FREQUENCY;
+        if (ioctl(fd, VIDIOC_QUERYCTRL, &q) != 0) {
+            if (errno == EINVAL) {
+                result = V4l2ControlResult::Unsupported;
+                return true;
+            }
+            return false;
+        }
+        if ((q.flags & V4L2_CTRL_FLAG_DISABLED) != 0) {
+            result = V4l2ControlResult::Unsupported;
+            return true;
+        }
+
+        struct v4l2_control c;
+        memset(&c, 0, sizeof(c));
+        c.id = V4L2_CID_POWER_LINE_FREQUENCY;
+        c.value = value;
+        result = ioctl(fd, VIDIOC_S_CTRL, &c) == 0 ? V4l2ControlResult::Applied : V4l2ControlResult::Failed;
+        return true;
+    });
+
+    if (!nodeOpened)
+        return V4l2ControlResult::Failed;
+
+    return result;
 }
 
 bool LcCamera::powerLineFrequencySupported()
@@ -633,27 +715,98 @@ static bool isSupportedFormat(const PixelFormat &fmt)
            || fmt == formats::XRGB8888;
 }
 
+struct LcControlSnapshot {
+    LcControlState controls;
+    uint64_t generation;
+};
+
+struct LcRuntimeControlSync {
+    bool changed{false};
+    bool powerLineFreqChanged{false};
+    uint64_t generation{0};
+};
+
+static LcControlSnapshot desiredControlSnapshot(LcCameraData *d)
+{
+    std::lock_guard<std::mutex> lock(d->controlMutex);
+    return {d->desiredControls, d->desiredGeneration};
+}
+
+static LcRuntimeControlSync synchronizeRuntimeControls(LcCameraData *d)
+{
+    const auto snapshot = desiredControlSnapshot(d);
+    if (d->lastAppliedRuntimeGeneration && *d->lastAppliedRuntimeGeneration == snapshot.generation)
+        return {};
+
+    const bool powerLineFreqChanged =
+        !d->lastAppliedRuntimeGeneration || d->runtimeControls.powerLineFreq != snapshot.controls.powerLineFreq;
+
+    d->runtimeControls = snapshot.controls;
+    return {true, powerLineFreqChanged, snapshot.generation};
+}
+
+static void applyV4l2PowerLineFrequencyChange(LcCameraData *d)
+{
+    const int value = d->runtimeControls.powerLineFreq;
+    if (value < 0)
+        return;
+
+    switch (setV4l2PowerLineFrequency(d->cam, value)) {
+    case V4l2ControlResult::Applied:
+        break;
+    case V4l2ControlResult::Unsupported:
+        if (d->log)
+            LOG_WARNING(d->log, "The power-line frequency control is not available on the camera device for value {}.",
+                        value);
+        break;
+    case V4l2ControlResult::Failed:
+        if (d->log)
+            LOG_WARNING(d->log, "Could not set the power-line frequency to {} on the camera device.", value);
+        break;
+    }
+}
+
 static void applyControls(LcCameraData *d, ControlList &ctrls)
 {
+    const auto &state = d->runtimeControls;
+
     if (d->ctlAe)
-        ctrls.set(controls::AeEnable, d->autoExposure);
-    if (!d->autoExposure && d->ctlExposure)
-        ctrls.set(controls::ExposureTime, static_cast<int32_t>(d->exposureTime));
+        ctrls.set(controls::AeEnable, state.autoExposure);
+    if (!state.autoExposure && d->ctlExposure)
+        ctrls.set(controls::ExposureTime, static_cast<int32_t>(state.exposureTime));
     if (d->ctlGain)
-        ctrls.set(controls::AnalogueGain, static_cast<float>(d->gain));
+        ctrls.set(controls::AnalogueGain, static_cast<float>(state.gain));
     if (d->ctlBrightness)
-        ctrls.set(controls::Brightness, static_cast<float>(d->brightness));
+        ctrls.set(controls::Brightness, static_cast<float>(state.brightness));
     if (d->ctlContrast)
-        ctrls.set(controls::Contrast, static_cast<float>(d->contrast));
+        ctrls.set(controls::Contrast, static_cast<float>(state.contrast));
     if (d->ctlSaturation)
-        ctrls.set(controls::Saturation, static_cast<float>(d->saturation));
+        ctrls.set(controls::Saturation, static_cast<float>(state.saturation));
     if (d->ctlGamma)
-        ctrls.set(controls::Gamma, static_cast<float>(d->gamma));
+        ctrls.set(controls::Gamma, static_cast<float>(state.gamma));
 
     if (d->ctlFrameDuration && d->fps > 0) {
         const int64_t frameDurUs = static_cast<int64_t>(1.0e6 / d->fps);
         ctrls.set(controls::FrameDurationLimits, {frameDurUs, frameDurUs});
     }
+}
+
+static int queueRequestWithCurrentControls(LcCameraData *d, Request *request)
+{
+    auto &ctrls = request->controls();
+    ctrls.clear();
+
+    const auto sync = synchronizeRuntimeControls(d);
+    if (sync.powerLineFreqChanged)
+        applyV4l2PowerLineFrequencyChange(d);
+
+    applyControls(d, ctrls);
+
+    const int result = d->cam->queueRequest(request);
+    if (result >= 0 && sync.changed)
+        d->lastAppliedRuntimeGeneration = sync.generation;
+
+    return result;
 }
 
 bool LcCamera::connect()
@@ -679,20 +832,7 @@ bool LcCamera::connect()
         return false;
     }
     d->state = CamState::Acquired;
-
-    // apply the power-line (anti-flicker) frequency out-of-band via V4L2, since
-    // libcamera does not expose this control for UVC cameras
-    if (d->powerLineFreq >= 0) {
-        const bool plfOk = withV4l2Node(d->cam, [this](int fd) {
-            struct v4l2_control c;
-            memset(&c, 0, sizeof(c));
-            c.id = V4L2_CID_POWER_LINE_FREQUENCY;
-            c.value = d->powerLineFreq;
-            return ioctl(fd, VIDIOC_S_CTRL, &c) == 0;
-        });
-        if (!plfOk && d->log)
-            LOG_WARNING(d->log, "Could not set the power-line frequency on the camera device.");
-    }
+    d->lastAppliedRuntimeGeneration.reset();
 
     d->config = d->cam->generateConfiguration({StreamRole::VideoRecording});
     if (!d->config || d->config->empty()) {
@@ -781,7 +921,6 @@ bool LcCamera::connect()
             disconnect();
             return false;
         }
-        applyControls(d.get(), request->controls());
         d->requests.push_back(std::move(request));
     }
 
@@ -806,13 +945,17 @@ bool LcCamera::connect()
         disconnect();
         return false;
     }
-    // streaming now; nothing below can fail, so this is also the fully-connected state
     d->state = CamState::Streaming;
 
     d->stopping = false;
     d->frameIndex = 0;
-    for (auto &request : d->requests)
-        d->cam->queueRequest(request.get());
+    for (auto &request : d->requests) {
+        if (queueRequestWithCurrentControls(d.get(), request.get()) < 0) {
+            fail(QStringLiteral("Failed to queue a capture request."));
+            disconnect();
+            return false;
+        }
+    }
 
     return true;
 }
@@ -896,8 +1039,8 @@ bool LcCamera::getFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
 
     auto requeue = [&]() {
         request->reuse(Request::ReuseBuffers);
-        applyControls(d.get(), request->controls());
-        d->cam->queueRequest(request);
+        if (queueRequestWithCurrentControls(d.get(), request) < 0 && d->log)
+            LOG_WARNING(d->log, "Failed to requeue a camera request after applying live controls.");
     };
 
     // discard frames that were already buffered before the run officially started
