@@ -229,6 +229,7 @@ public:
     double brightness{0.0};
     double contrast{1.0};
     double saturation{1.0};
+    double gamma{2.2};
 
     // V4L2 power-line frequency; default to 50 Hz (1)
     int powerLineFreq{1};
@@ -240,6 +241,7 @@ public:
     bool ctlBrightness{false};
     bool ctlContrast{false};
     bool ctlSaturation{false};
+    bool ctlGamma{false};
     bool ctlFrameDuration{false};
 
     CamState state{CamState::Disconnected};
@@ -392,6 +394,16 @@ double LcCamera::saturation() const
 void LcCamera::setSaturation(double value)
 {
     d->saturation = value;
+}
+
+double LcCamera::gamma() const
+{
+    return d->gamma;
+}
+
+void LcCamera::setGamma(double value)
+{
+    d->gamma = value;
 }
 
 int LcCamera::powerLineFrequency() const
@@ -602,6 +614,8 @@ LcControlRange LcCamera::controlRange(const QString &name)
         readFloat(&controls::Contrast);
     } else if (name == QLatin1String("saturation")) {
         readFloat(&controls::Saturation);
+    } else if (name == QLatin1String("gamma")) {
+        readFloat(&controls::Gamma);
     } else if (name == QLatin1String("ae")) {
         range.available = infoMap.find(&controls::AeEnable) != infoMap.end();
     }
@@ -633,6 +647,8 @@ static void applyControls(LcCameraData *d, ControlList &ctrls)
         ctrls.set(controls::Contrast, static_cast<float>(d->contrast));
     if (d->ctlSaturation)
         ctrls.set(controls::Saturation, static_cast<float>(d->saturation));
+    if (d->ctlGamma)
+        ctrls.set(controls::Gamma, static_cast<float>(d->gamma));
 
     if (d->ctlFrameDuration && d->fps > 0) {
         const int64_t frameDurUs = static_cast<int64_t>(1.0e6 / d->fps);
@@ -725,6 +741,7 @@ bool LcCamera::connect()
     d->ctlBrightness = infoMap.find(&controls::Brightness) != infoMap.end();
     d->ctlContrast = infoMap.find(&controls::Contrast) != infoMap.end();
     d->ctlSaturation = infoMap.find(&controls::Saturation) != infoMap.end();
+    d->ctlGamma = infoMap.find(&controls::Gamma) != infoMap.end();
     d->ctlFrameDuration = infoMap.find(&controls::FrameDurationLimits) != infoMap.end();
 
     // allocate frame buffers
