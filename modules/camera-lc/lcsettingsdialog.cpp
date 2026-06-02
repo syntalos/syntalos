@@ -177,6 +177,7 @@ void LcSettingsDialog::refreshControls()
     configureRow(QStringLiteral("brightness"), ui->brightnessLabel, ui->sbBrightness, m_camera->brightness());
     configureRow(QStringLiteral("contrast"), ui->contrastLabel, ui->sbContrast, m_camera->contrast());
     configureRow(QStringLiteral("saturation"), ui->saturationLabel, ui->sbSaturation, m_camera->saturation());
+    configureRow(QStringLiteral("gamma"), ui->gammaLabel, ui->sbGamma, m_camera->gamma());
 
     // the manual exposure box is only meaningful when auto-exposure is off
     ui->sbExposure->setEnabled(!m_camera->autoExposure());
@@ -227,6 +228,11 @@ void LcSettingsDialog::on_sbContrast_valueChanged(double value)
 void LcSettingsDialog::on_sbSaturation_valueChanged(double value)
 {
     m_camera->setSaturation(value);
+}
+
+void LcSettingsDialog::on_sbGamma_valueChanged(double value)
+{
+    m_camera->setGamma(value);
 }
 
 void LcSettingsDialog::on_powerLineComboBox_currentIndexChanged(int index)

@@ -91,6 +91,9 @@ public:
     double saturation() const;
     void setSaturation(double value);
 
+    double gamma() const;
+    void setGamma(double value);
+
     // Power-line (mains) frequency for anti-flicker. Not exposed by libcamera for
     // UVC cameras, so it is handled out-of-band via V4L2 on the backing device node.
     // Values match V4L2_CID_POWER_LINE_FREQUENCY: 0 = disabled, 1 = 50 Hz, 2 = 60 Hz.

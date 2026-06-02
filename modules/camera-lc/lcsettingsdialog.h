@@ -57,6 +57,7 @@ private slots:
     void on_sbBrightness_valueChanged(double value);
     void on_sbContrast_valueChanged(double value);
     void on_sbSaturation_valueChanged(double value);
+    void on_sbGamma_valueChanged(double value);
     void on_powerLineComboBox_currentIndexChanged(int index);
 
 private:

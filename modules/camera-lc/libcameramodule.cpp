@@ -223,6 +223,7 @@ public:
         settings.insert("brightness", m_camera->brightness());
         settings.insert("contrast", m_camera->contrast());
         settings.insert("saturation", m_camera->saturation());
+        settings.insert("gamma", m_camera->gamma());
         settings.insert("power_line_frequency", m_camera->powerLineFrequency());
     }
 
@@ -236,6 +237,7 @@ public:
         m_camera->setBrightness(settings.value("brightness").toDouble());
         m_camera->setContrast(settings.value("contrast").toDouble());
         m_camera->setSaturation(settings.value("saturation").toDouble());
+        m_camera->setGamma(settings.value("gamma", 2.2).toDouble());
         m_camera->setPowerLineFrequency(settings.value("power_line_frequency", 1).toInt());
         m_camSettingsWindow->setFramerate(settings.value("fps").toDouble());
         m_camSettingsWindow->setPixelFormatName(settings.value("capture_format").toString());
