@@ -71,12 +71,6 @@ void OeAcqSettingsDialog::buildUi()
     m_sampleRateCombo = new QComboBox(acqGroup);
     acqForm->addRow("Sample rate:", m_sampleRateCombo);
 
-    m_acquireAuxCheck = new QCheckBox(QStringLiteral("Stream AUX channels (3 per headstage)"), acqGroup);
-    acqForm->addRow(QString(), m_acquireAuxCheck);
-
-    m_acquireAdcCheck = new QCheckBox(QStringLiteral("Stream board ADC channels (8)"), acqGroup);
-    acqForm->addRow(QString(), m_acquireAdcCheck);
-
     m_namingCombo = new QComboBox(acqGroup);
     m_namingCombo->addItem(QStringLiteral("Global index (CH1, CH2, …)"), static_cast<int>(GLOBAL_INDEX));
     m_namingCombo->addItem(QStringLiteral("Stream-relative (A1_CH1, A1_CH2, …)"), static_cast<int>(STREAM_INDEX));
@@ -158,14 +152,6 @@ void OeAcqSettingsDialog::buildUi()
         if (v > 0)
             emit sampleRateChanged(v);
     });
-    connect(m_acquireAuxCheck, &QCheckBox::toggled, this, [this](bool on) {
-        if (m_emitSignals)
-            emit acquireAuxChanged(on);
-    });
-    connect(m_acquireAdcCheck, &QCheckBox::toggled, this, [this](bool on) {
-        if (m_emitSignals)
-            emit acquireAdcChanged(on);
-    });
     connect(m_namingCombo, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int) {
         if (!m_emitSignals)
             return;
@@ -235,28 +221,6 @@ void OeAcqSettingsDialog::setSampleRateHz(int rate)
     m_sampleRateCombo->setCurrentIndex(idx);
 }
 
-bool OeAcqSettingsDialog::acquireAux() const
-{
-    return m_acquireAuxCheck->isChecked();
-}
-
-void OeAcqSettingsDialog::setAcquireAux(bool enabled)
-{
-    const QSignalBlocker block(m_acquireAuxCheck);
-    m_acquireAuxCheck->setChecked(enabled);
-}
-
-bool OeAcqSettingsDialog::acquireAdc() const
-{
-    return m_acquireAdcCheck->isChecked();
-}
-
-void OeAcqSettingsDialog::setAcquireAdc(bool enabled)
-{
-    const QSignalBlocker block(m_acquireAdcCheck);
-    m_acquireAdcCheck->setChecked(enabled);
-}
-
 ChannelNamingScheme OeAcqSettingsDialog::namingScheme() const
 {
     return static_cast<ChannelNamingScheme>(m_namingCombo->currentData().toInt());
@@ -272,12 +236,10 @@ void OeAcqSettingsDialog::setNamingScheme(ChannelNamingScheme scheme)
 
 void OeAcqSettingsDialog::setRunActive(bool active)
 {
-    // Sample rate / aux / adc require board reconfiguration that we don't
-    // do live during a run. Naming and rescan stay locked too - the port
-    // set is frozen during runThread().
+    // Sample rate changes require board reconfiguration that we must not do during
+    // a run. Naming and rescan stay locked too - the port set is frozen during
+    // a run.
     m_sampleRateCombo->setEnabled(!active);
-    m_acquireAuxCheck->setEnabled(!active);
-    m_acquireAdcCheck->setEnabled(!active);
     m_namingCombo->setEnabled(!active);
     m_scanButton->setEnabled(!active);
     m_impedanceButton->setEnabled(!active);

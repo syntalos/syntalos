@@ -31,6 +31,7 @@
 #include "oeacqsettingsdialog.h"
 
 #include <QByteArray>
+#include <QHash>
 #include <QMessageBox>
 #include <QSet>
 #include <QStringList>
@@ -138,8 +139,6 @@ public:
         // Build the settings dialog once we know what the board can offer.
         m_settingsDlg->setAvailableSampleRates(m_board->getAvailableSampleRates());
         m_settingsDlg->setSampleRateHz(m_sampleRateHz);
-        m_settingsDlg->setAcquireAux(m_acquireAux);
-        m_settingsDlg->setAcquireAdc(m_acquireAdc);
         m_settingsDlg->setNamingScheme(m_namingScheme);
         m_settingsDlg->setBackendChoice(m_backendChoice);
         m_settingsDlg->setActiveBackendLabel(activeBackendDescription());
@@ -149,16 +148,6 @@ public:
             m_sampleRateHz = hz;
             if (m_board)
                 m_board->setSampleRate(hz);
-        });
-        connect(m_settingsDlg, &OeAcqSettingsDialog::acquireAuxChanged, this, [this](bool on) {
-            m_acquireAux = on;
-            if (m_board)
-                m_board->enableAuxChannels(on);
-        });
-        connect(m_settingsDlg, &OeAcqSettingsDialog::acquireAdcChanged, this, [this](bool on) {
-            m_acquireAdc = on;
-            if (m_board)
-                m_board->enableAdcChannels(on);
         });
         connect(m_settingsDlg, &OeAcqSettingsDialog::namingSchemeChanged, this, [this](int s) {
             m_namingScheme = static_cast<ChannelNamingScheme>(s);
@@ -215,10 +204,7 @@ public:
      */
     void handleChannelToggle(const QString &id, bool enabled)
     {
-        if (enabled)
-            m_disabledChannels.remove(id);
-        else
-            m_disabledChannels.insert(id);
+        m_channelState[id] = enabled;
 
         if (m_running) {
             // The dialog locks unchecked boxes off during a run, so this
@@ -490,31 +476,29 @@ public:
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
     {
         settings.insert(QStringLiteral("sample_rate"), m_sampleRateHz);
-        settings.insert(QStringLiteral("acquire_aux"), m_acquireAux);
-        settings.insert(QStringLiteral("acquire_adc"), m_acquireAdc);
         settings.insert(QStringLiteral("naming_scheme"), static_cast<int>(m_namingScheme));
         settings.insert(QStringLiteral("backend"), m_backendChoice);
 
-        QStringList disabled;
-        disabled.reserve(m_disabledChannels.size());
-        for (const auto &id : m_disabledChannels)
-            disabled << id;
-        disabled.sort();
-        settings.insert(QStringLiteral("disabled_channels"), disabled);
+        // Persist enabled/disabled channels selection
+        QVariantHash channelStates;
+        for (auto it = m_channelState.cbegin(); it != m_channelState.cend(); ++it)
+            channelStates.insert(it.key(), it.value());
+        settings.insert(QStringLiteral("channel_states"), channelStates);
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
         m_sampleRateHz = settings.value(QStringLiteral("sample_rate"), 30000).toInt();
-        m_acquireAux = settings.value(QStringLiteral("acquire_aux"), false).toBool();
-        m_acquireAdc = settings.value(QStringLiteral("acquire_adc"), false).toBool();
         m_namingScheme = static_cast<ChannelNamingScheme>(
             settings.value(QStringLiteral("naming_scheme"), static_cast<int>(GLOBAL_INDEX)).toInt());
         m_backendChoice = static_cast<OeAcqSettingsDialog::BackendChoice>(
             settings.value(QStringLiteral("backend"), OeAcqSettingsDialog::BackendAuto).toInt());
 
-        const auto savedList = settings.value(QStringLiteral("disabled_channels")).toStringList();
-        m_disabledChannels = QSet<QString>(savedList.cbegin(), savedList.cend());
+        // Per-channel enabled/disabled state
+        m_channelState.clear();
+        const auto cs = settings.value(QStringLiteral("channel_states")).toHash();
+        for (auto it = cs.cbegin(); it != cs.cend(); ++it)
+            m_channelState.insert(it.key(), it.value().toBool());
 
         // initialize() set up a backend before settings were loaded, so
         // m_board may not match the saved choice. setBackendChoice() on
@@ -542,8 +526,6 @@ public:
 
         if (m_settingsDlg) {
             m_settingsDlg->setSampleRateHz(m_sampleRateHz);
-            m_settingsDlg->setAcquireAux(m_acquireAux);
-            m_settingsDlg->setAcquireAdc(m_acquireAdc);
             m_settingsDlg->setNamingScheme(m_namingScheme);
             m_settingsDlg->setBackendChoice(m_backendChoice);
         }
@@ -737,6 +719,69 @@ private:
     }
 
     /**
+     * Per-kind default selection: electrode channels stream by default, while
+     * AUX and board-ADC channels are opt-in.
+     */
+    static constexpr bool channelDefaultEnabled(ChannelKind kind)
+    {
+        return kind == ChannelKind::Electrode;
+    }
+
+    /**
+     * Whether a channel is currently selected. Channels the user has not
+     * explicitly toggled fall back to their per-kind default.
+     */
+    bool isChannelEnabled(const QString &id, ChannelKind kind) const
+    {
+        return m_channelState.value(id, channelDefaultEnabled(kind));
+    }
+
+    /**
+     * Derive the board-level AUX/ADC scan flags from the per-channel selection:
+     * a kind is scanned if at least one of its channels is currently selected.
+     *
+     * The flags are pushed to the board only when they actually change, so an
+     * unrelated channel toggle doesn't trigger a register re-upload, while a
+     * freshly (re)created board (which starts with both flags off) is still
+     * configured correctly.
+     */
+    void deriveAndApplyAcquireFlags()
+    {
+        if (!m_board)
+            return;
+
+        const int auxPerHs = m_board->getAuxChannelsPerHeadstage();
+        const int adcCount = m_board->getNumAdcChannels();
+
+        bool anyAux = false;
+        bool anyAdc = false;
+        for (const auto *hs : m_board->getHeadstages()) {
+            if (!hs->isConnected())
+                continue;
+            const auto prefix = QString::fromStdString(hs->getStreamPrefix());
+            for (int c = 0; c < auxPerHs; ++c) {
+                if (isChannelEnabled(makeChannelId(prefix, ChannelKind::Aux, c), ChannelKind::Aux)) {
+                    anyAux = true;
+                    break;
+                }
+            }
+        }
+        for (int c = 0; c < adcCount; ++c) {
+            if (isChannelEnabled(makeChannelId(QStringLiteral("ADC"), ChannelKind::Adc, c), ChannelKind::Adc)) {
+                anyAdc = true;
+                break;
+            }
+        }
+
+        m_acquireAux = anyAux;
+        m_acquireAdc = anyAdc;
+        if (m_board->areAuxChannelsEnabled() != anyAux)
+            m_board->enableAuxChannels(anyAux);
+        if (m_board->areAdcChannelsEnabled() != anyAdc)
+            m_board->enableAdcChannels(anyAdc);
+    }
+
+    /**
      * Build the per-headstage stream layout for the currently-connected
      * headstages and (re)register an output port for each.
      */
@@ -751,10 +796,13 @@ private:
             return;
         }
 
-        // m_disabledChannels may contain ids for channels that aren't currently
+        // Refresh the derived AUX/ADC scan flags before we build the port set.
+        deriveAndApplyAcquireFlags();
+
+        // m_channelState may contain ids for channels that aren't currently
         // detected (headstage unplugged, etc.). We deliberately keep those
         // entries so the user's preference survives a replug; they're harmless
-        // here because we only consult the set by id.
+        // here because we only consult the map by id.
 
         const int auxPerHs = m_board->getAuxChannelsPerHeadstage();
         const int adcCount = m_board->getNumAdcChannels();
@@ -797,7 +845,7 @@ private:
 
                 for (int c = 0; c < chanCount; ++c) {
                     const auto id = makeChannelId(prefix, ChannelKind::Electrode, c);
-                    if (!m_disabledChannels.contains(id)) {
+                    if (isChannelEnabled(id, ChannelKind::Electrode)) {
                         g.enabledLocalIndices.push_back(c);
                         g.outChannelIds.append(id);
                         g.channelNames.push_back(hs->getChannelName(c));
@@ -827,7 +875,7 @@ private:
 
                 for (int c = 0; c < auxPerHs; ++c) {
                     const auto id = makeChannelId(prefix, ChannelKind::Aux, c);
-                    if (!m_disabledChannels.contains(id)) {
+                    if (isChannelEnabled(id, ChannelKind::Aux)) {
                         g.enabledLocalIndices.push_back(c);
                         g.outChannelIds.append(id);
                         g.channelNames.push_back(hs->getStreamPrefix() + "_AUX" + std::to_string(c + 1));
@@ -855,7 +903,7 @@ private:
 
             for (int c = 0; c < adcCount; ++c) {
                 const auto id = makeChannelId(QStringLiteral("ADC"), ChannelKind::Adc, c);
-                if (!m_disabledChannels.contains(id)) {
+                if (isChannelEnabled(id, ChannelKind::Adc)) {
                     g.enabledLocalIndices.push_back(c);
                     g.outChannelIds.append(id);
                     g.channelNames.push_back("ADC" + std::to_string(c + 1));
@@ -910,7 +958,7 @@ private:
                 if (e.label.isEmpty())
                     e.label = QStringLiteral("CH%1").arg(c + 1);
                 e.group = group;
-                e.enabled = !m_disabledChannels.contains(e.id);
+                e.enabled = isChannelEnabled(e.id, ChannelKind::Electrode);
                 entries.push_back(std::move(e));
             }
             for (int c = 0; c < auxPerHs; ++c) {
@@ -918,7 +966,7 @@ private:
                 e.id = makeChannelId(prefix, ChannelKind::Aux, c);
                 e.label = QStringLiteral("AUX%1").arg(c + 1);
                 e.group = group;
-                e.enabled = !m_disabledChannels.contains(e.id);
+                e.enabled = isChannelEnabled(e.id, ChannelKind::Aux);
                 entries.push_back(std::move(e));
             }
         }
@@ -928,7 +976,7 @@ private:
             e.id = makeChannelId(QStringLiteral("ADC"), ChannelKind::Adc, c);
             e.label = QStringLiteral("ADC%1").arg(c + 1);
             e.group = adcGroup;
-            e.enabled = !m_disabledChannels.contains(e.id);
+            e.enabled = isChannelEnabled(e.id, ChannelKind::Adc);
             entries.push_back(std::move(e));
         }
         m_settingsDlg->setChannelInventory(entries);
@@ -990,15 +1038,18 @@ private:
     std::shared_ptr<StreamSubscription<LineCommand>> m_ttlSub;
 
     int m_sampleRateHz = 30000;
+    // Derived board scan flags: true iff at least one AUX/ADC channel is
+    // currently selected. Recomputed by deriveAndApplyAcquireFlags().
     bool m_acquireAux = false;
     bool m_acquireAdc = false;
     ChannelNamingScheme m_namingScheme{GLOBAL_INDEX};
     OeAcqSettingsDialog::BackendChoice m_backendChoice{OeAcqSettingsDialog::BackendAuto};
 
-    // Channels the user has explicitly turned off.
-    // Entries for currently-unplugged channels are kept on purpose:
-    // the preference persists across replug.
-    QSet<QString> m_disabledChannels;
+    // Explicit per-channel enable overrides, keyed by channel id. Channels
+    // absent from the map use their per-kind default (electrodes on, AUX/ADC
+    // off). Entries for currently-unplugged channels are kept on purpose so the
+    // preference persists across replug.
+    QHash<QString, bool> m_channelState;
 };
 
 QString OpenEphysAcqModuleInfo::id() const

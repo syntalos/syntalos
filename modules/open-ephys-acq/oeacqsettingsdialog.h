@@ -58,12 +58,6 @@ public:
     int sampleRateHz() const;
     void setSampleRateHz(int rate);
 
-    bool acquireAux() const;
-    void setAcquireAux(bool enabled);
-
-    bool acquireAdc() const;
-    void setAcquireAdc(bool enabled);
-
     ChannelNamingScheme namingScheme() const;
     void setNamingScheme(ChannelNamingScheme scheme);
 
@@ -96,8 +90,6 @@ public:
 
 signals:
     void sampleRateChanged(int rateHz);
-    void acquireAuxChanged(bool enabled);
-    void acquireAdcChanged(bool enabled);
     void namingSchemeChanged(int scheme);
     void rescanRequested();
     void measureImpedancesRequested();
@@ -110,8 +102,6 @@ private:
     void rebuildChannelPanelControls();
 
     QComboBox *m_sampleRateCombo = nullptr;
-    QCheckBox *m_acquireAuxCheck = nullptr;
-    QCheckBox *m_acquireAdcCheck = nullptr;
     QComboBox *m_namingCombo = nullptr;
     QLabel *m_headstageLabel = nullptr;
     QPushButton *m_scanButton = nullptr;
