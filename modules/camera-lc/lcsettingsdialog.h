@@ -21,6 +21,10 @@
 
 #include "lccamera.h"
 #include <QDialog>
+#include <QVector>
+
+class QSlider;
+class QDoubleSpinBox;
 
 namespace Ui
 {
@@ -64,8 +68,14 @@ private:
     void refreshResolutions();
     void refreshControls();
 
+    // keep a horizontal slider in sync with a spinbox, mapping the slider's
+    // fixed integer steps onto the spinbox's current [min, max] range
+    void linkSlider(QSlider *slider, QDoubleSpinBox *box);
+
     Ui::LcSettingsDialog *ui;
 
     LcCamera *m_camera;
     QString m_pixFmtName;
+
+    QVector<QPair<QSlider *, QDoubleSpinBox *>> m_sliderPairs;
 };

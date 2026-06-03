@@ -22,6 +22,13 @@
 
 #include <QDoubleSpinBox>
 #include <QLabel>
+#include <QSignalBlocker>
+#include <QSlider>
+#include <cmath>
+
+// number of discrete steps every control slider is divided into; the slider
+// position is mapped linearly onto the paired spinbox's current [min, max]
+static constexpr int kSliderSteps = 1000;
 
 LcSettingsDialog::LcSettingsDialog(LcCamera *camera, QWidget *parent)
     : QDialog(parent),
@@ -30,7 +37,38 @@ LcSettingsDialog::LcSettingsDialog(LcCamera *camera, QWidget *parent)
     ui->setupUi(this);
     m_camera = camera;
 
+    linkSlider(ui->sliderExposure, ui->sbExposure);
+    linkSlider(ui->sliderGain, ui->sbGain);
+    linkSlider(ui->sliderBrightness, ui->sbBrightness);
+    linkSlider(ui->sliderContrast, ui->sbContrast);
+    linkSlider(ui->sliderSaturation, ui->sbSaturation);
+    linkSlider(ui->sliderGamma, ui->sbGamma);
+
     updateValues();
+}
+
+void LcSettingsDialog::linkSlider(QSlider *slider, QDoubleSpinBox *box)
+{
+    slider->setRange(0, kSliderSteps);
+    m_sliderPairs.append(qMakePair(slider, box));
+
+    // spinbox -> slider: reflect a typed/applied value as a slider position,
+    // without re-triggering the slider's own handler
+    connect(box, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, [slider, box](double value) {
+        const double min = box->minimum();
+        const double max = box->maximum();
+        const int pos = (max > min) ? static_cast<int>(std::lround((value - min) / (max - min) * kSliderSteps)) : 0;
+        QSignalBlocker blocker(slider);
+        slider->setValue(pos);
+    });
+
+    // slider -> spinbox: map the position back to a value and write it into the
+    // spinbox, whose existing valueChanged slot applies it to the camera
+    connect(slider, &QSlider::valueChanged, this, [box](int pos) {
+        const double min = box->minimum();
+        const double max = box->maximum();
+        box->setValue(min + (static_cast<double>(pos) / kSliderSteps) * (max - min));
+    });
 }
 
 LcSettingsDialog::~LcSettingsDialog()
@@ -154,8 +192,11 @@ void LcSettingsDialog::refreshControls()
     // or hide the row entirely if the camera does not expose the control
     auto configureRow = [&](const QString &name, QLabel *label, QDoubleSpinBox *box, double value) {
         const auto range = m_camera->controlRange(name);
+        // the spinbox lives inside a wrapper widget alongside its slider; hide
+        // the whole wrapper so an unavailable control leaves no empty row behind
+        QWidget *field = box->parentWidget();
         label->setVisible(range.available);
-        box->setVisible(range.available);
+        field->setVisible(range.available);
         if (!range.available)
             return;
         box->blockSignals(true);
@@ -179,8 +220,23 @@ void LcSettingsDialog::refreshControls()
     configureRow(QStringLiteral("saturation"), ui->saturationLabel, ui->sbSaturation, m_camera->saturation());
     configureRow(QStringLiteral("gamma"), ui->gammaLabel, ui->sbGamma, m_camera->gamma());
 
+    // configureRow() blocks the spinbox signals while setting values, so the
+    // sliders did not follow along; sync their positions to the new values here
+    // (each slider hides automatically with its wrapper when unavailable)
+    for (const auto &pair : m_sliderPairs) {
+        QSlider *slider = pair.first;
+        const QDoubleSpinBox *box = pair.second;
+        const double min = box->minimum();
+        const double max = box->maximum();
+        const int pos = (max > min) ? static_cast<int>(std::lround((box->value() - min) / (max - min) * kSliderSteps))
+                                    : 0;
+        QSignalBlocker blocker(slider);
+        slider->setValue(pos);
+    }
+
     // the manual exposure box is only meaningful when auto-exposure is off
     ui->sbExposure->setEnabled(!m_camera->autoExposure());
+    ui->sliderExposure->setEnabled(!m_camera->autoExposure());
 
     // power-line frequency (anti-flicker); combo index maps to the V4L2 value
     const bool plfSupported = m_camera->powerLineFrequencySupported();
@@ -203,6 +259,7 @@ void LcSettingsDialog::on_autoExposureCheckBox_toggled(bool checked)
 {
     m_camera->setAutoExposure(checked);
     ui->sbExposure->setEnabled(!checked);
+    ui->sliderExposure->setEnabled(!checked);
 }
 
 void LcSettingsDialog::on_sbExposure_valueChanged(double value)
