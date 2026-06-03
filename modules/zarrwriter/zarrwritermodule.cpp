@@ -142,8 +142,10 @@ private:
     QStringList m_signalNames;
     QString m_timeUnit;
     QString m_dataUnit;
+    QString m_srcModType;
     double m_dataScale = 1.0;
     double m_dataOffset = 0.0;
+    double m_sampleRate = -1.0;
 
     std::unique_ptr<ZarrV3Array> m_tsArray;
     std::unique_ptr<ZarrV3Array> m_dataArray;
@@ -249,7 +251,8 @@ public:
             m_dataUnit = QString::fromStdString(m_floatSub->metadataValue("data_unit", std::string{}));
             m_dataScale = m_floatSub->metadataValue("data_scale", 1.0);
             m_dataOffset = m_floatSub->metadataValue("data_offset", 0.0);
-            m_chunkCount = chunkCountFromSampleRate(m_floatSub->metadataValue("sample_rate", -1.0));
+            m_sampleRate = m_floatSub->metadataValue("sample_rate", -1.0);
+            m_chunkCount = chunkCountFromSampleRate(m_sampleRate);
             break;
         }
         case InputSourceKind::INT: {
@@ -262,7 +265,8 @@ public:
             m_dataUnit = QString::fromStdString(m_intSub->metadataValue("data_unit", std::string{}));
             m_dataScale = m_intSub->metadataValue("data_scale", 1.0);
             m_dataOffset = m_intSub->metadataValue("data_offset", 0.0);
-            m_chunkCount = chunkCountFromSampleRate(m_intSub->metadataValue("sample_rate", -1.0));
+            m_sampleRate = m_intSub->metadataValue("sample_rate", -1.0);
+            m_chunkCount = chunkCountFromSampleRate(m_sampleRate);
             break;
         }
         case InputSourceKind::UINT16: {
@@ -275,12 +279,15 @@ public:
             m_dataUnit = QString::fromStdString(m_uint16Sub->metadataValue("data_unit", std::string{}));
             m_dataScale = m_uint16Sub->metadataValue("data_scale", 1.0);
             m_dataOffset = m_uint16Sub->metadataValue("data_offset", 0.0);
-            m_chunkCount = chunkCountFromSampleRate(m_uint16Sub->metadataValue("sample_rate", -1.0));
+            m_sampleRate = m_uint16Sub->metadataValue("sample_rate", -1.0);
+            m_chunkCount = chunkCountFromSampleRate(m_sampleRate);
             break;
         }
         default:
             return;
         }
+
+        m_srcModType = QString::fromStdString(mdata.valueOr<std::string>("src_mod_type", std::string{}));
 
         // create EDL dataset for this recording
         if (m_settingsDlg->useNameFromSource())
@@ -291,6 +298,27 @@ public:
         if (!m_currentDSet) {
             m_writeData = false;
             return;
+        }
+
+        // Mirror the signal metadata into the dataset's attributes.toml so the EDL
+        // manifest is self-describing without parsing the Zarr store's zarr.json.
+        if (m_sampleRate > 0 || m_timeUnit == "index")
+            m_currentDSet->insertAttribute("sample_rate", m_sampleRate);
+        if (!m_timeUnit.isEmpty())
+            m_currentDSet->insertAttribute("time_unit", m_timeUnit.toStdString());
+        if (!m_dataUnit.isEmpty())
+            m_currentDSet->insertAttribute("data_unit", m_dataUnit.toStdString());
+        if (m_dataScale != 1.0)
+            m_currentDSet->insertAttribute("data_scale", m_dataScale);
+        if (m_dataOffset != 0.0)
+            m_currentDSet->insertAttribute("data_offset", m_dataOffset);
+        if (!m_srcModType.isEmpty())
+            m_currentDSet->insertAttribute("src_mod_type", m_srcModType.toStdString());
+        if (!m_signalNames.isEmpty()) {
+            MetaArray names;
+            for (const auto &n : m_signalNames)
+                names.push_back(n.toStdString());
+            m_currentDSet->insertAttribute("signal_names", names);
         }
 
         // register the Zarr store directory as the dataset's primary file
@@ -333,8 +361,10 @@ public:
         m_signalNames.clear();
         m_timeUnit.clear();
         m_dataUnit.clear();
+        m_srcModType.clear();
         m_dataScale = 1.0;
         m_dataOffset = 0.0;
+        m_sampleRate = -1.0;
         m_storePath.clear();
     }
 
@@ -442,6 +472,8 @@ private:
             dataAttrs["data_scale"] = m_dataScale;
         if (m_dataOffset != 0.0)
             dataAttrs["data_offset"] = m_dataOffset;
+        if (m_sampleRate > 0 || m_dataUnit == "index")
+            dataAttrs["sample_rate"] = m_sampleRate;
         if (m_currentDSet)
             dataAttrs["collection_id"] = QString::fromStdString(m_currentDSet->collectionId().toHex());
         if (!dataAttrs.isEmpty())
