@@ -44,7 +44,8 @@ using namespace Syntalos;
 enum class ChannelKind {
     Electrode,
     Aux,
-    Adc
+    Adc,
+    TtlIn
 };
 
 /** Instructions for setting digital output. */
@@ -142,6 +143,9 @@ public:
     virtual void enableAdcChannels(bool enabled) = 0;
     virtual bool areAdcChannelsEnabled() const = 0;
 
+    virtual void enableTtlInChannels(bool enabled) = 0;
+    virtual bool areTtlInChannelsEnabled() const = 0;
+
     /** bitVolts scaling (microvolts per LSB) for each channel kind. */
     virtual float getBitVolts(ChannelKind kind) const = 0;
 
@@ -164,6 +168,11 @@ public:
      */
     virtual DataScaling getDataScaling(ChannelKind kind) const
     {
+        // TTL inputs are raw 0/1 line states; the stored value is already the
+        // physical value, so no offset-binary mid-scale conversion applies.
+        if (kind == ChannelKind::TtlIn)
+            return {1.0, 0.0};
+
         const double bitVolts = getBitVolts(kind);
         return {bitVolts, -32768.0 * bitVolts};
     }
@@ -262,6 +271,9 @@ public:
     /** Hardware-fixed board-wide ADC channel count. */
     virtual int getNumAdcChannels() const = 0;
 
+    /** Hardware-fixed board-wide TTL input line count. */
+    virtual int getNumTtlInChannels() const = 0;
+
     int getNumChannels()
     {
         return getNumDataOutputs(ChannelKind::Electrode) + getNumDataOutputs(ChannelKind::Aux)
@@ -333,6 +345,7 @@ protected:
     struct Settings {
         bool acquireAux = false;
         bool acquireAdc = false;
+        bool acquireTtlIn = false;
 
         bool fastSettleEnabled = false;
         bool fastTTLSettleEnabled = false;

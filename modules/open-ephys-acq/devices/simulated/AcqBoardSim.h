@@ -55,6 +55,8 @@ public:
     bool areAuxChannelsEnabled() const override;
     void enableAdcChannels(bool enabled) override;
     bool areAdcChannelsEnabled() const override;
+    void enableTtlInChannels(bool enabled) override;
+    bool areTtlInChannelsEnabled() const override;
 
     float getBitVolts(ChannelKind kind) const override;
 
@@ -94,6 +96,10 @@ public:
         return 3;
     }
     int getNumAdcChannels() const override
+    {
+        return 8;
+    }
+    int getNumTtlInChannels() const override
     {
         return 8;
     }

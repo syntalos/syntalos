@@ -120,6 +120,16 @@ bool AcqBoardSim::areAdcChannelsEnabled() const
     return settings.acquireAdc;
 }
 
+void AcqBoardSim::enableTtlInChannels(bool enabled)
+{
+    settings.acquireTtlIn = enabled;
+}
+
+bool AcqBoardSim::areTtlInChannelsEnabled() const
+{
+    return settings.acquireTtlIn;
+}
+
 float AcqBoardSim::getBitVolts(ChannelKind kind) const
 {
     switch (kind) {
@@ -129,6 +139,8 @@ float AcqBoardSim::getBitVolts(ChannelKind kind) const
         return 0.0000374f;
     case ChannelKind::Adc:
         return 0.00015258789f;
+    case ChannelKind::TtlIn:
+        return 1.0f;
     }
     return 1.0f;
 }
@@ -191,10 +203,12 @@ bool AcqBoardSim::pumpSamples(std::span<AcqSampleChunk> sinks, microseconds_t &b
     // data, so disabled chunks can be left empty.
     const auto wantAux = settings.acquireAux;
     const auto wantAdc = settings.acquireAdc;
+    const auto wantTtlIn = settings.acquireTtlIn;
 
     for (auto &sink : sinks) {
         const bool active = (sink.kind == ChannelKind::Electrode) || (sink.kind == ChannelKind::Aux && wantAux)
-                            || (sink.kind == ChannelKind::Adc && wantAdc);
+                            || (sink.kind == ChannelKind::Adc && wantAdc)
+                            || (sink.kind == ChannelKind::TtlIn && wantTtlIn);
         if (!active) {
             sink.numSamples = 0;
             continue;
@@ -217,6 +231,9 @@ bool AcqBoardSim::pumpSamples(std::span<AcqSampleChunk> sinks, microseconds_t &b
         const uint16_t sineCount = uvToCount(sineSample, getBitVolts(ChannelKind::Aux));
         const float adcSample = data.adc[(idx * skip) % availableAdcSamples];
         const uint16_t adcCount = uvToCount(adcSample, getBitVolts(ChannelKind::Adc));
+        // Synthesize the 8 TTL-input lines as a slow binary counter so each
+        // line visibly toggles at a different rate.
+        const uint16_t ttlInWord = static_cast<uint16_t>((idx / 3000) & 0xFF);
 
         for (auto &sink : sinks) {
             if (sink.numSamples != N)
@@ -236,6 +253,10 @@ bool AcqBoardSim::pumpSamples(std::span<AcqSampleChunk> sinks, microseconds_t &b
             case ChannelKind::Adc:
                 for (int c = 0; c < cps; ++c)
                     row[c] = adcCount;
+                break;
+            case ChannelKind::TtlIn:
+                for (int c = 0; c < cps && c < 8; ++c)
+                    row[c] = (ttlInWord >> c) & 0x1;
                 break;
             }
         }
@@ -364,6 +385,8 @@ int AcqBoardSim::getNumDataOutputs(ChannelKind kind)
     }
     case ChannelKind::Adc:
         return settings.acquireAdc ? 8 : 0;
+    case ChannelKind::TtlIn:
+        return settings.acquireTtlIn ? 8 : 0;
     }
     return 0;
 }

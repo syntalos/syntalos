@@ -903,6 +903,8 @@ float AcqBoardONI::getBitVolts(ChannelKind kind) const
         if (deviceId == DEVICE_ID_V3)
             return static_cast<float>(v3AdcBitVal);
         return 0.00015258789f;
+    case ChannelKind::TtlIn:
+        return 1.0f;
     }
     return 1.0f;
 }
@@ -974,6 +976,16 @@ void AcqBoardONI::enableAdcChannels(bool enabled)
 bool AcqBoardONI::areAdcChannelsEnabled() const
 {
     return settings.acquireAdc;
+}
+
+void AcqBoardONI::enableTtlInChannels(bool enabled)
+{
+    settings.acquireTtlIn = enabled;
+}
+
+bool AcqBoardONI::areTtlInChannelsEnabled() const
+{
+    return settings.acquireTtlIn;
 }
 
 double AcqBoardONI::setUpperBandwidth(double upper)
@@ -1162,7 +1174,8 @@ bool AcqBoardONI::pumpSamples(std::span<AcqSampleChunk> sinks, microseconds_t &b
     for (auto &sink : sinks) {
         const bool active = (sink.kind == ChannelKind::Electrode)
                             || (sink.kind == ChannelKind::Aux && settings.acquireAux)
-                            || (sink.kind == ChannelKind::Adc && settings.acquireAdc);
+                            || (sink.kind == ChannelKind::Adc && settings.acquireAdc)
+                            || (sink.kind == ChannelKind::TtlIn && settings.acquireTtlIn);
         if (!active) {
             sink.numSamples = 0;
             continue;
@@ -1277,6 +1290,7 @@ bool AcqBoardONI::pumpSamples(std::span<AcqSampleChunk> sinks, microseconds_t &b
 
         // ---- ADC channels ----
         std::array<uint16_t, 8> adcRaw{};
+        uint16_t ttlInWord = 0;
         if (settings.acquireAdc) {
             for (int adcChan = 0; adcChan < 8; ++adcChan) {
                 adcRaw[adcChan] = *reinterpret_cast<uint16_t *>(bufferPtr + index);
@@ -1292,9 +1306,10 @@ bool AcqBoardONI::pumpSamples(std::span<AcqSampleChunk> sinks, microseconds_t &b
             index += 16;
         }
 
-        // const uint64_t ttlEventWord = *reinterpret_cast<uint64_t *>(bufferPtr + index) & 65535;
-        // (Currently unused in the Syntalos export — kept here as a pointer for when a TTL
-        // input port is exposed on the module side.)
+        // ---- TTL inputs (8 lines packed into the low byte of a 16-bit word) ----
+        // The word sits right after the ADC block, whether or not ADC was read.
+        if (settings.acquireTtlIn)
+            ttlInWord = *reinterpret_cast<uint16_t *>(bufferPtr + index);
 
         // ---- demux thisSample into the per-headstage chunks ----
         // Walk the chunks and fill them by reading the same raw bytes the algorithm
@@ -1392,6 +1407,22 @@ bool AcqBoardONI::pumpSamples(std::span<AcqSampleChunk> sinks, microseconds_t &b
 
             for (int adcChan = 0; adcChan < cps && adcChan < 8; ++adcChan)
                 out[adcChan] = adcRaw[adcChan];
+        }
+
+        // TTL-input chunk (groupIndex = -1): one 0/1 column per line.
+        for (auto &sink : sinks) {
+            if (sink.numSamples == 0)
+                continue;
+            if (sink.kind != ChannelKind::TtlIn)
+                continue;
+
+            const int row = samp;
+            const int cps = sink.channelsPerSample;
+            uint16_t *out = sink.samples.data() + static_cast<std::size_t>(row) * static_cast<std::size_t>(cps);
+            sink.sampleIndices[row] = static_cast<uint64_t>(dataSampleNumber);
+
+            for (int line = 0; line < cps && line < 8; ++line)
+                out[line] = (ttlInWord >> line) & 0x1;
         }
 
         dataSampleNumber++;
@@ -1508,6 +1539,9 @@ int AcqBoardONI::getNumDataOutputs(ChannelKind kind)
     }
     if (kind == ChannelKind::Adc) {
         return settings.acquireAdc ? 8 : 0;
+    }
+    if (kind == ChannelKind::TtlIn) {
+        return settings.acquireTtlIn ? getNumTtlInChannels() : 0;
     }
     return 0;
 }

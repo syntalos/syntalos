@@ -74,6 +74,7 @@ struct GroupStream {
  *   Electrode -> "<prefix>:E<i>"
  *   Aux       -> "<prefix>:AUX<i>"
  *   ADC       -> "ADC:<i>"
+ *   TTL in    -> "TTLIN:<i>"
  */
 static QString makeChannelId(const QString &portPrefix, ChannelKind kind, int idx)
 {
@@ -84,23 +85,25 @@ static QString makeChannelId(const QString &portPrefix, ChannelKind kind, int id
         return QStringLiteral("%1:AUX%2").arg(portPrefix).arg(idx, 2, 10, QChar(u'0'));
     case ChannelKind::Adc:
         return QStringLiteral("ADC:%1").arg(idx, 2, 10, QChar(u'0'));
+    case ChannelKind::TtlIn:
+        return QStringLiteral("TTLIN:%1").arg(idx, 2, 10, QChar(u'0'));
     }
     return {};
 }
 
 static QString headstagePortTitle(const std::string &prefix, int chanCount)
 {
-    return QStringLiteral("Headstage %1 - %2 ch").arg(QString::fromStdString(prefix)).arg(chanCount);
+    return QStringLiteral("Headstage %1 (%2c)").arg(QString::fromStdString(prefix)).arg(chanCount);
 }
 
 static QString auxPortTitle(const std::string &prefix, int auxCount)
 {
-    return QStringLiteral("Headstage %1 - AUX (%2 ch)").arg(QString::fromStdString(prefix)).arg(auxCount);
+    return QStringLiteral("Headstage %1 - AUX (%2c)").arg(QString::fromStdString(prefix)).arg(auxCount);
 }
 
 static QString adcPortTitle(int adcCount)
 {
-    return QStringLiteral("Board ADC (%1 ch)").arg(adcCount);
+    return QStringLiteral("Board ADC (%1c)").arg(adcCount);
 }
 
 class OpenEphysAcqModule : public AbstractModule
@@ -256,6 +259,7 @@ public:
         m_board->setSampleRate(m_sampleRateHz);
         m_board->enableAuxChannels(m_acquireAux);
         m_board->enableAdcChannels(m_acquireAdc);
+        m_board->enableTtlInChannels(m_acquireTtlIn);
         m_board->setNamingScheme(m_namingScheme);
 
         const auto headstages = m_board->getHeadstages();
@@ -308,6 +312,10 @@ public:
             for (int oc = 0; oc < g.channelsPerSample; ++oc)
                 g.mutedOutputColumns[oc].store(false, std::memory_order_relaxed);
         }
+
+        // TTL-input edge detector re-primes on the first block of the run, so
+        // the starting level of each selected line is emitted once.
+        m_ttlInPrimed = false;
 
         // Build the per-pump chunk vector (one entry per group). The board
         // fills numSamples / samples / sampleIndices in place every call.
@@ -396,6 +404,13 @@ public:
                     continue;
                 }
 
+                // TTL inputs are published as LineReading edge events, not a
+                // signal block (g.block is null for this group).
+                if (g.kind == ChannelKind::TtlIn) {
+                    emitTtlInEdges(chunk, g, syncedTs, sampleRateHz);
+                    continue;
+                }
+
                 g.block->data.resize(n, outCps);
                 g.block->timestamps = syncedTs;
 
@@ -426,6 +441,55 @@ public:
         }
 
         m_board->stopAcquisition();
+    }
+
+    /**
+     * Turn one pump's worth of per-sample TTL-input states (filled by the board
+     * into @p chunk) into LineReading edge events on @c m_ttlInStream. Only the
+     * lines the user selected (the group's enabledLocalIndices) are tracked; an
+     * event is emitted whenever a line's level changes, plus once per line on
+     * the first block of the run so the starting level is recorded.
+     */
+    void emitTtlInEdges(
+        const AcqSampleChunk &chunk,
+        const GroupStream &g,
+        const VectorXu64 &syncedTs,
+        double sampleRateHz)
+    {
+        if (!m_ttlInStream || sampleRateHz <= 0)
+            return;
+
+        const int n = chunk.numSamples;
+        const int rawCps = chunk.channelsPerSample;
+        const int outCps = g.channelsPerSample;
+
+        if (!m_ttlInPrimed) {
+            // 0xffff is an impossible line state, so the first real sample of
+            // every selected line registers as a change and is emitted.
+            m_ttlInPrev.assign(outCps, 0xffff);
+            m_ttlInPrimed = true;
+        }
+
+        for (int s = 0; s < n; ++s) {
+            const uint16_t *rowPtr = chunk.samples.data() + static_cast<size_t>(s) * rawCps;
+            for (int oc = 0; oc < outCps; ++oc) {
+                // A line toggled off mid-run is muted: skip it entirely
+                if (g.mutedOutputColumns[oc].load(std::memory_order_relaxed))
+                    continue;
+
+                const uint16_t v = rowPtr[g.enabledLocalIndices[oc]];
+                if (v == m_ttlInPrev[oc])
+                    continue;
+                m_ttlInPrev[oc] = v;
+
+                LineReading r;
+                r.lineId = static_cast<uint16_t>(g.enabledLocalIndices[oc]);
+                r.value = v;
+                r.time = microseconds_t(
+                    std::llround(static_cast<double>(syncedTs(s)) * 1e6 / sampleRateHz));
+                m_ttlInStream->push(r);
+            }
+        }
     }
 
     /**
@@ -737,12 +801,13 @@ private:
     }
 
     /**
-     * Derive the board-level AUX/ADC scan flags from the per-channel selection:
-     * a kind is scanned if at least one of its channels is currently selected.
+     * Derive the board-level AUX/ADC/TTL-in scan flags from the per-channel
+     * selection: a kind is scanned if at least one of its channels is currently
+     * selected.
      *
      * The flags are pushed to the board only when they actually change, so an
      * unrelated channel toggle doesn't trigger a register re-upload, while a
-     * freshly (re)created board (which starts with both flags off) is still
+     * freshly (re)created board (which starts with the flags off) is still
      * configured correctly.
      */
     void deriveAndApplyAcquireFlags()
@@ -752,9 +817,11 @@ private:
 
         const int auxPerHs = m_board->getAuxChannelsPerHeadstage();
         const int adcCount = m_board->getNumAdcChannels();
+        const int ttlInCount = m_board->getNumTtlInChannels();
 
         bool anyAux = false;
         bool anyAdc = false;
+        bool anyTtlIn = false;
         for (const auto *hs : m_board->getHeadstages()) {
             if (!hs->isConnected())
                 continue;
@@ -772,13 +839,22 @@ private:
                 break;
             }
         }
+        for (int c = 0; c < ttlInCount; ++c) {
+            if (isChannelEnabled(makeChannelId(QStringLiteral("TTLIN"), ChannelKind::TtlIn, c), ChannelKind::TtlIn)) {
+                anyTtlIn = true;
+                break;
+            }
+        }
 
         m_acquireAux = anyAux;
         m_acquireAdc = anyAdc;
+        m_acquireTtlIn = anyTtlIn;
         if (m_board->areAuxChannelsEnabled() != anyAux)
             m_board->enableAuxChannels(anyAux);
         if (m_board->areAdcChannelsEnabled() != anyAdc)
             m_board->enableAdcChannels(anyAdc);
+        if (m_board->areTtlInChannelsEnabled() != anyTtlIn)
+            m_board->enableTtlInChannels(anyTtlIn);
     }
 
     /**
@@ -919,6 +995,48 @@ private:
             }
         }
 
+        // ---- board TTL inputs ----
+        {
+            const int ttlInCount = m_board->getNumTtlInChannels();
+            GroupStream g;
+            g.groupIndex = -1;
+            g.kind = ChannelKind::TtlIn;
+            g.rawChannelsPerSample = ttlInCount;
+            g.portId = QStringLiteral("ttlin");
+
+            for (int c = 0; c < ttlInCount; ++c) {
+                const auto id = makeChannelId(QStringLiteral("TTLIN"), ChannelKind::TtlIn, c);
+                if (isChannelEnabled(id, ChannelKind::TtlIn)) {
+                    g.enabledLocalIndices.push_back(c);
+                    g.outChannelIds.append(id);
+                }
+            }
+            g.channelsPerSample = static_cast<int>(g.enabledLocalIndices.size());
+            if (g.channelsPerSample > 0) {
+                // The group carries only the board chunk + selected-line mapping;
+                // unlike the analog groups it has no SignalBlockU16 stream/block.
+                // runThread() turns its chunk into LineReading edges on m_ttlInStream.
+                // mutedOutputColumns is consulted by emitTtlInEdges so a line
+                // toggled off mid-run stops emitting (mirroring the analog
+                // zero-fill); the run-start reset loop walks it like any group.
+                g.mutedOutputColumns = std::make_unique<std::atomic_bool[]>(g.channelsPerSample);
+
+                if (auto existing = outPortById(g.portId))
+                    m_ttlInStream = existing->stream<LineReading>();
+                else
+                    m_ttlInStream = registerOutputPort<LineReading>(g.portId, QStringLiteral("TTL Inputs"));
+                // No signal_names: the lines aren't a fixed indexed channel set,
+                // so consumers label them per-lineId from the events themselves.
+                m_ttlInStream->setMetadataValue("time_unit", std::string{"microseconds"});
+                m_ttlInStream->setMetadataValue("data_unit", std::string{"ttl"});
+
+                currentIds.insert(g.portId);
+                m_groups.push_back(std::move(g));
+            } else {
+                m_ttlInStream.reset();
+            }
+        }
+
         // Drop any ports that existed before this rescan but weren't
         // re-registered in the current pass. Surviving ports kept their
         // identity (registerOutputPort recycles by id), so any subscriptions
@@ -979,6 +1097,16 @@ private:
             e.enabled = isChannelEnabled(e.id, ChannelKind::Adc);
             entries.push_back(std::move(e));
         }
+        const auto ttlInGroup = tr("Board TTL Inputs");
+        const int ttlInCount = m_board->getNumTtlInChannels();
+        for (int c = 0; c < ttlInCount; ++c) {
+            OeAcqSettingsDialog::ChannelEntry e;
+            e.id = makeChannelId(QStringLiteral("TTLIN"), ChannelKind::TtlIn, c);
+            e.label = QStringLiteral("TTL%1").arg(c + 1);
+            e.group = ttlInGroup;
+            e.enabled = isChannelEnabled(e.id, ChannelKind::TtlIn);
+            entries.push_back(std::move(e));
+        }
         m_settingsDlg->setChannelInventory(entries);
     }
 
@@ -1037,11 +1165,20 @@ private:
     std::shared_ptr<StreamInputPort<LineCommand>> m_ttlIn;
     std::shared_ptr<StreamSubscription<LineCommand>> m_ttlSub;
 
+    // Board TTL inputs are published as LineReading edge events. The stream is
+    // (un)registered in rebuildOutputPorts() depending on whether any TTL-in
+    // line is selected; m_ttlInPrev holds the last level per selected line for
+    // edge detection (see emitTtlInEdges).
+    std::shared_ptr<DataStream<LineReading>> m_ttlInStream;
+    std::vector<uint16_t> m_ttlInPrev;
+    bool m_ttlInPrimed = false;
+
     int m_sampleRateHz = 30000;
-    // Derived board scan flags: true iff at least one AUX/ADC channel is
+    // Derived board scan flags: true iff at least one AUX/ADC/TTL-in channel is
     // currently selected. Recomputed by deriveAndApplyAcquireFlags().
     bool m_acquireAux = false;
     bool m_acquireAdc = false;
+    bool m_acquireTtlIn = false;
     ChannelNamingScheme m_namingScheme{GLOBAL_INDEX};
     OeAcqSettingsDialog::BackendChoice m_backendChoice{OeAcqSettingsDialog::BackendAuto};
 
