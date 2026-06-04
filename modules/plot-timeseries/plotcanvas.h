@@ -22,6 +22,7 @@
 #include <QOpenGLWidget>
 #include <QOpenGLExtraFunctions>
 #include <QVariantHash>
+#include <QSet>
 
 #include "datactl/datatypes.h"
 
@@ -63,6 +64,7 @@ public:
 
     // Channel lifecycle
     int ensureChannel(const QString &portId, int colIdx, const QString &signalName);
+    void updatePortChannels(const QString &portId, const QStringList &signalNames);
     bool channelEnabled(int channelIndex) const;
     void setChannelEnabled(int channelIndex, bool enabled);
     void setChannelDigital(int channelIndex, bool digital);
@@ -107,6 +109,8 @@ private:
     Q_DISABLE_COPY(PlotCanvas)
     QScopedPointer<Private> d;
 
+    int appendChannel(const QString &portId, int colIdx, const QString &signalName);
+    void tombstoneChannels(const QSet<int> &removed);
     void moveChannelToGraph(int channelIndex, int destGraphId);
     void createGraphWithChannel(int channelIndex);
     int graphIndexById(int graphId) const;

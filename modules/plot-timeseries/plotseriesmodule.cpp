@@ -103,9 +103,9 @@ public:
 
         for (auto &port : inPorts()) {
             if (!port->hasSubscription()) {
-                // do nothing if we have no subscription
-                if (port->hasSubscription())
-                    port->subscriptionVar()->suspend();
+                // the source feeding this port has vanished (disconnected): drop
+                // any channels we still hold for it so they don't linger forever
+                canvas->unregisterPort(port->id());
                 continue;
             }
 
@@ -179,16 +179,24 @@ public:
         m_plotWindow->canvas()->registerPort(sd.portId, sd.timestampDivisor, yLabel, dataScale, dataOffset);
 
         // Pre-create channel entries from any signal_names metadata so the table
-        // is populated before data starts flowing.
+        // is populated before data starts flowing, and reconcile against the
+        // current source: channels are matched by signal name, so settings follow
+        // a signal even when other signals are added/removed and its column position shifts,
+        // and signals no longer present are removed.
+        // Only do this when signal_names is provided; otherwise channels are
+        // discovered by column as data flows and must not be wiped here.
         const auto sigNamesArr = sd.sub->metadataValue("signal_names", MetaArray{});
+        QStringList signalNames;
         int colIdx = 0;
         for (const auto &v : sigNamesArr) {
             QString name = QStringLiteral("ch%1").arg(colIdx);
             if (const auto s = v.template get<std::string>())
                 name = QString::fromStdString(*s);
-            m_plotWindow->canvas()->ensureChannel(sd.portId, colIdx, name);
+            signalNames << name;
             ++colIdx;
         }
+        if (!signalNames.isEmpty())
+            m_plotWindow->canvas()->updatePortChannels(sd.portId, signalNames);
     }
 
     void applyLineReadingMetadata(PlotSubscriptionDetails<LineReading> &sd)
