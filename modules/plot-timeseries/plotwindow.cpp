@@ -247,6 +247,8 @@ void PlotWindow::on_addPortBtn_clicked()
             streamSignalTypeMap["Integer"] = value;
         else if (key == "SignalBlockF32")
             streamSignalTypeMap["Float"] = value;
+        else if (key == "LineReading")
+            streamSignalTypeMap["Digital Lines"] = value;
     }
 
     int newPortNumber = m_mod->inPorts().length() + 1;
