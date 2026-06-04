@@ -131,8 +131,7 @@ public:
                 sd.sub->setThrottleItemsPerSec(4000);
                 m_intSubs.push_back(sd);
             } else if (port->dataTypeName() == "LineReading") {
-                PlotSubscriptionDetails<LineReading> sd(
-                    std::static_pointer_cast<StreamInputPort<LineReading>>(port));
+                PlotSubscriptionDetails<LineReading> sd(std::static_pointer_cast<StreamInputPort<LineReading>>(port));
                 m_lrSubs.push_back(sd);
             } else {
                 continue;

@@ -37,6 +37,10 @@ public:
 
     void setRunning(bool running);
 
+    int selectedTypeId() const;
+    QString selectedTypeName() const;
+    void setSelectedTypeName(const QString &typeName);
+
     bool useNameFromSource() const;
     void setUseNameFromSource(bool fromSource);
 
@@ -55,6 +59,9 @@ public:
     QSet<QString> recordedEntriesSet() const;
     QStringList recordedEntries() const;
     void setRecordedEntries(const QStringList &list);
+
+Q_SIGNALS:
+    void settingsChanged();
 
 private slots:
     void on_nameLineEdit_textChanged(const QString &arg1);

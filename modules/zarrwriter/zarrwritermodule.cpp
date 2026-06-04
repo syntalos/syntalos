@@ -36,7 +36,30 @@
 
 #include <Eigen/Core>
 
+#include "datatypeselector.h"
+
 SYNTALOS_MODULE(ZarrWriterModule)
+
+enum class InputSourceKind {
+    NONE,
+    FLOAT,
+    INT,
+    UINT16,
+    LINE_READING
+};
+
+static InputSourceKind inputSourceKindFromTypeId(int typeId)
+{
+    if (typeId == SignalBlockF32::staticTypeId())
+        return InputSourceKind::FLOAT;
+    if (typeId == SignalBlockI32::staticTypeId())
+        return InputSourceKind::INT;
+    if (typeId == SignalBlockU16::staticTypeId())
+        return InputSourceKind::UINT16;
+    if (typeId == LineReading::staticTypeId())
+        return InputSourceKind::LINE_READING;
+    return InputSourceKind::NONE;
+}
 
 class ZarrSettingsDialog : public QDialog
 {
@@ -50,6 +73,22 @@ public:
 
         auto layout = new QVBoxLayout(this);
         layout->setContentsMargins(4, 4, 4, 4);
+
+        auto sourceGroup = new QGroupBox(QStringLiteral("Data Source"), this);
+        auto sourceLayout = new QFormLayout(sourceGroup);
+        sourceLayout->setContentsMargins(4, 4, 4, 4);
+
+        m_sourceSel = new DataTypeSelector(this);
+        m_sourceSel->addNoneEntry();
+        m_sourceSel->addDataType(SignalBlockF32::staticTypeId(), QStringLiteral("Float32 Signals"));
+        m_sourceSel->addDataType(SignalBlockI32::staticTypeId(), QStringLiteral("Int32 Signals"));
+        m_sourceSel->addDataType(SignalBlockU16::staticTypeId(), QStringLiteral("UInt16 Signals"));
+        m_sourceSel->addDataType(LineReading::staticTypeId(), QStringLiteral("Line Readings"));
+        sourceLayout->addRow(QStringLiteral("Input type:"), m_sourceSel);
+
+        layout->addWidget(sourceGroup);
+
+        connect(m_sourceSel, &DataTypeSelector::selectionChanged, this, &ZarrSettingsDialog::settingsChanged);
 
         auto nameGroup = new QGroupBox(QStringLiteral("Dataset Name"), this);
         auto nameLayout = new QFormLayout(nameGroup);
@@ -78,8 +117,23 @@ public:
 
     void setRunning(bool running)
     {
+        // The port topology must not change during a run
+        m_sourceSel->setEnabled(!running);
         m_cbNameFromSrc->setEnabled(!running);
         m_nameEdit->setEnabled(!running && !m_cbNameFromSrc->isChecked());
+    }
+
+    int selectedTypeId() const
+    {
+        return m_sourceSel->selectedTypeId();
+    }
+    QString selectedTypeName() const
+    {
+        return m_sourceSel->selectedTypeName();
+    }
+    void setSelectedTypeName(const QString &typeName)
+    {
+        m_sourceSel->setSelectedTypeName(typeName);
     }
 
     bool useNameFromSource() const
@@ -101,17 +155,13 @@ public:
         m_nameEdit->setText(name);
     }
 
+Q_SIGNALS:
+    void settingsChanged();
+
 private:
+    DataTypeSelector *m_sourceSel;
     QCheckBox *m_cbNameFromSrc;
     QLineEdit *m_nameEdit;
-};
-
-enum class InputSourceKind {
-    NONE,
-    FLOAT,
-    INT,
-    UINT16,
-    LINE_READING
 };
 
 class ZarrWriterModule : public AbstractModule
@@ -163,16 +213,50 @@ public:
           m_expectedChannels(0),
           m_chunkCount(ZARR_CHUNK_DEFAULT)
     {
-        m_floatIn = registerInputPort<SignalBlockF32>(QStringLiteral("fpsig1-in"), QStringLiteral("Float32 Signals"));
-        m_intIn = registerInputPort<SignalBlockI32>(QStringLiteral("intsig1-in"), QStringLiteral("Int32 Signals"));
-        m_uint16In = registerInputPort<SignalBlockU16>(
-            QStringLiteral("uint16sig1-in"),
-            QStringLiteral("UInt16 Signals"));
-        m_lineIn = registerInputPort<LineReading>(QStringLiteral("lines1-in"), QStringLiteral("Line Readings"));
-
         m_settingsDlg = new ZarrSettingsDialog();
         m_settingsDlg->setWindowIcon(modInfo->icon());
         addSettingsWindow(m_settingsDlg);
+
+        connect(m_settingsDlg, &ZarrSettingsDialog::settingsChanged, this, [this]() {
+            updatePortConfiguration();
+        });
+
+        // start with no input ports; the user picks exactly one type in the settings
+        updatePortConfiguration();
+    }
+
+    void updatePortConfiguration()
+    {
+        // Rebuild the single input port to match the selected data type.
+        // Only safe on the main thread while not running.
+        clearInPorts();
+        m_floatIn.reset();
+        m_intIn.reset();
+        m_uint16In.reset();
+        m_lineIn.reset();
+
+        setStatusMessage({});
+        switch (inputSourceKindFromTypeId(m_settingsDlg->selectedTypeId())) {
+        case InputSourceKind::FLOAT:
+            m_floatIn = registerInputPort<SignalBlockF32>(
+                QStringLiteral("f32sig-in"),
+                QStringLiteral("Float32 Signals"));
+            break;
+        case InputSourceKind::INT:
+            m_intIn = registerInputPort<SignalBlockI32>(QStringLiteral("i32sig-in"), QStringLiteral("Int32 Signals"));
+            break;
+        case InputSourceKind::UINT16:
+            m_uint16In = registerInputPort<SignalBlockU16>(
+                QStringLiteral("u16sig-in"),
+                QStringLiteral("UInt16 Signals"));
+            break;
+        case InputSourceKind::LINE_READING:
+            m_lineIn = registerInputPort<LineReading>(QStringLiteral("lines-in"), QStringLiteral("Line Readings"));
+            break;
+        case InputSourceKind::NONE:
+            setStatusMessage("No input port type selected!");
+            break;
+        }
     }
 
     ~ZarrWriterModule() override = default;
@@ -200,50 +284,40 @@ public:
 
         m_writeData = !isEphemeralRun();
 
+        // Only a single input port exists at a time, matching the type the user
+        // selected in the settings
         m_floatSub.reset();
-        if (m_floatIn->hasSubscription()) {
+        if (m_floatIn && m_floatIn->hasSubscription()) {
             m_floatSub = m_floatIn->subscription();
             m_isrcKind = InputSourceKind::FLOAT;
             registerDataReceivedEvent(&ZarrWriterModule::onFloatSignalBlockReceived, m_floatSub);
         }
 
         m_intSub.reset();
-        if (m_intIn->hasSubscription()) {
+        if (m_intIn && m_intIn->hasSubscription()) {
             m_intSub = m_intIn->subscription();
-            if (m_isrcKind != InputSourceKind::NONE) {
-                raiseError(QStringLiteral(
-                    "More than one input is connected. Only one signal type can be "
-                    "written into a Zarr array at a time."));
-                return false;
-            }
             m_isrcKind = InputSourceKind::INT;
             registerDataReceivedEvent(&ZarrWriterModule::onIntSignalBlockReceived, m_intSub);
         }
 
         m_uint16Sub.reset();
-        if (m_uint16In->hasSubscription()) {
+        if (m_uint16In && m_uint16In->hasSubscription()) {
             m_uint16Sub = m_uint16In->subscription();
-            if (m_isrcKind != InputSourceKind::NONE) {
-                raiseError(QStringLiteral(
-                    "More than one input is connected. Only one signal type can be "
-                    "written into a Zarr array at a time."));
-                return false;
-            }
             m_isrcKind = InputSourceKind::UINT16;
             registerDataReceivedEvent(&ZarrWriterModule::onUInt16SignalBlockReceived, m_uint16Sub);
         }
 
         m_lineSub.reset();
-        if (m_lineIn->hasSubscription()) {
+        if (m_lineIn && m_lineIn->hasSubscription()) {
             m_lineSub = m_lineIn->subscription();
-            if (m_isrcKind != InputSourceKind::NONE) {
-                raiseError(QStringLiteral(
-                    "More than one input is connected. Only one signal type can be "
-                    "written into a Zarr array at a time."));
-                return false;
-            }
             m_isrcKind = InputSourceKind::LINE_READING;
             registerDataReceivedEvent(&ZarrWriterModule::onLineReadingReceived, m_lineSub);
+        }
+
+        if (m_isrcKind == InputSourceKind::NONE) {
+            // nothing is connected, so there is nothing for us to do this run
+            setStateDormant();
+            return true;
         }
 
         setStateReady();
@@ -402,12 +476,15 @@ public:
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
     {
+        settings.insert(QStringLiteral("input_type"), m_settingsDlg->selectedTypeName());
         settings.insert(QStringLiteral("use_name_from_source"), m_settingsDlg->useNameFromSource());
         settings.insert(QStringLiteral("data_name"), m_settingsDlg->dataName());
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
+        m_settingsDlg->setSelectedTypeName(settings.value(QStringLiteral("input_type")).toString());
+        updatePortConfiguration();
         m_settingsDlg->setUseNameFromSource(settings.value(QStringLiteral("use_name_from_source"), true).toBool());
         m_settingsDlg->setDataName(settings.value(QStringLiteral("data_name")).toString());
         return true;
@@ -638,8 +715,7 @@ private:
             m_dataArray->appendBytes(row, 1);
 
             if (m_tsArray->hasError() || m_dataArray->hasError()) {
-                const QString msg = m_tsArray->hasError() ? m_tsArray->errorMessage()
-                                                          : m_dataArray->errorMessage();
+                const QString msg = m_tsArray->hasError() ? m_tsArray->errorMessage() : m_dataArray->errorMessage();
                 raiseError(QStringLiteral("Zarr writer I/O error: ") + msg);
                 m_writeData = false;
                 return;

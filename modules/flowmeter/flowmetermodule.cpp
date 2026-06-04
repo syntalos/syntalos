@@ -24,7 +24,6 @@
 #include <cmath>
 #include <functional>
 
-#include <QComboBox>
 #include <QDialog>
 #include <QElapsedTimer>
 #include <QFormLayout>
@@ -37,6 +36,7 @@
 #include <KLed>
 
 #include "datactl/datatypes.h"
+#include "datatypeselector.h"
 
 SYNTALOS_MODULE(FlowMeterModule)
 
@@ -63,44 +63,40 @@ public:
         setMaximumSize(420, 120);
 
         auto layout = new QFormLayout(this);
-        m_typeCombo = new QComboBox(this);
-        for (const auto &[name, id] : streamTypeIdIndex())
-            m_typeCombo->addItem(QString::fromStdString(name), id);
-        layout->addRow(QStringLiteral("Data type"), m_typeCombo);
+        // the flow meter can count any kind of stream, so it offers every data type
+        m_typeSel = new DataTypeSelector(this);
+        m_typeSel->addAllDataTypes();
+        layout->addRow(QStringLiteral("Data type"), m_typeSel);
 
-        connect(m_typeCombo, &QComboBox::currentIndexChanged, this, [this]() {
-            Q_EMIT settingsChanged();
-        });
+        connect(m_typeSel, &DataTypeSelector::selectionChanged, this, &FlowMeterSettingsDialog::settingsChanged);
     }
 
     int selectedTypeId() const
     {
-        return m_typeCombo->currentData().toInt();
+        return m_typeSel->selectedTypeId();
     }
 
     QString selectedTypeName() const
     {
-        return m_typeCombo->currentText();
+        return m_typeSel->selectedTypeName();
     }
 
-    void setSelectedTypeId(int typeId)
+    void setSelectedTypeName(const QString &typeName)
     {
-        const int idx = m_typeCombo->findData(typeId);
-        if (idx >= 0)
-            m_typeCombo->setCurrentIndex(idx);
+        m_typeSel->setSelectedTypeName(typeName);
     }
 
     void setRunning(bool running)
     {
         // The port topology may not change during a run
-        m_typeCombo->setEnabled(!running);
+        m_typeSel->setEnabled(!running);
     }
 
 Q_SIGNALS:
     void settingsChanged();
 
 private:
-    QComboBox *m_typeCombo;
+    DataTypeSelector *m_typeSel;
 };
 
 /**
@@ -361,10 +357,8 @@ public:
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
         const auto typeName = settings.value("data_type").toString();
-        if (!typeName.isEmpty()) {
-            const int typeId = static_cast<int>(BaseDataType::typeIdFromString(typeName.toStdString()));
-            m_settingsDlg->setSelectedTypeId(typeId);
-        }
+        if (!typeName.isEmpty())
+            m_settingsDlg->setSelectedTypeName(typeName);
         updatePortConfiguration();
         return true;
     }

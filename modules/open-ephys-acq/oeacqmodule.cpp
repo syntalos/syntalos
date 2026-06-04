@@ -485,8 +485,7 @@ public:
                 LineReading r;
                 r.lineId = static_cast<uint16_t>(g.enabledLocalIndices[oc]);
                 r.value = v;
-                r.time = microseconds_t(
-                    std::llround(static_cast<double>(syncedTs(s)) * 1e6 / sampleRateHz));
+                r.time = microseconds_t(std::llround(static_cast<double>(syncedTs(s)) * 1e6 / sampleRateHz));
                 m_ttlInStream->push(r);
             }
         }

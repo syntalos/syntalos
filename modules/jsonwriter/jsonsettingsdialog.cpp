@@ -20,11 +20,15 @@
 #include "jsonsettingsdialog.h"
 #include "ui_jsonsettingsdialog.h"
 
+#include <QFormLayout>
 #include <QMessageBox>
 #include <QThread>
 #include <QVariant>
 
+#include "datactl/datatypes.h"
 #include "utils/misc.h"
+
+using namespace Syntalos;
 
 JSONSettingsDialog::JSONSettingsDialog(QWidget *parent)
     : QDialog(parent),
@@ -32,6 +36,15 @@ JSONSettingsDialog::JSONSettingsDialog(QWidget *parent)
 {
     ui->setupUi(this);
     setWindowIcon(QIcon(":/icons/generic-config"));
+
+    // data-type selector: the JSON writer can only store one modality at a time,
+    // so the user picks exactly which one here (no port until a type is chosen)
+    ui->inputTypeSel->addNoneEntry();
+    ui->inputTypeSel->addDataType(SignalBlockF32::staticTypeId(), QStringLiteral("Float Signals"));
+    ui->inputTypeSel->addDataType(SignalBlockI32::staticTypeId(), QStringLiteral("Integer Signals"));
+    ui->inputTypeSel->addDataType(TableRow::staticTypeId(), QStringLiteral("Table Rows"));
+    ui->inputTypeSel->addDataType(LineReading::staticTypeId(), QStringLiteral("Line Readings"));
+    connect(ui->inputTypeSel, &DataTypeSelector::selectionChanged, this, &JSONSettingsDialog::settingsChanged);
 
     // take name from source module by default
     ui->nameFromSrcCheckBox->setChecked(true);
@@ -48,6 +61,21 @@ JSONSettingsDialog::JSONSettingsDialog(QWidget *parent)
 JSONSettingsDialog::~JSONSettingsDialog()
 {
     delete ui;
+}
+
+int JSONSettingsDialog::selectedTypeId() const
+{
+    return ui->inputTypeSel->selectedTypeId();
+}
+
+QString JSONSettingsDialog::selectedTypeName() const
+{
+    return ui->inputTypeSel->selectedTypeName();
+}
+
+void JSONSettingsDialog::setSelectedTypeName(const QString &typeName)
+{
+    ui->inputTypeSel->setSelectedTypeName(typeName);
 }
 
 bool JSONSettingsDialog::useNameFromSource() const

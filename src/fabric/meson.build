@@ -9,6 +9,8 @@
 syntalos_fabric_src = [
     'cvutils.h',
     'cvutils.cpp',
+    'datatypeselector.h',
+    'datatypeselector.cpp',
     'elidedlabel.h',
     'elidedlabel.cpp',
     'executils.h',

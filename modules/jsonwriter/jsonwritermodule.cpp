@@ -34,6 +34,19 @@ enum class InputSourceKind {
     LINE_READING
 };
 
+static InputSourceKind inputSourceKindFromTypeId(int typeId)
+{
+    if (typeId == SignalBlockF32::staticTypeId())
+        return InputSourceKind::FLOAT;
+    if (typeId == SignalBlockI32::staticTypeId())
+        return InputSourceKind::INT;
+    if (typeId == TableRow::staticTypeId())
+        return InputSourceKind::ROW;
+    if (typeId == LineReading::staticTypeId())
+        return InputSourceKind::LINE_READING;
+    return InputSourceKind::NONE;
+}
+
 class JSONWriterModule : public AbstractModule
 {
     Q_OBJECT
@@ -63,14 +76,45 @@ public:
     explicit JSONWriterModule(QObject *parent = nullptr)
         : AbstractModule(parent)
     {
-        // Input ports for all the data we could potentially handle
-        m_floatIn = registerInputPort<SignalBlockF32>(QStringLiteral("fpsig1-in"), QStringLiteral("Float Signals"));
-        m_intIn = registerInputPort<SignalBlockI32>(QStringLiteral("intsig1-in"), QStringLiteral("Integer Signals"));
-        m_rowsIn = registerInputPort<TableRow>(QStringLiteral("rows"), QStringLiteral("Table Rows"));
-        m_lineIn = registerInputPort<LineReading>(QStringLiteral("lines-in"), QStringLiteral("Line Readings"));
-
         m_settingsDlg = new JSONSettingsDialog();
         addSettingsWindow(m_settingsDlg);
+
+        connect(m_settingsDlg, &JSONSettingsDialog::settingsChanged, this, [this]() {
+            updatePortConfiguration();
+        });
+
+        // start with no input ports; the user picks exactly one type in the settings
+        updatePortConfiguration();
+    }
+
+    void updatePortConfiguration()
+    {
+        // Rebuild the single input port to match the selected data type.
+        // Only safe on the main thread while not running.
+        clearInPorts();
+        m_floatIn.reset();
+        m_intIn.reset();
+        m_rowsIn.reset();
+        m_lineIn.reset();
+
+        setStatusMessage({});
+        switch (inputSourceKindFromTypeId(m_settingsDlg->selectedTypeId())) {
+        case InputSourceKind::FLOAT:
+            m_floatIn = registerInputPort<SignalBlockF32>(QStringLiteral("f32sig-in"), QStringLiteral("Float Signals"));
+            break;
+        case InputSourceKind::INT:
+            m_intIn = registerInputPort<SignalBlockI32>(QStringLiteral("i32sig-in"), QStringLiteral("Integer Signals"));
+            break;
+        case InputSourceKind::ROW:
+            m_rowsIn = registerInputPort<TableRow>(QStringLiteral("rows-in"), QStringLiteral("Table Rows"));
+            break;
+        case InputSourceKind::LINE_READING:
+            m_lineIn = registerInputPort<LineReading>(QStringLiteral("lines-in"), QStringLiteral("Line Readings"));
+            break;
+        case InputSourceKind::NONE:
+            setStatusMessage("No input port type selected!");
+            break;
+        }
     }
 
     ~JSONWriterModule() override {}
@@ -99,50 +143,43 @@ public:
         // we don't write anything to disk if we aren't going to use the data anyway
         m_writeData = !isEphemeralRun();
 
+        // Only a single input port exists at a time
         m_floatSub.reset();
-        if (m_floatIn->hasSubscription()) {
+        if (m_floatIn && m_floatIn->hasSubscription()) {
             m_floatSub = m_floatIn->subscription();
             m_isrcKind = InputSourceKind::FLOAT;
 
             registerDataReceivedEvent(&JSONWriterModule::onFloatSignalBlockReceived, m_floatSub);
         }
 
-        bool excessConnections = false;
         m_intSub.reset();
-        if (m_intIn->hasSubscription()) {
+        if (m_intIn && m_intIn->hasSubscription()) {
             m_intSub = m_intIn->subscription();
-            if (m_isrcKind != InputSourceKind::NONE)
-                excessConnections = true;
             m_isrcKind = InputSourceKind::INT;
 
             registerDataReceivedEvent(&JSONWriterModule::onIntSignalBlockReceived, m_intSub);
         }
 
         m_rowSub.reset();
-        if (m_rowsIn->hasSubscription()) {
+        if (m_rowsIn && m_rowsIn->hasSubscription()) {
             m_rowSub = m_rowsIn->subscription();
-            if (m_isrcKind != InputSourceKind::NONE)
-                excessConnections = true;
             m_isrcKind = InputSourceKind::ROW;
 
             registerDataReceivedEvent(&JSONWriterModule::onTableRowReceived, m_rowSub);
         }
 
         m_lineSub.reset();
-        if (m_lineIn->hasSubscription()) {
+        if (m_lineIn && m_lineIn->hasSubscription()) {
             m_lineSub = m_lineIn->subscription();
-            if (m_isrcKind != InputSourceKind::NONE)
-                excessConnections = true;
             m_isrcKind = InputSourceKind::LINE_READING;
 
             registerDataReceivedEvent(&JSONWriterModule::onLineReadingReceived, m_lineSub);
         }
 
-        if (excessConnections) {
-            raiseError(
-                "More than one input port is connected. We can only write data from one modality into a JSON file, "
-                "multiplexing is not possible.");
-            return false;
+        if (m_isrcKind == InputSourceKind::NONE) {
+            // nothing is connected, so there is nothing for us to do this run
+            setStateDormant();
+            return true;
         }
 
         // success
@@ -327,8 +364,8 @@ public:
             dataUnit = QString::fromStdString(m_lineSub->metadataValue("data_unit", std::string{}));
             // Fixed event schema; the timestamp column is included explicitly
             // (the FLOAT/INT timestamp-prepend below does not run for this kind).
-            columns << QStringLiteral("timestamp_%1").arg(shortenTimeUnit(timeUnit))
-                    << QStringLiteral("line_id") << QStringLiteral("value");
+            columns << QStringLiteral("timestamp_%1").arg(shortenTimeUnit(timeUnit)) << QStringLiteral("line_id")
+                    << QStringLiteral("value");
             break;
         default:
             return;
@@ -538,6 +575,7 @@ public:
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
     {
+        settings.insert("input_type", m_settingsDlg->selectedTypeName());
         settings.insert("use_name_from_source", m_settingsDlg->useNameFromSource());
         settings.insert("data_name", m_settingsDlg->dataName());
         settings.insert("format", m_settingsDlg->jsonFormat());
@@ -549,6 +587,9 @@ public:
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
+        m_settingsDlg->setSelectedTypeName(settings.value("input_type").toString());
+        updatePortConfiguration();
+
         m_settingsDlg->setUseNameFromSource(settings.value("use_name_from_source", true).toBool());
         m_settingsDlg->setDataName(settings.value("data_name").toString());
         m_settingsDlg->setJsonFormat(settings.value("format").toString());
