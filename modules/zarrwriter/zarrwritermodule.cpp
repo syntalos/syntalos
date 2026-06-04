@@ -110,7 +110,8 @@ enum class InputSourceKind {
     NONE,
     FLOAT,
     INT,
-    UINT16
+    UINT16,
+    LINE_READING
 };
 
 class ZarrWriterModule : public AbstractModule
@@ -126,10 +127,12 @@ private:
     std::shared_ptr<StreamInputPort<SignalBlockF32>> m_floatIn;
     std::shared_ptr<StreamInputPort<SignalBlockI32>> m_intIn;
     std::shared_ptr<StreamInputPort<SignalBlockU16>> m_uint16In;
+    std::shared_ptr<StreamInputPort<LineReading>> m_lineIn;
 
     std::shared_ptr<StreamSubscription<SignalBlockF32>> m_floatSub;
     std::shared_ptr<StreamSubscription<SignalBlockI32>> m_intSub;
     std::shared_ptr<StreamSubscription<SignalBlockU16>> m_uint16Sub;
+    std::shared_ptr<StreamSubscription<LineReading>> m_lineSub;
 
     InputSourceKind m_isrcKind;
     bool m_writeData;
@@ -165,6 +168,7 @@ public:
         m_uint16In = registerInputPort<SignalBlockU16>(
             QStringLiteral("uint16sig1-in"),
             QStringLiteral("UInt16 Signals"));
+        m_lineIn = registerInputPort<LineReading>(QStringLiteral("lines1-in"), QStringLiteral("Line Readings"));
 
         m_settingsDlg = new ZarrSettingsDialog();
         m_settingsDlg->setWindowIcon(modInfo->icon());
@@ -229,6 +233,19 @@ public:
             registerDataReceivedEvent(&ZarrWriterModule::onUInt16SignalBlockReceived, m_uint16Sub);
         }
 
+        m_lineSub.reset();
+        if (m_lineIn->hasSubscription()) {
+            m_lineSub = m_lineIn->subscription();
+            if (m_isrcKind != InputSourceKind::NONE) {
+                raiseError(QStringLiteral(
+                    "More than one input is connected. Only one signal type can be "
+                    "written into a Zarr array at a time."));
+                return false;
+            }
+            m_isrcKind = InputSourceKind::LINE_READING;
+            registerDataReceivedEvent(&ZarrWriterModule::onLineReadingReceived, m_lineSub);
+        }
+
         setStateReady();
         return true;
     }
@@ -281,6 +298,21 @@ public:
             m_dataOffset = m_uint16Sub->metadataValue("data_offset", 0.0);
             m_sampleRate = m_uint16Sub->metadataValue("sample_rate", -1.0);
             m_chunkCount = chunkCountFromSampleRate(m_sampleRate);
+            break;
+        }
+        case InputSourceKind::LINE_READING: {
+            // Sparse edge events: recorded as a timestamps array + a 2-column
+            // [line_id, value] data array. The data columns are fixed, so the
+            // upstream signal_names (line labels) are kept only for the dataset
+            // attributes, not the array schema.
+            mdata = m_lineSub->metadata();
+            m_signalNames.clear();
+            for (const auto &v : m_lineSub->metadataValue("signal_names", MetaArray{}))
+                if (const auto s = v.get<std::string>())
+                    m_signalNames << QString::fromStdString(*s);
+            m_timeUnit = QString::fromStdString(m_lineSub->metadataValue("time_unit", std::string{"microseconds"}));
+            m_dataUnit = QString::fromStdString(m_lineSub->metadataValue("data_unit", std::string{}));
+            m_chunkCount = chunkCountFromSampleRate(-1.0); // events are irregular: use default chunk size
             break;
         }
         default:
@@ -488,6 +520,61 @@ private:
         }
     }
 
+    /**
+     * Lazily create the arrays for a LineReading event stream: a 1-D
+     * `timestamps` array plus a 2-column `data` array holding [line_id, value]
+     * per event. Row i of `data` pairs with timestamps[i]; both are appended one
+     * row per event in lockstep so the triplet stays aligned. UInt64 is used for
+     * both (the DType enum has no UInt32, and UInt64 holds line_id and the full
+     * uint32 value losslessly).
+     */
+    void ensureLineArraysInitialized()
+    {
+        if (m_tsArray)
+            return;
+
+        m_tsArray = std::make_unique<ZarrV3Array>(
+            QString::fromStdString(m_storePath),
+            QStringLiteral("timestamps"),
+            ZarrV3Array::DType::UInt64,
+            m_chunkCount,
+            1,
+            QStringList{QStringLiteral("event")});
+        if (!m_timeUnit.isEmpty()) {
+            QJsonObject tsAttrs;
+            tsAttrs["time_unit"] = m_timeUnit;
+            m_tsArray->setAttributes(tsAttrs);
+        }
+        if (auto res = m_tsArray->open(); !res) {
+            raiseError(QStringLiteral("Failed to open timestamps array: ") + res.error());
+            m_tsArray.reset();
+            m_writeData = false;
+            return;
+        }
+
+        m_dataArray = std::make_unique<ZarrV3Array>(
+            QString::fromStdString(m_storePath),
+            QStringLiteral("data"),
+            ZarrV3Array::DType::UInt64,
+            m_chunkCount,
+            2,
+            QStringList{QStringLiteral("event"), QStringLiteral("field")});
+        QJsonObject dataAttrs;
+        dataAttrs["signal_names"] = QJsonArray{QStringLiteral("line_id"), QStringLiteral("value")};
+        if (!m_dataUnit.isEmpty())
+            dataAttrs["data_unit"] = m_dataUnit;
+        if (m_currentDSet)
+            dataAttrs["collection_id"] = QString::fromStdString(m_currentDSet->collectionId().toHex());
+        m_dataArray->setAttributes(dataAttrs);
+        if (auto res = m_dataArray->open(); !res) {
+            raiseError(QStringLiteral("Failed to open data array: ") + res.error());
+            m_tsArray.reset();
+            m_dataArray.reset();
+            m_writeData = false;
+            return;
+        }
+    }
+
     template<typename SubPtr>
     void handleSignalBlock(SubPtr &sub)
     {
@@ -530,6 +617,34 @@ private:
     void onUInt16SignalBlockReceived()
     {
         handleSignalBlock(m_uint16Sub);
+    }
+
+    void onLineReadingReceived()
+    {
+        if (!m_writeData)
+            return;
+
+        // Drain all queued events; append the timestamp and the [line_id, value]
+        // row in lockstep so they stay aligned by index.
+        while (auto maybeData = m_lineSub->peekNext()) {
+            const auto &ev = maybeData.value();
+            ensureLineArraysInitialized();
+            if (!m_writeData)
+                return;
+
+            const uint64_t t = static_cast<uint64_t>(ev.time.count());
+            const uint64_t row[2] = {static_cast<uint64_t>(ev.lineId), static_cast<uint64_t>(ev.value)};
+            m_tsArray->appendBytes(&t, 1);
+            m_dataArray->appendBytes(row, 1);
+
+            if (m_tsArray->hasError() || m_dataArray->hasError()) {
+                const QString msg = m_tsArray->hasError() ? m_tsArray->errorMessage()
+                                                          : m_dataArray->errorMessage();
+                raiseError(QStringLiteral("Zarr writer I/O error: ") + msg);
+                m_writeData = false;
+                return;
+            }
+        }
     }
 };
 

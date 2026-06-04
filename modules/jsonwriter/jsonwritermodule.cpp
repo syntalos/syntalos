@@ -30,7 +30,8 @@ enum class InputSourceKind {
     NONE,
     FLOAT,
     INT,
-    ROW
+    ROW,
+    LINE_READING
 };
 
 class JSONWriterModule : public AbstractModule
@@ -40,10 +41,12 @@ private:
     std::shared_ptr<StreamInputPort<SignalBlockF32>> m_floatIn;
     std::shared_ptr<StreamInputPort<SignalBlockI32>> m_intIn;
     std::shared_ptr<StreamInputPort<TableRow>> m_rowsIn;
+    std::shared_ptr<StreamInputPort<LineReading>> m_lineIn;
 
     std::shared_ptr<StreamSubscription<SignalBlockF32>> m_floatSub;
     std::shared_ptr<StreamSubscription<SignalBlockI32>> m_intSub;
     std::shared_ptr<StreamSubscription<TableRow>> m_rowSub;
+    std::shared_ptr<StreamSubscription<LineReading>> m_lineSub;
 
     InputSourceKind m_isrcKind;
     std::shared_ptr<EDLDataset> m_currentDSet;
@@ -64,6 +67,7 @@ public:
         m_floatIn = registerInputPort<SignalBlockF32>(QStringLiteral("fpsig1-in"), QStringLiteral("Float Signals"));
         m_intIn = registerInputPort<SignalBlockI32>(QStringLiteral("intsig1-in"), QStringLiteral("Integer Signals"));
         m_rowsIn = registerInputPort<TableRow>(QStringLiteral("rows"), QStringLiteral("Table Rows"));
+        m_lineIn = registerInputPort<LineReading>(QStringLiteral("lines-in"), QStringLiteral("Line Readings"));
 
         m_settingsDlg = new JSONSettingsDialog();
         addSettingsWindow(m_settingsDlg);
@@ -124,6 +128,16 @@ public:
             registerDataReceivedEvent(&JSONWriterModule::onTableRowReceived, m_rowSub);
         }
 
+        m_lineSub.reset();
+        if (m_lineIn->hasSubscription()) {
+            m_lineSub = m_lineIn->subscription();
+            if (m_isrcKind != InputSourceKind::NONE)
+                excessConnections = true;
+            m_isrcKind = InputSourceKind::LINE_READING;
+
+            registerDataReceivedEvent(&JSONWriterModule::onLineReadingReceived, m_lineSub);
+        }
+
         if (excessConnections) {
             raiseError(
                 "More than one input port is connected. We can only write data from one modality into a JSON file, "
@@ -158,6 +172,10 @@ public:
             break;
         case InputSourceKind::ROW:
             mdata = m_rowSub->metadata();
+            break;
+        case InputSourceKind::LINE_READING:
+            // Columns are fixed ([time, line_id, value]); no per-signal selection.
+            mdata = m_lineSub->metadata();
             break;
         case InputSourceKind::NONE:
             return;
@@ -303,6 +321,14 @@ public:
             for (const auto &v : m_rowSub->metadataValue("table_header", MetaArray{}))
                 if (const auto s = v.get<std::string>())
                     columns << QString::fromStdString(*s);
+            break;
+        case InputSourceKind::LINE_READING:
+            timeUnit = QString::fromStdString(m_lineSub->metadataValue("time_unit", std::string{"microseconds"}));
+            dataUnit = QString::fromStdString(m_lineSub->metadataValue("data_unit", std::string{}));
+            // Fixed event schema; the timestamp column is included explicitly
+            // (the FLOAT/INT timestamp-prepend below does not run for this kind).
+            columns << QStringLiteral("timestamp_%1").arg(shortenTimeUnit(timeUnit))
+                    << QStringLiteral("line_id") << QStringLiteral("value");
             break;
         default:
             return;
@@ -462,6 +488,28 @@ public:
                 (*m_textStream) << "," << toJsonValue(row.data[i]);
         }
         (*m_textStream) << "]";
+    }
+
+    void onLineReadingReceived()
+    {
+        if (!m_writeData)
+            return;
+
+        // One [time, line_id, value] row per edge event.
+        while (auto maybeData = m_lineSub->peekNext()) {
+            const auto &ev = maybeData.value();
+
+            if (m_initFile) {
+                initJsonFile();
+                (*m_textStream) << "[";
+            } else {
+                (*m_textStream) << ",\n[";
+            }
+            m_initFile = false;
+
+            (*m_textStream) << intToJsonValue(static_cast<uint64_t>(ev.time.count())) << ","
+                            << intToJsonValue(ev.lineId) << "," << intToJsonValue(ev.value) << "]";
+        }
     }
 
     void stop() override
