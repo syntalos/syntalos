@@ -651,7 +651,7 @@ static void applyControls(LcCameraData *d, ControlList &ctrls)
         ctrls.set(controls::Gamma, static_cast<float>(d->gamma));
 
     if (d->ctlFrameDuration && d->fps > 0) {
-        const int64_t frameDurUs = static_cast<int64_t>(1.0e6 / d->fps);
+        const auto frameDurUs = static_cast<int64_t>(1.0e6 / d->fps);
         ctrls.set(controls::FrameDurationLimits, {frameDurUs, frameDurUs});
     }
 }

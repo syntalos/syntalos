@@ -22,6 +22,7 @@
 
 #include <gio/gio.h>  // Workaround for gdbusintrospection's use of "signal".
 #include <expected>
+#include <atomic>
 #include <QList>
 #include <QString>
 #include <QRect>
@@ -245,7 +246,11 @@ private:
     ArvCamera* camera;
     ArvDevice* device;
     ArvStream* stream;
-    bool acquiring;
+    //! Acquisition gate read by the Aravis stream callback thread every frame and
+    //! flipped to false by stopAcquisition() *before* the stream is torn down, so a
+    //! late/in-flight callback bails out instead of touching a half-destroyed stream
+    //! or an about-to-be-cleared callback.
+    std::atomic_bool acquiring;
     uint frameQueueSize;
     quint64 underruns;
     bool nocopy;

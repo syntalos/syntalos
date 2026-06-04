@@ -377,7 +377,7 @@ void QArvCamera::setAutoGain(bool enable) {
 
 //! Store the pointer to the current frame.
 void QArvCamera::receiveFrame() {
-    if (!acquiring)
+    if (!acquiring || stream == nullptr)
         return; // Stream does not exist any more.
 
     ArvBuffer* frame = arv_stream_pop_buffer(stream);
@@ -432,6 +432,11 @@ static void QArvStreamCallbackWrap(void* vcam,
 
 bool QArvCamera::rawFrameCallback()
 {
+    // Acquisition is being torn down: don't touch the stream (it may be about to be
+    // unref'd) and report the buffer as handled so no receiveFrame() gets queued.
+    if (!acquiring || stream == nullptr)
+        return true;
+
     if (!fnNewFrameBuffer)
         return false;
 
@@ -514,10 +519,21 @@ std::expected<void, QString> QArvCamera::startAcquisition(bool zeroCopy, bool dr
 
 void QArvCamera::stopAcquisition() {
     if (!acquiring) return;
-    arv_camera_stop_acquisition(camera, nullptr);
-    g_object_unref(stream);
+
+    // Close the acquisition gate first: the Aravis stream callback thread checks
+    // `acquiring` on every frame, so flipping it before we tear anything down ensures
+    // a freshly-arriving callback bails out instead of racing the teardown below.
     acquiring = false;
+
+    arv_camera_stop_acquisition(camera, nullptr);
+
+    // Finalizing the stream joins its callback thread, so once this returns no
+    // callback can be running or will ever run again - only then is it safe to drop
+    // the stream pointer and the (possibly captured-state-owning) frame callback.
+    g_object_unref(stream);
+    stream = nullptr;
     fnNewFrameBuffer = nullptr;
+
     emit dataChanged(QModelIndex(), QModelIndex());
 }
 

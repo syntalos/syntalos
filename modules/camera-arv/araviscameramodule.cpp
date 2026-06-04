@@ -147,7 +147,10 @@ public:
             m_camera->getFPS() > 15 ? static_cast<uint>(std::ceil(m_camera->getFPS())) + 1 : 15);
 
         // set up clock synchronizer
-        const auto clockSync = initClockSynchronizer(m_camera->getFPS());
+        // Held via shared_ptr (not the unique_ptr returned by initClockSynchronizer) so
+        // the Aravis frame callback below can co-own it by value instead of capturing a
+        // reference into this thread's stack frame.
+        std::shared_ptr<SecondaryClockSynchronizer> clockSync = initClockSynchronizer(m_camera->getFPS());
         clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD);
 
         // start the synchronizer
@@ -187,86 +190,90 @@ public:
         // wait until we actually start acquiring data
         waitCondition->wait(this);
 
-        uint64_t frameCount = 0;
-        nanoseconds_t sysOffsetToMaster;
-        guint64 devOffsetToSysNs = 0;
-        auto acqStartResult = m_camera->startAcquisition(
-            true,
-            true,
-            [this, &frameCount, &sysOffsetToMaster, &devOffsetToSysNs, &clockSync](ArvBuffer *buffer) {
-                if (!m_running)
-                    return;
-                if (frameCount == 0) {
-                    // determine the base offset times to the master clock when retrieving the first frame
-                    const auto firstMasterTime = m_syTimer->timeSinceStartNsec();
-                    const auto firstFrameSysTimeNs = arv_buffer_get_system_timestamp(buffer);
-                    const auto firstFrameDevTimeNs = arv_buffer_get_timestamp(buffer);
+        // Mutable per-acquisition state shared with the Aravis frame callback. It lives
+        // on the heap and is co-owned by the callback (captured by value), so the
+        // callback never dereferences this thread's stack frame even if Aravis delivers
+        // a buffer late, during teardown.
+        struct AcqState {
+            uint64_t frameCount = 0;
+            nanoseconds_t sysOffsetToMaster{0};
+            guint64 devOffsetToSysNs = 0;
+        };
+        auto acqState = std::make_shared<AcqState>();
 
-                    sysOffsetToMaster = nanoseconds_t(firstMasterTime.count() - (gint64)firstFrameSysTimeNs);
-                    devOffsetToSysNs = firstFrameSysTimeNs - firstFrameDevTimeNs;
-                }
+        auto acqStartResult = m_camera->startAcquisition(true, true, [this, acqState, clockSync](ArvBuffer *buffer) {
+            if (!m_running)
+                return;
+            if (acqState->frameCount == 0) {
+                // determine the base offset times to the master clock when retrieving the first frame
+                const auto firstMasterTime = m_syTimer->timeSinceStartNsec();
+                const auto firstFrameSysTimeNs = arv_buffer_get_system_timestamp(buffer);
+                const auto firstFrameDevTimeNs = arv_buffer_get_timestamp(buffer);
 
-                auto frameSysTimeNs = arv_buffer_get_system_timestamp(buffer);
-                auto frameDevTimeNs = arv_buffer_get_timestamp(buffer);
-                if (frameDevTimeNs == 0) {
-                    // no timestamp available, use the system timestamp
-                    frameDevTimeNs = frameSysTimeNs;
-                } else {
-                    frameDevTimeNs += devOffsetToSysNs;
-                }
-                auto masterTime = std::chrono::duration_cast<microseconds_t>(
-                    nanoseconds_t(frameSysTimeNs) + sysOffsetToMaster);
+                acqState->sysOffsetToMaster = nanoseconds_t(firstMasterTime.count() - (gint64)firstFrameSysTimeNs);
+                acqState->devOffsetToSysNs = firstFrameSysTimeNs - firstFrameDevTimeNs;
+            }
 
-                if (!m_decoder)
-                    return;
+            auto frameSysTimeNs = arv_buffer_get_system_timestamp(buffer);
+            auto frameDevTimeNs = arv_buffer_get_timestamp(buffer);
+            if (frameDevTimeNs == 0) {
+                // no timestamp available, use the system timestamp
+                frameDevTimeNs = frameSysTimeNs;
+            } else {
+                frameDevTimeNs += acqState->devOffsetToSysNs;
+            }
+            auto masterTime = std::chrono::duration_cast<microseconds_t>(
+                nanoseconds_t(frameSysTimeNs) + acqState->sysOffsetToMaster);
 
-                size_t size = 0;
-                const auto data = static_cast<const char *>(arv_buffer_get_data(buffer, &size));
-                if (size == 0 || data == nullptr)
-                    return;
+            if (!m_decoder)
+                return;
 
-                clockSync->processTimestamp(masterTime, nsecToUsec(nanoseconds_t(frameDevTimeNs)));
+            size_t size = 0;
+            const auto data = static_cast<const char *>(arv_buffer_get_data(buffer, &size));
+            if (size == 0 || data == nullptr)
+                return;
 
-                m_decoder->decode(QByteArray::fromRawData(data, static_cast<qsizetype>(size)));
-                cv::Mat img = m_decoder->getCvImage();
+            clockSync->processTimestamp(masterTime, nsecToUsec(nanoseconds_t(frameDevTimeNs)));
 
-                // sanity check, because sometimes this camera doesn't adhere to the contract...
-                if (Q_UNLIKELY(img.cols != m_expectedWidth || img.rows != m_expectedHeight)) {
-                    raiseError(
-                        QStringLiteral("Camera returned frame with unexpected dimensions %1x%2 (expected %3x%4)!")
-                            .arg(img.cols)
-                            .arg(img.rows)
-                            .arg(m_expectedWidth)
-                            .arg(m_expectedHeight));
-                    return;
-                }
+            m_decoder->decode(QByteArray::fromRawData(data, static_cast<qsizetype>(size)));
+            cv::Mat img = m_decoder->getCvImage();
 
-                if (m_tfParams->invert) {
-                    int bits = img.depth() == CV_8U ? 8 : 16;
-                    cv::subtract((1 << bits) - 1, img, img);
-                }
+            // sanity check, because sometimes this camera doesn't adhere to the contract...
+            if (Q_UNLIKELY(img.cols != m_expectedWidth || img.rows != m_expectedHeight)) {
+                raiseError(QStringLiteral("Camera returned frame with unexpected dimensions %1x%2 (expected %3x%4)!")
+                               .arg(img.cols)
+                               .arg(img.rows)
+                               .arg(m_expectedWidth)
+                               .arg(m_expectedHeight));
+                return;
+            }
 
-                if (m_tfParams->flip != -100)
-                    cv::flip(img, img, m_tfParams->flip);
+            if (m_tfParams->invert) {
+                int bits = img.depth() == CV_8U ? 8 : 16;
+                cv::subtract((1 << bits) - 1, img, img);
+            }
 
-                switch (m_tfParams->rot) {
-                case 1:
-                    cv::transpose(img, img);
-                    cv::flip(img, img, 0);
-                    break;
+            if (m_tfParams->flip != -100)
+                cv::flip(img, img, m_tfParams->flip);
 
-                case 2:
-                    cv::flip(img, img, -1);
-                    break;
+            switch (m_tfParams->rot) {
+            case 1:
+                cv::transpose(img, img);
+                cv::flip(img, img, 0);
+                break;
 
-                case 3:
-                    cv::transpose(img, img);
-                    cv::flip(img, img, 1);
-                    break;
-                }
+            case 2:
+                cv::flip(img, img, -1);
+                break;
 
-                m_outStream->push(Frame(img, frameCount++, masterTime));
-            });
+            case 3:
+                cv::transpose(img, img);
+                cv::flip(img, img, 1);
+                break;
+            }
+
+            m_outStream->push(Frame(img, acqState->frameCount++, masterTime));
+        });
 
         if (!acqStartResult) {
             raiseError(acqStartResult.error());
