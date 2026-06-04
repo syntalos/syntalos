@@ -456,7 +456,7 @@ public:
         const VectorXu64 &syncedTs,
         double sampleRateHz)
     {
-        if (!m_ttlInStream || sampleRateHz <= 0)
+        if (!m_ttlStream || sampleRateHz <= 0)
             return;
 
         const int n = chunk.numSamples;
@@ -466,7 +466,7 @@ public:
         if (!m_ttlInPrimed) {
             // 0xffff is an impossible line state, so the first real sample of
             // every selected line registers as a change and is emitted.
-            m_ttlInPrev.assign(outCps, 0xffff);
+            m_ttlPrev.assign(outCps, 0xffff);
             m_ttlInPrimed = true;
         }
 
@@ -478,15 +478,15 @@ public:
                     continue;
 
                 const uint16_t v = rowPtr[g.enabledLocalIndices[oc]];
-                if (v == m_ttlInPrev[oc])
+                if (v == m_ttlPrev[oc])
                     continue;
-                m_ttlInPrev[oc] = v;
+                m_ttlPrev[oc] = v;
 
                 LineReading r;
                 r.lineId = static_cast<uint16_t>(g.enabledLocalIndices[oc]);
                 r.value = v;
                 r.time = microseconds_t(std::llround(static_cast<double>(syncedTs(s)) * 1e6 / sampleRateHz));
-                m_ttlInStream->push(r);
+                m_ttlStream->push(r);
             }
         }
     }
@@ -1021,18 +1021,19 @@ private:
                 g.mutedOutputColumns = std::make_unique<std::atomic_bool[]>(g.channelsPerSample);
 
                 if (auto existing = outPortById(g.portId))
-                    m_ttlInStream = existing->stream<LineReading>();
+                    m_ttlStream = existing->stream<LineReading>();
                 else
-                    m_ttlInStream = registerOutputPort<LineReading>(g.portId, QStringLiteral("TTL Inputs"));
+                    m_ttlStream = registerOutputPort<LineReading>(g.portId, QStringLiteral("TTL Inputs"));
                 // No signal_names: the lines aren't a fixed indexed channel set,
                 // so consumers label them per-lineId from the events themselves.
-                m_ttlInStream->setMetadataValue("time_unit", std::string{"microseconds"});
-                m_ttlInStream->setMetadataValue("data_unit", std::string{"ttl"});
+                m_ttlStream->setMetadataValue("time_unit", std::string{"microseconds"});
+                m_ttlStream->setMetadataValue("data_unit", std::string{"ttl"});
+                m_ttlStream->setSuggestedDataName(QStringLiteral("oe-acq-ttl/ttl-inputs"));
 
                 currentIds.insert(g.portId);
                 m_groups.push_back(std::move(g));
             } else {
-                m_ttlInStream.reset();
+                m_ttlStream.reset();
             }
         }
 
@@ -1161,6 +1162,7 @@ private:
     std::unique_ptr<FreqCounterSynchronizer> m_fcSync;
     OeAcqSettingsDialog *m_settingsDlg = nullptr;
 
+    // TTL command we receive as inputs to have the board generate as outputs
     std::shared_ptr<StreamInputPort<LineCommand>> m_ttlIn;
     std::shared_ptr<StreamSubscription<LineCommand>> m_ttlSub;
 
@@ -1168,8 +1170,8 @@ private:
     // (un)registered in rebuildOutputPorts() depending on whether any TTL-in
     // line is selected; m_ttlInPrev holds the last level per selected line for
     // edge detection (see emitTtlInEdges).
-    std::shared_ptr<DataStream<LineReading>> m_ttlInStream;
-    std::vector<uint16_t> m_ttlInPrev;
+    std::shared_ptr<DataStream<LineReading>> m_ttlStream;
+    std::vector<uint16_t> m_ttlPrev;
     bool m_ttlInPrimed = false;
 
     int m_sampleRateHz = 30000;
