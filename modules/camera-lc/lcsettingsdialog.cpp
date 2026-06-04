@@ -117,6 +117,11 @@ void LcSettingsDialog::setPixelFormatName(const QString &pixFmtName)
 void LcSettingsDialog::setRunning(bool running)
 {
     ui->cameraGroupBox->setEnabled(!running);
+
+    // the power-line (anti-flicker) frequency is only applied via V4L2 when the
+    // camera is connected, so it cannot be changed mid-run; disable it while running
+    ui->powerLineLabel->setEnabled(!running);
+    ui->powerLineComboBox->setEnabled(!running);
 }
 
 void LcSettingsDialog::updateValues()

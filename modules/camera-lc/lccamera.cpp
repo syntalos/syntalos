@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <condition_variable>
 #include <fcntl.h>
 #include <linux/videodev2.h>
@@ -223,13 +224,14 @@ public:
     QString pixFmt;
     PixelFormat activeFormat;
 
-    bool autoExposure{true};
-    double exposureTime{10000};
-    double gain{1.0};
-    double brightness{0.0};
-    double contrast{1.0};
-    double saturation{1.0};
-    double gamma{2.2};
+    // Live-tunable controls
+    std::atomic<bool> autoExposure{true};
+    std::atomic<double> exposureTime{10000};
+    std::atomic<double> gain{1.0};
+    std::atomic<double> brightness{0.0};
+    std::atomic<double> contrast{1.0};
+    std::atomic<double> saturation{1.0};
+    std::atomic<double> gamma{2.2};
 
     // V4L2 power-line frequency; default to 50 Hz (1)
     int powerLineFreq{1};
@@ -636,7 +638,7 @@ static bool isSupportedFormat(const PixelFormat &fmt)
 static void applyControls(LcCameraData *d, ControlList &ctrls)
 {
     if (d->ctlAe)
-        ctrls.set(controls::AeEnable, d->autoExposure);
+        ctrls.set(controls::AeEnable, static_cast<bool>(d->autoExposure));
     if (!d->autoExposure && d->ctlExposure)
         ctrls.set(controls::ExposureTime, static_cast<int32_t>(d->exposureTime));
     if (d->ctlGain)
