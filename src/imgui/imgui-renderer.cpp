@@ -88,6 +88,9 @@ void ImGuiRenderer::initialize(WindowWrapper *window)
     io.BackendRendererName = "qtimgui_opengl";
     io.BackendFlags |= ImGuiBackendFlags_RendererHasVtxOffset;
 
+    // Disable Ini load/save
+    io.IniFilename = nullptr;
+
     // Setup keyboard mapping
     for (ImGuiKey key : keyMap.values()) {
         io.AddKeyEvent(key, false);
