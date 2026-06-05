@@ -30,6 +30,7 @@
 #include "qtimgui.h"
 #include <imgui.h>
 #include <implot.h>
+#include <implot_internal.h>
 
 template<typename T>
 class RingBuffer
@@ -173,6 +174,13 @@ struct Graph {
     int id = 0;
     QList<int> channels; // indices into m_channels
     float sizeWeight = 1.0f;
+
+    // Y-axis scaling: when yAuto is true the axis auto-fits to the data (default);
+    // when false the manual limits yMin/yMax are applied and persist. While auto,
+    // yMin/yMax track the last fitted range so switching to manual starts sensibly.
+    bool yAuto = true;
+    double yMin = 0.0;
+    double yMax = 1.0;
 };
 
 constexpr float kMinGraphWeight = 1.0f;
@@ -231,6 +239,7 @@ public:
         size_t visFrom = 0;    // logical ring index where visible window starts
         std::vector<float> ts; // timestamps[visFrom .. end)
     };
+
     struct ChannelSnap {
         int channelIdx = 0;
         QString portId;
@@ -241,12 +250,17 @@ public:
         size_t visLen = 0;
         std::vector<float> samples;
     };
+
     struct GraphSnap {
         int id = 0;
-        int origIdx = 0; // index into d->graphs (for splitter drag)
+        int origIdx = 0; // index into d->graphs (for splitter drag and Y-state writeback)
         float sizeWeight = 1.0f;
+        bool yAuto = true;
+        double yMin = 0.0;
+        double yMax = 1.0;
         std::vector<int> chanSnaps; // indices into channelSnaps
     };
+
     QHash<QString, PortSnap> portSnaps;
     std::vector<ChannelSnap> channelSnaps;
     std::vector<GraphSnap> graphSnaps;
@@ -733,6 +747,9 @@ QVariantList PlotCanvas::saveGraphs() const
         QVariantHash gh;
         gh.insert("id", g.id);
         gh.insert("size_weight", g.sizeWeight);
+        gh.insert("y_auto", g.yAuto);
+        gh.insert("y_min", g.yMin);
+        gh.insert("y_max", g.yMax);
         QVariantList ch;
         for (int ci : g.channels) {
             if (ci < 0 || ci >= (int)d->channels.size())
@@ -785,6 +802,9 @@ void PlotCanvas::loadGraphs(const QVariantList &v)
         g.sizeWeight = h.value("size_weight", 1.0f).toFloat();
         if (g.sizeWeight < kMinGraphWeight)
             g.sizeWeight = 1.0f;
+        g.yAuto = h.value("y_auto", true).toBool();
+        g.yMin = h.value("y_min", 0.0).toDouble();
+        g.yMax = h.value("y_max", 1.0).toDouble();
         for (const auto &ch : h.value("channels").toList()) {
             const auto chh = ch.toHash();
             const auto key = qMakePair(chh.value("port_id").toString(), chh.value("col_idx").toInt());
@@ -1055,6 +1075,9 @@ void PlotCanvas::paintGL()
             gs.id = g.id;
             gs.origIdx = gi;
             gs.sizeWeight = g.sizeWeight;
+            gs.yAuto = g.yAuto;
+            gs.yMin = g.yMin;
+            gs.yMax = g.yMax;
             for (int ch : g.channels) {
                 auto it2 = chanToSnap.find(ch);
                 if (it2 != chanToSnap.end())
@@ -1151,8 +1174,10 @@ void PlotCanvas::paintGL()
         const ImPlotFlags plotFlags = ImPlotFlags_NoTitle | ImPlotFlags_NoMouseText;
 
         if (ImPlot::BeginPlot(plotIdUtf8.constData(), ImVec2(-1, h), plotFlags)) {
-            ImPlot::SetupAxes(isBottom ? "time [s]" : nullptr, yLabelUtf8.constData(), xFlags, ImPlotAxisFlags_AutoFit);
+            const ImPlotAxisFlags yFlags = gs.yAuto ? ImPlotAxisFlags_AutoFit : ImPlotAxisFlags_None;
+            ImPlot::SetupAxes(isBottom ? "time [s]" : nullptr, yLabelUtf8.constData(), xFlags, yFlags);
             ImPlot::SetupAxisLinks(ImAxis_X1, &d->xLinkMin, &d->xLinkMax);
+            ImPlot::SetupAxisLinks(ImAxis_Y1, &gs.yMin, &gs.yMax);
             if (!xMajors.empty())
                 ImPlot::SetupAxisTicks(ImAxis_X1, xMajors.data(), (int)xMajors.size(), nullptr, false);
             ImPlot::SetupAxisFormat(ImAxis_Y1, yTickFormatter, nullptr);
@@ -1186,16 +1211,18 @@ void PlotCanvas::paintGL()
                     }
                 }
 
-                const auto label = QStringLiteral("%1##c%2").arg(cs.signalName).arg(cs.channelIdx).toUtf8();
+                const auto label = std::format("{}##c{}", cs.signalName.toStdString(), cs.channelIdx);
                 const ImVec4 col = colorForChannel(cs.signalName, cs.colIdx);
-                ImPlot::SetNextLineStyle(col);
-                ImPlot::SetNextFillStyle(col, 0.5f);
+                ImPlotSpec spec;
+                spec.LineColor = col;
+                spec.FillColor = col;
+                spec.FillAlpha = 0.5f;
                 if (cs.digital)
-                    ImPlot::PlotDigital(label.constData(), tsPtr, sampPtr, n);
+                    ImPlot::PlotDigital(label.c_str(), tsPtr, sampPtr, n, spec);
                 else
-                    ImPlot::PlotLine(label.constData(), tsPtr, sampPtr, n);
+                    ImPlot::PlotLine(label.c_str(), tsPtr, sampPtr, n, spec);
 
-                if (ImPlot::BeginDragDropSourceItem(label.constData())) {
+                if (ImPlot::BeginDragDropSourceItem(label.c_str())) {
                     int payload = cs.channelIdx;
                     ImGui::SetDragDropPayload("PLOTCANVAS_CHANNEL", &payload, sizeof(int));
                     ImGui::Text("%s", cs.signalName.toUtf8().constData());
@@ -1212,7 +1239,19 @@ void PlotCanvas::paintGL()
                 ImPlot::EndDragDropTarget();
             }
 
+            // Read back the auto-fit state so the user's right-click "Auto-Fit" toggle is captured
+            if (ImPlotPlot *plt = ImPlot::GetCurrentPlot())
+                gs.yAuto = (plt->Axes[ImAxis_Y1].Flags & ImPlotAxisFlags_AutoFit) != 0;
+
             ImPlot::EndPlot();
+        }
+
+        // EndPlot refreshed gs.yMin/yMax via the Y axis link; persist the Y state back to the graph
+        if (gs.origIdx >= 0 && gs.origIdx < (int)d->graphs.size()) {
+            auto &g = d->graphs[gs.origIdx];
+            g.yAuto = gs.yAuto;
+            g.yMin = gs.yMin;
+            g.yMax = gs.yMax;
         }
 
         if (idx < nVis - 1) {
