@@ -62,6 +62,9 @@ ZarrV3Array::ZarrV3Array(
     case DType::UInt16:
         m_typeSize = sizeof(uint16_t);
         break;
+    case DType::UInt32:
+        m_typeSize = sizeof(uint32_t);
+        break;
     case DType::UInt64:
         m_typeSize = sizeof(uint64_t);
         break;
@@ -360,6 +363,9 @@ bool ZarrV3Array::writeMetadata()
         break;
     case DType::UInt16:
         dtypeStr = QStringLiteral("uint16");
+        break;
+    case DType::UInt32:
+        dtypeStr = QStringLiteral("uint32");
         break;
     case DType::UInt64:
         dtypeStr = QStringLiteral("uint64");

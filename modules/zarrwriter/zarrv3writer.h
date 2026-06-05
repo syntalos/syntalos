@@ -52,6 +52,7 @@ public:
     enum class DType {
         Int32,
         UInt16,
+        UInt32,
         UInt64,
         Float32,
         Float64

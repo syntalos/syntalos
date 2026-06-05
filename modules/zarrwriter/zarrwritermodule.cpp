@@ -605,9 +605,7 @@ private:
      * Lazily create the arrays for a LineReading event stream: a 1-D
      * `timestamps` array plus a 2-column `data` array holding [line_id, value]
      * per event. Row i of `data` pairs with timestamps[i]; both are appended one
-     * row per event in lockstep so the triplet stays aligned. UInt64 is used for
-     * both (the DType enum has no UInt32, and UInt64 holds line_id and the full
-     * uint32 value losslessly).
+     * row per event in lockstep so the triplet stays aligned.
      */
     void ensureLineArraysInitialized()
     {
@@ -636,10 +634,10 @@ private:
         m_dataArray = std::make_unique<ZarrV3Array>(
             QString::fromStdString(m_storePath),
             QStringLiteral("data"),
-            ZarrV3Array::DType::UInt64,
+            ZarrV3Array::DType::UInt32,
             m_chunkCount,
             2,
-            QStringList{QStringLiteral("event"), QStringLiteral("field")});
+            QStringList{QStringLiteral("line"), QStringLiteral("value")});
         QJsonObject dataAttrs;
         dataAttrs["signal_names"] = QJsonArray{QStringLiteral("line_id"), QStringLiteral("value")};
         if (!m_dataUnit.isEmpty())
@@ -714,7 +712,7 @@ private:
                 return;
 
             const uint64_t t = static_cast<uint64_t>(ev.time.count());
-            const uint64_t row[2] = {static_cast<uint64_t>(ev.lineId), static_cast<uint64_t>(ev.value)};
+            const uint32_t row[2] = {static_cast<uint32_t>(ev.lineId), static_cast<uint32_t>(ev.value)};
             m_tsArray->appendBytes(&t, 1);
             m_dataArray->appendBytes(row, 1);
 
