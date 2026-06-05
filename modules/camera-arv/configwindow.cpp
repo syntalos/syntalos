@@ -995,7 +995,7 @@ void ArvConfigWindow::loadSettings(const QVariantHash &settings, const QByteArra
             }
 
             if (wanted != actual)
-                failures << wanted.trimmed().replace('\t', ':') + "(was: " + actual.trimmed().replace('\t', ':') + ")";
+                failures << wanted.trimmed().replace('\t', ':') + " (was: " + actual.trimmed().replace('\t', ':') + ")";
         }
 
         if (failures.isEmpty())
