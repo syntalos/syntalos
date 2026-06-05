@@ -33,18 +33,19 @@ public:
           timestampDivisor(1000)
     {
         sub = port->subscription();
-        portId = port->id();
+        portId = port->id().toStdString();
     }
 
     std::shared_ptr<StreamInputPort<T>> port;
     std::shared_ptr<StreamSubscription<T>> sub;
-    QString portId;
-    double timestampDivisor;
+    std::string portId;
+
     // Resolved canvas channel indices by column; -1 = not yet resolved.
     // For LineReading subscriptions this is indexed by lineId instead.
     std::vector<int> channelIdxByCol;
-    // y-axis label, cached from metadata (used by the LineReading path).
-    QString yLabel = QStringLiteral("y");
+
+    std::string yLabel = "y";
+    double timestampDivisor;
 
     // LineReading reconstruction state: last value per lineId and the set of
     // lineIds seen so far (in first-seen order). On each event we append a
@@ -105,7 +106,7 @@ public:
             if (!port->hasSubscription()) {
                 // the source feeding this port has vanished (disconnected): drop
                 // any channels we still hold for it so they don't linger forever
-                canvas->unregisterPort(port->id());
+                canvas->unregisterPort(port->id().toStdString());
                 continue;
             }
 
@@ -114,7 +115,7 @@ public:
 
             // Register port on the canvas with default divisor; updated in start()
             // once metadata is available.
-            canvas->registerPort(port->id(), 1000.0, QStringLiteral("y"));
+            canvas->registerPort(port->id().toStdString(), 1000.0, "y");
 
             if (port->dataTypeName() == "SignalBlockF32") {
                 PlotSubscriptionDetails<SignalBlockF32> sd(
@@ -173,7 +174,7 @@ public:
             sd.timestampDivisor = sampleRate;
         }
 
-        const QString yLabel = QString::fromStdString(sd.sub->metadataValue("data_unit", std::string{"y"}));
+        const auto yLabel = sd.sub->metadataValue("data_unit", std::string{"y"});
         const double dataScale = sd.sub->metadataValue("data_scale", 1.0);
         const double dataOffset = sd.sub->metadataValue("data_offset", 0.0);
         m_plotWindow->canvas()->registerPort(sd.portId, sd.timestampDivisor, yLabel, dataScale, dataOffset);
@@ -186,16 +187,16 @@ public:
         // Only do this when signal_names is provided; otherwise channels are
         // discovered by column as data flows and must not be wiped here.
         const auto sigNamesArr = sd.sub->metadataValue("signal_names", MetaArray{});
-        QStringList signalNames;
+        std::vector<std::string> signalNames;
         int colIdx = 0;
         for (const auto &v : sigNamesArr) {
-            QString name = QStringLiteral("ch%1").arg(colIdx);
+            std::string name = "ch" + std::to_string(colIdx);
             if (const auto s = v.template get<std::string>())
-                name = QString::fromStdString(*s);
-            signalNames << name;
+                name = *s;
+            signalNames.push_back(name);
             ++colIdx;
         }
-        if (!signalNames.isEmpty())
+        if (!signalNames.empty())
             m_plotWindow->canvas()->updatePortChannels(sd.portId, signalNames);
     }
 
@@ -210,7 +211,7 @@ public:
             sd.timestampDivisor = 1000 * 1000;
 
         // LineReading events carry absolute timestamps, so "index" mode does not apply.
-        sd.yLabel = QString::fromStdString(sd.sub->metadataValue("data_unit", std::string{"ttl"}));
+        sd.yLabel = sd.sub->metadataValue("data_unit", std::string{"ttl"});
         // Register the canvas port (= this module input port) with the resolved
         // divisor. Per-line channels are created under it lazily as events for
         // each lineId arrive, so they group correctly in the channel table.
@@ -253,7 +254,7 @@ public:
             // Resolve any still-unknown channel indices (at most once per column).
             for (int c = 0; c < nCols; ++c) {
                 if (sd.channelIdxByCol[c] == -1)
-                    sd.channelIdxByCol[c] = canvas->ensureChannel(sd.portId, c, QString());
+                    sd.channelIdxByCol[c] = canvas->ensureChannel(sd.portId, c, std::string());
             }
 
             // One lock acquisition per block for all channels.
@@ -288,7 +289,7 @@ public:
             if (sd.channelIdxByCol[lineId] == -1) {
                 // Synthesize a label from the lineId; LineReading streams don't
                 // carry per-line names.
-                const int ci = canvas->ensureChannel(sd.portId, lineId, QStringLiteral("Line %1").arg(lineId));
+                const int ci = canvas->ensureChannel(sd.portId, lineId, std::format("Line {}", lineId));
                 canvas->setChannelDigital(ci, sd.sub->metadataValue("is_digital").getOr(false));
                 sd.channelIdxByCol[lineId] = ci;
                 sd.knownLines.push_back(lineId);
@@ -368,7 +369,7 @@ public:
         // Pre-create canvas ports so loaded channels can resolve later.
         for (const auto &pv : varInPorts) {
             const auto po = pv.toHash();
-            m_plotWindow->canvas()->registerPort(po.value("id").toString(), 1000.0, QStringLiteral("y"));
+            m_plotWindow->canvas()->registerPort(po.value("id").toString().toStdString(), 1000.0, "y");
         }
         m_plotWindow->canvas()->loadChannels(settings.value("channels").toList());
         m_plotWindow->canvas()->loadGraphs(settings.value("graphs").toList());

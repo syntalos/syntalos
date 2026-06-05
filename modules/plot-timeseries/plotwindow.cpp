@@ -86,17 +86,19 @@ void PlotWindow::refreshChannelTable()
 
     // Group channels by portId so each port can contribute a contiguous block
     // of rows (and a placeholder row when no data has arrived yet).
-    QMap<QString, QList<int>> channelsByPort;
+    std::unordered_map<std::string, std::vector<int>> channelsByPort;
     for (int i = 0; i < m_canvas->channelCount(); ++i)
-        channelsByPort[m_canvas->channelInfo(i).portId].append(i);
+        channelsByPort[m_canvas->channelInfo(i).portId].push_back(i);
 
     int row = 0;
     for (const auto &port : m_mod->inPorts()) {
         const QString portId = port->id();
         const QString portTitle = port->title();
-        const auto &channels = channelsByPort.value(portId);
+        const auto chIt = channelsByPort.find(portId.toStdString());
+        const std::vector<int> emptyChannels;
+        const auto &channels = (chIt != channelsByPort.end()) ? chIt->second : emptyChannels;
 
-        if (channels.isEmpty()) {
+        if (channels.empty()) {
             // Placeholder row so the port can be selected and removed even
             // before any data has flowed through it.
             t->insertRow(row);
@@ -118,7 +120,7 @@ void PlotWindow::refreshChannelTable()
             continue;
         }
 
-        for (int idx = 0; idx < channels.size(); ++idx) {
+        for (size_t idx = 0; idx < channels.size(); ++idx) {
             const int channelIndex = channels[idx];
             const auto info = m_canvas->channelInfo(channelIndex);
             t->insertRow(row);
@@ -131,7 +133,7 @@ void PlotWindow::refreshChannelTable()
             portItem->setData(Qt::UserRole, portId);
             t->setItem(row, 0, portItem);
 
-            auto chanItem = new QTableWidgetItem(info.signalName);
+            auto chanItem = new QTableWidgetItem(QString::fromStdString(info.signalName));
             chanItem->setFlags(chanItem->flags() & ~Qt::ItemIsEditable);
             t->setItem(row, 1, chanItem);
 
@@ -275,9 +277,9 @@ void PlotWindow::on_addPortBtn_clicked()
     if (!ok || title.isEmpty())
         return;
 
-    const auto newPortId = QStringLiteral("sigs%1-in").arg(newPortNumber);
-    m_mod->registerInputPortByTypeId(streamSignalTypeMap[item], newPortId, title);
-    m_canvas->registerPort(newPortId, 1000.0, QStringLiteral("y"));
+    const auto newPortId = std::format("sigs{}-in", newPortNumber);
+    m_mod->registerInputPortByTypeId(streamSignalTypeMap[item], QString::fromStdString(newPortId), title);
+    m_canvas->registerPort(newPortId, 1000.0, "y");
     refreshChannelTable();
 }
 
@@ -295,7 +297,7 @@ void PlotWindow::on_removePortBtn_clicked()
     if (portId.isEmpty())
         return;
 
-    m_canvas->unregisterPort(portId);
+    m_canvas->unregisterPort(portId.toStdString());
     m_mod->removeInPortById(portId);
     refreshChannelTable();
 }

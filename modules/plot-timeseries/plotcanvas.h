@@ -33,9 +33,9 @@ class PlotCanvas : public QOpenGLWidget, private QOpenGLExtraFunctions
     Q_OBJECT
 public:
     struct ChannelInfo {
-        QString portId;
+        std::string portId;
         int colIdx;
-        QString signalName;
+        std::string signalName;
         bool digital;
         bool enabled;
         int graphId;
@@ -53,31 +53,31 @@ public:
 
     // Port lifecycle
     void registerPort(
-        const QString &portId,
+        const std::string &portId,
         double timestampDivisor,
-        const QString &yLabel,
+        const std::string &yLabel,
         double dataScale = 1.0,
         double dataOffset = 0.0);
-    void unregisterPort(const QString &portId);
+    void unregisterPort(const std::string &portId);
     void clearAll();
     void clearRuntimeData();
 
     // Channel lifecycle
-    int ensureChannel(const QString &portId, int colIdx, const QString &signalName);
-    void updatePortChannels(const QString &portId, const QStringList &signalNames);
+    int ensureChannel(const std::string &portId, int colIdx, const std::string &signalName);
+    void updatePortChannels(const std::string &portId, const std::vector<std::string> &signalNames);
     bool channelEnabled(int channelIndex) const;
     void setChannelEnabled(int channelIndex, bool enabled);
     void setChannelDigital(int channelIndex, bool digital);
 
     // Data ingestion (thread-safe)
     void appendBlockF(
-        const QString &portId,
+        const std::string &portId,
         const VectorXu64 &timestamps,
         const Eigen::Ref<const MatrixXf> &data,
         const int *channelIdx,
         int nCols);
     void appendBlockI(
-        const QString &portId,
+        const std::string &portId,
         const VectorXu64 &timestamps,
         const Eigen::Ref<const MatrixXi32> &data,
         const int *channelIdx,
@@ -109,8 +109,8 @@ private:
     Q_DISABLE_COPY(PlotCanvas)
     QScopedPointer<Private> d;
 
-    int appendChannel(const QString &portId, int colIdx, const QString &signalName);
-    void tombstoneChannels(const QSet<int> &removed);
+    int appendChannel(const std::string &portId, int colIdx, const std::string &signalName);
+    void tombstoneChannels(const std::set<int> &removed);
     void moveChannelToGraph(int channelIndex, int destGraphId);
     void createGraphWithChannel(int channelIndex);
     int graphIndexById(int graphId) const;
