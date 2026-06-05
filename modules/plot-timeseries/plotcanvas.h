@@ -22,7 +22,7 @@
 #include <QOpenGLWidget>
 #include <QOpenGLExtraFunctions>
 #include <QVariantHash>
-#include <QSet>
+#include <set>
 
 #include "datactl/datatypes.h"
 
@@ -109,8 +109,9 @@ private:
     Q_DISABLE_COPY(PlotCanvas)
     QScopedPointer<Private> d;
 
+    ssize_t findChannelIndex(const std::string &portId, int colIdx) const;
     int appendChannel(const std::string &portId, int colIdx, const std::string &signalName);
-    void tombstoneChannels(const std::set<int> &removed);
+    void tombstoneChannels(const std::set<size_t> &removed);
     void moveChannelToGraph(int channelIndex, int destGraphId);
     void createGraphWithChannel(int channelIndex);
     int graphIndexById(int graphId) const;

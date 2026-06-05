@@ -20,7 +20,6 @@
 #include "plotcanvas.h"
 
 #include <QTimer>
-#include <QHash>
 #include <algorithm>
 #include <cstring>
 #include <format>
@@ -29,7 +28,6 @@
 #include <set>
 #include <string>
 #include <unordered_map>
-#include <utility>
 #include <vector>
 #include <memory_resource>
 
@@ -178,7 +176,7 @@ struct PortData {
 
 struct Graph {
     int id = 0;
-    std::vector<int> channels; // indices into m_channels
+    std::vector<size_t> channels; // indices into m_channels
     float sizeWeight = 1.0f;
 
     // Y-axis scaling: when yAuto is true the axis auto-fits to the data (default);
@@ -208,16 +206,6 @@ static ImVec4 colorForChannel(const std::string &name, int colIdx)
     return col;
 }
 
-// Hash for the (portId, colIdx) composite key of channelLookup
-struct PairStrIntHash {
-    std::size_t operator()(const std::pair<std::string, int> &p) const noexcept
-    {
-        const std::size_t h1 = std::hash<std::string>{}(p.first);
-        const std::size_t h2 = std::hash<int>{}(p.second);
-        return h1 ^ (h2 + 0x9e3779b97f4a7c15ULL + (h1 << 6) + (h1 >> 2));
-    }
-};
-
 class PlotCanvas::Private
 {
 public:
@@ -236,8 +224,6 @@ public:
 
     std::unordered_map<std::string, PortData> ports;
     std::vector<ChannelData> channels;
-    std::unordered_map<std::pair<std::string, int>, int, PairStrIntHash>
-        channelLookup; // (portId, colIdx) -> index into channels
 
     std::vector<Graph> graphs;
     int nextGraphId = 1;
@@ -275,7 +261,7 @@ public:
         bool yAuto = true;
         double yMin = 0.0;
         double yMax = 1.0;
-        std::vector<int> chanSnaps; // indices into channelSnaps
+        std::vector<size_t> chanSnaps; // indices into channelSnaps
     };
 
     std::unordered_map<std::string, PortSnap> portSnaps;
@@ -372,12 +358,12 @@ void PlotCanvas::registerPort(
         p.timestamps.setCapacity(d->bufferSize);
 }
 
-void PlotCanvas::tombstoneChannels(const std::set<int> &removed)
+void PlotCanvas::tombstoneChannels(const std::set<size_t> &removed)
 {
     // drop from graphs
     for (auto &g : d->graphs) {
-        std::vector<int> kept;
-        for (int ci : g.channels)
+        std::vector<size_t> kept;
+        for (size_t ci : g.channels)
             if (!removed.contains(ci))
                 kept.push_back(ci);
         g.channels = kept;
@@ -393,16 +379,10 @@ void PlotCanvas::tombstoneChannels(const std::set<int> &removed)
         d->graphs.end());
 
     // we keep channels in the vector to preserve indices used by other graphs;
-    // mark removed ones as disabled and clear their lookup entry so they
-    // cannot be re-resolved by ensureChannel.
+    // mark removed ones as disabled and clear their identity so findChannelIndex()
+    // can no longer resolve them (an empty portId never matches).
     for (int ci : removed) {
         auto &c = d->channels[ci];
-        // Only drop the lookup entry if it still points at this channel.
-        // updatePortChannels() may have reassigned (portId, colIdx) to a surviving
-        // channel after column positions shifted; we must not clobber that entry.
-        const auto it = d->channelLookup.find({c.portId, c.colIdx});
-        if (it != d->channelLookup.end() && it->second == ci)
-            d->channelLookup.erase(it);
         c.enabled = false;
         c.samples = RingBuffer<float>(0);
         c.portId.clear();
@@ -416,8 +396,8 @@ void PlotCanvas::unregisterPort(const std::string &portId)
     d->ports.erase(portId);
 
     // remove channels belonging to this port
-    std::set<int> removed;
-    for (int i = 0; i < (int)d->channels.size(); ++i) {
+    std::set<size_t> removed;
+    for (size_t i = 0; i < d->channels.size(); ++i) {
         if (d->channels[i].portId == portId)
             removed.insert(i);
     }
@@ -431,8 +411,8 @@ void PlotCanvas::unregisterPort(const std::string &portId)
 int PlotCanvas::appendChannel(const std::string &portId, int colIdx, const std::string &signalName)
 {
     // caller must hold d->dataMutex. Creates a fresh channel in its own default
-    // graph, registers its lookup entry, and returns its index. Does not emit
-    // layoutChanged (callers do so once they are done mutating).
+    // graph and returns its index. Does not emit layoutChanged (callers do so once
+    // they are done mutating).
     ChannelData c;
     c.portId = portId;
     c.colIdx = colIdx;
@@ -441,7 +421,6 @@ int PlotCanvas::appendChannel(const std::string &portId, int colIdx, const std::
 
     const int idx = (int)d->channels.size();
     d->channels.push_back(std::move(c));
-    d->channelLookup[{portId, colIdx}] = idx;
 
     Graph g;
     g.id = d->nextGraphId++;
@@ -449,6 +428,19 @@ int PlotCanvas::appendChannel(const std::string &portId, int colIdx, const std::
     d->graphs.push_back(g);
 
     return idx;
+}
+
+ssize_t PlotCanvas::findChannelIndex(const std::string &portId, int colIdx) const
+{
+    // caller must hold d->dataMutex. Linear scan over the (small) channel list;
+    // tombstoned channels have an empty portId and so never match.
+    for (size_t i = 0; i < d->channels.size(); ++i) {
+        const auto &c = d->channels[i];
+        if (c.colIdx == colIdx && c.portId == portId)
+            return i;
+    }
+
+    return -1;
 }
 
 void PlotCanvas::updatePortChannels(const std::string &portId, const std::vector<std::string> &signalNames)
@@ -461,9 +453,8 @@ void PlotCanvas::updatePortChannels(const std::string &portId, const std::vector
     // (visibility, digital flag, graph assignment) follow a signal across such
     // shifts; signals no longer present are removed.
 
-    // Index this port's live channels by name and drop their (portId, colIdx)
-    // lookup entries, as columns are about to be reassigned. Tombstoned channels
-    // have an empty portId and are naturally excluded.
+    // Index this port's live channels by name; columns are about to be reassigned.
+    // Tombstoned channels have an empty portId and are excluded.
     std::unordered_map<std::string, int> existingByName;
     std::vector<int> portChannels;
     for (int i = 0; i < (int)d->channels.size(); ++i) {
@@ -472,7 +463,6 @@ void PlotCanvas::updatePortChannels(const std::string &portId, const std::vector
             continue;
         existingByName[c.signalName] = i;
         portChannels.push_back(i);
-        d->channelLookup.erase({portId, c.colIdx});
     }
 
     std::set<int> reused;
@@ -484,7 +474,6 @@ void PlotCanvas::updatePortChannels(const std::string &portId, const std::vector
             const int idx = it->second;
             existingByName.erase(it); // consume, so duplicate names create new channels
             d->channels[idx].colIdx = colIdx;
-            d->channelLookup[{portId, colIdx}] = idx;
             reused.insert(idx);
         } else {
             // new signal: fresh channel in its own graph
@@ -494,8 +483,8 @@ void PlotCanvas::updatePortChannels(const std::string &portId, const std::vector
     }
 
     // Channels not reused have vanished from the source: remove them.
-    std::set<int> removed;
-    for (int i : portChannels)
+    std::set<size_t> removed;
+    for (size_t i : portChannels)
         if (!reused.contains(i))
             removed.insert(i);
     if (!removed.empty())
@@ -509,7 +498,6 @@ void PlotCanvas::clearAll()
     const std::lock_guard<std::mutex> lock(d->dataMutex);
     d->ports.clear();
     d->channels.clear();
-    d->channelLookup.clear();
     d->graphs.clear();
     d->nextGraphId = 1;
     Q_EMIT layoutChanged();
@@ -527,13 +515,12 @@ void PlotCanvas::clearRuntimeData()
 int PlotCanvas::ensureChannel(const std::string &portId, int colIdx, const std::string &signalName)
 {
     const std::lock_guard<std::mutex> lock(d->dataMutex);
-    auto it = d->channelLookup.find({portId, colIdx});
-    if (it != d->channelLookup.end()) {
-        const int idx = it->second;
+    const auto existing = findChannelIndex(portId, colIdx);
+    if (existing >= 0) {
         // refresh signalName if it changed
-        if (!signalName.empty() && d->channels[idx].signalName != signalName)
-            d->channels[idx].signalName = signalName;
-        return idx;
+        if (!signalName.empty() && d->channels[existing].signalName != signalName)
+            d->channels[existing].signalName = signalName;
+        return existing;
     }
 
     const int idx = appendChannel(portId, colIdx, signalName);
@@ -789,7 +776,6 @@ void PlotCanvas::loadChannels(const QVariantList &v)
     const std::lock_guard<std::mutex> lock(d->dataMutex);
     // Re-create channel entries (must run before loadGraphs so indices match).
     d->channels.clear();
-    d->channelLookup.clear();
     for (const auto &item : v) {
         const auto h = item.toHash();
         ChannelData c;
@@ -802,9 +788,7 @@ void PlotCanvas::loadChannels(const QVariantList &v)
             continue;
         if (c.enabled)
             c.samples.setCapacity(d->bufferSize);
-        int idx = (int)d->channels.size();
         d->channels.push_back(std::move(c));
-        d->channelLookup[{d->channels[idx].portId, d->channels[idx].colIdx}] = idx;
     }
 }
 
@@ -825,12 +809,11 @@ void PlotCanvas::loadGraphs(const QVariantList &v)
         g.yMax = h.value("y_max", 1.0).toDouble();
         for (const auto &ch : h.value("channels").toList()) {
             const auto chh = ch.toHash();
-            const auto key = std::make_pair(
+            const auto idx = findChannelIndex(
                 chh.value("port_id").toString().toStdString(),
                 chh.value("col_idx").toInt());
-            auto it = d->channelLookup.find(key);
-            if (it != d->channelLookup.end())
-                g.channels.push_back(it->second);
+            if (idx >= 0)
+                g.channels.push_back(idx);
         }
         if (g.channels.empty())
             continue;
@@ -1081,11 +1064,11 @@ void PlotCanvas::paintGL()
             d->channelSnaps.push_back(std::move(cs));
         }
 
-        // Map original channel index -> channelSnaps index.
-        QHash<int, int> chanToSnap;
-        chanToSnap.reserve((int)d->channelSnaps.size());
+        // Map original channel index -> channelSnaps index. Channel indices are dense
+        // [0, channels.size()), so a plain vector remap (-1 = not snapshotted) suffices.
+        std::vector<int> chanToSnap(d->channels.size(), -1);
         for (int i = 0; i < (int)d->channelSnaps.size(); ++i)
-            chanToSnap.insert(d->channelSnaps[i].channelIdx, i);
+            chanToSnap[d->channelSnaps[i].channelIdx] = i;
 
         // Snapshot graph layout (metadata only; sample data is in channelSnaps).
         d->graphSnaps.clear();
@@ -1098,10 +1081,10 @@ void PlotCanvas::paintGL()
             gs.yAuto = g.yAuto;
             gs.yMin = g.yMin;
             gs.yMax = g.yMax;
-            for (int ch : g.channels) {
-                auto it2 = chanToSnap.find(ch);
-                if (it2 != chanToSnap.end())
-                    gs.chanSnaps.push_back(*it2);
+            for (auto ch : g.channels) {
+                const ssize_t si = (ch < chanToSnap.size()) ? chanToSnap[ch] : -1;
+                if (si >= 0)
+                    gs.chanSnaps.push_back(si);
             }
             d->graphSnaps.push_back(std::move(gs));
         }
