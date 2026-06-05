@@ -1028,6 +1028,7 @@ private:
                 // so consumers label them per-lineId from the events themselves.
                 m_ttlStream->setMetadataValue("time_unit", std::string{"microseconds"});
                 m_ttlStream->setMetadataValue("data_unit", std::string{"ttl"});
+                m_ttlStream->setMetadataValue("is_digital", true);
                 m_ttlStream->setSuggestedDataName(QStringLiteral("oe-acq-ttl/ttl-inputs"));
 
                 currentIds.insert(g.portId);

@@ -208,6 +208,7 @@ public:
             sd.timestampDivisor = 1000;
         else if (timeUnitStr == "microseconds")
             sd.timestampDivisor = 1000 * 1000;
+
         // LineReading events carry absolute timestamps, so "index" mode does not apply.
         sd.yLabel = QString::fromStdString(sd.sub->metadataValue("data_unit", std::string{"ttl"}));
         // Register the canvas port (= this module input port) with the resolved
@@ -288,7 +289,7 @@ public:
                 // Synthesize a label from the lineId; LineReading streams don't
                 // carry per-line names.
                 const int ci = canvas->ensureChannel(sd.portId, lineId, QStringLiteral("Line %1").arg(lineId));
-                canvas->setChannelDigital(ci, true);
+                canvas->setChannelDigital(ci, sd.sub->metadataValue("is_digital").getOr(false));
                 sd.channelIdxByCol[lineId] = ci;
                 sd.knownLines.push_back(lineId);
             }
