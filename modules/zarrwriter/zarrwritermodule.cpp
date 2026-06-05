@@ -700,16 +700,18 @@ private:
 
     void onLineReadingReceived()
     {
-        if (!m_writeData)
-            return;
-
         // Drain all queued events; append the timestamp and the [line_id, value]
         // row in lockstep so they stay aligned by index.
         while (auto maybeData = m_lineSub->peekNext()) {
+            // Always drain the queue, even when not saving or after
+            // a fatal error - otherwise events pile up unbounded.
+            if (!m_writeData)
+                continue;
+
             const auto &ev = maybeData.value();
             ensureLineArraysInitialized();
             if (!m_writeData)
-                return;
+                continue;
 
             const uint64_t t = static_cast<uint64_t>(ev.time.count());
             const uint32_t row[2] = {static_cast<uint32_t>(ev.lineId), static_cast<uint32_t>(ev.value)};
@@ -719,8 +721,7 @@ private:
             if (m_tsArray->hasError() || m_dataArray->hasError()) {
                 const QString msg = m_tsArray->hasError() ? m_tsArray->errorMessage() : m_dataArray->errorMessage();
                 raiseError(QStringLiteral("Zarr writer I/O error: ") + msg);
-                m_writeData = false;
-                return;
+                m_writeData = false; // keep draining the rest; do not return
             }
         }
     }
