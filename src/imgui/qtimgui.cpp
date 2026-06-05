@@ -107,6 +107,13 @@ private:
 
 RenderRef initialize(QWidget *window, bool defaultRender)
 {
+    // ImGui/ImPlot text fields need keyboard events, but a QWidget hosting an ImGui
+    // canvas is often a QOpenGLWidget which defaults to Qt::NoFocus and so never
+    // receives key events. Make the host focusable here so every QtImGui canvas
+    // gets working keyboard input by default.
+    if (window->focusPolicy() == Qt::NoFocus)
+        window->setFocusPolicy(Qt::StrongFocus);
+
     if (defaultRender) {
         auto *wrapper = new QWidgetWindowWrapper(window, ImGuiRenderer::instance());
         ImGuiRenderer::instance()->initialize(wrapper);
