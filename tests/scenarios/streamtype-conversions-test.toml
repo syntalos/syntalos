@@ -3,9 +3,11 @@ name = "Stream-Type Conversions Test"
 project_file = "projects/streamtype-conversions.syct"
 run_duration_sec = 6
 expected_exit_code = 0
-expected_datasets = ["u16-to-i32-direct", "u16-to-i32-mlinkpy"]
-expected_stdout_contains = ["Module start order: Devel: DataSource ⇢ Zarr Writer ⇢ Python Script ⇢ Zarr Writer 2"]
-validator_script = "streamtype_conversions_validator.py"
+expected_datasets = ["u16-to-i32-direct", "u16-to-i32-mlinkpy", "i32-to-f32-direct"]
+expected_stdout_contains = [
+    "Module start order: Devel: DataSource ⇢ Zarr Writer - U2I Direct ⇢ Python Script ⇢ Zarr Writer - I32 to F32 ⇢ Zarr Writer - U2I Indirect"
+]
+validator_script = "streamtype_cast_validator.py"
 
 [[test.expected_output_files]]
 path = "attributes.toml"

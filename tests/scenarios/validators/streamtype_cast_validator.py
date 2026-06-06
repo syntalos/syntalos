@@ -28,7 +28,7 @@ except ImportError as e:
 MIN_SAMPLES = 8
 
 
-def validate_converted_zarr(store_path: str) -> None:
+def validate_converted_zarr(store_path: str, expected_dtype: str, conversion_desc: str) -> None:
     print(f"  Checking store: {store_path}")
 
     try:
@@ -46,14 +46,18 @@ def validate_converted_zarr(store_path: str) -> None:
 
     if ts.ndim != 1:
         raise RuntimeError(f"timestamps must be 1-D, got shape {ts.shape}")
-    if data.ndim != 2:
-        raise RuntimeError(f"data must be 2-D, got shape {data.shape}")
+    # The Zarr writer stores single-channel signals as a 1-D array and
+    # multi-channel signals as 2-D [samples, channels]
+    if data.ndim not in (1, 2):
+        raise RuntimeError(f"data must be 1-D or 2-D, got shape {data.shape}")
+    n_channels = 1 if data.ndim == 1 else data.shape[1]
 
     if ts.dtype != np.dtype("uint64"):
         raise RuntimeError(f"timestamps dtype must be uint64, got {ts.dtype}")
-    if data.dtype != np.dtype("int32"):
+    if data.dtype != np.dtype(expected_dtype):
         raise RuntimeError(
-            f"data dtype must be int32 (proves U16→I32 conversion ran), got {data.dtype}"
+            f"data dtype must be {expected_dtype} (proves {conversion_desc} conversion ran), "
+            f"got {data.dtype}"
         )
 
     n_samples = ts.shape[0]
@@ -68,19 +72,21 @@ def validate_converted_zarr(store_path: str) -> None:
     if np.any(np.diff(ts_arr.astype(np.int64)) < 0):
         raise RuntimeError(f"Timestamps in '{store_path}' are not monotonically non-decreasing")
 
-    print(f"    OK: {n_samples} samples × {data.shape[1]} channel(s), dtype={data.dtype}")
+    print(f"    OK: {n_samples} samples × {n_channels} channel(s), dtype={data.dtype}")
 
 
-# Map between the dataset names in the project and the zarr files they should produce.
+# Map between the dataset names in the project and the zarr files they should
+# produce, along with the data dtype each conversion is expected to yield.
 EXPECTED_STORES = {
-    "u16-to-i32-direct": "u16-to-i32-direct.zarr",
-    "u16-to-i32-mlinkpy": "u16-to-i32-mlinkpy.zarr",
+    "u16-to-i32-direct": ("u16-to-i32-direct.zarr", "int32", "U16→I32"),
+    "u16-to-i32-mlinkpy": ("u16-to-i32-mlinkpy.zarr", "int32", "U16→I32"),
+    "i32-to-f32-direct": ("i32-to-f32-direct.zarr", "float32", "I32→F32"),
 }
 
 
 def main() -> int:
     if len(sys.argv) < 2:
-        print("Usage: streamtype_conversions_validator.py <export_dir>", file=sys.stderr)
+        print("Usage: streamtype_cast_validator.py <export_dir>", file=sys.stderr)
         return 1
 
     export_dir = sys.argv[1]
@@ -89,7 +95,7 @@ def main() -> int:
         return 1
 
     errors = []
-    for dataset_name, store_basename in EXPECTED_STORES.items():
+    for dataset_name, (store_basename, expected_dtype, conversion_desc) in EXPECTED_STORES.items():
         matches = glob.glob(
             os.path.join(export_dir, "**", dataset_name, store_basename),
             recursive=True,
@@ -101,7 +107,7 @@ def main() -> int:
             continue
         for store in matches:
             try:
-                validate_converted_zarr(store)
+                validate_converted_zarr(store, expected_dtype, conversion_desc)
             except RuntimeError as e:
                 errors.append(str(e))
 

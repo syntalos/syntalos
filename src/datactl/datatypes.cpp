@@ -112,10 +112,28 @@ SignalBlockI32::SignalBlockI32(struct SignalBlockU16 &&src)
     data = src.data.cast<int32_t>();
 }
 
-SignalBlockU16::SignalBlockU16(struct SignalBlockI32 &&src)
+SignalBlockF32::SignalBlockF32(struct SignalBlockU16 &&src)
 {
     timestamps = std::move(src.timestamps);
-    data = src.data.cast<uint16_t>();
+    data = src.data.cast<float>();
+}
+
+SignalBlockF32::SignalBlockF32(struct SignalBlockI32 &&src)
+{
+    timestamps = std::move(src.timestamps);
+    data = src.data.cast<float>();
+}
+
+SignalBlockI32::SignalBlockI32(struct SignalBlockF32 &&src)
+{
+    timestamps = std::move(src.timestamps);
+
+    // Clamp data before casting, to protect a little bit against unexpected surprises
+    // for users who don't know too much about the implications of different data types.
+    // float(INT32_MAX) rounds up to 2^31 (out of range), so the safe upper
+    // bound is the largest float that still fits, 2^31 - 128.
+    constexpr float maxF = 2147483520.0f; // largest float <= INT32_MAX
+    data = src.data.array().isNaN().select(0.0f, src.data.array()).max(INT32_MIN).min(maxF).cast<int32_t>().matrix();
 }
 
 } // namespace Syntalos

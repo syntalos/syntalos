@@ -530,6 +530,7 @@ struct SignalBlockI32 final : BaseDataType {
     }
 
     explicit SignalBlockI32(struct SignalBlockU16 &&src);
+    explicit SignalBlockI32(struct SignalBlockF32 &&src);
 
     [[nodiscard]] size_t length() const
     {
@@ -585,8 +586,6 @@ struct SignalBlockU16 final : BaseDataType {
         timestamps.resize(sampleCount);
         data.resize(sampleCount, channelCount);
     }
-
-    explicit SignalBlockU16(struct SignalBlockI32 &&src);
 
     [[nodiscard]] size_t length() const
     {
@@ -648,6 +647,9 @@ struct SignalBlockF32 final : BaseDataType {
         for (size_t i = 0; i < floatVec.size(); ++i)
             data(0, i) = floatVec[i];
     }
+
+    explicit SignalBlockF32(struct SignalBlockU16 &&src);
+    explicit SignalBlockF32(struct SignalBlockI32 &&src);
 
     [[nodiscard]] size_t length() const
     {
