@@ -131,7 +131,7 @@ test_manifests = [
     'scenarios/netctl-listen-test.toml',
 ]
 
-if 'open-ephys-acq' in get_option('modules')
+if 'open-ephys-acq' in modules_enabled
     test_manifests += 'scenarios/openephys-acq-smoketest.toml'
 endif
 

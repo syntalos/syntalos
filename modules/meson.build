@@ -3,7 +3,6 @@
 # module setup boilerplate
 module_lib_def_tmpl = files('module-lib-def.toml.in')
 ln_exe = find_program('ln')
-modules_enabled = get_option('modules')
 
 module_hdr = []
 module_src = []
@@ -22,7 +21,6 @@ subdir('canvas')
 subdir('table')
 subdir('plot-timeseries')
 subdir('latencycheck')
-subdir('signalfilter')
 
 # Audio
 subdir('audiosource')
@@ -71,6 +69,9 @@ if 'intan-rhx' in modules_enabled
 endif
 if 'open-ephys-acq' in modules_enabled
     subdir('open-ephys-acq')
+endif
+if 'signalfilter' in modules_enabled
+    subdir('signalfilter')
 endif
 
 # Misc

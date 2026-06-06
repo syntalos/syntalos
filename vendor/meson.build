@@ -71,7 +71,7 @@ implot_dep = declare_dependency(
 endif # get_option('imgui')
 
 
-if 'open-ephys-acq' in get_option('modules')
+if 'open-ephys-acq' in modules_enabled
 
 #
 # liboni

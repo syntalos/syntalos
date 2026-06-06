@@ -15,9 +15,9 @@ $CXX --version
 
 # intan-rhx only builds on amd64
 if [ "$(uname -m)" = "x86_64" ]; then
-    extra_modules=",intan-rhx,open-ephys-acq"
+    disabled_modules=""
 else
-    extra_modules=""
+    disabled_modules="intan-rhx,open-ephys-acq"
 fi
 
 # configure Syntalos build with all flags enabled
@@ -29,7 +29,8 @@ meson setup \
     -Db_lto=false \
     -Dmaintainer=true \
     -Dgui-tests=true \
-    -Dmodules="camera-arv,camera-lc,camera-tis,miniscope${extra_modules}" \
+    -Dmodules="camera-arv,camera-lc,camera-tis,miniscope,signalfilter,intan-rhx,open-ephys-acq" \
+    -Ddisabled-modules=$disabled_modules \
     ..
 
 # Build & Install

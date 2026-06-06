@@ -375,6 +375,22 @@ sed_prog = find_program('sed')
 sy_libdir = get_option('prefix') / get_option('libdir') / 'syntalos'
 sy_modules_dir = sy_libdir / 'modules'
 
+# Combine the positive "modules" list with the negative "disabled-modules" list.
+modules_enabled = get_option('modules')
+modules_disabled = get_option('disabled-modules')
+foreach m : modules_disabled
+    if m not in modules_enabled
+        warning('Module "' + m + '" is listed in disabled-modules but is not in the enabled "modules" set.')
+    endif
+endforeach
+_modules_effective = []
+foreach m : modules_enabled
+    if m not in modules_disabled
+        _modules_effective += m
+    endif
+endforeach
+modules_enabled = _modules_effective
+
 # vendored 3rd-party code
 subdir('vendor')
 

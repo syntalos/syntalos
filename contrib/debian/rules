@@ -1,7 +1,7 @@
 #!/usr/bin/make -f
 # -*- mode: makefile; coding: utf-8 -*-
 
-SY_ENABLED_MODULES := camera-arv,camera-lc,camera-tis,miniscope
+SY_ENABLED_MODULES := camera-arv,camera-lc,camera-tis,miniscope,signalfilter
 
 ifneq (,$(filter $(DEB_HOST_ARCH), amd64))
     # We don't build Intan support on non-amd64, Intan does not support this officially

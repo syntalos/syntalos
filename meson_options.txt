@@ -12,6 +12,7 @@ option('modules',
            'intan-rhx',      # Intan RHX DAQ module
            'miniscope',      # UCLA Miniscope module
            'open-ephys-acq', # Open Ephys Acquisition Board module
+           'signalfilter',   # Filter signal blocks
        ],
        value : [
            'camera-arv',
@@ -19,8 +20,15 @@ option('modules',
            'intan-rhx',
            'miniscope',
            'open-ephys-acq',
+           'signalfilter',
        ],
        description: 'Select modules to enable.'
+)
+
+option('disabled-modules',
+       type: 'array',
+       value: [],
+       description: 'Explicitly disable modules from the enabled set (subtracted from "modules").'
 )
 
 option('imgui',
