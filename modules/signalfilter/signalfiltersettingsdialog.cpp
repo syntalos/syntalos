@@ -38,6 +38,9 @@ SignalFilterSettingsDialog::SignalFilterSettingsDialog(QWidget *parent)
     ui->inputTypeSel->addDataType(SignalBlockF32::staticTypeId(), QStringLiteral("Float32 Signals"));
     ui->inputTypeSel->addDataType(SignalBlockI32::staticTypeId(), QStringLiteral("Int32 Signals"));
     ui->inputTypeSel->addDataType(SignalBlockU16::staticTypeId(), QStringLiteral("UInt16 Signals"));
+    ui->inputTypeSel->setToolTip(QStringLiteral(
+        "Frequency filters remove the DC offset, so filtering raw integer/unsigned signals is "
+        "lossy (negative excursions clamp to the type minimum).\nPrefer Float32 where possible."));
 
     // family / response options; the combo indices match the enum values
     ui->cbFamily->addItems(
@@ -218,6 +221,24 @@ struct SosParseResult {
 };
 
 /**
+ * Render the parsed-SOS status into @p label (red on error/empty, green with a
+ * section count).
+ */
+static void renderSosStatus(QLabel *label, const SosParseResult &res)
+{
+    if (!res.error.isEmpty()) {
+        label->setText(res.error);
+        label->setStyleSheet(QStringLiteral("color: #c0392b;")); // red
+    } else if (res.rows.empty()) {
+        label->setText(QStringLiteral("No sections entered — paste at least one line of 6 coefficients."));
+        label->setStyleSheet(QStringLiteral("color: #c0392b;"));
+    } else {
+        label->setText(QStringLiteral("%1 section(s) parsed.").arg(res.rows.size()));
+        label->setStyleSheet(QStringLiteral("color: #27ae60;")); // green
+    }
+}
+
+/**
  * Parse the SOS text box. Each non-blank line must hold exactly 6 numbers
  * (b0 b1 b2 a0 a1 a2), whitespace- or comma-separated. Reports the first
  * malformed line so the user gets actionable feedback.
@@ -321,7 +342,10 @@ void SignalFilterSettingsDialog::writeEditorToStage()
     // least one section was entered; other families don't use the SOS box.
     st.sosValid = (st.family != FilterFamily::CustomSOS) || (sosRes.error.isEmpty() && !sosRes.rows.empty());
 
-    updateSosStatus();
+    if (st.family == FilterFamily::CustomSOS)
+        renderSosStatus(ui->lblSosStatus, sosRes);
+    else
+        ui->lblSosStatus->clear();
 
     if (auto *item = ui->lwStages->item(m_currentIndex))
         item->setText(stageLabel(st));
@@ -336,17 +360,7 @@ void SignalFilterSettingsDialog::updateSosStatus()
         return;
     }
 
-    const auto res = parseSos(ui->teSos->toPlainText());
-    if (!res.error.isEmpty()) {
-        ui->lblSosStatus->setText(res.error);
-        ui->lblSosStatus->setStyleSheet(QStringLiteral("color: #c0392b;")); // red
-    } else if (res.rows.empty()) {
-        ui->lblSosStatus->setText(QStringLiteral("No sections entered — paste at least one line of 6 coefficients."));
-        ui->lblSosStatus->setStyleSheet(QStringLiteral("color: #c0392b;"));
-    } else {
-        ui->lblSosStatus->setText(QStringLiteral("%1 section(s) parsed.").arg(res.rows.size()));
-        ui->lblSosStatus->setStyleSheet(QStringLiteral("color: #27ae60;")); // green
-    }
+    renderSosStatus(ui->lblSosStatus, parseSos(ui->teSos->toPlainText()));
 }
 
 void SignalFilterSettingsDialog::updateEditorVisibility()

@@ -235,7 +235,7 @@ public:
             m_kind = SignalKind::Float;
             if (!resolveSampleRate(m_floatSub->metadataValue("sample_rate", -1.0)))
                 return false;
-            m_floatOut->setMetadata(m_floatSub->metadata());
+            m_floatOut->setMetadata(updateOutputMetadata(m_floatSub->metadata()));
             m_floatOut->start();
             registerDataReceivedEvent(&SignalFilterModule::onFloatReceived, m_floatSub);
         } else if (m_intIn && m_intIn->hasSubscription()) {
@@ -243,7 +243,7 @@ public:
             m_kind = SignalKind::Int;
             if (!resolveSampleRate(m_intSub->metadataValue("sample_rate", -1.0)))
                 return false;
-            m_intOut->setMetadata(m_intSub->metadata());
+            m_intOut->setMetadata(updateOutputMetadata(m_intSub->metadata()));
             m_intOut->start();
             registerDataReceivedEvent(&SignalFilterModule::onIntReceived, m_intSub);
         } else if (m_uint16In && m_uint16In->hasSubscription()) {
@@ -251,7 +251,7 @@ public:
             m_kind = SignalKind::UInt16;
             if (!resolveSampleRate(m_uint16Sub->metadataValue("sample_rate", -1.0)))
                 return false;
-            m_uint16Out->setMetadata(m_uint16Sub->metadata());
+            m_uint16Out->setMetadata(updateOutputMetadata(m_uint16Sub->metadata()));
             m_uint16Out->start();
             registerDataReceivedEvent(&SignalFilterModule::onUInt16Received, m_uint16Sub);
         }
@@ -337,6 +337,57 @@ private:
         }
 
         return true;
+    }
+
+    /**
+     * Derive the outgoing stream metadata from the source metadata, marking what
+     * the module filtered: channels selected for filtering at the start of the
+     * run get their "signal_names" entry suffixed with "_flt", and the dataset
+     * name proposal gets a "-filtered" suffix. The metadata is fixed when the
+     * stream starts, so live filter/channel changes during a run are not
+     * reflected here.
+     */
+    MetaStringMap updateOutputMetadata(const MetaStringMap &srcMeta) const
+    {
+        MetaStringMap meta = srcMeta;
+
+        // suffix the names of channels that are being filtered
+        if (const auto namesV = meta.value("signal_names"); namesV.has_value()) {
+            if (const auto arr = namesV->get<MetaArray>()) {
+                MetaArray names = *arr;
+                for (size_t ch = 0; ch < names.size(); ++ch) {
+                    const bool filtered = m_useAllChannels || m_selectedChannels.contains(static_cast<int>(ch));
+                    if (!filtered)
+                        continue;
+                    if (const auto name = names[ch].get<std::string>())
+                        names[ch] = *name + "_flt";
+                }
+                meta.insert("signal_names", names);
+            }
+        }
+
+        // Mark the recorded dataset as filtered.
+        const auto ProposedDataNameKey = CommonMetadataKeyMap->value(CommonMetadataKey::DataNameProposal);
+        std::string proposal = meta.valueOr<std::string>(ProposedDataNameKey, std::string{});
+        if (proposal.empty()) {
+            const auto srcName = meta.valueOr<std::string>(
+                CommonMetadataKeyMap->value(CommonMetadataKey::SrcModName),
+                std::string{});
+            if (!srcName.empty())
+                proposal = srcName + "/data";
+        }
+        if (!proposal.empty()) {
+            const auto slash = proposal.find('/');
+            if (slash == std::string::npos) {
+                proposal += "-flt";
+            } else {
+                proposal.insert(slash, "-flt");
+                proposal += "-filtered";
+            }
+            meta[ProposedDataNameKey] = proposal;
+        }
+
+        return meta;
     }
 
     /**
@@ -518,6 +569,10 @@ private:
                 if constexpr (isFloat) {
                     block.data(r, c) = static_cast<Scalar>(y);
                 } else {
+                    // Frequency filters remove the DC component, so the output swings around
+                    // zero. On unsigned types (U16) the negative half clamps to the type
+                    // minimum: filtering raw integer/unsigned DAQ samples is inherently lossy
+                    // and callers should prefer F32. The clamp keeps it safe (no wraparound).
                     const double clamped = std::clamp(std::nearbyint(y), scalarMin, scalarMax);
                     block.data(r, c) = static_cast<Scalar>(clamped);
                 }
