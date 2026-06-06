@@ -1033,8 +1033,8 @@ QString AbstractModule::datasetNameSuggestion(bool lowercase) const
 
 QString AbstractModule::datasetNameFromSubMetadata(const MetaStringMap &subMetadata) const
 {
-    const auto SrcModNameKey = _commonMetadataKeyMap->value(CommonMetadataKey::SrcModName);
-    const auto DataNameProposalKey = _commonMetadataKeyMap->value(CommonMetadataKey::DataNameProposal);
+    const auto SrcModNameKey = CommonMetadataKeyMap->value(CommonMetadataKey::SrcModName);
+    const auto DataNameProposalKey = CommonMetadataKeyMap->value(CommonMetadataKey::DataNameProposal);
 
     const auto srcModName = QString::fromStdString(subMetadata.valueOr<std::string>(SrcModNameKey, {}));
 
@@ -1061,7 +1061,7 @@ QString AbstractModule::datasetNameFromSubMetadata(const MetaStringMap &subMetad
 QString AbstractModule::dataBasenameFromSubMetadata(const MetaStringMap &subMetadata, const QString &defaultName)
 {
     auto dataName = qstr(
-        subMetadata.valueOr<std::string>(_commonMetadataKeyMap->value(CommonMetadataKey::DataNameProposal), ""));
+        subMetadata.valueOr<std::string>(CommonMetadataKeyMap->value(CommonMetadataKey::DataNameProposal), ""));
     if (dataName.contains('/')) {
         const auto parts = qStringSplitLimit(dataName, '/', 1);
         dataName = parts[1];

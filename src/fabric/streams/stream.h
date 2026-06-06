@@ -53,9 +53,9 @@ inline uint qHash(CommonMetadataKey key, uint seed)
 }
 
 // clang-format off
-typedef QHash<CommonMetadataKey, std::string> CommonMetadataKeyMap;
-Q_GLOBAL_STATIC_WITH_ARGS(CommonMetadataKeyMap,
-      _commonMetadataKeyMap,
+typedef QHash<CommonMetadataKey, std::string> CommonMetadataKeyMapType;
+Q_GLOBAL_STATIC_WITH_ARGS(CommonMetadataKeyMapType,
+      CommonMetadataKeyMap,
       ({
           {CommonMetadataKey::SrcModType, "src_mod_type"},
           {CommonMetadataKey::SrcModName, "src_mod_name"},
@@ -247,7 +247,7 @@ public:
 
     MetaValue metadataValue(CommonMetadataKey key, const MetaValue &defaultValue = nullptr) const override
     {
-        return m_metadata.valueOr(_commonMetadataKeyMap->value(key), defaultValue);
+        return m_metadata.valueOr(CommonMetadataKeyMap->value(key), defaultValue);
     }
 
     template<typename MT>
@@ -263,7 +263,7 @@ public:
     template<typename MT>
     [[nodiscard]] MT metadataValue(CommonMetadataKey key, MT fallback) const
     {
-        const auto v = metadata().value(_commonMetadataKeyMap->value(key));
+        const auto v = metadata().value(CommonMetadataKeyMap->value(key));
         return v.has_value() ? v->template getOr<MT>(std::move(fallback)) : std::move(fallback);
     }
 
@@ -545,7 +545,7 @@ public:
 
     void setSuggestedDataName(const QString &value)
     {
-        m_metadata[_commonMetadataKeyMap->value(CommonMetadataKey::DataNameProposal)] = value.toStdString();
+        m_metadata[CommonMetadataKeyMap->value(CommonMetadataKey::DataNameProposal)] = value.toStdString();
     }
 
     void removeMetadata(const QString &key)
@@ -555,10 +555,10 @@ public:
 
     void setCommonMetadata(const QString &srcModType, const QString &srcModName, const QString &portTitle) override
     {
-        setMetadataValue(_commonMetadataKeyMap->value(CommonMetadataKey::SrcModType), srcModType.toStdString());
-        setMetadataValue(_commonMetadataKeyMap->value(CommonMetadataKey::SrcModName), srcModName.toStdString());
+        setMetadataValue(CommonMetadataKeyMap->value(CommonMetadataKey::SrcModType), srcModType.toStdString());
+        setMetadataValue(CommonMetadataKeyMap->value(CommonMetadataKey::SrcModName), srcModName.toStdString());
         if (!portTitle.isEmpty())
-            setMetadataValue(_commonMetadataKeyMap->value(CommonMetadataKey::SrcModPortTitle), portTitle.toStdString());
+            setMetadataValue(CommonMetadataKeyMap->value(CommonMetadataKey::SrcModPortTitle), portTitle.toStdString());
     }
 
     std::shared_ptr<StreamSubscription<T>> subscribe()
@@ -775,10 +775,10 @@ private:
     QString streamDebugId()
     {
         const auto modName = m_metadata.valueOr<std::string>(
-            _commonMetadataKeyMap->value(CommonMetadataKey::SrcModName),
+            CommonMetadataKeyMap->value(CommonMetadataKey::SrcModName),
             "unknown-module");
         const auto portName = m_metadata.valueOr<std::string>(
-            _commonMetadataKeyMap->value(CommonMetadataKey::SrcModPortTitle),
+            CommonMetadataKeyMap->value(CommonMetadataKey::SrcModPortTitle),
             "unknown-port");
         const auto dataTypeStr = dataTypeName().toStdString();
         return QString::fromStdString(modName + "▶ " + portName + "[" + dataTypeStr + "]");
