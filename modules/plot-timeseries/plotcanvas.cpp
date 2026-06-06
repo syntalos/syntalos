@@ -24,7 +24,6 @@
 #include <cstdint>
 #include <cstring>
 #include <format>
-#include <functional>
 #include <mutex>
 #include <set>
 #include <string>
@@ -36,6 +35,7 @@
 #include <imgui.h>
 #include <implot.h>
 #include <implot_internal.h>
+#include <xxhash.h>
 
 template<typename T>
 class RingBuffer
@@ -193,29 +193,23 @@ constexpr float kSplitterHeight = 6.0f;
 constexpr float kMinGraphHeight = 60.0f;
 
 /**
- * splitmix64 finalizer: avalanche-mix a seed so that identities differing only
- * by a suffix (e.g. "Low+High" vs "Low+High_flt") scatter to unrelated bits
- * instead of landing in nearby hue buckets.
- */
-static uint64_t avalanche(uint64_t x)
-{
-    x += 0x9E3779B97F4A7C15ull;
-    x = (x ^ (x >> 30)) * 0xBF58476D1CE4E5B9ull;
-    x = (x ^ (x >> 27)) * 0x94D049BB133111EBull;
-    return x ^ (x >> 31);
-}
-
-/**
  * Get a deterministic series color from a channel's stable identity: its signal
  * name when it has one, or its column index otherwise.
  */
 static ImVec4 colorForChannel(const std::string &portId, const std::string &name, int colIdx)
 {
     // Combine the port with the channel's own identity so that two ports sharing
-    // a signal name don't collapse to the same color. The multiply spreads the low-entropy
-    // colIdx fallback into the high bits that sat/val read, and breaks port/name symmetry.
-    const uint64_t nameSeed = name.empty() ? std::hash<int>{}(colIdx) : std::hash<std::string>{}(name);
-    const uint64_t h = avalanche(std::hash<std::string>{}(portId) ^ (nameSeed * 0x9E3779B97F4A7C15ull));
+    // a signal name don't collapse to the same color.
+    // XXH3 is deterministic across runs (unlike std::hash) and avalanches suffix
+    // differences (e.g. "Low+High" vs "Low+High_flt") across all 64 bits, so it
+    // is ideal to use here for reliable and mostly-distinct color choices.
+    std::string key = portId;
+    key.push_back('\0');
+    if (name.empty())
+        key.append(reinterpret_cast<const char *>(&colIdx), sizeof(colIdx));
+    else
+        key += name;
+    const uint64_t h = XXH3_64bits(key.data(), key.size());
 
     constexpr float satLevels[] = {0.55f, 0.72f, 0.88f, 1.00f};
     constexpr float valLevels[] = {0.68f, 0.80f, 0.92f, 1.00f};

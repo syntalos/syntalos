@@ -20,7 +20,10 @@ module_ui = [
     'plotwindow.ui',
 ]
 
-module_deps = [syntalos_imgui_dep]
+module_deps = [
+    syntalos_imgui_dep,
+    xxhash_dep,
+]
 
 module_data = [
     'plot-timeseries.svg',
