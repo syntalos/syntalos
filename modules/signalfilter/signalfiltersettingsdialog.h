@@ -63,6 +63,12 @@ Q_SIGNALS:
     /// Emitted when the input type changes (requires port reconfiguration).
     void settingsChanged();
 
+    /// Emitted when the channel selection changes (can be applied live).
+    void channelsChanged();
+
+    /// Emitted when the filter stage list or any stage parameter changes (live).
+    void stagesChanged();
+
 private:
     void rebuildStageList();
     void selectStage(int index);

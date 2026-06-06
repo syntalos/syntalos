@@ -58,6 +58,14 @@ SignalFilterSettingsDialog::SignalFilterSettingsDialog(QWidget *parent)
 
     connect(ui->rbSelectedChannels, &QRadioButton::toggled, ui->leChannels, &QLineEdit::setEnabled);
 
+    // channel selection can be changed live during a run
+    connect(ui->rbAllChannels, &QRadioButton::toggled, this, [this]() {
+        Q_EMIT channelsChanged();
+    });
+    connect(ui->leChannels, &QLineEdit::textChanged, this, [this]() {
+        Q_EMIT channelsChanged();
+    });
+
     connect(ui->lwStages, &QListWidget::currentRowChanged, this, [this](int row) {
         if (m_loading)
             return;
@@ -72,6 +80,7 @@ SignalFilterSettingsDialog::SignalFilterSettingsDialog(QWidget *parent)
         m_stages.emplace_back();
         rebuildStageList();
         ui->lwStages->setCurrentRow(static_cast<int>(m_stages.size()) - 1);
+        Q_EMIT stagesChanged();
     });
     connect(ui->tbRemoveStage, &QToolButton::clicked, this, [this]() {
         if (m_currentIndex < 0 || m_currentIndex >= static_cast<int>(m_stages.size()))
@@ -85,6 +94,7 @@ SignalFilterSettingsDialog::SignalFilterSettingsDialog(QWidget *parent)
             m_currentIndex = -1;
             ui->gbStageEditor->setEnabled(false);
         }
+        Q_EMIT stagesChanged();
     });
     connect(ui->tbStageUp, &QToolButton::clicked, this, [this]() {
         if (m_currentIndex <= 0)
@@ -93,6 +103,7 @@ SignalFilterSettingsDialog::SignalFilterSettingsDialog(QWidget *parent)
         const int target = m_currentIndex - 1;
         rebuildStageList();
         ui->lwStages->setCurrentRow(target);
+        Q_EMIT stagesChanged();
     });
     connect(ui->tbStageDown, &QToolButton::clicked, this, [this]() {
         if (m_currentIndex < 0 || m_currentIndex >= static_cast<int>(m_stages.size()) - 1)
@@ -101,6 +112,7 @@ SignalFilterSettingsDialog::SignalFilterSettingsDialog(QWidget *parent)
         const int target = m_currentIndex + 1;
         rebuildStageList();
         ui->lwStages->setCurrentRow(target);
+        Q_EMIT stagesChanged();
     });
 
     // editor widget changes write back into the current stage
@@ -183,10 +195,9 @@ void SignalFilterSettingsDialog::setStages(const std::vector<FilterStage> &stage
 
 void SignalFilterSettingsDialog::setRunning(bool running)
 {
-    // The port topology and filter design must not change during a run.
+    // Only the input type changes the port topology, so it must stay locked
+    // during a run. Channel selection and the filter design can be tuned live.
     ui->inputTypeSel->setEnabled(!running);
-    ui->gbChannels->setEnabled(!running);
-    ui->gbStages->setEnabled(!running);
 }
 
 static QString sosToText(const std::vector<std::array<double, 6>> &sos)
@@ -314,6 +325,8 @@ void SignalFilterSettingsDialog::writeEditorToStage()
 
     if (auto *item = ui->lwStages->item(m_currentIndex))
         item->setText(stageLabel(st));
+
+    Q_EMIT stagesChanged();
 }
 
 void SignalFilterSettingsDialog::updateSosStatus()

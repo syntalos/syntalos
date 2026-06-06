@@ -212,10 +212,25 @@ bool FilterPipeline::needsSampleRate() const
     return false;
 }
 
+/**
+ * Fill the per-channel active gate from a selection mask. An empty mask means
+ * "all channels active".
+ */
+static void fillActive(std::vector<char> &active, int channelCount, const std::vector<bool> &mask)
+{
+    active.assign(static_cast<size_t>(channelCount), 1);
+    if (!mask.empty()) {
+        for (int ch = 0; ch < channelCount; ++ch)
+            active[static_cast<size_t>(ch)] = (ch < static_cast<int>(mask.size()) && mask[static_cast<size_t>(ch)]) ? 1
+                                                                                                                    : 0;
+    }
+}
+
 bool FilterPipeline::build(int channelCount, const std::vector<bool> &channelMask, std::string *error)
 {
     m_channelCount = -1;
     m_channelFilters.clear();
+    m_active.clear();
 
     if (channelCount <= 0) {
         if (error)
@@ -224,14 +239,10 @@ bool FilterPipeline::build(int channelCount, const std::vector<bool> &channelMas
     }
 
     try {
+        // Build the filter chain for every channel; the mask only gates which
+        // ones are active, so channels can be toggled live without a rebuild.
         m_channelFilters.resize(static_cast<size_t>(channelCount));
         for (int ch = 0; ch < channelCount; ++ch) {
-            const bool selected = channelMask.empty()
-                                  || (ch < static_cast<int>(channelMask.size())
-                                      && channelMask[static_cast<size_t>(ch)]);
-            if (!selected)
-                continue; // leave an empty chain -> bypass
-
             auto &chain = m_channelFilters[static_cast<size_t>(ch)];
             chain.reserve(m_stages.size());
             for (const auto &st : m_stages)
@@ -244,8 +255,16 @@ bool FilterPipeline::build(int channelCount, const std::vector<bool> &channelMas
         return false;
     }
 
+    fillActive(m_active, channelCount, channelMask);
     m_channelCount = channelCount;
     return true;
+}
+
+void FilterPipeline::setChannelMask(const std::vector<bool> &channelMask)
+{
+    if (m_channelCount <= 0)
+        return; // not built yet; the mask is applied at the next build()
+    fillActive(m_active, m_channelCount, channelMask);
 }
 
 void FilterPipeline::reset()

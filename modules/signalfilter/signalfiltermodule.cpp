@@ -20,8 +20,10 @@
 #include "signalfiltermodule.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <limits>
+#include <mutex>
 #include <set>
 #include <type_traits>
 
@@ -105,6 +107,18 @@ private:
     bool m_useAllChannels;
     std::set<int> m_selectedChannels;
 
+    // Live reconfiguration. The GUI thread deposits the desired channel/stage
+    // config here; the processing thread applies it at a block boundary. The
+    // per-sample hot path never locks — it only reads the already-applied
+    // pipeline state. m_hasLiveUpdate is the cheap "anything pending?" flag.
+    std::mutex m_liveMutex;
+    std::atomic<bool> m_hasLiveUpdate{false};
+    bool m_pendingStages = false;
+    bool m_pendingMask = false;
+    std::vector<FilterStage> m_pendingStageList;
+    bool m_pendingUseAll = true;
+    std::set<int> m_pendingChannels;
+
 public:
     explicit SignalFilterModule(SignalFilterModuleInfo *modInfo, QObject *parent = nullptr)
         : AbstractModule(parent),
@@ -118,6 +132,15 @@ public:
 
         connect(m_settingsDlg, &SignalFilterSettingsDialog::settingsChanged, this, [this]() {
             updatePortConfiguration();
+        });
+
+        // Live changes during a run: deposit the new config; the processing
+        // thread picks it up at the next block boundary.
+        connect(m_settingsDlg, &SignalFilterSettingsDialog::channelsChanged, this, [this]() {
+            queueLiveChannelUpdate();
+        });
+        connect(m_settingsDlg, &SignalFilterSettingsDialog::stagesChanged, this, [this]() {
+            queueLiveStageUpdate();
         });
     }
 
@@ -184,23 +207,17 @@ public:
         m_kind = SignalKind::None;
         m_settingsDlg->setRunning(true);
 
+        // discard any live updates queued before this run started
+        {
+            std::lock_guard<std::mutex> lk(m_liveMutex);
+            m_pendingStages = false;
+            m_pendingMask = false;
+            m_hasLiveUpdate.store(false, std::memory_order_release);
+        }
+
         // configure the pipeline from the current settings; channel count is
         // discovered from the first data block, so the actual build is lazy
         const auto stages = m_settingsDlg->stages();
-
-        // validate the filter design up front so a misconfiguration is reported
-        // immediately instead of silently producing a pass-through run
-        for (size_t i = 0; i < stages.size(); ++i) {
-            if (stages[i].family == FilterFamily::CustomSOS && !stages[i].sosValid) {
-                raiseError(QStringLiteral(
-                               "Filter stage %1 is a Custom (SOS) filter with invalid or "
-                               "missing coefficients. Enter second-order-sections (6 numbers "
-                               "per line: b0 b1 b2 a0 a1 a2) in the settings, or remove the stage.")
-                               .arg(i + 1));
-                return false;
-            }
-        }
-
         m_pipeline.setStages(stages);
         m_useAllChannels = m_settingsDlg->useAllChannels();
         m_selectedChannels = m_useAllChannels ? std::set<int>{}
@@ -243,6 +260,13 @@ public:
             // nothing connected: nothing to do this run
             setStateDormant();
             return true;
+        }
+
+        // now that the sample rate is known, validate the whole filter design
+        QString verr;
+        if (!validateStagesLive(stages, &verr)) {
+            raiseError(QStringLiteral("Filter configuration is invalid: %1.").arg(verr));
+            return false;
         }
 
         setStateReady();
@@ -315,11 +339,142 @@ private:
         return true;
     }
 
+    /**
+     * Build a channel mask for @p nCols from the current selection (empty = all).
+     */
+    std::vector<bool> maskFor(int nCols) const
+    {
+        std::vector<bool> mask;
+        if (!m_useAllChannels) {
+            mask.assign(static_cast<size_t>(nCols), false);
+            for (int ch : m_selectedChannels)
+                if (ch < nCols)
+                    mask[static_cast<size_t>(ch)] = true;
+        }
+        return mask;
+    }
+
+    /**
+     * Validate a stage list against the running input: SOS coefficients, sample
+     * rate, and frequency ranges. Rejecting out-of-range frequencies here is what
+     * lets transient values (e.g. a momentary 0 Hz while the user edits a field)
+     * be ignored instead of crashing filter construction and stopping the run.
+     */
+    bool validateStagesLive(const std::vector<FilterStage> &stages, QString *err) const
+    {
+        const auto fail = [err](const QString &msg) {
+            if (err)
+                *err = msg;
+            return false;
+        };
+
+        for (size_t i = 0; i < stages.size(); ++i) {
+            const auto &s = stages[i];
+            const int n = static_cast<int>(i + 1);
+
+            if (s.family == FilterFamily::CustomSOS) {
+                if (!s.sosValid)
+                    return fail(QStringLiteral("stage %1 has invalid Custom (SOS) coefficients").arg(n));
+                continue;
+            }
+
+            // every other family is frequency-based and needs a valid sample rate
+            if (!(m_sampleRate > 0.0))
+                return fail(QStringLiteral("stage %1 needs a sample rate the input does not provide").arg(n));
+
+            const double nyquist = m_sampleRate / 2.0;
+
+            // cutoff / centre must sit strictly inside (0, Nyquist)
+            if (!(s.freq1 > 0.0 && s.freq1 < nyquist))
+                return fail(
+                    QStringLiteral("stage %1 frequency must be between 0 and %2 Hz").arg(n).arg(nyquist, 0, 'g', 4));
+
+            // band filters additionally need a positive width that keeps the band in range
+            const bool isPole = s.family == FilterFamily::Butterworth || s.family == FilterFamily::ChebyshevI
+                                || s.family == FilterFamily::ChebyshevII;
+            const bool isBand = isPole
+                                && (s.response == FilterResponse::BandPass || s.response == FilterResponse::BandStop);
+            if (isBand && !(s.freq2 > 0.0 && s.freq1 - s.freq2 / 2.0 > 0.0 && s.freq1 + s.freq2 / 2.0 < nyquist))
+                return fail(QStringLiteral("stage %1 band (centre %2 Hz, width %3 Hz) is out of range")
+                                .arg(n)
+                                .arg(s.freq1)
+                                .arg(s.freq2));
+        }
+        return true;
+    }
+
+    // --- live reconfiguration: GUI thread deposits, processing thread applies ---
+
+    void queueLiveChannelUpdate()
+    {
+        if (!m_running)
+            return; // not running: prepare() reads the dialog directly
+        std::lock_guard<std::mutex> lk(m_liveMutex);
+        m_pendingUseAll = m_settingsDlg->useAllChannels();
+        m_pendingChannels = parseChannelRanges(m_settingsDlg->channelSelectionText());
+        m_pendingMask = true;
+        m_hasLiveUpdate.store(true, std::memory_order_release);
+    }
+
+    void queueLiveStageUpdate()
+    {
+        if (!m_running)
+            return;
+        std::lock_guard<std::mutex> lk(m_liveMutex);
+        m_pendingStageList = m_settingsDlg->stages();
+        m_pendingStages = true;
+        m_hasLiveUpdate.store(true, std::memory_order_release);
+    }
+
+    void applyLiveUpdates()
+    {
+        if (!m_hasLiveUpdate.load(std::memory_order_acquire))
+            return;
+
+        bool doStages, doMask;
+        std::vector<FilterStage> stages;
+        bool useAll = true;
+        std::set<int> channels;
+        {
+            std::lock_guard<std::mutex> lk(m_liveMutex);
+            m_hasLiveUpdate.store(false, std::memory_order_release);
+            doStages = m_pendingStages;
+            doMask = m_pendingMask;
+            m_pendingStages = false;
+            m_pendingMask = false;
+            stages = m_pendingStageList;
+            useAll = m_pendingUseAll;
+            channels = m_pendingChannels;
+        }
+
+        if (doStages) {
+            QString err;
+            if (validateStagesLive(stages, &err)) {
+                m_pipeline.setStages(stages); // forces a rebuild on the next block
+            } else {
+                // Keep the previous (valid) filter running; the dialog already
+                // flags the problem inline, so just note it in the log.
+                LOG_WARNING(m_log, "Ignoring live filter change: {}", err.toStdString());
+            }
+        }
+
+        if (doMask) {
+            m_useAllChannels = useAll;
+            m_selectedChannels = channels;
+            const int nc = m_pipeline.channelCount();
+            if (nc > 0)
+                m_pipeline.setChannelMask(maskFor(nc));
+        }
+    }
+
     template<typename SubT, typename OutT>
     void processBlocks(SubT &sub, OutT &out)
     {
         if (!sub || !out)
             return;
+
+        // Apply any GUI-driven channel/filter changes at this block boundary.
+        applyLiveUpdates();
 
         // Drain everything queued to keep the subscription from backing up.
         while (true) {
@@ -344,15 +499,8 @@ private:
 
         // (Re)build per-channel filters when the channel count changes.
         if (!m_pipeline.isBuiltFor(nCols)) {
-            std::vector<bool> mask;
-            if (!m_useAllChannels) {
-                mask.assign(static_cast<size_t>(nCols), false);
-                for (int ch : m_selectedChannels)
-                    if (ch < nCols)
-                        mask[static_cast<size_t>(ch)] = true;
-            }
             std::string err;
-            if (!m_pipeline.build(nCols, mask, &err)) {
+            if (!m_pipeline.build(nCols, maskFor(nCols), &err)) {
                 raiseError(QStringLiteral("Failed to construct filter: %1").arg(QString::fromStdString(err)));
                 return;
             }

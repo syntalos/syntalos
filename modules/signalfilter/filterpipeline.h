@@ -160,12 +160,30 @@ public:
 
     /**
      * @brief (Re)build per-channel filter instances for @p channelCount channels.
-     * @param channelMask one bool per channel; channels with false are bypassed.
+     *
+     * Filters are built for *every* channel; @p channelMask only decides which
+     * channels are initially active. This lets channels be toggled live (via
+     * @ref setChannelMask) without rebuilding or losing filter state.
+     * @param channelMask one bool per channel; false = passed through unfiltered.
      *        An empty mask means "all channels".
      * @param error optional, receives a human-readable message on failure.
      * @return false on failure (the pipeline is then left unbuilt).
      */
     bool build(int channelCount, const std::vector<bool> &channelMask, std::string *error = nullptr);
+
+    /// Number of channels the pipeline is currently built for (<=0 if unbuilt).
+    [[nodiscard]] int channelCount() const
+    {
+        return m_channelCount;
+    }
+
+    /**
+     * @brief Update which channels are filtered, without rebuilding.
+     *
+     * Cheap and state-preserving — intended for live changes during a run.
+     * An empty mask means "all channels". No-op if the pipeline is not built.
+     */
+    void setChannelMask(const std::vector<bool> &channelMask);
 
     /// Reset all delay lines without rebuilding the coefficients.
     void reset();
@@ -178,7 +196,7 @@ public:
      */
     inline double processSample(int ch, double x)
     {
-        if (ch < 0 || ch >= static_cast<int>(m_channelFilters.size()))
+        if (ch < 0 || ch >= m_channelCount || !m_active[static_cast<size_t>(ch)])
             return x;
         auto &chain = m_channelFilters[static_cast<size_t>(ch)];
         for (auto &f : chain)
@@ -191,6 +209,8 @@ private:
     std::vector<FilterStage> m_stages;
     double m_sampleRate = -1.0;
     int m_channelCount = -1;
-    // [channel][stage]; an empty inner vector means the channel is bypassed.
+    // [channel][stage]; filters are built for every channel.
     std::vector<std::vector<std::unique_ptr<IStageFilter>>> m_channelFilters;
+    // Per-channel gate: 0 = pass through unfiltered, 1 = run the filter chain.
+    std::vector<char> m_active;
 };
