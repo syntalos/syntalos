@@ -6,6 +6,7 @@
 #include <QClipboard>
 #include <QCursor>
 #include <cfloat>
+#include <clocale>
 
 #ifdef ANDROID
 #define GL_VERTEX_ARRAY_BINDING 0x85B5 // Missing in android as of May 2020
@@ -76,6 +77,13 @@ void ImGuiRenderer::initialize(WindowWrapper *window)
 
     g_ctx = ImGui::CreateContext();
     ImGui::SetCurrentContext(g_ctx);
+
+    // Make ImGui's numeric input filter agree with the C runtime locale that
+    // its own printf/scanf use, so e.g. on a German locale a typed ',' stays
+    // ',' instead of being rewritten to '.' (and mis-parsed back).
+    const char *decimalPoint = localeconv()->decimal_point;
+    if (decimalPoint && decimalPoint[0] != '\0')
+        ImGui::GetPlatformIO().Platform_LocaleDecimalPoint = (ImWchar)decimalPoint[0];
 
     // Setup backend capabilities flags
     ImGuiIO &io = ImGui::GetIO();
