@@ -20,6 +20,7 @@
 #include "datasourcemodule.h"
 
 #include <algorithm>
+#include <cmath>
 #include <format>
 #include <QInputDialog>
 #include <opencv2/opencv.hpp>
@@ -46,15 +47,23 @@ private:
     microseconds_t m_prevFrameTime;
 
     time_t m_prevRowTime;
-    time_t m_prevTimeSData;
-    int m_prevIntValue;
+
+    // sample-rate driven, deterministic signal generation
+    double m_sampleRate;
+    double m_freqLow;
+    double m_freqHigh;
+    uint64_t m_sampleCount;
 
 public:
     explicit DataSourceModule(QObject *parent = nullptr)
         : AbstractModule(parent),
           m_fps(200),
           m_outFrameSize(QSize(960, 600)),
-          m_colorVideo(true)
+          m_colorVideo(true),
+          m_sampleRate(2000.0),
+          m_freqLow(10.0),
+          m_freqHigh(300.0),
+          m_sampleCount(0)
     {
         m_frameOut = registerOutputPort<Frame>(QStringLiteral("frames-out"), QStringLiteral("Frames"));
         m_rowsOut = registerOutputPort<TableRow>(QStringLiteral("rows-out"), QStringLiteral("Table Rows"));
@@ -99,6 +108,9 @@ public:
     {
         settings.insert(QStringLiteral("fps"), m_fps);
         settings.insert(QStringLiteral("color_video"), m_colorVideo);
+        settings.insert(QStringLiteral("sample_rate"), m_sampleRate);
+        settings.insert(QStringLiteral("test_freq_low"), m_freqLow);
+        settings.insert(QStringLiteral("test_freq_high"), m_freqHigh);
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
@@ -106,6 +118,9 @@ public:
         const int fps = settings.value(QStringLiteral("fps"), 200).toInt();
         m_fps = std::clamp(fps, 2, 10000);
         m_colorVideo = settings.value(QStringLiteral("color_video"), true).toBool();
+        m_sampleRate = std::clamp(settings.value(QStringLiteral("sample_rate"), 2000.0).toDouble(), 1.0, 1000000.0);
+        m_freqLow = settings.value(QStringLiteral("test_freq_low"), 10.0).toDouble();
+        m_freqHigh = settings.value(QStringLiteral("test_freq_high"), 300.0).toDouble();
 
         return true;
     }
@@ -122,21 +137,23 @@ public:
         m_rowsOut->start();
         m_prevRowTime = 0;
 
-        m_prevTimeSData = 0;
-        m_prevIntValue = 0;
-        m_floatOut->setMetadataValue("signal_names", MetaArray{"Sine 1", "Sine 2", "Sine 3"});
+        m_sampleCount = 0;
+        m_floatOut->setMetadataValue("signal_names", MetaArray{"Low", "High", "Low+High"});
         m_floatOut->setMetadataValue("time_unit", "microseconds");
         m_floatOut->setMetadataValue("data_unit", "au");
+        m_floatOut->setMetadataValue("sample_rate", m_sampleRate);
         m_floatOut->start();
 
-        m_intOut->setMetadataValue("signal_names", MetaArray{"Int 1"});
+        m_intOut->setMetadataValue("signal_names", MetaArray{"Int Low"});
         m_intOut->setMetadataValue("time_unit", "microseconds");
         m_intOut->setMetadataValue("data_unit", "au");
+        m_intOut->setMetadataValue("sample_rate", m_sampleRate);
         m_intOut->start();
 
-        m_uint16Out->setMetadataValue("signal_names", MetaArray{"U16 1", "U16 2"});
+        m_uint16Out->setMetadataValue("signal_names", MetaArray{"U16 Low", "U16 High"});
         m_uint16Out->setMetadataValue("time_unit", "microseconds");
         m_uint16Out->setMetadataValue("data_unit", "au");
+        m_uint16Out->setMetadataValue("sample_rate", m_sampleRate);
         m_uint16Out->start();
 
         m_fctlOut->start();
@@ -156,7 +173,6 @@ public:
             if (row.has_value())
                 m_rowsOut->push(row.value());
 
-            const auto usec = m_syTimer->timeSinceStartUsec().count();
             const auto msec = m_syTimer->timeSinceStartMsec().count();
             if (((msec / 1000) % 3) == 0) {
                 LineCommand lcmd(LineCommandKind::WRITE_DIGITAL, 2);
@@ -164,46 +180,41 @@ public:
                 m_fctlOut->push(lcmd);
             }
 
-            if ((usec > m_prevTimeSData) && (msec % 2) == 0) {
-                SignalBlockF32 fsb(2, 3);
-                fsb.timestamps[0] = usec - 1;
-                fsb.timestamps[1] = usec;
-                fsb.data(0, 0) = 0.5f * sinf(50 * ((msec - 1) / 20));
-                fsb.data(1, 0) = 0.5f * sinf(50 * (msec / 20));
+            // Deterministic, sample-rate-driven signal generation. Each value is a
+            // pure function of the running sample index, so a recorded run is exactly
+            // reproducible regardless of wall-clock pacing. One block of blockLen
+            // samples is emitted per loop iteration; the loop is paced to m_fps by
+            // the frame sleep above, so the effective rate is ~m_fps*blockLen.
+            const int blockLen = std::max(1, static_cast<int>(std::lround(m_sampleRate / m_fps)));
 
-                fsb.data(0, 1) = 0.25f * sinf(50 * ((msec - 1) / 5) + 1.5);
-                fsb.data(1, 1) = 0.25f * sinf(50 * (msec / 5) + 1.5);
+            SignalBlockF32 fsb(blockLen, 3);
+            SignalBlockI32 isb(blockLen, 1);
+            SignalBlockU16 usb(blockLen, 2);
+            for (int i = 0; i < blockLen; ++i) {
+                const uint64_t n = m_sampleCount + static_cast<uint64_t>(i);
+                const double t = static_cast<double>(n) / m_sampleRate;
+                const uint64_t ts = static_cast<uint64_t>(std::llround(static_cast<double>(n) * 1e6 / m_sampleRate));
 
-                fsb.data(0, 2) = 0.4f * sinf(50 * ((msec - 1) / 200));
-                fsb.data(1, 2) = 0.4f * sinf(50 * (msec / 200));
-                m_floatOut->push(fsb);
+                const double lo = 0.5 * std::sin(2.0 * M_PI * m_freqLow * t);
+                const double hi = 0.5 * std::sin(2.0 * M_PI * m_freqHigh * t);
 
-                SignalBlockI32 isb(2, 1);
-                isb.timestamps[0] = usec - 1;
-                isb.timestamps[1] = usec;
-                if (m_prevIntValue > 10) {
-                    isb.data(0, 0) = 8;
-                    isb.data(1, 0) = 2;
-                    m_prevIntValue = 0;
-                } else {
-                    isb.data(0, 0) = m_prevIntValue;
-                    isb.data(1, 0) = m_prevIntValue;
-                    m_prevIntValue++;
-                }
-                m_intOut->push(isb);
+                fsb.timestamps[i] = ts;
+                fsb.data(i, 0) = static_cast<float>(lo);
+                fsb.data(i, 1) = static_cast<float>(hi);
+                fsb.data(i, 2) = static_cast<float>(lo + hi);
 
-                SignalBlockU16 usb(2, 2);
-                usb.timestamps[0] = usec - 1;
-                usb.timestamps[1] = usec;
-                const uint16_t base = static_cast<uint16_t>(msec & 0xFFFF);
-                usb.data(0, 0) = base;
-                usb.data(1, 0) = static_cast<uint16_t>(base + 1);
-                usb.data(0, 1) = static_cast<uint16_t>(60000 - base);
-                usb.data(1, 1) = static_cast<uint16_t>(60000 - base - 1);
-                m_uint16Out->push(usb);
+                isb.timestamps[i] = ts;
+                isb.data(i, 0) = static_cast<int32_t>(std::lround(1000.0 * lo));
 
-                m_prevTimeSData = usec;
+                usb.timestamps[i] = ts;
+                usb.data(i, 0) = static_cast<uint16_t>(std::lround(2000.0 + 1000.0 * lo));
+                usb.data(i, 1) = static_cast<uint16_t>(std::lround(2000.0 + 1000.0 * hi));
             }
+            m_sampleCount += static_cast<uint64_t>(blockLen);
+
+            m_floatOut->push(std::move(fsb));
+            m_intOut->push(std::move(isb));
+            m_uint16Out->push(std::move(usb));
 
             dataIndex++;
         }

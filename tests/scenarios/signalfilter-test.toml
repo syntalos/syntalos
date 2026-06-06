@@ -1,0 +1,7 @@
+[test]
+name = "Signal Filter Test"
+project_file = "projects/signalfilter-test.syct"
+run_duration_sec = 8
+expected_exit_code = 0
+expected_datasets = ["raw_input", "filtered_butter_hp", "filtered_custom_lp"]
+validator_script = "signalfilter_validator.py"
