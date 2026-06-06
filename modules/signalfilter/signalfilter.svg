@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   width="64"
+   height="64"
+   viewBox="0 0 64 64"
+   version="1.1"
+   id="svg3"
+   sodipodi:docname="signalfilter.svg"
+   xml:space="preserve"
+   inkscape:version="1.4.3 (0d15f75042, 2025-12-25)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:xlink="http://www.w3.org/1999/xlink"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg"><defs
+     id="defs3"><style
+       type="text/css"
+       id="current-color-scheme">
+      .ColorScheme-Text {
+        color:#232629;
+      }
+      </style><style
+       type="text/css"
+       id="current-color-scheme-3">
+   .ColorScheme-Text { color:#444444; } .ColorScheme-Highlight { color:#4285f4; }
+  </style><style
+       id="style1">.cls-1{isolation:isolate;}.cls-1,.cls-2,.cls-3,.cls-4,.cls-5,.cls-6{fill:none;}.cls-7{fill:#fff;}.cls-2{stroke:#ea6a3f;}.cls-2,.cls-3,.cls-4,.cls-5,.cls-6{mix-blend-mode:multiply;stroke-linecap:round;stroke-miterlimit:10;stroke-width:3.59px;}.cls-3{stroke:#fbd026;}.cls-4{stroke:#d6aacd;}.cls-5{stroke:#2fb6df;}.cls-6{stroke:#b5b5b6;}</style><style
+       type="text/css"
+       id="current-color-scheme-6">
+      .ColorScheme-Text {
+        color:#232629;
+      }
+      .ColorScheme-Accent {
+        color:#3daee9;
+      }
+      </style><style
+       type="text/css"
+       id="current-color-scheme-7">
+      .ColorScheme-Text {
+        color:#232629;
+      }
+      </style><style
+       type="text/css"
+       id="current-color-scheme-1">
+      .ColorScheme-Text {
+        color:#232629;
+      }
+      </style><linearGradient
+       id="linearGradient3794"><stop
+         style="stop-color:#000000;stop-opacity:0.95255476;"
+         offset="0"
+         id="stop3796" /><stop
+         style="stop-color:#191919;stop-opacity:0.73357666;"
+         offset="1"
+         id="stop3798" /></linearGradient><linearGradient
+       id="linearGradient3776"><stop
+         style="stop-color:#3f3f3f;stop-opacity:0.79044116;"
+         offset="0"
+         id="stop3778" /><stop
+         style="stop-color:#1d1d1d;stop-opacity:1;"
+         offset="1"
+         id="stop3780" /></linearGradient><linearGradient
+       id="linearGradient3768"><stop
+         style="stop-color:#818181;stop-opacity:1;"
+         offset="0"
+         id="stop3770" /><stop
+         style="stop-color:#303030;stop-opacity:0;"
+         offset="1"
+         id="stop3772" /></linearGradient><inkscape:perspective
+       sodipodi:type="inkscape:persp3d"
+       inkscape:vp_x="0 : 526.18109 : 1"
+       inkscape:vp_y="0 : 1000 : 0"
+       inkscape:vp_z="744.09448 : 526.18109 : 1"
+       inkscape:persp3d-origin="372.04724 : 350.78739 : 1"
+       id="perspective2821" /><radialGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient3768"
+       id="radialGradient3774"
+       cx="13.100633"
+       cy="16.30242"
+       fx="13.100633"
+       fy="16.30242"
+       r="13.426"
+       gradientTransform="matrix(1,0,0,1.0572024,0,-0.9325382)"
+       gradientUnits="userSpaceOnUse" /><radialGradient
+       inkscape:collect="always"
+       xlink:href="#linearGradient3776"
+       id="radialGradient3782"
+       cx="13.100633"
+       cy="16.30242"
+       fx="13.100633"
+       fy="16.30242"
+       r="13.426"
+       gradientTransform="matrix(1,0,0,1.0572024,0,-0.9325382)"
+       gradientUnits="userSpaceOnUse" /><style
+       type="text/css"
+       id="current-color-scheme-0">
+      .ColorScheme-Text {
+        color:#232629;
+      }
+      </style><style
+       type="text/css"
+       id="current-color-scheme-60">
+      .ColorScheme-Text {
+        color:#232629;
+      }
+      </style></defs><sodipodi:namedview
+     id="namedview3"
+     pagecolor="#ffffff"
+     bordercolor="#999999"
+     borderopacity="1"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="9.0859375"
+     inkscape:cx="15.298366"
+     inkscape:cy="27.239897"
+     inkscape:window-width="2560"
+     inkscape:window-height="1376"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g5" /><!--
+    Signal filter icon: a noisy signal (purple, jagged) is poured through a
+    filter funnel and emerges as a clean smooth wave (cyan).
+    Colors are theme-agnostic mid-tones on purpose: Syntalos loads module SVGs
+    with a plain QIcon and does no ColorScheme/palette recoloring, so the icon
+    must read on both light and dark UI themes without relying on currentColor.
+  --><!-- noisy input --><!-- filter funnel --><!-- clean output --><g
+     id="g878"
+     transform="matrix(0.8187847,0,0,0.8187847,-41.980266,83.164522)"><g
+       id="g4"><g
+         id="g5"
+         style="stroke-width:1.00026;stroke-dasharray:none"
+         transform="translate(-0.61066142,-0.74642619)"><g
+           id="g1"
+           transform="translate(0,1.4477993)"><path
+             style="fill:none;stroke:#a14fd0;stroke-width:3.4197;stroke-linecap:round;stroke-linejoin:round;stroke-dasharray:none"
+             d="m 59.82069,-86.182019 3.663967,-0.610662 2.442645,0.732794 2.442644,-0.610661 1.954116,0.488529 0.854925,-7.694331 0.854926,9.648446 0.854926,-2.19838 2.809041,0.244265 2.442645,-0.610662 2.442644,0.610662 1.831984,-0.244265 0.854925,-9.037785 0.977058,11.968959 0.854926,-3.053306 2.809041,0.366397 2.442645,-0.610662 2.442644,0.732794 2.442645,-0.488529 1.831983,0.244264 0.854926,-6.228743 0.977058,7.816462 0.854925,-1.709851 2.809041,0.244265 2.44265,-0.610662 2.44264,0.610662 2.44264,-0.366397 1.95412,0.244264 0.85493,-4.763157 0.85492,5.98448 0.85493,-1.343455 2.80904,0.122132 2.44264,0.122133 2.44265,-0.488529"
+             id="path1" /><path
+             style="fill:none;stroke:#21bdef;stroke-width:3;stroke-linecap:round;stroke-dasharray:none"
+             d="m 7,54 c 3.6,-5 8.4,-5 12,0 3.6,5 8.4,5 12,0 3.6,-5 8.4,-5 12,0 3.6,5 8.4,5 12,0 1,-1.3 2,-1.7 3,-1.4"
+             id="path3"
+             transform="matrix(1.2213223,0,0,1.2213223,51.271434,-101.57068)" /><g
+             id="g3"
+             transform="translate(0,-0.61066116)"
+             style="stroke-width:1.00026;stroke-dasharray:none"><path
+               style="fill:#6a5b88;fill-opacity:1;stroke:none;stroke-width:1.00026;stroke-dasharray:none"
+               d="m 71.542925,-79.847337 -2.473264,2.47327 v 4.856869 c 0.105251,0.07651 15.302878,20.406326 15.302878,20.406326 v 9.582982 l 11.477159,8.61161 v -18.190851 l 15.302882,-20.406333 v -4.856868 l -2.47326,-2.473271 z"
+               id="path64"
+               class="ColorScheme-Text" /><path
+               d="m 71.540859,-75.410958 9.564316,12.433594 c -0.02867,0.0094 0,-6.695014 0,-6.695014 l 5.738567,-5.73858 z"
+               style="color:#232629;fill:#d7d3e1;fill-opacity:1;stroke:none;stroke-width:1.00026;stroke-dasharray:none"
+               id="path1-7" /></g></g></g></g></g></svg>

@@ -36,6 +36,7 @@ eatmydata apt-get install -yq --no-install-recommends \
     libglib2.0-dev \
     libgstreamer1.0-dev \
     libgstreamer-plugins-base1.0-dev \
+    libiir-dev \
     libkf6archive-dev \
     libkf6texteditor-dev \
     libkf6dbusaddons-dev \
@@ -78,6 +79,7 @@ eatmydata apt-get install -yq --no-install-recommends \
     python3-zstandard \
     python3-opencv \
     python3-pyqt6 \
+    python3-scipy \
     python3-virtualenv \
     python3-zarr \
     python3-zmq \

@@ -22,6 +22,7 @@ subdir('canvas')
 subdir('table')
 subdir('plot-timeseries')
 subdir('latencycheck')
+subdir('signalfilter')
 
 # Audio
 subdir('audiosource')
