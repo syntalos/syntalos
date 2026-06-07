@@ -130,7 +130,8 @@ WhatsNewDialog::WhatsNewDialog(const QString &previousVersion, const QString &cu
     if (bodyHtml.isEmpty()) {
         finalBody += QStringLiteral(
             "<p>This release contains fixes and improvements.</p>"
-            "<p>See the full changelog for the list of changes.</p>");
+            "<p>See the full changelog online for the list of changes."
+            "You can view the changes by clicking the <em>View all changes</em> button below.</p>");
     } else {
         finalBody += bodyHtml;
     }

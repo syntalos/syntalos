@@ -19,7 +19,7 @@
   <property name="windowTitle">
    <string>What's New</string>
   </property>
-  <property name="sizeGripEnabled" stdset="0">
+  <property name="sizeGripEnabled">
    <bool>false</bool>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
@@ -58,7 +58,7 @@
         </size>
        </property>
        <property name="alignment">
-        <set>Qt::AlignTop</set>
+        <set>Qt::AlignmentFlag::AlignTop</set>
        </property>
       </widget>
      </item>
@@ -72,7 +72,6 @@
          <property name="font">
           <font>
            <pointsize>16</pointsize>
-           <weight>75</weight>
            <bold>true</bold>
           </font>
          </property>
@@ -101,14 +100,14 @@
    <item>
     <widget class="Line" name="headerSeparator">
      <property name="orientation">
-      <enum>Qt::Horizontal</enum>
+      <enum>Qt::Orientation::Horizontal</enum>
      </property>
     </widget>
    </item>
    <item>
     <widget class="QTextBrowser" name="bodyBrowser">
      <property name="frameShape">
-      <enum>QFrame::NoFrame</enum>
+      <enum>QFrame::Shape::NoFrame</enum>
      </property>
      <property name="openExternalLinks">
       <bool>true</bool>
@@ -118,10 +117,10 @@
    <item>
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="orientation">
-      <enum>Qt::Horizontal</enum>
+      <enum>Qt::Orientation::Horizontal</enum>
      </property>
      <property name="standardButtons">
-      <set>QDialogButtonBox::Close</set>
+      <set>QDialogButtonBox::StandardButton::Close</set>
      </property>
     </widget>
    </item>

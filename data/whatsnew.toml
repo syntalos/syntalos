@@ -1,6 +1,25 @@
 # What's-New entries shown after a Syntalos upgrade.
 
 [[entry]]
+version = "3.1.0"
+title = "Welcome to Syntalos 3.1!"
+body = """
+<p>Syntalos 3.1 brings some interesting new features and backwards-compatible changes,
+with one exception: You now need to select the data input type on your <em>Zarr Writer</em>
+and <em>JSON Writer</em> modules explicitly in their settings and reconnect them.</p>
+
+<h3>What's new</h3>
+<ul>
+  <li>To do</li>
+</ul>
+
+<h3>Heads-up</h3>
+<p>Support for the SDK behind the <code>camera-tis</code> module has been
+discontinued by The Imaging Source. The module is now disabled by default for
+builds from source, and will not be available on all platforms going forward.</p>
+"""
+
+[[entry]]
 version = "3.0.0"
 title = "Welcome to Syntalos 3.0!"
 body = """
