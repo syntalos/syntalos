@@ -305,6 +305,9 @@ private slots:
         QCOMPARE(makeCompactName("The quick brown fox jumps", {.maxLength = 14, .lowercase = true}), "the-quick");
         // an overlong single word has no boundary, so it is hard-cut
         QCOMPARE(makeCompactName("Supercalifragilistic", {.maxLength = 8, .lowercase = true}), "supercal");
+        // maxLength is a byte count; a hard cut backs up to a UTF-8 codepoint boundary
+        // (each "ß" is 2 bytes, so a limit of 5 keeps two of them, not 2.5)
+        QCOMPARE(makeCompactName("ßßßß", {.maxLength = 5}), "ßß");
 
         // `: / \` map to underscore; the `_-` artifact is cleaned up
         QCOMPARE(makeCompactName("a: b", {.lowercase = true}), "a-b");

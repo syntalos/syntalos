@@ -86,7 +86,7 @@ std::string guessContentType(const fs::path &filePath, bool onlyCertain = true);
  * Options controlling makeCompactName().
  */
 struct CompactNameOptions {
-    std::size_t maxLength = 255;           /// hard length cap; prefer the last word boundary that still fits
+    std::size_t maxLength = 80; /// hard length cap in bytes; prefers a word boundary, never splits a UTF-8 codepoint
     std::string_view fallback = "unnamed"; /// used (normalized) when the result would otherwise be empty
     bool lowercase = false;                /// ASCII-only lowercasing (Unicode casing must be handled by the caller)
     bool asciiOnly = false;                /// drop all bytes > 0x7F

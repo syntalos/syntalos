@@ -217,6 +217,21 @@ static void replaceAll(std::string &s, std::string_view from, std::string_view t
     }
 }
 
+/**
+ * Largest byte length <= @p limit that does not fall inside a multi-byte UTF-8 sequence,
+ * so truncating @p s to it can never produce invalid UTF-8.
+ */
+[[nodiscard]] static std::size_t utf8BoundedLength(std::string_view s, std::size_t limit) noexcept
+{
+    if (limit >= s.size())
+        return s.size();
+    // Back up over UTF-8 continuation bytes (10xxxxxx) so we cut on a codepoint boundary.
+    std::size_t n = limit;
+    while (n > 0 && (static_cast<unsigned char>(s[n]) & 0xC0) == 0x80)
+        --n;
+    return n;
+}
+
 [[nodiscard]] std::string makeCompactName(std::string_view input, const CompactNameOptions &opts)
 {
     std::string result;
@@ -267,11 +282,11 @@ static void replaceAll(std::string &s, std::string_view from, std::string_view t
             c = asciiToLower(c);
     }
 
-    // Truncate, preferring the last word boundary that still fits
+    // Truncate, preferring the last word boundary that still fits. maxLength is a byte
+    // count; a hard cut is backed up to a UTF-8 codepoint boundary to stay valid UTF-8.
     if (result.size() > opts.maxLength) {
         const auto cut = result.find_last_of("-_", opts.maxLength);
-        // A single overlong word has no boundary to break at - cut it hard
-        result.resize(cut == std::string::npos ? opts.maxLength : cut);
+        result.resize(cut == std::string::npos ? utf8BoundedLength(result, opts.maxLength) : cut);
         while (result.ends_with('-') || result.ends_with('_'))
             result.pop_back();
     }
@@ -285,7 +300,7 @@ static void replaceAll(std::string &s, std::string_view from, std::string_view t
         fallbackOpts.fallback = {};
         auto fallbackResult = makeCompactName(opts.fallback, fallbackOpts);
         if (fallbackResult.empty())
-            fallbackResult = std::string{opts.fallback.substr(0, std::min(opts.fallback.size(), opts.maxLength))};
+            fallbackResult = std::string{opts.fallback.substr(0, utf8BoundedLength(opts.fallback, opts.maxLength))};
         return fallbackResult;
     }
 
