@@ -744,8 +744,16 @@ void VideoWriter::initializeInternal()
 #if LIBAVCODEC_VERSION_INT > AV_VERSION_INT(61, 13, 100)
     const enum AVPixelFormat *fmts = nullptr;
     ret = avcodec_get_supported_config(d->cctx, nullptr, AV_CODEC_CONFIG_PIX_FORMAT, 0, (const void **)&fmts, nullptr);
-    if (ret < 0 || fmts == nullptr) {
-        LOG_WARNING(d->log, "Failed to get supported pixel formats for codec {}: {}", vcodec->name, ret);
+    if (ret < 0) {
+        LOG_WARNING(
+            d->log,
+            "Failed to get supported pixel formats for codec {}: {}",
+            vcodec->name,
+            averrorToString(ret));
+        d->encPixFormat = AV_PIX_FMT_YUV420P;
+    } else if (fmts == nullptr) {
+        // a NULL list means the codec supports every pixel format (e.g. rawvideo); use our
+        // default - for Raw this is overridden just below based on the input format.
         d->encPixFormat = AV_PIX_FMT_YUV420P;
     } else {
         d->encPixFormat = fmts[0];
