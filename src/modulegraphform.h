@@ -59,10 +59,8 @@ public:
     bool modifyPossible() const;
     void setModifyPossible(bool allowModify);
 
-    FlowGraphEdge *updateConnectionHeat(
-        const VarStreamInputPort *inPort,
-        const StreamOutputPort *outPort,
-        ConnectionHeatLevel hlevel);
+    void setConnectionHeat(const VarStreamInputPort *inPort, ConnectionHeatLevel hlevel);
+    void resetAllConnectionHeat();
 
 private slots:
     void on_actionAddModule_triggered();
@@ -97,6 +95,10 @@ private:
     QHash<ModuleModifier, QAction *> m_modifierActions;
 
     QHash<QString, QPair<FlowGraphNode *, QString>> m_connMemory;
+
+    // cache mapping an input port to its graph edge, used to update connection
+    // "heat" (overload) indicators quickly without re-resolving the edge each time
+    QHash<const VarStreamInputPort *, FlowGraphEdge *> m_portEdgeHeatCache;
 
     FlowGraphNode *selectedSingleNode() const;
 };

@@ -34,7 +34,7 @@ class ModuleManager;
 class ModuleIndicator;
 class QSvgWidget;
 class QSettings;
-class FlowGraphEdge;
+
 namespace Syntalos
 {
 class ModuleInfo;
@@ -219,8 +219,6 @@ private:
 
     TimingsDialog *m_timingsDialog;
     IntervalRunDialog *m_intervalRunDialog;
-
-    QHash<VarStreamInputPort *, FlowGraphEdge *> m_portGraphEdgeCache;
 };
 
 #endif // MAINWINDOW_H

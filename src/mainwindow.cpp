@@ -1458,9 +1458,6 @@ void MainWindow::onEnginePreRunPrepare()
     ui->actionNetRunController->setEnabled(false);
     ui->actionNetRunListener->setEnabled(false);
 
-    // ensure the edge cache is cleared, it may be invalid
-    m_portGraphEdgeCache.clear();
-
     // Tf we include the clock time, we need to update the export dir display
     // on every run, since the current time has changed.
     // (Technically, we would also have to do that for day changes at 00:00, but
@@ -1496,8 +1493,8 @@ void MainWindow::onEngineStopped()
     ui->actionNetRunController->setEnabled(true);
     ui->actionNetRunListener->setEnabled(true);
 
-    // clear edge cache (used for faster edge heat updates)
-    m_portGraphEdgeCache.clear();
+    // reset connection heat so no edge keeps pulsing after the run ends
+    ui->graphForm->resetAllConnectionHeat();
 }
 
 void MainWindow::onEngineResourceWarningUpdate(Engine::SystemResource kind, bool resolved, const QString &message)
@@ -1524,13 +1521,7 @@ void MainWindow::onEngineResourceWarningUpdate(Engine::SystemResource kind, bool
 
 void MainWindow::onEngineConnectionHeatChanged(VarStreamInputPort *iport, ConnectionHeatLevel hlevel)
 {
-    auto edge = m_portGraphEdgeCache.value(iport);
-    if (edge == nullptr) {
-        edge = ui->graphForm->updateConnectionHeat(iport, iport->outPort(), hlevel);
-        m_portGraphEdgeCache.insert(iport, edge);
-    } else {
-        edge->setHeatLevel(hlevel);
-    }
+    ui->graphForm->setConnectionHeat(iport, hlevel);
 }
 
 void MainWindow::statusMessageChanged(const QString &message)

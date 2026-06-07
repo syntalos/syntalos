@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2025 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  * Copyright (C) 2003-2019, rncbc aka Rui Nuno Capela, qjackctl
  *
  * Licensed under the GNU General Public License Version 3
@@ -30,6 +30,8 @@
 
 #include <QHash>
 #include <QList>
+#include <QSet>
+#include <QTimer>
 
 #include "fabric/moduleapi.h"
 
@@ -411,16 +413,22 @@ public:
 
     void setHeatLevel(ConnectionHeatLevel hlevel);
 
+    QRectF boundingRect() const override;
+
 protected:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *widget) override;
     QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
 
 private:
+    FlowGraphView *graphView() const;
+    void applyRestingShadow();
+
     FlowGraphNodePort *m_port1;
     FlowGraphNodePort *m_port2;
 
     bool m_hasTypeConversion{false};
     QPointF m_convIndicatorPos;
+    ConnectionHeatLevel m_heatLevel{ConnectionHeatLevel::NONE};
 };
 
 /**
@@ -476,6 +484,11 @@ public:
     void clearSelection();
 
     QList<FlowGraphNode *> selectedNodes() const;
+
+    // Connection overload ("heat") pulse animation.
+    void registerHeatedEdge(FlowGraphEdge *edge);
+    void unregisterHeatedEdge(FlowGraphEdge *edge);
+    qreal heatPhase() const;
 
 signals:
     void added(FlowGraphNode *node);
@@ -571,6 +584,10 @@ private:
     int m_edited;
 
     QVariantHash m_settings;
+
+    QSet<FlowGraphEdge *> m_heatedEdges;
+    QTimer m_heatTimer;
+    qreal m_heatPhase{0.0};
 };
 
 #endif // FLOWGRAPHVIEW_H

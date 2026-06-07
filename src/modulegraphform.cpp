@@ -66,6 +66,12 @@ ModuleGraphForm::ModuleGraphForm(QWidget *parent)
     connect(ui->graphView, &FlowGraphView::connected, this, &ModuleGraphForm::on_graphPortsConnected);
     connect(ui->graphView, &FlowGraphView::disconnected, this, &ModuleGraphForm::on_graphPortsDisconnected);
 
+    // any edge removal can leave dangling pointers in the heat cache, so
+    // drop it whenever an edge disappears. The cache rebuilds itself lazily.
+    connect(ui->graphView, &FlowGraphView::disconnected, this, [this] {
+        m_portEdgeHeatCache.clear();
+    });
+
     // set colors for our different data types
     ui->graphView->setPortTypeColor(ControlCommand::staticTypeId(), QColor::fromRgb(0xEFF0F1));
     ui->graphView->setPortTypeColor(Frame::staticTypeId(), QColor::fromRgb(0xECC386));
@@ -163,11 +169,18 @@ void ModuleGraphForm::setModifyPossible(bool allowModify)
     ui->graphView->setAllowEdit(m_modifyPossible);
 }
 
-FlowGraphEdge *ModuleGraphForm::updateConnectionHeat(
-    const VarStreamInputPort *inPort,
-    const StreamOutputPort *outPort,
-    ConnectionHeatLevel hlevel)
+void ModuleGraphForm::setConnectionHeat(const VarStreamInputPort *inPort, ConnectionHeatLevel hlevel)
 {
+    // fast path: we already resolved the edge for this port during this run
+    if (auto cachedEdge = m_portEdgeHeatCache.value(inPort)) {
+        cachedEdge->setHeatLevel(hlevel);
+        return;
+    }
+
+    const auto outPort = inPort->outPort();
+    if (outPort == nullptr)
+        return;
+
     const auto inNode = m_modNodeMap.value(inPort->owner());
     const auto outNode = m_modNodeMap.value(outPort->owner());
 
@@ -176,7 +189,7 @@ FlowGraphEdge *ModuleGraphForm::updateConnectionHeat(
             m_log,
             "Unable to find port graph nodes to update edge heat level. Source owner: {}",
             inPort->owner()->name());
-        return nullptr;
+        return;
     }
 
     const auto graphInPort = inNode->findPort(inPort->id(), FlowGraphNodePort::Input, inPort->dataTypeId());
@@ -189,11 +202,22 @@ FlowGraphEdge *ModuleGraphForm::updateConnectionHeat(
             "Unable to find graph edge connecting {} and {} to update its heat level.",
             inPort->owner()->name(),
             outPort->owner()->name());
-        return nullptr;
+        return;
     }
 
     edge->setHeatLevel(hlevel);
-    return edge;
+    m_portEdgeHeatCache.insert(inPort, edge);
+}
+
+void ModuleGraphForm::resetAllConnectionHeat()
+{
+    // cool down every edge we touched so none keeps pulsing after a run ends.
+    // The cached edges are still valid here (the graph is unchanged at run stop).
+    for (auto *edge : std::as_const(m_portEdgeHeatCache)) {
+        if (edge)
+            edge->setHeatLevel(ConnectionHeatLevel::NONE);
+    }
+    m_portEdgeHeatCache.clear();
 }
 
 void ModuleGraphForm::moduleAdded(ModuleInfo *info, AbstractModule *mod)

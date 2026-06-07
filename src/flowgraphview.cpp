@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2025 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  * Copyright (C) 2003-2019, rncbc aka Rui Nuno Capela, qjackctl
  *
  * Licensed under the GNU General Public License Version 3
@@ -965,16 +965,41 @@ FlowGraphEdge::FlowGraphEdge(void)
     QGraphicsPathItem::setFlag(QGraphicsItem::ItemIsSelectable);
 
     FlowGraphItem::setBackground(FlowGraphItem::foreground());
-    setHeatLevel(ConnectionHeatLevel::NONE);
     QGraphicsPathItem::setAcceptHoverEvents(true);
+
+    // give resting connections a subtle drop shadow for depth and legibility
+    applyRestingShadow();
 }
 
 FlowGraphEdge::~FlowGraphEdge(void)
 {
+    // detach from the heat-pulse animation before we are gone
+    if (m_heatLevel != ConnectionHeatLevel::NONE) {
+        if (auto view = graphView())
+            view->unregisterHeatedEdge(this);
+    }
+
     if (m_port1)
         m_port1->removeConnect(this);
     if (m_port2)
         m_port2->removeConnect(this);
+}
+
+FlowGraphView *FlowGraphEdge::graphView(void) const
+{
+    if (const auto *sc = scene())
+        return qobject_cast<FlowGraphView *>(sc->views().value(0));
+    return nullptr;
+}
+
+QRectF FlowGraphEdge::boundingRect(void) const
+{
+    // Widen the default (thin-pen) bounding rect so the overload glow, which is
+    // drawn well outside the path stroke, is never clipped. The margin is a
+    // constant covering the widest glow at its pulse peak, so the geometry never
+    // changes with heat level (no prepareGeometryChange() needed on heat change).
+    constexpr qreal margin = 9.0;
+    return QGraphicsPathItem::boundingRect().adjusted(-margin, -margin, margin, margin);
 }
 
 bool FlowGraphEdge::setPort1(FlowGraphNodePort *port)
@@ -1074,21 +1099,76 @@ void FlowGraphEdge::updatePath(void)
 
 void FlowGraphEdge::paint(QPainter *painter, const QStyleOptionGraphicsItem *option, QWidget *)
 {
-    if (QGraphicsPathItem::isSelected()) {
-        const QPalette &pal = option->palette;
-        const QColor &color = pal.highlight().color();
-        painter->setPen(QPen(color, 2));
-        painter->setBrush(color);
-    } else {
-        const QColor &color = FlowGraphItem::foreground();
-        if (FlowGraphItem::isHighlight() || QGraphicsPathItem::isUnderMouse())
-            painter->setPen(color.lighter());
-        else
-            painter->setPen(color);
-        painter->setBrush(FlowGraphItem::background());
-    }
+    const QPainterPath path = QGraphicsPathItem::path();
 
-    painter->drawPath(QGraphicsPathItem::path());
+    if (m_heatLevel != ConnectionHeatLevel::NONE) {
+        // Overloaded connection: paint the line itself in the heat color with a
+        // translucent, pulsing halo so it is impossible to miss. Higher heat is
+        // thicker and pulses faster/stronger.
+        QColor base;
+        qreal coreWidth, glowWidth, pulseSpeed;
+        switch (m_heatLevel) {
+        case ConnectionHeatLevel::LOW:
+            base = SyColorWarning;
+            coreWidth = 2.5;
+            glowWidth = 7.0;
+            pulseSpeed = 3.0;
+            break;
+        case ConnectionHeatLevel::MEDIUM:
+            base = SyColorDanger;
+            coreWidth = 3.5;
+            glowWidth = 10.0;
+            pulseSpeed = 5.0;
+            break;
+        case ConnectionHeatLevel::HIGH:
+        default:
+            base = SyColorDangerHigh;
+            coreWidth = 4.5;
+            glowWidth = 13.0;
+            pulseSpeed = 8.0;
+            break;
+        }
+
+        // pulse in [0, 1], oscillating over time at the per-level speed
+        const auto view = graphView();
+        const qreal phase = view ? view->heatPhase() : 0.0;
+        const qreal pulse = 0.5 + 0.5 * std::sin(phase * pulseSpeed);
+
+        QColor glow = base;
+        glow.setAlphaF(0.18 + 0.34 * pulse);
+        painter->setBrush(Qt::NoBrush);
+        painter->setPen(QPen(glow, glowWidth * (0.7 + 0.3 * pulse), Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        painter->drawPath(path); // translucent pulsing halo
+
+        if (QGraphicsPathItem::isSelected()) {
+            // standard selection look on top, so the edge clearly reads as selected
+            const QColor &color = option->palette.highlight().color();
+            painter->setPen(QPen(color, 2));
+            painter->setBrush(color);
+        } else {
+            painter->setBrush(base); // fill the arrow polygon with the heat colour
+            painter->setPen(QPen(base, coreWidth, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        }
+        painter->drawPath(path); // solid core
+
+    } else {
+        // draw normal, non-overloaded connection
+        if (QGraphicsPathItem::isSelected()) {
+            const QPalette &pal = option->palette;
+            const QColor &color = pal.highlight().color();
+            painter->setPen(QPen(color, 2));
+            painter->setBrush(color);
+        } else {
+            const QColor &color = FlowGraphItem::foreground();
+            if (FlowGraphItem::isHighlight() || QGraphicsPathItem::isUnderMouse())
+                painter->setPen(color.lighter());
+            else
+                painter->setPen(color);
+            painter->setBrush(FlowGraphItem::background());
+        }
+
+        painter->drawPath(path);
+    }
 
     if (m_hasTypeConversion && m_port1 && m_port2) {
         constexpr qreal radius = 5.0;
@@ -1181,37 +1261,43 @@ void FlowGraphEdge::updatePortTypeColors(void)
     update();
 }
 
-void FlowGraphEdge::setHeatLevel(ConnectionHeatLevel hlevel)
+void FlowGraphEdge::applyRestingShadow()
 {
+    // Subtle neutral drop shadow that gives resting connections some depth and
+    // makes the thin line easier to spot (and aim a click at).
     const QPalette pal;
     const bool isDarkest = pal.base().color().value() < 24;
     QColor shadowColor = isDarkest ? Qt::white : Qt::black;
     shadowColor.setAlpha(220);
-    qreal blurRadius = isDarkest ? 4 : 8;
-    qreal shadowOffset = isDarkest ? 0 : 1;
-
-    switch (hlevel) {
-    case ConnectionHeatLevel::NONE:
-        break;
-    case ConnectionHeatLevel::LOW:
-        shadowColor = SyColorWarning;
-        break;
-    case ConnectionHeatLevel::MEDIUM:
-        shadowColor = SyColorDanger;
-        break;
-    case ConnectionHeatLevel::HIGH:
-        shadowColor = SyColorDangerHigh;
-        blurRadius = 16;
-        shadowOffset = 2;
-        shadowColor.setAlpha(255);
-        break;
-    }
 
     auto effect = new QGraphicsDropShadowEffect();
     effect->setColor(shadowColor);
-    effect->setBlurRadius(blurRadius);
-    effect->setOffset(shadowOffset);
+    effect->setBlurRadius(isDarkest ? 4 : 8);
+    effect->setOffset(isDarkest ? 0 : 1);
     QGraphicsPathItem::setGraphicsEffect(effect);
+}
+
+void FlowGraphEdge::setHeatLevel(ConnectionHeatLevel hlevel)
+{
+    if (m_heatLevel == hlevel)
+        return;
+    m_heatLevel = hlevel;
+
+    // Register/unregister with the view's pulse animation so overloaded edges
+    // breathe while idle ones cost nothing.
+    if (auto view = graphView()) {
+        if (hlevel == ConnectionHeatLevel::NONE)
+            view->unregisterHeatedEdge(this);
+        else
+            view->registerHeatedEdge(this);
+    }
+
+    if (hlevel == ConnectionHeatLevel::NONE)
+        applyRestingShadow();
+    else
+        QGraphicsPathItem::setGraphicsEffect(nullptr);
+
+    update();
 }
 
 //----------------------------------------------------------------------------
@@ -1248,12 +1334,44 @@ FlowGraphView::FlowGraphView(QWidget *parent)
 
     m_editor->setEnabled(false);
     m_editor->hide();
+
+    // Drive the connection-overload ("heat") pulse animation. The timer only
+    // runs while at least one edge is overloaded (see register/unregister).
+    m_heatTimer.setInterval(50); // ~20 fps
+    connect(&m_heatTimer, &QTimer::timeout, this, [this] {
+        m_heatPhase += 0.05;
+        for (FlowGraphEdge *edge : std::as_const(m_heatedEdges))
+            edge->update();
+    });
 }
 
 FlowGraphView::~FlowGraphView(void)
 {
     delete m_editor;
     delete m_scene;
+}
+
+qreal FlowGraphView::heatPhase(void) const
+{
+    return m_heatPhase;
+}
+
+void FlowGraphView::registerHeatedEdge(FlowGraphEdge *edge)
+{
+    if (m_heatedEdges.contains(edge))
+        return;
+    const bool wasEmpty = m_heatedEdges.isEmpty();
+    m_heatedEdges.insert(edge);
+    if (wasEmpty)
+        m_heatTimer.start();
+}
+
+void FlowGraphView::unregisterHeatedEdge(FlowGraphEdge *edge)
+{
+    if (m_heatedEdges.remove(edge) && m_heatedEdges.isEmpty()) {
+        m_heatTimer.stop();
+        m_heatPhase = 0.0;
+    }
 }
 
 QGraphicsScene *FlowGraphView::scene(void) const
