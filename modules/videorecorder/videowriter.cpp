@@ -120,12 +120,12 @@ VideoContainer stringToVideoContainer(const std::string &str)
     return VideoContainer::Unknown;
 }
 
-static QString averrorToString(int err)
+static std::string averrorToString(int err)
 {
     char errbuf[AV_ERROR_MAX_STRING_SIZE + 16] = {0};
     av_strerror(err, errbuf, sizeof(errbuf));
 
-    return QString::fromUtf8(errbuf);
+    return std::string(errbuf);
 }
 
 #pragma GCC diagnostic push
@@ -906,9 +906,8 @@ void VideoWriter::initializeInternal()
     if (ret < 0) {
         finalizeInternal(false);
         av_dict_free(&codecopts);
-        throw std::runtime_error(QStringLiteral("Failed to open video encoder with the current parameters: %1")
-                                     .arg(averrorToString(ret))
-                                     .toStdString());
+        throw std::runtime_error(
+            std::format("Failed to open video encoder with the current parameters: {}", averrorToString(ret)));
     }
 
     // stream codec parameters must be set after opening the encoder
@@ -967,8 +966,7 @@ void VideoWriter::initializeInternal()
     ret = avformat_write_header(d->octx, nullptr);
     if (ret < 0) {
         finalizeInternal(false);
-        throw std::runtime_error(
-            QStringLiteral("Failed to write format header: %1").arg(averrorToString(ret)).toStdString());
+        throw std::runtime_error(std::format("Failed to write format header: {}", averrorToString(ret)));
     }
     d->framePts = 0;
 
@@ -989,12 +987,20 @@ void VideoWriter::initializeInternal()
     d->initialized = true;
 }
 
-void VideoWriter::finalizeInternal(bool writeTrailer)
+std::expected<void, std::string> VideoWriter::finalizeInternal(bool writeTrailer)
 {
+    // Records the first error that makes the on-disk file untrustworthy (truncated/
+    // corrupt). We keep tearing down all resources regardless, but report this error
+    // so callers are aware of the broken file.
+    std::optional<std::string> finalizeError;
+
     if (d->initialized) {
         AVPacket *pkt = av_packet_alloc();
-        if (pkt == nullptr)
+        if (pkt == nullptr) {
             LOG_CRITICAL(d->log, "Unable to allocate packet for flushing.");
+            if (!finalizeError)
+                finalizeError = "Unable to allocate packet for flushing the encoder.";
+        }
 
         if (d->vstrm != nullptr && pkt != nullptr) {
             avcodec_send_frame(d->cctx, nullptr);
@@ -1005,6 +1011,8 @@ void VideoWriter::finalizeInternal(bool writeTrailer)
                     break;
                 } else if (ret < 0) {
                     LOG_CRITICAL(d->log, "Unable to receive packet during flush: {}", averrorToString(ret));
+                    if (!finalizeError)
+                        finalizeError = std::format("Unable to receive packet during flush: {}", averrorToString(ret));
                     break;
                 }
 
@@ -1016,6 +1024,8 @@ void VideoWriter::finalizeInternal(bool writeTrailer)
                 ret = av_write_frame(d->octx, pkt);
                 if (ret < 0) {
                     LOG_CRITICAL(d->log, "Unable to write frame during flush: {}", averrorToString(ret));
+                    if (!finalizeError)
+                        finalizeError = std::format("Unable to write frame during flush: {}", averrorToString(ret));
                     break;
                 }
 
@@ -1025,8 +1035,16 @@ void VideoWriter::finalizeInternal(bool writeTrailer)
         av_packet_free(&pkt);
 
         // write trailer
-        if (writeTrailer && (d->octx != nullptr))
-            av_write_trailer(d->octx);
+        if (writeTrailer && (d->octx != nullptr)) {
+            const auto ret = av_write_trailer(d->octx);
+            if (ret < 0) {
+                LOG_CRITICAL(d->log, "Unable to write trailer while finalizing video: {}", averrorToString(ret));
+                if (!finalizeError)
+                    finalizeError = std::format(
+                        "Unable to write trailer while finalizing video: {}",
+                        averrorToString(ret));
+            }
+        }
     }
 
     // ensure timestamps file is closed
@@ -1073,6 +1091,10 @@ void VideoWriter::finalizeInternal(bool writeTrailer)
     }
 
     d->initialized = false;
+
+    if (finalizeError)
+        return std::unexpected(*finalizeError);
+    return {};
 }
 
 void VideoWriter::initialize(
@@ -1140,9 +1162,9 @@ void VideoWriter::initialize(
     initializeInternal();
 }
 
-void VideoWriter::finalize()
+std::expected<void, std::string> VideoWriter::finalize()
 {
-    finalizeInternal(true);
+    return finalizeInternal(true);
 }
 
 bool VideoWriter::initialized() const
@@ -1159,7 +1181,11 @@ bool VideoWriter::startNewSection(const QString &fname)
 
     try {
         // finalize the current file
-        finalizeInternal(true);
+        const auto res = finalizeInternal(true);
+        if (!res) {
+            d->lastError = res.error();
+            return false;
+        }
 
         // set new filrname for this section
         if (QStringView{fname}.mid(fname.lastIndexOf('.') + 1).length() == 3)
@@ -1359,7 +1385,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
             havePacket = false;
         } else {
             // we have a real error and can not continue
-            d->lastError = QStringLiteral("Unable to send packet to codec: %1").arg(averrorToString(ret)).toStdString();
+            d->lastError = std::format("Unable to send packet to codec: {}", averrorToString(ret));
             std::cerr << d->lastError << std::endl;
             goto out;
         }
@@ -1375,9 +1401,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
         // write packet
         ret = av_write_frame(d->octx, pkt);
         if (ret < 0) {
-            d->lastError = QStringLiteral("Unable to write frame packet to output: %1")
-                               .arg(averrorToString(ret))
-                               .toStdString();
+            d->lastError = std::format("Unable to write frame packet to output: {}", averrorToString(ret));
             std::cerr << d->lastError << std::endl;
             goto out;
         }
@@ -1396,7 +1420,11 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
             try {
                 // we need to start a new file now since the maximum time for this file has elapsed,
                 // so finalize this one
-                finalizeInternal(true);
+                const auto res = finalizeInternal(true);
+                if (!res) {
+                    d->lastError = res.error();
+                    goto out;
+                }
 
                 // increment current slice number and attempt to reinitialize recording.
                 d->currentSliceNo += 1;
@@ -1414,8 +1442,16 @@ out:
     av_packet_free(&pkt);
 
     // restore frame buffer, so that it can be properly freed in the end
-    if (savedBuf0)
-        d->encFrame->buf[0] = savedBuf0;
+    if (savedBuf0) {
+        if (d->encFrame != nullptr) {
+            d->encFrame->buf[0] = savedBuf0;
+        } else {
+            // the frame was already freed (e.g. a failed slice-boundary finalize jumped here);
+            // release the buffer ourselves to avoid leaking it, since av_frame_free() skipped it
+            // (buf[0] had been nulled out above).
+            av_buffer_unref(&savedBuf0);
+        }
+    }
 
     return success;
 }

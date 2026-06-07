@@ -544,15 +544,25 @@ public:
                 QCoreApplication::processEvents();
             }
         }
+
+        bool finalizeOk = true;
         if (m_videoWriter.get() != nullptr) {
             // now shut down the recorder
-            m_videoWriter->finalize();
+            const auto res = m_videoWriter->finalize();
+            if (!res) {
+                finalizeOk = false;
+                raiseError(QStringLiteral(
+                               "Failed to finalize the recorded video file: %1\n"
+                               "The raw video data has been left on disk for manual recovery, but deferred "
+                               "encoding will be skipped to avoid processing a potentially corrupt file.")
+                               .arg(QString::fromStdString(res.error())));
+            }
         }
 
         statusMessage(QStringLiteral("Recording stopped."));
         m_videoWriter.reset(nullptr);
 
-        if (m_settingsDialog->deferredEncoding())
+        if (finalizeOk && m_settingsDialog->deferredEncoding())
             enqueueVideosForDeferredEncoding();
 
         // drop reference on dataset

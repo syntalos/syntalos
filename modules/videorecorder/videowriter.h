@@ -21,7 +21,9 @@
 #define VIDEOWRITER_H
 
 #include <chrono>
+#include <expected>
 #include <memory>
+#include <string>
 
 #include "logging.h"
 #include "datactl/edlstorage.h"
@@ -169,7 +171,7 @@ public:
         int imgDepth,
         bool hasColor,
         bool saveTimestamps = true);
-    void finalize();
+    std::expected<void, std::string> finalize();
     bool initialized() const;
     bool startNewSection(const QString &fname);
 
@@ -203,7 +205,7 @@ private:
 
     void initializeHWAccell();
     void initializeInternal();
-    void finalizeInternal(bool writeTrailer);
+    std::expected<void, std::string> finalizeInternal(bool writeTrailer);
     bool prepareFrame(const cv::Mat &inImage);
 };
 

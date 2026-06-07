@@ -22,6 +22,7 @@
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
+#include <algorithm>
 #include <filesystem>
 #include <optional>
 
@@ -64,12 +65,14 @@ bool EncodeTask::prepareSourceFiles()
 
     const auto tmpTsyncFname = fi.dir().filePath(fi.baseName() + QStringLiteral("_timestamps.tsync"));
     QFileInfo tsyncFi(tmpTsyncFname);
-    m_writeTsync = tsyncFi.exists();
-    if (!m_writeTsync)
-        return true;
-
     m_tsyncDestFname = tmpTsyncFname;
     m_tsyncSrcFname = tsyncFi.dir().filePath(QStringLiteral("srcraw_") + tsyncFi.fileName());
+
+    // We need to write timestamps if a tsync file exists for this video at either the
+    // destination or the (resumed) srcraw location.
+    m_writeTsync = tsyncFi.exists() || QFile::exists(m_tsyncSrcFname);
+    if (!m_writeTsync)
+        return true;
 
     if (!QFile::rename(m_tsyncDestFname, m_tsyncSrcFname)) {
         m_item->setError(QStringLiteral("Unable to rename source video timesync file."));
@@ -147,12 +150,15 @@ void EncodeTask::run()
     int frameHeight = -1;
     bool useColor = true;
     int progress = 0;
-    const auto frameCount = vsrc.totalFrames();
-    if (frameCount <= 0) {
-        m_item->setError(QStringLiteral("No frames found in video file."));
-        return;
-    }
-    double onePerc = 100.0 / (double)frameCount;
+
+    // The tsync file holds exactly one entry per recorded frame, so it is the authoritative
+    // count of frames we should re-encode. libav's totalFrames() is only an estimate for raw
+    // Matroska (no nb_frames stored) and must never be used to validate completeness, as it is
+    // unreliable for short recordings and produces spurious failures.
+    const ssize_t expectedFrames = m_writeTsync ? static_cast<ssize_t>(tsyncTimes.size()) : -1;
+    const ssize_t hintFrames = vsrc.totalFrames(); // estimate; only used to drive the progress bar
+    const ssize_t progressTotal = expectedFrames > 0 ? expectedFrames : (hintFrames > 0 ? hintFrames : 0);
+    const double onePerc = progressTotal > 0 ? 100.0 / static_cast<double>(progressTotal) : 0.0;
 
     while (true) {
         auto maybeFrame = vsrc.readFrame();
@@ -207,17 +213,52 @@ void EncodeTask::run()
             break;
         }
 
-        int newProgress = frameNo * onePerc;
-        if (newProgress != progress) {
-            m_item->setProgress(newProgress);
-            progress = newProgress;
+        if (onePerc > 0.0) {
+            const int newProgress = std::clamp(static_cast<int>(frameNo * onePerc), 0, 100);
+            if (newProgress != progress) {
+                m_item->setProgress(newProgress);
+                progress = newProgress;
+            }
         }
     }
 
-    vwriter.finalize();
+    const auto res = vwriter.finalize();
+    if (success && !res) {
+        m_item->setError(
+            QStringLiteral("Failed to finalize the re-encoded video: %1").arg(QString::fromStdString(res.error())));
+        success = false;
+    }
 
-    // update dataset attributes metadata
-    if (m_updateAttrsData) {
+    // Validate completeness against the authoritative tsync frame count (if available).
+    // We only fail on a genuine problem: no frames decoded at all, or fewer frames than the
+    // recorder actually wrote (truncation). We never fail on a mismatch with libav's frame
+    // estimate, which is unreliable for short recordings.
+    if (success) {
+        const ssize_t decoded = vsrc.lastFrameIndex();
+        if (decoded == 0) {
+            m_item->setError(QStringLiteral("No frames could be decoded from the recorded video file."));
+            success = false;
+        } else if (expectedFrames > 0 && decoded < expectedFrames) {
+            m_item->setError(QStringLiteral(
+                                 "Recorded video appears truncated: expected %1 frames, "
+                                 "but only %2 could be decoded.")
+                                 .arg(expectedFrames)
+                                 .arg(decoded));
+            success = false;
+        } else if (expectedFrames > 0 && decoded > expectedFrames) {
+            LOG_WARNING(
+                m_log,
+                "Decoded {} frames but only {} timestamps were recorded; extra trailing frames were re-encoded.",
+                decoded,
+                expectedFrames);
+        } else if (expectedFrames <= 0 && hintFrames > 0 && decoded != hintFrames) {
+            LOG_WARNING(m_log, "Decoded {} frames, but libav estimated {}.", decoded, hintFrames);
+        }
+    }
+
+    // update dataset attributes metadata (only when the encode actually succeeded, so we never
+    // record the new encoder name for a corrupt/incomplete output file)
+    if (success && m_updateAttrsData) {
         static std::mutex attrMutex;
         std::lock_guard<std::mutex> lock(attrMutex);
 
@@ -269,12 +310,6 @@ void EncodeTask::run()
         }
     }
 
-    if (vsrc.lastFrameIndex() != frameCount) {
-        m_item->setError(QStringLiteral("Expected to encode %1 frames, but only encoded %2.")
-                             .arg(frameCount)
-                             .arg(vsrc.lastFrameIndex()));
-        success = false;
-    }
     if (success) {
         m_item->setStatus(QueueItem::FINISHED);
         m_item->setProgress(100);
