@@ -90,7 +90,7 @@ void JSONSettingsDialog::setUseNameFromSource(bool fromSource)
 
 void JSONSettingsDialog::setDataName(const QString &value)
 {
-    m_dataName = simplifyStrForFileBasename(value);
+    m_dataName = simplifyStrForFileBasename(value, false);
     ui->nameLineEdit->setText(m_dataName);
 }
 
@@ -175,7 +175,7 @@ QString JSONSettingsDialog::dataName() const
 
 void JSONSettingsDialog::on_nameLineEdit_textChanged(const QString &arg1)
 {
-    m_dataName = simplifyStrForFileBasename(arg1);
+    m_dataName = simplifyStrForFileBasename(arg1, false);
 }
 
 void JSONSettingsDialog::on_nameFromSrcCheckBox_toggled(bool checked)

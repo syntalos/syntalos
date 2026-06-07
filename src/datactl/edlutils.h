@@ -22,9 +22,11 @@
 
 #pragma once
 
+#include <cstddef>
 #include <map>
 #include <ostream>
 #include <string>
+#include <string_view>
 #include <vector>
 #include <filesystem>
 #include <toml++/toml.h>
@@ -79,5 +81,30 @@ void naturalNumListSort(std::vector<std::string> &list);
  * @return The guessed content type as a string, or an empty string if uncertain and `onlyCertain` is set to true.
  */
 std::string guessContentType(const fs::path &filePath, bool onlyCertain = true);
+
+/**
+ * Options controlling makeCompactName().
+ */
+struct CompactNameOptions {
+    std::size_t maxLength = 255;           /// hard length cap; prefer the last word boundary that still fits
+    std::string_view fallback = "unnamed"; /// used (normalized) when the result would otherwise be empty
+    bool lowercase = false;                /// ASCII-only lowercasing (Unicode casing must be handled by the caller)
+    bool asciiOnly = false;                /// drop all bytes > 0x7F
+    char wordSeparator = '-';              /// inserted for whitespace runs; '\0' removes whitespace entirely
+};
+
+/**
+ * Simplify a string into a filesystem-friendly identifier.
+ *
+ * Collapses whitespace runs (to @ref CompactNameOptions::wordSeparator or nothing),
+ * maps `/`, `\`, and `:` to `_`, drops characters unwanted in filenames or URLs,
+ * replaces `.` with `-` and keeps remaining punctuation. Optionally
+ * drops non-ASCII bytes and/or ASCII-lowercases. The result is bounded to
+ * @ref CompactNameOptions::maxLength, preferring a word boundary when truncating.
+ *
+ * @param input The string to simplify (any byte sequence).
+ * @param opts  Behavior options; see @ref CompactNameOptions.
+ */
+[[nodiscard]] std::string makeCompactName(std::string_view input, const CompactNameOptions &opts = {});
 
 } // namespace Syntalos::edl

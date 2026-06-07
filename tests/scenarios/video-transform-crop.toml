@@ -21,11 +21,11 @@ path = "videos/raw-video/manifest.toml"
 toml_fields = ["data.media_type", "data.parts"]
 
 [[test.expected_output_files]]
-path = "videos/raw-video/*-video.mkv"
+path = "videos/raw-video/*-raw-video.mkv"
 min_size_bytes = 20000
 
 [[test.expected_output_files]]
-path = "videos/raw-video/*-video_timestamps.tsync"
+path = "videos/raw-video/*-raw-video_timestamps.tsync"
 min_size_bytes = 500
 
 [[test.expected_output_files]]
@@ -33,9 +33,9 @@ path = "videos/cropped-video/manifest.toml"
 toml_fields = ["data.media_type", "data.parts"]
 
 [[test.expected_output_files]]
-path = "videos/cropped-video/*-video.mkv"
+path = "videos/cropped-video/*-cropped-video.mkv"
 min_size_bytes = 10000
 
 [[test.expected_output_files]]
-path = "videos/cropped-video/*-video_timestamps.tsync"
+path = "videos/cropped-video/*-cropped-video_timestamps.tsync"
 min_size_bytes = 500

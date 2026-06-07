@@ -68,12 +68,8 @@ QString simplifyStrForModuleName(const QString &s);
 /**
  * @brief Simplify a string for use in file basenames.
  */
-QString simplifyStrForFileBasename(const QString &s);
-
-/**
- * @brief Simplify a string for use in file basenames, and return a lowercased version.
- */
-QString simplifyStrForFileBasenameLower(const QString &s);
+[[nodiscard]] QString simplifyStrForFileBasename(const QString &s, bool lowerCase = true, uint maxLen = 255);
+[[nodiscard]] std::string simplifyStrForFileBasename(const std::string &s, bool lowerCase = true, uint maxLen = 255);
 
 /**
  * @brief Split a string, limiting the amount of splits made

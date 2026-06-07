@@ -32,6 +32,7 @@
 #include <QTimer>
 
 #include "equeueshared.h"
+#include "utils/misc.h"
 #include "recordersettingsdialog.h"
 #include "videowriter.h"
 
@@ -349,7 +350,10 @@ public:
                 const auto inSubSrcModName = m_inSub->metadataValue<std::string>(CommonMetadataKey::SrcModName, {});
                 const auto dataBasename = dataBasenameFromSubMetadata(
                     m_inSub->metadata(),
-                    std::format("{}-video", m_vidDataset->collectionShortTag()));
+                    std::format(
+                        "{}-{}",
+                        m_vidDataset->collectionShortTag(),
+                        simplifyStrForFileBasename(m_vidDataset->name(), true, 22)));
                 vidSavePathBase = m_vidDataset->pathForDataBasename(dataBasename);
                 m_vidDataset->setDataScanPattern(
                     dataBasename + "*",

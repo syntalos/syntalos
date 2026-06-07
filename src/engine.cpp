@@ -1941,7 +1941,7 @@ bool Engine::validateModuleNames(const ModuleRunOrder &modOrder)
             mod->setName(expectedName);
         }
 
-        const auto uniqName = simplifyStrForFileBasenameLower(mod->name());
+        const auto uniqName = simplifyStrForFileBasename(mod->name(), true);
         if (modNameSet.contains(uniqName)) {
             QMessageBox::critical(
                 d->parentWidget,

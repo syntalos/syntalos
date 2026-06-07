@@ -63,7 +63,7 @@ bool EncodeTask::prepareSourceFiles()
         return false;
     }
 
-    const auto tmpTsyncFname = fi.dir().filePath(fi.baseName() + QStringLiteral("_timestamps.tsync"));
+    const auto tmpTsyncFname = fi.dir().filePath(fi.completeBaseName() + QStringLiteral("_timestamps.tsync"));
     QFileInfo tsyncFi(tmpTsyncFname);
     m_tsyncDestFname = tmpTsyncFname;
     m_tsyncSrcFname = tsyncFi.dir().filePath(QStringLiteral("srcraw_") + tsyncFi.fileName());

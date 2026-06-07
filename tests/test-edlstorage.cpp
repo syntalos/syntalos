@@ -8,6 +8,7 @@
 #include "datactl/edlstorage.h"
 #include "datactl/edlutils.h"
 #include "datactl/monikers.h"
+#include "utils/misc.h"
 #include "utils/tomlutils.h"
 
 using namespace Syntalos;
@@ -285,6 +286,71 @@ private slots:
         const auto manifest = parseTomlFile(manifestPath, err);
         QVERIFY2(err.isEmpty(), qPrintable(err));
         QCOMPARE(manifest.value("collection_moniker").toString(), QStringLiteral("inter-chuck-tar"));
+    }
+
+    void runCompactNameTest()
+    {
+        using edl::makeCompactName;
+
+        // lowercase + ASCII-only, dash-separated
+        const edl::CompactNameOptions slug{.fallback = "unnamed", .lowercase = true, .asciiOnly = true};
+
+        QCOMPARE(makeCompactName("Hello World", slug), "hello-world");
+        QCOMPARE(makeCompactName("  Multiple   Spaces\tand_Tabs  ", slug), "multiple-spaces-and_tabs");
+        QCOMPARE(makeCompactName("Größenwahn & Übermut!", slug), "grenwahn-bermut!");
+        QCOMPARE(makeCompactName("C++23 is great", slug), "c++23-is-great");
+        QCOMPARE(makeCompactName("a+b#c?d", slug), "a+bcd");
+
+        // length capping prefers the last word boundary that still fits
+        QCOMPARE(makeCompactName("The quick brown fox jumps", {.maxLength = 14, .lowercase = true}), "the-quick");
+        // an overlong single word has no boundary, so it is hard-cut
+        QCOMPARE(makeCompactName("Supercalifragilistic", {.maxLength = 8, .lowercase = true}), "supercal");
+
+        // `: / \` map to underscore; the `_-` artifact is cleaned up
+        QCOMPARE(makeCompactName("a: b", {.lowercase = true}), "a-b");
+        // dots map to dashes so they cannot be mistaken for a file extension
+        QCOMPARE(makeCompactName("v1.2.mkv", slug), "v1-2-mkv");
+
+        // case-preserving, spaces removed (simplifyStrForFileBasename non-lower behavior)
+        QCOMPARE(makeCompactName("Hello World", {.wordSeparator = '\0'}), "HelloWorld");
+        QCOMPARE(makeCompactName("a: b", {.wordSeparator = '\0'}), "a_b");
+
+        // fallback is normalized through the same rules; if it survives it is used
+        QCOMPARE(
+            makeCompactName("•••", {.maxLength = 16, .fallback = "Unnamed Item", .lowercase = true, .asciiOnly = true}),
+            "unnamed-item");
+        // empty input falls back, and the fallback is length-capped too
+        QCOMPARE(makeCompactName("", {.maxLength = 4, .fallback = "placeholder"}), "plac");
+    }
+
+    void runFileBasenameTest()
+    {
+        // lowercase variant (default): whitespace -> dash, lowercased
+        QCOMPARE(simplifyStrForFileBasename(QStringLiteral("Hello World")), QStringLiteral("hello-world"));
+        // case-preserving variant: whitespace removed (camelCase-joined)
+        QCOMPARE(simplifyStrForFileBasename(QStringLiteral("Hello World"), false), QStringLiteral("HelloWorld"));
+
+        // path/drive separators map to underscore (both variants)
+        QCOMPARE(simplifyStrForFileBasename(QStringLiteral("a/b:c"), true), QStringLiteral("a_b_c"));
+        QCOMPARE(simplifyStrForFileBasename(QStringLiteral("exp.1 trial"), true), QStringLiteral("exp-1-trial"));
+
+        // Unicode is preserved and Unicode-aware lowercased by the wrapper
+        QCOMPARE(simplifyStrForFileBasename(QStringLiteral("Über Mut & Spaß"), true), QStringLiteral("über-mut-spaß"));
+        QCOMPARE(simplifyStrForFileBasename(QStringLiteral("Über Mut & Spaß"), false), QStringLiteral("ÜberMutSpaß"));
+
+        QCOMPARE(simplifyStrForFileBasename(QStringLiteral("a#b?c*"), true), QStringLiteral("abc"));
+
+        // length cap
+        QCOMPARE(
+            simplifyStrForFileBasename(QStringLiteral("The quick brown fox"), true, 9),
+            QStringLiteral("the-quick"));
+
+        // empty input falls back to "unnamed"
+        QCOMPARE(simplifyStrForFileBasename(QString(), true), QStringLiteral("unnamed"));
+        QCOMPARE(simplifyStrForFileBasename(QString(), false), QStringLiteral("unnamed"));
+
+        // std::string overload mirrors the QString one
+        QCOMPARE(simplifyStrForFileBasename(std::string("Hello World"), true), std::string("hello-world"));
     }
 };
 

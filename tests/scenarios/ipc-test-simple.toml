@@ -37,9 +37,9 @@ path = "videos/python-script/manifest.toml"
 toml_fields = ["data.media_type", "data.parts"]
 
 [[test.expected_output_files]]
-path = "videos/python-script/*-video.mkv"
+path = "videos/python-script/*-python-script.mkv"
 min_size_bytes = 2650542
 
 [[test.expected_output_files]]
-path = "videos/python-script/*-video_timestamps.tsync"
+path = "videos/python-script/*-python-script_timestamps.tsync"
 min_size_bytes = 11600

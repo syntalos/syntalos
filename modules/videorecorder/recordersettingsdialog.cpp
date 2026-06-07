@@ -92,7 +92,7 @@ void RecorderSettingsDialog::setVideoNameFromSource(bool fromSource)
 
 void RecorderSettingsDialog::setVideoName(const QString &value)
 {
-    m_videoName = simplifyStrForFileBasename(value);
+    m_videoName = simplifyStrForFileBasename(value, false);
     ui->nameLineEdit->setText(m_videoName);
 }
 
@@ -286,7 +286,7 @@ void RecorderSettingsDialog::setDeferredEncodingParallelCount(int count)
 
 void RecorderSettingsDialog::on_nameLineEdit_textChanged(const QString &arg1)
 {
-    m_videoName = simplifyStrForFileBasename(arg1);
+    m_videoName = simplifyStrForFileBasename(arg1, false);
 }
 
 void RecorderSettingsDialog::on_codecComboBox_currentIndexChanged(int)

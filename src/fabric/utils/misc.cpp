@@ -19,6 +19,7 @@
 
 #include "misc.h"
 #include "config.h"
+#include "datactl/edlutils.h"
 
 #include <filesystem>
 #include <linux/magic.h>
@@ -34,6 +35,7 @@
 #include <QProcessEnvironment>
 
 namespace fs = std::filesystem;
+using namespace Syntalos;
 
 QString createRandomString(int len)
 {
@@ -57,20 +59,28 @@ QString simplifyStrForModuleName(const QString &s)
     return tmp;
 }
 
-QString simplifyStrForFileBasename(const QString &s)
+QString simplifyStrForFileBasename(const QString &s, bool lowerCase, uint maxLen)
 {
-    return simplifyStrForModuleName(s).replace(" ", "").replace(":", "_").replace("_-", "-").replace("-_", "-");
+    // Qt handles the Unicode-aware whitespace collapsing and lowercasing; makeCompactName()
+    // does the rest. When lowercased we dash-separate words (camelCase is lost once lowercased),
+    // otherwise we join them (camelCase stays readable).
+    auto base = s.simplified();
+    if (lowerCase)
+        base = base.toLower();
+    return QString::fromStdString(
+        edl::makeCompactName(
+            base.toStdString(),
+            {.maxLength = maxLen, .fallback = "unnamed", .wordSeparator = lowerCase ? '-' : '\0'}));
 }
 
-QString simplifyStrForFileBasenameLower(const QString &s)
+std::string simplifyStrForFileBasename(const std::string &s, bool lowerCase, uint maxLen)
 {
-    return simplifyStrForModuleName(s)
-        .replace(" ", "-") // use dash to make resulting name easier to read (possible camelcasing won't work in the
-                           // resulting all-lowercase string)
-        .replace(":", "_")
-        .replace("_-", "-")
-        .replace("-_", "-")
-        .toLower();
+    auto base = QString::fromStdString(s).simplified();
+    if (lowerCase)
+        base = base.toLower();
+    return edl::makeCompactName(
+        base.toStdString(),
+        {.maxLength = maxLen, .fallback = "unnamed", .wordSeparator = lowerCase ? '-' : '\0'});
 }
 
 QStringList qStringSplitLimit(const QString &str, const QChar &sep, int maxSplit, Qt::CaseSensitivity cs)

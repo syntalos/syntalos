@@ -1018,11 +1018,8 @@ QString AbstractModule::datasetNameSuggestion(bool lowercase) const
     if (lowercase)
         rawName = rawName.toLower();
 
-    QString datasetName;
-    if (d->simpleStorageNames)
-        datasetName = simplifyStrForFileBasenameLower(rawName);
-    else
-        datasetName = simplifyStrForFileBasename(rawName);
+    // lowercase the name in case the "simpleStorageNames" option is set
+    const auto datasetName = simplifyStrForFileBasename(rawName, d->simpleStorageNames);
 
     // this check should never fail, the dataset name should never consist only
     // of unsuitable characters - but just in ase it does, we safeguard against that
@@ -1053,7 +1050,7 @@ QString AbstractModule::datasetNameFromSubMetadata(const MetaStringMap &subMetad
     if (dataName.isEmpty())
         dataName = datasetNameSuggestion();
     else if (d->simpleStorageNames)
-        dataName = simplifyStrForFileBasenameLower(dataName);
+        dataName = simplifyStrForFileBasename(dataName, true);
 
     return dataName;
 }
@@ -1072,7 +1069,7 @@ QString AbstractModule::dataBasenameFromSubMetadata(const MetaStringMap &subMeta
     if (dataName.isEmpty())
         dataName = defaultName;
     if (d->simpleStorageNames)
-        dataName = simplifyStrForFileBasenameLower(dataName);
+        dataName = simplifyStrForFileBasename(dataName, true);
 
     return dataName;
 }
@@ -1096,12 +1093,8 @@ QString AbstractModule::datasetNameFromParameters(const QString &preferredName, 
 
     // attempt to use the preferred name (if we have one, and don't already have a dataset name from subscription
     // metadata)
-    if (datasetName.isEmpty() && !preferredName.isEmpty()) {
-        if (d->simpleStorageNames)
-            datasetName = simplifyStrForFileBasenameLower(preferredName);
-        else
-            datasetName = simplifyStrForFileBasename(preferredName);
-    }
+    if (datasetName.isEmpty() && !preferredName.isEmpty())
+        datasetName = simplifyStrForFileBasename(preferredName, d->simpleStorageNames);
 
     // just set our module name if we still have no data set name
     if (datasetName.isEmpty())

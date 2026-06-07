@@ -36,11 +36,11 @@ path = "videos/video-2hops/manifest.toml"
 toml_fields = ["data.media_type", "data.parts"]
 
 [[test.expected_output_files]]
-path = "videos/video-2hops/*-video.mkv"
+path = "videos/video-2hops/*-video-2hops.mkv"
 min_size_bytes = 7380000
 
 [[test.expected_output_files]]
-path = "videos/video-2hops/*-video_timestamps.tsync"
+path = "videos/video-2hops/*-video-2hops_timestamps.tsync"
 min_size_bytes = 5020
 
 [[test.expected_output_files]]
@@ -48,9 +48,9 @@ path = "videos/video-3hops/manifest.toml"
 toml_fields = ["data.media_type", "data.parts"]
 
 [[test.expected_output_files]]
-path = "videos/video-3hops/*-video.mkv"
+path = "videos/video-3hops/*-video-3hops.mkv"
 min_size_bytes = 7380000
 
 [[test.expected_output_files]]
-path = "videos/video-3hops/*-video_timestamps.tsync"
+path = "videos/video-3hops/*-video-3hops_timestamps.tsync"
 min_size_bytes = 5020

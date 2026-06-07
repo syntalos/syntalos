@@ -195,4 +195,101 @@ std::string guessContentType(const fs::path &filePath, bool onlyCertain)
     return (guess == nullptr ? std::string() : std::string(guess));
 }
 
+[[nodiscard]] static constexpr char asciiToLower(char c) noexcept
+{
+    return (c >= 'A' && c <= 'Z') ? static_cast<char>(c + ('a' - 'A')) : c;
+}
+
+[[nodiscard]] static constexpr bool isAsciiWhitespace(char c) noexcept
+{
+    return c == ' ' || c == '\t' || c == '\n' || c == '\r' || c == '\f' || c == '\v';
+}
+
+/**
+ * Replace every non-overlapping occurrence of @p from with @p to, in a single pass.
+ */
+static void replaceAll(std::string &s, std::string_view from, std::string_view to)
+{
+    std::size_t pos = 0;
+    while ((pos = s.find(from, pos)) != std::string::npos) {
+        s.replace(pos, from.size(), to);
+        pos += to.size();
+    }
+}
+
+[[nodiscard]] std::string makeCompactName(std::string_view input, const CompactNameOptions &opts)
+{
+    std::string result;
+    result.reserve(input.size());
+
+    bool pendingSeparator = false;
+    for (const char c : input) {
+        // Optionally drop anything outside the 7-bit ASCII range
+        if (opts.asciiOnly && static_cast<unsigned char>(c) > 0x7F)
+            continue;
+
+        // Drop characters that are structural in URLs (query/fragment/parameter markers),
+        // as well as other characters we never want in filenames (globs, quotes, pipes, ...).
+        static constexpr std::string_view droppedChars = "#?&*`\"'<>|";
+        if (droppedChars.contains(c))
+            continue;
+
+        if (isAsciiWhitespace(c)) {
+            // Collapse whitespace runs; emission is deferred so we never lead with a
+            // separator and a trailing run is dropped for free.
+            pendingSeparator = true;
+            continue;
+        }
+
+        if (pendingSeparator) {
+            pendingSeparator = false;
+            if (opts.wordSeparator != '\0' && !result.empty())
+                result.push_back(opts.wordSeparator);
+        }
+
+        // Map path/drive separators to underscores, and also replace dots
+        // (to make file-extension handling more robust for naive
+        // post-processing tools). Keep all other characters as-is.
+        if (c == '/' || c == '\\' || c == ':')
+            result.push_back('_');
+        else if (c == '.')
+            result.push_back('-');
+        else
+            result.push_back(c);
+    }
+
+    // Clean up separator/underscore artifacts, mirroring the historical replace chain.
+    replaceAll(result, "_-", "-");
+    replaceAll(result, "-_", "-");
+
+    if (opts.lowercase) {
+        for (char &c : result)
+            c = asciiToLower(c);
+    }
+
+    // Truncate, preferring the last word boundary that still fits
+    if (result.size() > opts.maxLength) {
+        const auto cut = result.find_last_of("-_", opts.maxLength);
+        // A single overlong word has no boundary to break at - cut it hard
+        result.resize(cut == std::string::npos ? opts.maxLength : cut);
+        while (result.ends_with('-') || result.ends_with('_'))
+            result.pop_back();
+    }
+
+    if (result.empty()) {
+        if (opts.fallback.empty())
+            return {};
+        // Normalize the fallback through the same rules (without its own fallback, to
+        // avoid recursion); if it still collapses to nothing, hard-truncate it.
+        CompactNameOptions fallbackOpts = opts;
+        fallbackOpts.fallback = {};
+        auto fallbackResult = makeCompactName(opts.fallback, fallbackOpts);
+        if (fallbackResult.empty())
+            fallbackResult = std::string{opts.fallback.substr(0, std::min(opts.fallback.size(), opts.maxLength))};
+        return fallbackResult;
+    }
+
+    return result;
+}
+
 } // namespace Syntalos::edl
