@@ -1,3 +1,64 @@
+Version 3.1.0
+-------------
+Released: 2026-06-08
+
+### Features:
+ * Use dynamic port selector in Zarr/JSON writers
+ * datactl: Allow for more SignalBlock typecasts
+ * Streamline EDL data-file basename slug creation algorithm and logic
+ * ui: Animate overloaded connections
+ * meson: Add negative-list to disable specific modules
+ * flowmeter: Add stream flow meter debugging helper module
+ * open-ephys-acq: Suggest proper output data names for streams
+ * open-ephys-acq: Read digital input lines and export them as stream
+ * open-ephys-acq: Auto-enable ADC/AUX if any one of their channels is selected
+ * jsonwriter/zarrwriter: Add the ability to save raw TTL line readings
+ * latencycheck: Add histogram display and make module a non-developer module
+ * plot-timeseries: Add support for plotting raw TTL line readings
+ * signalfilter: New module to apply IIR filter chains to signals
+ * videotransform: Add Mirror and clockwise Rotate transforms
+
+### Bugfixes:
+ * udev: Ensure our rules run before 73-seat-late.rules
+ * engine: Streamline niceness/realtime handling against the RtKit budget
+ * engine: Estimate connection heat based on items size+count, not just count
+ * fabric: Avoid unnecessary syscalls when notifying event handlers
+ * mlink: Always process control-events on sample-independent event source
+ * mlink: Fix backpressure and never drop samples on overloaded connections
+ * imgui: Don't write a unneeded imgui.ini into the working directory
+ * imgui: Ensure text fields are editable
+ * imgui: Make sure the current locale decimal point is properly respected
+ * camera-arv: Gate teardown and don't capture thread stack objects
+ * camera-generic: Don't resize received frames, set framerate early
+ * camera-generic: Prevent log spam for normalized-scale property read-backs
+ * camera-generic: Pull supported resolutions from V4L
+ * camera-lc: Add new libcamera-based module for capture from UVC devices
+ * canvas: Simplify the display speed adaptation logic
+ * canvas: Set a larger default canvas size
+ * open-ephys-acq: Address all compiler warnings
+ * open-ephys-acq: Align value scaling to what the Open Ephys GUI does as well
+ * open-ephys-acq: Shift start timestamp to recorded start time
+ * open-ephys-acq: Add buffer-aware timesync support
+ * plot-timeseries: Drop removed channels from list if source metadata changes
+ * plot-timeseries: Remember manually-set y-axis limits in project settings
+ * plot-timeseries: Use XXH3 in channel-color algorithm for deterministic colors
+ * videorecorder: Don't fail when deferred-encoding very short video chunks
+ * videorecorder: Drop misleading log warning when recording raw video
+ * json/zarrwriter: Properly write sampling rate into metadata as well
+ * zarrwriter: Use a softer color that looks even less like the error color
+
+### Miscellaneous:
+ * vendor: Update liboni
+ * ci: Implement basic resource usage instrumentation
+ * ci: Perform optimized test builds
+ * ci: Release with combined source tarballs
+ * debian: Drop PPA upload helpers
+ * tests: Add more complex signal viewer helper script
+ * plot-timeseries: Port internals to use std::string instead of QString
+
+### Contributors:
+ Matthias Klumpp, Victor Negîrneac
+
 Version 3.0.0
 -------------
 Released: 2026-05-24

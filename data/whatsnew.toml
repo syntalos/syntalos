@@ -4,13 +4,20 @@
 version = "3.1.0"
 title = "Welcome to Syntalos 3.1!"
 body = """
-<p>Syntalos 3.1 brings some interesting new features and backwards-compatible changes,
+<p>Syntalos 3.1 brings some exciting new features and includes backwards-compatible changes,
 with one exception: You now need to select the data input type on your <em>Zarr Writer</em>
 and <em>JSON Writer</em> modules explicitly in their settings and reconnect them.</p>
 
 <h3>What's new</h3>
 <ul>
-  <li>To do</li>
+  <li>Fixed an issue where in-flight samples could be lost for external modules under memory pressure.</li>
+  <li>New <em>Camera</em> module for more robust webcam recordings.</li>
+  <li>New <em>Signal Filter</em> module to apply IIR filters to signals available for testing.</li>
+  <li>The <em>Open Ephys AcqBoard</em> module is now out of beta.</li>
+  <li>The <em>Latency Check</em> module is no longer a developer module, and can be used
+      for advanced latency monitoring in projects.</li>
+  <li>Bugfixes and improvements to all camera modules.</li>
+  <li>... and many more changes and fixes!</li>
 </ul>
 
 <h3>Heads-up</h3>
