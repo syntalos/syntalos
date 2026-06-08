@@ -36,6 +36,8 @@ jobs:
     runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: recursive
 
       - name: Download build artifacts
         uses: actions/download-artifact@v8
@@ -45,15 +47,24 @@ jobs:
 
       - name: Prepare assets
         run: |
+          set -euo pipefail
           mkdir -p release_assets
 
-          # include a snapshot of the current sources
+          # include a pristine snapshot of the current sources, submodules included
           DATE=$(date -u +%Y%m%d)
-          git archive \
-            --format=tar.gz \
-            --prefix="${GITHUB_REPOSITORY##*/}-snapshot-${DATE}/" \
-            -o "$GITHUB_WORKSPACE/release_assets/${GITHUB_REPOSITORY##*/}_snap${DATE}_src.tar.gz" \
-            HEAD
+          export PKG="${GITHUB_REPOSITORY##*/}-snapshot-${DATE}"
+          export STAGE="$(mktemp -d)"
+
+          git archive --format=tar --prefix="${PKG}/" HEAD | tar -x -C "$STAGE"
+
+          # Each submodule, placed at its path inside the tree
+          git submodule foreach --recursive --quiet \
+            'git archive --format=tar --prefix="${PKG}/${displaypath}/" HEAD | tar -x -C "${STAGE}"'
+
+          # Compress with xz
+          tar -C "$STAGE" -cf - "${PKG}" | xz -9 -T0 \
+            > "$GITHUB_WORKSPACE/release_assets/${GITHUB_REPOSITORY##*/}_snap${DATE}_source.tar.xz"
+          rm -rf "$STAGE"
 
           # choose what we want to attach
           for artifact_dir in artifacts/*/; do

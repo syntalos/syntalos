@@ -49,6 +49,8 @@ jobs:
     runs-on: ubuntu-slim
     steps:
       - uses: actions/checkout@v6
+        with:
+          submodules: recursive
 
       - name: Extract release notes from NEWS.md
         env:
@@ -95,6 +97,29 @@ jobs:
           for artifact_dir in artifacts/*/; do
             cp "$artifact_dir"/*.zip "$GITHUB_WORKSPACE/release_assets/"
           done
+
+          echo "Assets to upload:"
+          ls -la release_assets/
+
+      - name: Create pristine source tarball
+        env:
+          VERSION: ${{ needs.revision.outputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p release_assets
+          export PKG="${GITHUB_REPOSITORY##*/}-${VERSION}"
+          export STAGE="$(mktemp -d)"
+
+          git archive --format=tar --prefix="${PKG}/" HEAD | tar -x -C "$STAGE"
+
+          # include submodules
+          git submodule foreach --recursive --quiet \
+            'git archive --format=tar --prefix="${PKG}/${displaypath}/" HEAD | tar -x -C "${STAGE}"'
+
+          # compress with xz
+          tar -C "$STAGE" -cf - "${PKG}" | xz -9 -T0 \
+            > "$GITHUB_WORKSPACE/release_assets/${PKG}_source.tar.xz"
+          rm -rf "$STAGE"
 
           echo "Assets to upload:"
           ls -la release_assets/
