@@ -182,6 +182,8 @@ CanvasWindow::CanvasWindow(QuillLogger *logger, QWidget *parent)
     font.setFamily("Hack, Fira Code, Noto Mono, Monospace");
     m_statusLabel->setFont(font);
     setMinimumSize(m_imgView->minimumSize());
+    // sensible default size
+    resize(800, 600);
 
     auto splitter = new QSplitter(this);
     splitter->setOrientation(Qt::Vertical);
