@@ -226,6 +226,8 @@ private:
     bool makeDirectory(const QString &dir);
 
     QHash<AbstractModule *, std::vector<uint>> setupCoreAffinityConfig(const QList<AbstractModule *> &threadedModules);
+
+    size_t guessStreamItemSizeBytes(VariantStreamSubscription *sub);
     void startResourceMonitoring(QList<AbstractModule *> activeModules, const QString &exportDirPath);
     void stopResourceMonitoring();
 

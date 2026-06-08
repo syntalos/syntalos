@@ -243,6 +243,9 @@ public:
         VariantStreamSubscription *sub;
         VarStreamInputPort *port;
         ConnectionHeatLevel heat;
+
+        size_t estBytesPerItem;  // O(1) per-item memory estimate
+        size_t prevPendingCount; // previous tick's queue length
     };
 
     std::vector<SubscriptionBufferWatchData> monitoredSubscriptions;
@@ -1457,48 +1460,94 @@ void Engine::onMemoryMonitorEvent()
     d->monitoring->prevMemAvailablePercent = memInfo.memAvailablePercent;
 }
 
+size_t Engine::guessStreamItemSizeBytes(VariantStreamSubscription *sub)
+{
+    // prefer the real size of an item sampled from the stream, make
+    // a guess if we don't know any size at all.
+    const ssize_t sampledItemBytes = sub->approxItemMemSize();
+    if (sampledItemBytes > 0)
+        return static_cast<size_t>(sampledItemBytes);
+
+    LOG_WARNING(d->log, "Unable to guess item size for {}, guessing a worse one", sub->dataTypeName());
+    switch (sub->dataTypeId()) {
+    case BaseDataType::Frame:
+        return 2u * 1024 * 1024; // assume ~1080p 8-bit until a real frame is sampled
+    case BaseDataType::SignalBlockI32:
+    case BaseDataType::SignalBlockU16:
+    case BaseDataType::SignalBlockF32:
+        return 64 * 1024;
+    default:
+        return 256; // LineReading/ControlCommand/TableRow/LineCommand
+    }
+}
+
 void Engine::onBufferMonitorEvent()
 {
     bool issueFound = false;
     bool subBufferWarningEmitted = d->monitoring->subBufferWarningEmitted;
 
+    // memory-pressure thresholds (estimated queued bytes for a single connection)
+    constexpr size_t kLowBytes = 48ull * 1024 * 1024;
+    constexpr size_t kMedBytes = 192ull * 1024 * 1024;
+    constexpr size_t kHighBytes = 512ull * 1024 * 1024;
+    // size-agnostic count backstop: a very long queue is a latency problem even
+    // when the individual items are tiny
+    constexpr size_t kCountLow = 500;     // -> at least LOW
+    constexpr size_t kCountHigh = 1500;   // -> at least MEDIUM
+    constexpr size_t kTrendMinCount = 50; // ignore trend on trivial backlogs
+
     for (auto &msd : d->monitoring->monitoredSubscriptions) {
-        const auto approxPendingCount = msd.sub->approxPendingCount();
-
-        // less than 100 pending items is arbitrarily considered "okay"
-        if (approxPendingCount < 100) {
-            if (msd.heat != ConnectionHeatLevel::NONE) {
-                Q_EMIT connectionHeatChangedAtPort(msd.port, ConnectionHeatLevel::NONE);
-                msd.heat = ConnectionHeatLevel::NONE;
-                LOG_INFO(
-                    d->log,
-                    "Connection heat removed from {}:{}[◁{}]",
-                    msd.port->owner()->name(),
-                    msd.port->title(),
-                    msd.port->dataTypeName());
-            }
-            continue;
+        const auto approxPending = msd.sub->approxPendingCount();
+        if (approxPending == 0) {
+            // check if there is anything to do
+            if (msd.heat == ConnectionHeatLevel::NONE)
+                continue;
+        } else {
+            // only guess the size if we have some items pending and don't know it already
+            if (msd.estBytesPerItem == 0)
+                msd.estBytesPerItem = guessStreamItemSizeBytes(msd.sub);
         }
+        const auto approxBytes = approxPending * msd.estBytesPerItem;
 
-        // determine connection "heat" level
-        ConnectionHeatLevel heat;
-        if (approxPendingCount > 400)
+        // 1. go by estimated memory footprint of the backlog
+        ConnectionHeatLevel heat = ConnectionHeatLevel::NONE;
+        if (approxBytes >= kHighBytes)
             heat = ConnectionHeatLevel::HIGH;
-        else if (approxPendingCount > 200)
+        else if (approxBytes >= kMedBytes)
             heat = ConnectionHeatLevel::MEDIUM;
-        else
+        else if (approxBytes >= kLowBytes)
             heat = ConnectionHeatLevel::LOW;
+
+        // 2. backstop: a huge item count regardless of per-item size (the
+        //    consumer is clearly falling far behind)
+        if (approxPending >= kCountHigh)
+            heat = std::max(heat, ConnectionHeatLevel::MEDIUM);
+        else if (approxPending >= kCountLow)
+            heat = std::max(heat, ConnectionHeatLevel::LOW);
+
+        // 3. trend: a clearly growing backlog escalates one level.
+        //    A steady or falling backlog keeps the memory-derived level, since a
+        //    falling-but-still-huge queue is still a concern.
+        if (approxPending >= kTrendMinCount && heat != ConnectionHeatLevel::HIGH) {
+            const size_t growthThreshold = msd.prevPendingCount + std::max<size_t>(20, msd.prevPendingCount / 5);
+            if (approxPending > growthThreshold)
+                heat = static_cast<ConnectionHeatLevel>(static_cast<int>(heat) + 1);
+        }
+        msd.prevPendingCount = approxPending;
+
+        // 4. emit only on level change
         if (heat != msd.heat) {
             msd.heat = heat;
-            Q_EMIT connectionHeatChangedAtPort(msd.port, msd.heat);
+            Q_EMIT connectionHeatChangedAtPort(msd.port, heat);
             LOG_INFO(
                 d->log,
-                "Connection heat changed to \"{}\" for {}:{}[◁{}] (level: {})",
-                connectionHeatToHumanString(msd.heat),
+                "Connection heat changed to \"{}\" for {}:{}[◁{}] (items: {}, ~{} MiB)",
+                connectionHeatToHumanString(heat),
                 msd.port->owner()->name(),
                 msd.port->title(),
                 msd.port->dataTypeName(),
-                approxPendingCount);
+                approxPending,
+                approxBytes / (1024 * 1024));
         }
 
         if (heat > ConnectionHeatLevel::LOW) {
@@ -1549,6 +1598,8 @@ void Engine::startResourceMonitoring(QList<AbstractModule *> activeModules, cons
             data.sub = port->subscriptionVar().get();
             data.port = port.get();
             data.heat = ConnectionHeatLevel::NONE;
+            data.estBytesPerItem = 0; // once, when needed
+            data.prevPendingCount = 0;
             d->monitoring->monitoredSubscriptions.push_back(data);
 
             // reset all connection heat levels

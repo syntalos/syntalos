@@ -81,6 +81,17 @@ public:
     virtual bool isActive() const = 0;
     virtual bool hasPending() const = 0;
     virtual size_t approxPendingCount() const = 0;
+
+    /**
+     * @brief Approximate in-memory size of a single queued item, in bytes.
+     *
+     * Sampled once from a real item as it passes through the stream, so the
+     * overload monitor can weight the pending count by actual memory pressure.
+     * Returns < 0 if no real size is known yet or the data type does not report
+     * one (see BaseDataType::memorySize()).
+     */
+    virtual ssize_t approxItemMemSize() const = 0;
+
     virtual int enableNotify() = 0;
     virtual void disableNotify() = 0;
     virtual void setThrottleItemsPerSec(uint itemsPerSec, bool allowMore = true) = 0;
@@ -348,6 +359,11 @@ public:
         return m_queue.size_approx();
     }
 
+    ssize_t approxItemMemSize() const override
+    {
+        return m_approxItemMemSize.load(std::memory_order_relaxed);
+    }
+
     bool hasPending() const override
     {
         return m_queue.size_approx() > 0;
@@ -412,6 +428,11 @@ private:
     std::atomic_uint m_throttle;
     std::atomic_uint m_skippedElements;
 
+    // Sentinel meaning "no item has been sampled yet" (distinct from -1, which a
+    // sampled item with unknown size reports). See approxItemMemSize().
+    static constexpr ssize_t kItemMemSizeUnsampled = -2;
+    std::atomic<ssize_t> m_approxItemMemSize{kItemMemSizeUnsampled};
+
     // NOTE: These two variables are intentionally *not* threadsafe and are
     // only ever manipulated by the stream (in case of the time) or only
     // touched once when a stream is started (in case of the metadata).
@@ -443,6 +464,18 @@ private:
                 return;
             }
             m_lastItemTime = timeNow;
+        }
+
+        // Sample a real item's memory footprint once, for the overload monitor.
+        // Done here on the producer thread (and before the item may be moved into
+        // the queue) so it works even when the consumer is stalled.
+        if (m_approxItemMemSize.load(std::memory_order_relaxed) == kItemMemSizeUnsampled) {
+            if (data.memorySize() > 0) {
+                m_approxItemMemSize.store(data.memorySize(), std::memory_order_relaxed);
+            } else {
+                ByteVector bv;
+                m_approxItemMemSize.store(data.toBytes(bv) ? bv.size() : -1, std::memory_order_relaxed);
+            }
         }
 
         // Actually send the data to the subscribers
@@ -493,6 +526,7 @@ private:
         m_active = true;
         m_throttle = 0;
         m_lastItemTime = currentTimePoint();
+        m_approxItemMemSize.store(kItemMemSizeUnsampled, std::memory_order_relaxed);
         while (m_queue.pop()) {
         } // ensure the queue is empty
     }
@@ -854,6 +888,12 @@ public:
     size_t approxPendingCount() const override
     {
         return m_inner->approxPendingCount();
+    }
+
+    ssize_t approxItemMemSize() const override
+    {
+        // the inner subscription owns the queue that actually holds pending items
+        return m_inner->approxItemMemSize();
     }
 
     int enableNotify() override
