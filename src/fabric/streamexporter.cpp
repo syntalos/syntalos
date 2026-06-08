@@ -260,8 +260,8 @@ static gboolean pubEventDispatch(gpointer udata)
 
 typedef struct {
     GSource source;
-    int event_fd;
     gpointer event_fd_tag;
+    VariantStreamSubscription *sub;
 } EFDSignalSource;
 
 static gboolean efd_signal_source_prepare(GSource *, gint *timeout)
@@ -281,13 +281,16 @@ static gboolean efd_signal_source_dispatch(GSource *source, GSourceFunc callback
 
     gboolean result_continue = G_SOURCE_CONTINUE;
     if (events & G_IO_IN) {
-        uint64_t buffer;
-        // just read the buffer count for now to empty it
-        // (maybe we can do something useful with the element count later?)
-        if (G_UNLIKELY(read(efd_source->event_fd, &buffer, sizeof(buffer)) == -1 && errno != EAGAIN))
-            LOG_WARNING(g_logSExport, "Failed to read from eventfd: {}", g_strerror(errno));
+        // drains the eventfd and clears the wakeup flag
+        efd_source->sub->acknowledgeNotify();
 
         result_continue = callback(user_data);
+
+        // the callback only sends a bounded batch per dispatch; re-arm so we are
+        // woken again until the queue is drained, instead of waiting for the next
+        // push (a coalesced wakeup stands for "at least one item")
+        if (result_continue != G_SOURCE_REMOVE)
+            efd_source->sub->rearmNotifyIfPending();
     }
     g_source_set_ready_time(source, -1);
     return result_continue;
@@ -296,10 +299,10 @@ static gboolean efd_signal_source_dispatch(GSource *source, GSourceFunc callback
 static GSourceFuncs efd_source_funcs =
     {.prepare = efd_signal_source_prepare, .check = NULL, .dispatch = efd_signal_source_dispatch, .finalize = NULL};
 
-static GSource *efd_signal_source_new(int event_fd)
+static GSource *efd_signal_source_new(int event_fd, VariantStreamSubscription *sub)
 {
     auto source = (EFDSignalSource *)g_source_new(&efd_source_funcs, sizeof(EFDSignalSource));
-    source->event_fd = event_fd;
+    source->sub = sub;
     source->event_fd_tag = g_source_add_unix_fd(
         (GSource *)source,
         event_fd,
@@ -356,7 +359,7 @@ void StreamExporter::streamEventThreadFunc(OptionalWaitCondition *waitCondition)
     for (auto &ed : d->exports) {
         int eventfd = ed.subscription->enableNotify();
 
-        ed.source = efd_signal_source_new(eventfd);
+        ed.source = efd_signal_source_new(eventfd, ed.subscription.get());
         g_source_set_callback(ed.source, &recvStreamEventDispatch, &ed, NULL);
         g_source_attach(ed.source, context);
 

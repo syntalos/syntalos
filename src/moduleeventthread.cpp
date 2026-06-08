@@ -31,23 +31,23 @@ using namespace Syntalos;
 class TimerEventPayload
 {
 public:
-    uint interval;
-    AbstractModule *module;
-    intervalEventFunc_t fn;
+    uint interval{0};
+    AbstractModule *module{};
+    intervalEventFunc_t fn{};
 
-    ModuleEventThread *self;
-    GSource *source;
-    GMainContext *context;
+    ModuleEventThread *self{};
+    GSource *source{};
+    GMainContext *context{};
 };
 
 class RecvDataEventPayload
 {
 public:
-    AbstractModule *module;
-    recvDataEventFunc_t fn;
+    AbstractModule *module{};
+    recvDataEventFunc_t fn{};
 
-    ModuleEventThread *self;
-    GSource *source;
+    ModuleEventThread *self{};
+    GSource *source{};
 };
 
 #pragma GCC diagnostic push
@@ -163,8 +163,8 @@ static gboolean recvDataEventDispatch(gpointer udata)
 
 typedef struct {
     GSource source;
-    int event_fd;
     gpointer event_fd_tag;
+    VariantStreamSubscription *sub;
 } EFDSignalSource;
 
 static gboolean efd_signal_source_prepare(GSource *, gint *timeout)
@@ -184,13 +184,16 @@ static gboolean efd_signal_source_dispatch(GSource *source, GSourceFunc callback
 
     gboolean result_continue = G_SOURCE_CONTINUE;
     if (events & G_IO_IN) {
-        uint64_t buffer;
-        // just read the buffer count for now to empty it
-        // (maybe we can do something useful with the element count later?)
-        if (G_UNLIKELY(read(efd_source->event_fd, &buffer, sizeof(buffer)) == -1 && errno != EAGAIN))
-            LOG_ERROR(logRoot, "Failed to read from eventfd: {}", g_strerror(errno));
+        // drains the eventfd and clears the coalesced-wakeup flag
+        efd_source->sub->acknowledgeNotify();
 
         result_continue = callback(user_data);
+
+        // the handler may only process a bounded batch per dispatch; re-arm so we
+        // are woken again until the queue is drained, instead of waiting for the
+        // next push (a coalesced wakeup stands for "at least one item")
+        if (result_continue != G_SOURCE_REMOVE)
+            efd_source->sub->rearmNotifyIfPending();
     }
     g_source_set_ready_time(source, -1);
     return result_continue;
@@ -202,10 +205,10 @@ static GSourceFuncs efd_source_funcs =
     {.prepare = efd_signal_source_prepare, .check = NULL, .dispatch = efd_signal_source_dispatch, .finalize = NULL};
 #pragma GCC diagnostic pop
 
-static GSource *efd_signal_source_new(int event_fd)
+static GSource *efd_signal_source_new(int event_fd, VariantStreamSubscription *sub)
 {
     auto source = (EFDSignalSource *)g_source_new(&efd_source_funcs, sizeof(EFDSignalSource));
-    source->event_fd = event_fd;
+    source->sub = sub;
     source->event_fd_tag = g_source_add_unix_fd(
         (GSource *)source,
         event_fd,
@@ -273,7 +276,7 @@ void ModuleEventThread::moduleEventThreadFunc(
             pl->module = mod;
             pl->fn = ev.first;
             pl->self = this;
-            pl->source = efd_signal_source_new(eventfd);
+            pl->source = efd_signal_source_new(eventfd, sub.get());
             g_source_set_callback(pl->source, &recvDataEventDispatch, pl.get(), NULL);
             g_source_attach(pl->source, context);
             recvDataPayloads.push_back(std::move(pl));

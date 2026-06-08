@@ -63,7 +63,6 @@ SubscriptionWatcher::WaitResult SubscriptionWatcher::wait()
     const int timeout = 40000; // 40msec
     struct epoll_event events[10];
     int ret;
-    uint64_t count = 0;
 
     while (true) {
         ret = epoll_wait(d->epollFD, &events[0], 10, timeout);
@@ -77,10 +76,9 @@ SubscriptionWatcher::WaitResult SubscriptionWatcher::wait()
                     LOG_WARNING(d->log, "Eventfd has epoll error");
                     //  return ERROR;
                 } else if (events[i].events & EPOLLIN) {
-                    auto efd = events[i].data.fd;
-                    ret = read(efd, &count, sizeof(count));
-                    if (ret < 0)
-                        LOG_WARNING(d->log, "Eventfd read failed: {}", std::strerror(errno));
+                    // drains the eventfd and clears the coalesced-wakeup flag
+                    auto sub = static_cast<VariantStreamSubscription *>(events[i].data.ptr);
+                    sub->acknowledgeNotify();
 
                     newData = true;
                 }
@@ -125,7 +123,9 @@ SubscriptionWatcher::SubscriptionWatcher(
 
         struct epoll_event revent;
         revent.events = EPOLLHUP | EPOLLERR | EPOLLIN;
-        revent.data.fd = efd;
+        // carry the subscription so the wait loop can acknowledge the
+        // notification through it
+        revent.data.ptr = sub.get();
 
         if (epoll_ctl(d->epollFD, EPOLL_CTL_ADD, efd, &revent) < 0) {
             LOG_CRITICAL(d->log, "Unable to add eventfd epoll watch: {}", std::strerror(errno));

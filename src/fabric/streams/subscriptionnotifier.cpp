@@ -52,12 +52,16 @@ SubscriptionNotifier::SubscriptionNotifier(
     connect(
         d->notifier.get(),
         &QSocketNotifier::activated,
-        [this, efd](QSocketDescriptor socket, QSocketNotifier::Type type) {
-            uint64_t buffer;
-            if (read(efd, &buffer, sizeof(buffer)) == -1 && errno != EAGAIN)
-                qWarning().noquote() << "subscription-notifier: Failed to read from eventfd:" << std::strerror(errno);
+        [this](QSocketDescriptor socket, QSocketNotifier::Type type) {
+            // drains the eventfd and clears the coalesced-wakeup flag
+            d->sub->acknowledgeNotify();
 
+            // slots run synchronously during the emit
             Q_EMIT this->dataReceived();
+
+            // a coalesced wakeup represents "at least one item"; if the slot did
+            // not drain everything, re-arm so we are woken again until empty
+            d->sub->rearmNotifyIfPending();
         });
 }
 

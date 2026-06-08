@@ -94,8 +94,25 @@ public:
 
     virtual int enableNotify() = 0;
     virtual void disableNotify() = 0;
-    virtual void setThrottleItemsPerSec(uint itemsPerSec, bool allowMore = true) = 0;
 
+    /**
+     * @brief Acknowledge an eventfd notification after the fd became readable.
+     *
+     * Consumers must call this when their watched eventfd wakes them. It drains the fd
+     * and clears the coalesced-wakeup flag, so the next push will write the eventfd again.
+     */
+    virtual void acknowledgeNotify() = 0;
+
+    /**
+     * @brief Re-arm the eventfd if there is still undrained data.
+     *
+     * Consumers that process only a bounded batch of items per wakeup must call
+     * this after the batch, so the coalesced eventfd wakes them again until the
+     * queue is fully drained. A no-op if nothing is pending.
+     */
+    virtual void rearmNotifyIfPending() = 0;
+
+    virtual void setThrottleItemsPerSec(uint itemsPerSec, bool allowMore = true) = 0;
     virtual void suspend() = 0;
     virtual void resume() = 0;
     virtual void clearPending() = 0;
@@ -168,6 +185,7 @@ public:
           m_queue(BlockingReaderWriterQueue<std::optional<T>>(256)),
           m_eventfd(-1),
           m_notify(false),
+          m_notifyPending(false),
           m_active(true),
           m_suspended(false),
           m_throttle(0),
@@ -322,6 +340,30 @@ public:
         m_notify = false;
     }
 
+    void acknowledgeNotify() override
+    {
+        uint64_t buffer;
+        if (read(m_eventfd, &buffer, sizeof(buffer)) == -1 && errno != EAGAIN)
+            LOG_WARNING(
+                m_log,
+                "Failed to drain eventfd in {} data subscription. FD: {} Error: {}",
+                dataTypeName(),
+                m_eventfd,
+                std::strerror(errno));
+        m_notifyPending.store(false, std::memory_order_seq_cst);
+    }
+
+    void rearmNotifyIfPending() override
+    {
+        // A coalesced wakeup stands for "at least one item"; if the consumer
+        // only drained a bounded batch, re-arm the eventfd so it is woken again
+        // until the queue is empty, instead of waiting for the next push (which
+        // may never come). pingNotify() coalesces, so this is a no-op write when
+        // a notification is already pending.
+        if (m_notify && hasPending())
+            pingNotify();
+    }
+
     /**
      * @brief Stop receiving data, but do not unsubscribe from the stream
      */
@@ -423,6 +465,7 @@ private:
     BlockingReaderWriterQueue<std::optional<T>> m_queue;
     int m_eventfd;
     std::atomic_bool m_notify;
+    std::atomic_bool m_notifyPending;
     std::atomic_bool m_active;
     std::atomic_bool m_suspended;
     std::atomic_uint m_throttle;
@@ -466,7 +509,20 @@ private:
         m_queue.emplace(std::in_place, std::forward<U>(data));
 
         // ping the eventfd, in case anyone is listening for messages
-        if (m_notify) {
+        if (m_notify)
+            pingNotify();
+    }
+
+    /**
+     * @brief Wake a listening consumer via the eventfd, coalescing repeated calls.
+     *
+     * Writes the eventfd only on the false->true transition of m_notifyPending,
+     * so a burst of pushes (or a re-arm) collapses into a single pending
+     * notification and a single write() syscall until the consumer acknowledges.
+     */
+    void pingNotify()
+    {
+        if (!m_notifyPending.exchange(true, std::memory_order_seq_cst)) {
             const uint64_t buffer = 1;
             if (write(m_eventfd, &buffer, sizeof(buffer)) == -1)
                 LOG_ERROR(
@@ -508,6 +564,7 @@ private:
         m_suspended = false;
         m_active = true;
         m_throttle = 0;
+        m_notifyPending = false;
         m_lastItemTime = currentTimePoint();
         while (m_queue.pop()) {
         } // ensure the queue is empty
@@ -919,6 +976,16 @@ public:
     void disableNotify() override
     {
         m_inner->disableNotify();
+    }
+
+    void acknowledgeNotify() override
+    {
+        m_inner->acknowledgeNotify();
+    }
+
+    void rearmNotifyIfPending() override
+    {
+        m_inner->rearmNotifyIfPending();
     }
 
     void setThrottleItemsPerSec(uint itemsPerSec, bool allowMore = true) override
