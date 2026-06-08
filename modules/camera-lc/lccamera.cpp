@@ -23,6 +23,7 @@
 #include <array>
 #include <atomic>
 #include <condition_variable>
+#include <cstring>
 #include <fcntl.h>
 #include <linux/videodev2.h>
 #include <map>
@@ -224,14 +225,16 @@ public:
     QString pixFmt;
     PixelFormat activeFormat;
 
-    // Live-tunable controls
-    std::atomic<bool> autoExposure{true};
+    // Live-tunable controls. Any change raises ctlChanged so the capture loop
+    // re-applies the control set on the next request.
+    std::atomic_bool autoExposure{true};
     std::atomic<double> exposureTime{10000};
     std::atomic<double> gain{1.0};
     std::atomic<double> brightness{0.0};
     std::atomic<double> contrast{1.0};
     std::atomic<double> saturation{1.0};
     std::atomic<double> gamma{2.2};
+    std::atomic_bool ctlChanged{false};
 
     // V4L2 power-line frequency; default to 50 Hz (1)
     int powerLineFreq{1};
@@ -346,6 +349,7 @@ bool LcCamera::autoExposure() const
 void LcCamera::setAutoExposure(bool enabled)
 {
     d->autoExposure = enabled;
+    d->ctlChanged.store(true, std::memory_order_release);
 }
 
 double LcCamera::exposureTime() const
@@ -356,6 +360,7 @@ double LcCamera::exposureTime() const
 void LcCamera::setExposureTime(double micros)
 {
     d->exposureTime = micros;
+    d->ctlChanged.store(true, std::memory_order_release);
 }
 
 double LcCamera::gain() const
@@ -366,6 +371,7 @@ double LcCamera::gain() const
 void LcCamera::setGain(double value)
 {
     d->gain = value;
+    d->ctlChanged.store(true, std::memory_order_release);
 }
 
 double LcCamera::brightness() const
@@ -376,6 +382,7 @@ double LcCamera::brightness() const
 void LcCamera::setBrightness(double value)
 {
     d->brightness = value;
+    d->ctlChanged.store(true, std::memory_order_release);
 }
 
 double LcCamera::contrast() const
@@ -386,6 +393,7 @@ double LcCamera::contrast() const
 void LcCamera::setContrast(double value)
 {
     d->contrast = value;
+    d->ctlChanged.store(true, std::memory_order_release);
 }
 
 double LcCamera::saturation() const
@@ -396,6 +404,7 @@ double LcCamera::saturation() const
 void LcCamera::setSaturation(double value)
 {
     d->saturation = value;
+    d->ctlChanged.store(true, std::memory_order_release);
 }
 
 double LcCamera::gamma() const
@@ -406,6 +415,7 @@ double LcCamera::gamma() const
 void LcCamera::setGamma(double value)
 {
     d->gamma = value;
+    d->ctlChanged.store(true, std::memory_order_release);
 }
 
 int LcCamera::powerLineFrequency() const
@@ -639,9 +649,11 @@ static void applyControls(LcCameraData *d, ControlList &ctrls)
 {
     if (d->ctlAe)
         ctrls.set(controls::AeEnable, static_cast<bool>(d->autoExposure));
+    // when auto-exposure is on, the AE algorithm owns both exposure and gain, so
+    // we don't force either manually
     if (!d->autoExposure && d->ctlExposure)
         ctrls.set(controls::ExposureTime, static_cast<int32_t>(d->exposureTime));
-    if (d->ctlGain)
+    if (!d->autoExposure && d->ctlGain)
         ctrls.set(controls::AnalogueGain, static_cast<float>(d->gain));
     if (d->ctlBrightness)
         ctrls.set(controls::Brightness, static_cast<float>(d->brightness));
@@ -813,6 +825,9 @@ bool LcCamera::connect()
 
     d->stopping = false;
     d->frameIndex = 0;
+    // the initial requests already applied the current controls, so the
+    // capture loop only needs to re-apply them on changes
+    d->ctlChanged.store(false, std::memory_order_release);
     for (auto &request : d->requests)
         d->cam->queueRequest(request.get());
 
@@ -847,12 +862,16 @@ static cv::Mat convertToBgr(LcCameraData *d, FrameBuffer *buffer, void *base)
         cv::Mat m(h, w, CV_8UC2, const_cast<uint8_t *>(p0), stride);
         cv::cvtColor(m, out, cv::COLOR_YUV2BGR_UYVY);
     } else if (fmt == formats::NV12) {
-        cv::Mat m(h + h / 2, w, CV_8UC1, const_cast<uint8_t *>(p0));
+        // semi-planar: Y plane and the interleaved UV plane share the same row
+        // stride and are contiguous, so a single strided Mat spans both correctly
+        cv::Mat m(h + h / 2, w, CV_8UC1, const_cast<uint8_t *>(p0), stride);
         cv::cvtColor(m, out, cv::COLOR_YUV2BGR_NV12);
     } else if (fmt == formats::NV21) {
-        cv::Mat m(h + h / 2, w, CV_8UC1, const_cast<uint8_t *>(p0));
+        cv::Mat m(h + h / 2, w, CV_8UC1, const_cast<uint8_t *>(p0), stride);
         cv::cvtColor(m, out, cv::COLOR_YUV2BGR_NV21);
     } else if (fmt == formats::YUV420) {
+        // fully-planar I420: the U/V planes use half the Y stride, so a single
+        // strided Mat cannot describe all three; this assumes stride == width
         cv::Mat m(h + h / 2, w, CV_8UC1, const_cast<uint8_t *>(p0));
         cv::cvtColor(m, out, cv::COLOR_YUV2BGR_I420);
     } else if (fmt == formats::RGB888) {
@@ -898,7 +917,10 @@ bool LcCamera::getFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
 
     auto requeue = [&]() {
         request->reuse(Request::ReuseBuffers);
-        applyControls(d.get(), request->controls());
+        // only re-attach controls when a setting actually changed since the last
+        // request; libcamera latches them in hardware, so a one-off apply suffices
+        if (d->ctlChanged.exchange(false, std::memory_order_acquire))
+            applyControls(d.get(), request->controls());
         d->cam->queueRequest(request);
     };
 
