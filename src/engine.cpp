@@ -1538,13 +1538,13 @@ void Engine::onBufferMonitorEvent()
             Q_EMIT connectionHeatChangedAtPort(msd.port, heat);
             LOG_INFO(
                 d->log,
-                "Connection heat changed to \"{}\" for {}:{}[◁{}] (items: {}, ~{} MiB)",
+                "Connection heat changed to \"{}\" for {}:{}[◁{}] (items: {}, ~{:.2f} MiB)",
                 connectionHeatToHumanString(heat),
                 msd.port->owner()->name(),
                 msd.port->title(),
                 msd.port->dataTypeName(),
                 approxPending,
-                approxBytes / (1024 * 1024));
+                (double)approxBytes / (1024 * 1024));
         }
 
         if (heat > ConnectionHeatLevel::LOW) {
