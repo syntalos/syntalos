@@ -171,6 +171,21 @@ public:
      * Serialize the data to a byte array for local transmission.
      */
     virtual bool toBytes(ByteVector &output) const = 0;
+
+    /**
+     * @brief Approximate in-memory footprint of this item, in bytes.
+     *
+     * Used purely for monitoring (e.g. estimating connection backlog memory
+     * pressure). Unlike memorySize() this is only an estimate and carries no
+     * allocation contract.
+     * Defaults to memorySize() when a type reports an exact size, otherwise
+     * returns a very small size.
+     */
+    [[nodiscard]] virtual size_t approxMemorySize() const
+    {
+        const auto msz = memorySize();
+        return msz > 0 ? static_cast<size_t>(msz) : sizeof(BaseDataType);
+    }
 };
 
 /**
@@ -305,6 +320,11 @@ struct ControlCommand final : BaseDataType {
 
         return obj;
     }
+
+    [[nodiscard]] size_t approxMemorySize() const override
+    {
+        return sizeof(kind) + sizeof(duration) + command.size();
+    }
 };
 
 /**
@@ -355,6 +375,12 @@ struct TableRow final : BaseDataType {
         stream.read(obj.data);
 
         return obj;
+    }
+
+    [[nodiscard]] size_t approxMemorySize() const override
+    {
+        // only for memory-pressure guesses, does not need to be exact at all
+        return data.size() > 0 ? data.size() * data[0].length() : 1;
     }
 };
 
@@ -547,6 +573,17 @@ struct SignalBlockI32 final : BaseDataType {
         return data.cols();
     }
 
+    [[nodiscard]] ssize_t memorySize() const override
+    {
+        // exact serialized size, matching serializeEigen() used in writeToMemory()
+        return serializedEigenSize(timestamps) + serializedEigenSize(data);
+    }
+
+    bool writeToMemory(void *memory, ssize_t size = -1) const override
+    {
+        return writeEigenPairToMemory(memory, size, timestamps, data);
+    }
+
     bool toBytes(ByteVector &output) const override
     {
         BinaryStreamWriter stream(output);
@@ -600,6 +637,17 @@ struct SignalBlockU16 final : BaseDataType {
     [[nodiscard]] size_t cols() const
     {
         return data.cols();
+    }
+
+    [[nodiscard]] ssize_t memorySize() const override
+    {
+        // exact serialized size, matching serializeEigen() used in writeToMemory()
+        return serializedEigenSize(timestamps) + serializedEigenSize(data);
+    }
+
+    bool writeToMemory(void *memory, ssize_t size = -1) const override
+    {
+        return writeEigenPairToMemory(memory, size, timestamps, data);
     }
 
     bool toBytes(ByteVector &output) const override
@@ -664,6 +712,17 @@ struct SignalBlockF32 final : BaseDataType {
     [[nodiscard]] size_t cols() const
     {
         return data.cols();
+    }
+
+    [[nodiscard]] ssize_t memorySize() const override
+    {
+        // exact serialized size, matching serializeEigen() used in writeToMemory()
+        return serializedEigenSize(timestamps) + serializedEigenSize(data);
+    }
+
+    bool writeToMemory(void *memory, ssize_t size = -1) const override
+    {
+        return writeEigenPairToMemory(memory, size, timestamps, data);
     }
 
     bool toBytes(ByteVector &output) const override

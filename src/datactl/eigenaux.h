@@ -21,6 +21,7 @@
 
 #include <Eigen/Dense>
 #include <algorithm>
+#include <cassert>
 #include <cstdint>
 #include <vector>
 
@@ -105,6 +106,35 @@ void serializeEigen(BinaryStreamWriter &stream, const EigenType &matrix)
             stream.write(value);
         }
     }
+}
+
+/**
+ * Exact number of bytes serializeEigen() writes for @p matrix: a uint64 row and
+ * col count, followed by row*col scalars. Used to size buffers in advance.
+ */
+template<typename EigenType>
+inline ssize_t serializedEigenSize(const EigenType &matrix)
+{
+    return static_cast<ssize_t>(
+        2 * sizeof(uint64_t) + static_cast<size_t>(matrix.size()) * sizeof(typename EigenType::Scalar));
+}
+
+/**
+ * Serialize a (timestamps, data) matrix pair straight into a caller-provided
+ * memory block, using the identical wire format as serializeEigen(). When
+ * @p size is < 0 it is derived from the matrices. Returns true on success.
+ */
+template<typename TsType, typename DataType>
+inline bool writeEigenPairToMemory(void *memory, ssize_t size, const TsType &timestamps, const DataType &data)
+{
+    if (size < 0)
+        size = serializedEigenSize(timestamps) + serializedEigenSize(data);
+    BinaryStreamWriter stream(memory, static_cast<size_t>(size));
+    serializeEigen(stream, timestamps);
+    serializeEigen(stream, data);
+    // a larger buffer than needed is permitted by the writeToMemory() contract
+    assert(stream.position() <= static_cast<size_t>(size));
+    return true;
 }
 
 template<typename EigenType>

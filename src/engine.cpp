@@ -1462,22 +1462,19 @@ void Engine::onMemoryMonitorEvent()
 
 size_t Engine::guessStreamItemSizeBytes(VariantStreamSubscription *sub)
 {
-    // prefer the real size of an item sampled from the stream, make
-    // a guess if we don't know any size at all.
+    // prefer the slightly more accurate size of an item sampled from the stream
     const ssize_t sampledItemBytes = sub->approxItemMemSize();
     if (sampledItemBytes > 0)
         return static_cast<size_t>(sampledItemBytes);
 
-    LOG_WARNING(d->log, "Unable to guess item size for {}, guessing a worse one", sub->dataTypeName());
+    // otherwise fall back to a coarse guess
     switch (sub->dataTypeId()) {
-    case BaseDataType::Frame:
-        return 2u * 1024 * 1024; // assume ~1080p 8-bit until a real frame is sampled
     case BaseDataType::SignalBlockI32:
     case BaseDataType::SignalBlockU16:
     case BaseDataType::SignalBlockF32:
         return 64 * 1024;
     default:
-        return 256; // LineReading/ControlCommand/TableRow/LineCommand
+        return 32; // LineReading/ControlCommand/LineCommand
     }
 }
 

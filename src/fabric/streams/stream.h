@@ -361,7 +361,7 @@ public:
 
     ssize_t approxItemMemSize() const override
     {
-        return m_approxItemMemSize.load(std::memory_order_relaxed);
+        return m_stream ? m_stream->approxItemMemSize() : -1;
     }
 
     bool hasPending() const override
@@ -428,11 +428,6 @@ private:
     std::atomic_uint m_throttle;
     std::atomic_uint m_skippedElements;
 
-    // Sentinel meaning "no item has been sampled yet" (distinct from -1, which a
-    // sampled item with unknown size reports). See approxItemMemSize().
-    static constexpr ssize_t kItemMemSizeUnsampled = -2;
-    std::atomic<ssize_t> m_approxItemMemSize{kItemMemSizeUnsampled};
-
     // NOTE: These two variables are intentionally *not* threadsafe and are
     // only ever manipulated by the stream (in case of the time) or only
     // touched once when a stream is started (in case of the metadata).
@@ -464,18 +459,6 @@ private:
                 return;
             }
             m_lastItemTime = timeNow;
-        }
-
-        // Sample a real item's memory footprint once, for the overload monitor.
-        // Done here on the producer thread (and before the item may be moved into
-        // the queue) so it works even when the consumer is stalled.
-        if (m_approxItemMemSize.load(std::memory_order_relaxed) == kItemMemSizeUnsampled) {
-            if (data.memorySize() > 0) {
-                m_approxItemMemSize.store(data.memorySize(), std::memory_order_relaxed);
-            } else {
-                ByteVector bv;
-                m_approxItemMemSize.store(data.toBytes(bv) ? bv.size() : -1, std::memory_order_relaxed);
-            }
         }
 
         // Actually send the data to the subscribers
@@ -526,7 +509,6 @@ private:
         m_active = true;
         m_throttle = 0;
         m_lastItemTime = currentTimePoint();
-        m_approxItemMemSize.store(kItemMemSizeUnsampled, std::memory_order_relaxed);
         while (m_queue.pop()) {
         } // ensure the queue is empty
     }
@@ -560,6 +542,18 @@ public:
     QString dataTypeName() const override
     {
         return QString::fromStdString(BaseDataType::typeIdToString(syDataTypeId<T>()));
+    }
+
+    /**
+     * @brief Approximate in-memory footprint of a single item on this stream.
+     *
+     * Sampled once from a real item the first time data is pushed.
+     * Returns < 0 until the first push, or -1 if the type reports no size.
+     * Used by the engine's connection-overload monitor.
+     */
+    [[nodiscard]] ssize_t approxItemMemSize() const
+    {
+        return m_approxItemMemSize.load(std::memory_order_relaxed);
     }
 
     MetaStringMap metadata() override
@@ -659,6 +653,9 @@ public:
         m_ownerId = std::this_thread::get_id();
         commitMetadata();
 
+        // re-sample the per-item size on each run
+        m_approxItemMemSize.store(kItemMemSizeUnsampled, std::memory_order_relaxed);
+
         // Trying to start a dormant stream is illegal, so we
         // do not allow this action - this is a bug in the caller,
         // and needs to be fixed.
@@ -693,6 +690,7 @@ public:
     {
         if (!m_active)
             return;
+        sampleItemMemSizeOnce(data);
         for (auto &sub : m_subs)
             sub->push(data);
     }
@@ -709,6 +707,7 @@ public:
             return;
         if (m_subs.empty())
             return;
+        sampleItemMemSizeOnce(data);
         // copy to every subscriber except the last, then donate ownership to the last one
         const auto lastIdx = m_subs.size() - 1;
         for (size_t i = 0; i < lastIdx; ++i)
@@ -802,6 +801,22 @@ private:
     // Per-stream scratch object for buffer-reuse types (e.g. Frame).
     // For all other types this collapses to a zero-size NoScratch member.
     [[no_unique_address]] std::conditional_t<supports_buffer_reuse<T>::value, T, NoScratch> m_scratchObj;
+
+    // The kItemMemSizeUnsampled sentinel means "no item has been sampled yet" (distinct
+    // from -1, which a sampled item with unknown size reports). See approxItemMemSize().
+    static constexpr ssize_t kItemMemSizeUnsampled = -2;
+    std::atomic<ssize_t> m_approxItemMemSize{kItemMemSizeUnsampled};
+
+    /**
+     * Record one item's approximate footprint for the overload monitor.
+     */
+    void sampleItemMemSizeOnce(const T &data)
+    {
+        if (m_approxItemMemSize.load(std::memory_order_relaxed) != kItemMemSizeUnsampled)
+            return;
+        const size_t sz = data.approxMemorySize();
+        m_approxItemMemSize.store(sz > 0 ? static_cast<ssize_t>(sz) : -1, std::memory_order_relaxed);
+    }
 
     /**
      * Create a simple ID for this stream, for log messages only.

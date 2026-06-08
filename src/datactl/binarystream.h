@@ -19,6 +19,7 @@
 
 #pragma once
 
+#include <cassert>
 #include <cstring>
 #include <memory>
 #include <span>
@@ -71,13 +72,24 @@ class BinaryStreamWriter
 {
 public:
     explicit BinaryStreamWriter(ByteVector &buf)
-        : m_buffer(buf)
+        : m_buffer(&buf)
     {
-        m_buffer.clear();
+        m_buffer->clear();
     }
 
     explicit BinaryStreamWriter(const ByteVector &buf)
-        : m_buffer(const_cast<ByteVector &>(buf))
+        : m_buffer(const_cast<ByteVector *>(&buf))
+    {
+    }
+
+    /**
+     * Write into a fixed, pre-allocated raw buffer (e.g. an IPC shared-memory
+     * slice) instead of a growable ByteVector. The caller must size the buffer
+     * to exactly fit what will be written (see the type's memorySize()).
+     */
+    BinaryStreamWriter(void *data, size_t capacity)
+        : m_raw(static_cast<std::byte *>(data)),
+          m_rawCapacity(capacity)
     {
     }
 
@@ -85,9 +97,7 @@ public:
     void write(const T &value)
         requires std::is_trivially_copyable_v<T>
     {
-        const size_t oldSize = m_buffer.size();
-        m_buffer.resize(oldSize + sizeof(T));
-        std::memcpy(m_buffer.data() + oldSize, &value, sizeof(T));
+        appendBytes(&value, sizeof(T));
     }
 
     void write(const std::string &str)
@@ -96,10 +106,7 @@ public:
         write(size);
         if (size == 0)
             return;
-
-        const size_t oldSize = m_buffer.size();
-        m_buffer.resize(oldSize + size);
-        std::memcpy(m_buffer.data() + oldSize, str.data(), size);
+        appendBytes(str.data(), size);
     }
 
     void write(const std::vector<std::string> &vec)
@@ -117,16 +124,35 @@ public:
 
     void reserve(size_t capacity)
     {
-        m_buffer.reserve(capacity);
+        if (m_buffer)
+            m_buffer->reserve(capacity);
     }
 
     [[nodiscard]] size_t position() const
     {
-        return m_buffer.size();
+        return m_buffer ? m_buffer->size() : m_rawPos;
     }
 
 private:
-    ByteVector &m_buffer;
+    // Append raw bytes to whichever sink this writer targets: a growable
+    // ByteVector, or a fixed pre-allocated raw buffer.
+    void appendBytes(const void *src, size_t n)
+    {
+        if (m_buffer) {
+            const size_t oldSize = m_buffer->size();
+            m_buffer->resize(oldSize + n);
+            std::memcpy(m_buffer->data() + oldSize, src, n);
+        } else {
+            assert(m_rawPos + n <= m_rawCapacity && "BinaryStreamWriter raw buffer overflow");
+            std::memcpy(m_raw + m_rawPos, src, n);
+            m_rawPos += n;
+        }
+    }
+
+    ByteVector *m_buffer = nullptr; // growable sink (null when writing to a raw buffer)
+    std::byte *m_raw = nullptr;     // fixed sink (null when writing to a ByteVector)
+    size_t m_rawPos = 0;
+    size_t m_rawCapacity = 0;
 };
 
 /**
@@ -213,9 +239,7 @@ inline void BinaryStreamWriter::write(const ByteVector &blob)
     write(static_cast<uint64_t>(blob.size()));
     if (blob.empty())
         return;
-    const size_t oldSize = m_buffer.size();
-    m_buffer.resize(oldSize + blob.size());
-    std::memcpy(m_buffer.data() + oldSize, blob.data(), blob.size());
+    appendBytes(blob.data(), blob.size());
 }
 
 inline void BinaryStreamWriter::write(const MetaArray &arr)
