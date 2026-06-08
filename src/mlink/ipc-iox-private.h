@@ -204,6 +204,12 @@ public:
                                .history_size(SY_IOX_HISTORY_SIZE)
                                .subscriber_max_buffer_size(SY_IOX_QUEUE_CAPACITY)
                                .subscriber_max_borrowed_samples(1)
+                               // Non-lossy: when a subscriber's buffer is full, the publisher's
+                               // RetryUntilDelivered send blocks instead of overwriting the oldest
+                               // sample. With the default safe-overflow ring, RetryUntilDelivered is
+                               // a no-op and slow consumers silently lose data Disabling it makes
+                               // IPC backpressure work like the in-process queues.
+                               .enable_safe_overflow(false)
                                .open_or_create();
         if (!maybePubSvc.has_value())
             throw std::runtime_error(
@@ -482,6 +488,9 @@ public:
                                .history_size(SY_IOX_HISTORY_SIZE)
                                .subscriber_max_buffer_size(SY_IOX_QUEUE_CAPACITY)
                                .subscriber_max_borrowed_samples(1)
+                               // No overflow, so a slow consumer backpressures the sender
+                               // instead of silently dropping data.
+                               .enable_safe_overflow(false)
                                .open_or_create();
         if (!maybeSubSvc.has_value())
             throw std::runtime_error(

@@ -232,11 +232,11 @@ static gboolean recvStreamEventDispatch(gpointer udata)
         }
     };
 
-    // Send up to 20 samples in one go, but do not try this if we are shutting down,
+    // Send up to 24 samples in one go, but do not try this if we are shutting down,
     // as the client we want to communicate with may have crashed.
     // If we try to communicate with a crashed client, we will wait for a long time
     // and might run out of memory meanwhile.
-    for (uint i = 0; i < 20; i++) {
+    for (uint i = 0; i < 24; i++) {
         if (!ed->self->isRunning())
             break;
         if (!ed->subscription->callIfNextVar(sendFn))
