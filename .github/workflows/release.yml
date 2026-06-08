@@ -95,7 +95,7 @@ jobs:
 
           # choose what we want to attach
           for artifact_dir in artifacts/*/; do
-            cp "$artifact_dir"/*.zip "$GITHUB_WORKSPACE/release_assets/"
+            cp "$artifact_dir"/syntalos*.zip "$GITHUB_WORKSPACE/release_assets/"
           done
 
           echo "Assets to upload:"
