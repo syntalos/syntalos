@@ -24,6 +24,7 @@
 #include <QOpenGLBuffer>
 #include <QOpenGLVertexArrayObject>
 #include <QOpenGLExtraFunctions>
+#include <QSurfaceFormat>
 #include <opencv2/opencv.hpp>
 #include <cmath>
 #include <cstring>
@@ -205,6 +206,14 @@ ImageViewWidget::ImageViewWidget(QWidget *parent)
     d->bgColorVec = QVector4D(0.46f, 0.46f, 0.46f, 1.0f);
     setWindowTitle("Video");
     QWidget::setMinimumSize(QSize(320, 256));
+
+    // CanvasModule paces its display rate purely through vsync, draining the frame
+    // queue to the freshest frame on each repaint. That only holds if buffer swaps
+    // actually block until the next vertical refresh, so request a swap interval of 1
+    // explicitly instead of relying on the platform/driver default.
+    QSurfaceFormat fmt = format();
+    fmt.setSwapInterval(1);
+    setFormat(fmt);
 }
 
 ImageViewWidget::~ImageViewWidget()

@@ -30,6 +30,9 @@
 #include <QGraphicsOpacityEffect>
 #include <QSplitter>
 #include <QTimer>
+#include <QScreen>
+
+#include <algorithm>
 
 #include "imageviewwidget.h"
 #include "histogramwidget.h"
@@ -259,6 +262,23 @@ void CanvasWindow::showImage(const cv::Mat &mat)
 void CanvasWindow::setStatusText(const QString &text)
 {
     m_statusLabel->setText(text);
+}
+
+qreal CanvasWindow::displayRefreshRate() const
+{
+    qreal hz = 0;
+    if (const auto scr = screen())
+        hz = scr->refreshRate();
+
+    // some platforms/drivers report 0, fall back to a safe default
+    if (hz <= 10.0)
+        hz = 60.0;
+
+    // guard against absurd values from a misbehaving driver
+    // yes, 480 Hz monitors exist, but we are not designing
+    // a video display for dragonflies (and even they would be
+    // very happy with a 300 Hz video)
+    return std::clamp(hz, 30.0, 360.0);
 }
 
 bool CanvasWindow::highlightSaturation() const

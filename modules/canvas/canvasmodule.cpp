@@ -20,7 +20,9 @@
 #include "canvasmodule.h"
 
 #include <QTime>
-#include <QTimer>
+
+#include <algorithm>
+#include <cmath>
 
 #include "canvaswindow.h"
 #include "datactl/frametype.h"
@@ -44,7 +46,7 @@ private:
     static constexpr double STREAM_EMA_ALPHA = 0.5;   // EMA smoothing factor for FPS updates for streamed frames
 
     // Framerate tracking for display
-    double m_expectedDisplayFps{};
+    double m_targetDisplayFps{}; // display rate we expect (monitor refresh, capped by source rate)
     double m_currentDisplayFps{};
     symaster_timepoint m_lastDisplayTime;
     double m_avgDisplayTimeMs{}; // Moving average of display intervals in ms
@@ -59,10 +61,6 @@ private:
     QString m_cachedStatusText;
     symaster_timepoint m_lastStatusUpdateTime;
     static constexpr double STATUS_UPDATE_INTERVAL_MS = 125.0; // Update status text only every 125ms
-
-    // Stream speed throttling
-    uint m_throttleCount{};
-    uint m_blackOutCount{};
 
     bool m_active{};
     bool m_paused{};
@@ -104,7 +102,6 @@ public:
         m_lastDisplayTime = currentTimePoint();
         m_lastStatusUpdateTime = currentTimePoint();
         m_currentDisplayFps = 60.0;
-        m_blackOutCount = 0;
         m_paused = false;
 
         return true;
@@ -118,8 +115,7 @@ public:
         }
         m_active = true;
 
-        // check framerate and throttle it, showing a remark in the latter
-        // case so the user is aware that they're not seeing every single frame
+        // the source's true frame rate (0 means "unknown / static images")
         m_expectedFps = m_frameSub->metadataValue<double>("framerate", 60);
 
         // initialize stream FPS tracking
@@ -127,15 +123,20 @@ public:
         m_streamedFramesSinceLastCalc = 0;
         m_currentFpsEma = -1; // Signal that we begin a new measurement
 
-        // initialize display tracking
-        m_avgDisplayTimeMs = (m_expectedFps > 0) ? (1000.0 / m_expectedFps) : (1000.0 / 60.0);
+        // We pace the display to the monitor's refresh rate, so 120 Hz screens get
+        // 120 fps while 60 Hz screens are not over-served, but never faster than the
+        // source actually produces frames.
+        const double refreshRate = m_cvView->displayRefreshRate();
+        m_targetDisplayFps = (m_expectedFps > 0) ? std::min(m_expectedFps, refreshRate) : refreshRate;
+        m_currentDisplayFps = m_targetDisplayFps;
+        m_avgDisplayTimeMs = 1000.0 / m_targetDisplayFps;
 
-        // never ever try to display more than 240 fps by default
-        // the module will lower this on its own if too much data is queued
-        m_throttleCount = 240;
-        m_frameSub->setThrottleItemsPerSec(m_throttleCount);
-        m_expectedDisplayFps = (m_expectedFps < m_throttleCount) ? m_expectedFps : m_throttleCount;
-        m_currentDisplayFps = m_expectedDisplayFps;
+        // Stable, coarse cap on the producer to trim extreme upstream rates and avoid
+        // pointless enqueue churn. The precise rate limiting is done on our side by
+        // draining the queue down to the most recent frame on every pass, so this
+        // value never needs to adapt - the headroom just keeps a fresh frame ready
+        // for each display tick.
+        m_frameSub->setThrottleItemsPerSec(static_cast<uint>(std::ceil(m_targetDisplayFps * 2)));
 
         auto imgWinTitle = qstr(m_frameSub->metadataValue<std::string>(CommonMetadataKey::SrcModName, {}));
         if (imgWinTitle.isEmpty())
@@ -150,7 +151,6 @@ public:
     {
         if (!m_active)
             return;
-        auto maybeFrame = m_frameSub->peekNext();
 
         if (m_ctlSub) {
             auto maybeCtl = m_ctlSub->peekNext();
@@ -159,74 +159,41 @@ public:
                 m_paused = ctlValue.kind == ControlCommandKind::STOP || ctlValue.kind == ControlCommandKind::PAUSE;
             }
 
-            if (m_paused)
+            if (m_paused) {
+                // keep the queue empty while paused, so we don't accumulate a backlog
+                m_frameSub->clearPending();
                 return;
+            }
         }
 
-        if (!maybeFrame.has_value())
-            return;
+        // Drain the whole queue, keeping only the most recent frame. This exists
+        // so we never build up a backlog: no matter how fast the source runs,
+        // the queue is emptied on every pass and we only ever display the freshest
+        // frame. Every drained frame still counts towards the measured stream rate.
+        std::optional<Frame> latest;
+        uint drainedCount = 0;
+        while (auto maybeFrame = m_frameSub->peekNext()) {
+            latest = std::move(maybeFrame);
+            ++drainedCount;
+        }
 
+        // Count ALL frames that arrived from the source: the ones we just drained
+        // plus the ones the producer-side throttle already dropped. This gives the
+        // true source rate.
         const auto skippedFrames = m_frameSub->retrieveApproxSkippedElements();
-        const auto framesPendingCount = m_frameSub->approxPendingCount();
+        m_streamedFramesSinceLastCalc += skippedFrames + drainedCount;
 
-        // Count ALL frames that arrive from the source (both processed and skipped)
-        // This gives us the true source rate
-        // (we add one to account for the frame we are about to process)
-        m_streamedFramesSinceLastCalc += skippedFrames + 1;
-
-        if (framesPendingCount > (m_expectedDisplayFps * 2)) {
-            // we have too many frames pending in the queue, we may have to throttle
-            // the subscription more
-
-            uint throttleAdjust = 1;
-            if (m_throttleCount > 60) {
-                throttleAdjust = framesPendingCount / 8;
-                if (throttleAdjust == 0)
-                    throttleAdjust = 1;
-            }
-            if (throttleAdjust >= m_throttleCount)
-                m_throttleCount = 1;
-            else
-                m_throttleCount -= throttleAdjust;
-
-            if ((m_throttleCount <= 2) && (m_expectedFps != 0)) {
-                // throttle to less then 2fps? This looks suspicious, terminate.
-                m_frameSub->suspend();
-                m_blackOutCount++;
-
-                if (m_blackOutCount >= 3) {
-                    raiseError(QStringLiteral(
-                        "Dropped below 2fps in display render speed multiple times. Even when "
-                        "discarding most frames we still "
-                        "can not display images fast enough to empty the pending data queue.\n"
-                        "Either the displayed frames are excessively large, something is wrong with the "
-                        "display hardware, "
-                        "or there is a bug in the display code."));
-                    return;
-                }
-
-                // resume operation, maybe we have better luck this time?
-                // (if we can not manage to display at reasonable speed,
-                // we will give up after a few tries)
-                m_throttleCount = 144;
-                m_expectedDisplayFps = (m_expectedFps < m_throttleCount) ? m_expectedFps : m_throttleCount;
-                m_frameSub->setThrottleItemsPerSec(m_throttleCount);
-                m_frameSub->resume();
-                return;
-            }
-
-            m_frameSub->setThrottleItemsPerSec(m_throttleCount);
-            m_expectedDisplayFps = m_throttleCount;
-
-            // we don't show the current image, so the fps values of display and stream can
-            // be updated properly in the next run.
-            // since we are already skipping frames at this point, not showing the current one
-            // is no loss
+        if (!latest.has_value())
             return;
-        }
 
-        // get all timing info and show the image
-        const auto &frame = *maybeFrame;
+        // Show the freshest frame. We deliberately do NOT add a software rate gate
+        // here: the display is already paced by the compositor's vsync. showImage()
+        // calls update(), which coalesces into a single repaint whose buffer swap
+        // blocks until the next vertical refresh.
+        // Paints land at the monitor's refresh rate no matter how often the
+        // engine loop wakes us.
+        const auto timeNow = currentTimePoint();
+        const auto &frame = *latest;
         m_cvView->showImage(frame.mat);
         const auto frameTimeUsec = frame.time.count();
 
@@ -239,7 +206,6 @@ public:
             return;
         }
 
-        const auto timeNow = currentTimePoint();
         if (m_currentFpsEma < 0) {
             // The run has (very likely) just started!
             // We need to set the timepoint right here for accurate measurements of initial framerates
@@ -247,7 +213,7 @@ public:
             m_currentFpsEma = m_expectedFps;
         }
 
-        // Calculate display FPS from actual display intervals
+        // calculate display FPS from actual display intervals
         const double displayIntervalMs = timeDiffMsec(timeNow, m_lastDisplayTime).count();
         if (displayIntervalMs > 0) {
             m_avgDisplayTimeMs = (DISPLAY_EMA_ALPHA * displayIntervalMs)
@@ -255,7 +221,7 @@ public:
             m_currentDisplayFps = 1000.0 / m_avgDisplayTimeMs;
         }
 
-        // Stream FPS calculation
+        // stream FPS calculation
         if (m_streamedFramesSinceLastCalc >= 24) {
             const double streamElapsedSec = timeDiffMsec(timeNow, m_lastStreamCalcTime).count() / 1000.0;
             const double streamRate = static_cast<double>(m_streamedFramesSinceLastCalc) / streamElapsedSec;
@@ -263,7 +229,7 @@ public:
             // EMA smoothing
             m_currentFpsEma = (STREAM_EMA_ALPHA * streamRate) + ((1 - STREAM_EMA_ALPHA) * m_currentFpsEma);
 
-            // Reset stream counters and timing
+            // reset stream counters and timing
             m_streamedFramesSinceLastCalc = 0;
             m_lastStreamCalcTime = timeNow;
         }
@@ -271,7 +237,7 @@ public:
         // update last time we calculated speeds and displayed a frame
         m_lastDisplayTime = timeNow;
 
-        // Update status text at a reduced rate to optimize performance
+        // update status text at a reduced rate (nicer for humans, and more performant)
         const double timeSinceLastUpdate = timeDiffMsec(timeNow, m_lastStatusUpdateTime).count();
         if (timeSinceLastUpdate >= STATUS_UPDATE_INTERVAL_MS) {
             // Format status text efficiently using QStringLiteral for compile-time string construction

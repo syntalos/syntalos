@@ -44,6 +44,14 @@ public:
     void showImage(const cv::Mat &mat);
     void setStatusText(const QString &text);
 
+    /**
+     * @brief Refresh rate (in Hz) of the screen this window currently lives on.
+     *
+     * Falls back to 60 Hz if the value can not be determined, and is clamped to
+     * a sane range so a bogus driver value can not produce absurd display pacing.
+     */
+    qreal displayRefreshRate() const;
+
     bool highlightSaturation() const;
     void setHighlightSaturation(bool enabled);
 
