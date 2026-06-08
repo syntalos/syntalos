@@ -238,6 +238,7 @@ public:
 
     // V4L2 power-line frequency; default to 50 Hz (1)
     int powerLineFreq{1};
+    std::atomic_bool v4lChanged{false};
 
     // control availability for the connected camera
     bool ctlAe{false};
@@ -426,6 +427,7 @@ int LcCamera::powerLineFrequency() const
 void LcCamera::setPowerLineFrequency(int value)
 {
     d->powerLineFreq = value;
+    d->v4lChanged.store(true, std::memory_order_release);
 }
 
 /**
@@ -473,6 +475,30 @@ static bool withV4l2Node(const std::shared_ptr<Camera> &cam, Fn &&fn)
     ::close(fd);
 
     return ok;
+}
+
+void LcCamera::commitV4LSettings()
+{
+    const int plf = d->powerLineFreq;
+    if (plf < 0)
+        return;
+
+    // POWER_LINE_FREQUENCY is a UVC processing-unit control that libcamera does not expose,
+    // so we set it out-of-band via V4L2 on the backing device node. This works at any time,
+    // including while libcamera is streaming, so the setting can be changed mid-run.
+    auto cam = currentCamera(d.get());
+    if (!cam)
+        return;
+
+    const bool ok = withV4l2Node(cam, [plf](int fd) {
+        struct v4l2_control c;
+        memset(&c, 0, sizeof(c));
+        c.id = V4L2_CID_POWER_LINE_FREQUENCY;
+        c.value = plf;
+        return ioctl(fd, VIDIOC_S_CTRL, &c) == 0;
+    });
+    if (!ok && d->log)
+        LOG_WARNING(d->log, "Could not set the power-line frequency on the camera device.");
 }
 
 bool LcCamera::powerLineFrequencySupported()
@@ -694,20 +720,6 @@ bool LcCamera::connect()
     }
     d->state = CamState::Acquired;
 
-    // apply the power-line (anti-flicker) frequency out-of-band via V4L2, since
-    // libcamera does not expose this control for UVC cameras
-    if (d->powerLineFreq >= 0) {
-        const bool plfOk = withV4l2Node(d->cam, [this](int fd) {
-            struct v4l2_control c;
-            memset(&c, 0, sizeof(c));
-            c.id = V4L2_CID_POWER_LINE_FREQUENCY;
-            c.value = d->powerLineFreq;
-            return ioctl(fd, VIDIOC_S_CTRL, &c) == 0;
-        });
-        if (!plfOk && d->log)
-            LOG_WARNING(d->log, "Could not set the power-line frequency on the camera device.");
-    }
-
     d->config = d->cam->generateConfiguration({StreamRole::VideoRecording});
     if (!d->config || d->config->empty()) {
         fail(QStringLiteral("Could not generate a camera stream configuration."));
@@ -823,6 +835,11 @@ bool LcCamera::connect()
     // streaming now; nothing below can fail, so this is also the fully-connected state
     d->state = CamState::Streaming;
 
+    // apply the out-of-band V4L2 settings now that we are streaming, to ensure everything
+    // is in a defined, known state (external tools may have changed V4L2 settings)
+    commitV4LSettings();
+    d->v4lChanged.store(false, std::memory_order_release);
+
     d->stopping = false;
     d->frameIndex = 0;
     // the initial requests already applied the current controls, so the
@@ -894,6 +911,10 @@ bool LcCamera::getFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
 {
     if (d->state != CamState::Streaming)
         return false;
+
+    // commit out-of-band V4L2 settings, if they have been changed
+    if (d->v4lChanged.exchange(false, std::memory_order_acquire))
+        commitV4LSettings();
 
     Request *request = nullptr;
     symaster_timepoint arrival;

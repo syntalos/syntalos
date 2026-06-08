@@ -117,11 +117,6 @@ void LcSettingsDialog::setPixelFormatName(const QString &pixFmtName)
 void LcSettingsDialog::setRunning(bool running)
 {
     ui->cameraGroupBox->setEnabled(!running);
-
-    // the power-line (anti-flicker) frequency is only applied via V4L2 when the
-    // camera is connected, so it cannot be changed mid-run; disable it while running
-    ui->powerLineLabel->setEnabled(!running);
-    ui->powerLineComboBox->setEnabled(!running);
 }
 
 void LcSettingsDialog::updateValues()
@@ -239,9 +234,13 @@ void LcSettingsDialog::refreshControls()
         slider->setValue(pos);
     }
 
-    // the manual exposure box is only meaningful when auto-exposure is off
-    ui->sbExposure->setEnabled(!m_camera->autoExposure());
-    ui->sliderExposure->setEnabled(!m_camera->autoExposure());
+    // manual exposure and gain are only meaningful when auto-exposure is off; the AE
+    // algorithm owns both while enabled, so we neither send nor let the user set them
+    const bool aeOff = !m_camera->autoExposure();
+    ui->sbExposure->setEnabled(aeOff);
+    ui->sliderExposure->setEnabled(aeOff);
+    ui->sbGain->setEnabled(aeOff);
+    ui->sliderGain->setEnabled(aeOff);
 
     // power-line frequency (anti-flicker); combo index maps to the V4L2 value
     const bool plfSupported = m_camera->powerLineFrequencySupported();
@@ -263,8 +262,11 @@ void LcSettingsDialog::refreshControls()
 void LcSettingsDialog::on_autoExposureCheckBox_toggled(bool checked)
 {
     m_camera->setAutoExposure(checked);
+    // the AE algorithm owns both exposure and gain, so disable both while it is on
     ui->sbExposure->setEnabled(!checked);
     ui->sliderExposure->setEnabled(!checked);
+    ui->sbGain->setEnabled(!checked);
+    ui->sliderGain->setEnabled(!checked);
 }
 
 void LcSettingsDialog::on_sbExposure_valueChanged(double value)

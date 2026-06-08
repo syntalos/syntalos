@@ -122,4 +122,5 @@ private:
     std::unique_ptr<LcCameraData> d;
 
     void fail(const QString &msg);
+    void commitV4LSettings();
 };
