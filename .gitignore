@@ -1,3 +1,8 @@
 build/
 *.user
 __pycache__
+
+# IDE clangd cache
+.cache/clangd
+# mimalloc download
+**/packagecache/
