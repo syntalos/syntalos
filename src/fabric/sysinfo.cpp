@@ -444,9 +444,9 @@ int SysInfo::cpuPhysicalCoreCount() const
 
 bool SysInfo::syntalosHWSupportInstalled() const
 {
-    return !findHostFile("/lib/udev/rules.d/90-syntalos-cameras.rules").isEmpty()
-           || !findHostFile("/usr/lib/udev/rules.d/90-syntalos-cameras.rules").isEmpty()
-           || !findHostFile("/etc/udev/rules.d/90-syntalos-cameras.rules").isEmpty();
+    return !findHostFile("/lib/udev/rules.d/70-syntalos-cameras.rules").isEmpty()
+           || !findHostFile("/usr/lib/udev/rules.d/70-syntalos-cameras.rules").isEmpty()
+           || !findHostFile("/etc/udev/rules.d/70-syntalos-cameras.rules").isEmpty();
 }
 
 QString SysInfo::syntalosVersion() const

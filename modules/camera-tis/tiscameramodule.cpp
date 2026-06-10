@@ -81,7 +81,8 @@ public:
         m_ctlDialog->setLogger(m_log);
 
         // be nice and warn the user in case udev rules are missing
-        if (!hostUdevRuleExists("80-theimagingsource-cameras.rules")) {
+        if (!hostUdevRuleExists("80-theimagingsource-cameras.rules")
+            && !hostUdevRuleExists("70-syntalos-cameras.rules")) {
             QMessageBox::warning(
                 nullptr,
                 QStringLiteral("Hardware configuration not installed"),

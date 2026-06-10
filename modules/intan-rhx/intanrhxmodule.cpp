@@ -123,7 +123,7 @@ bool IntanRhxModule::initialize()
             this, &IntanRhxModule::onExportedChannelsChanged);
 
     // be nice and warn the user in case udev rules are missing
-    if (!hostUdevRuleExists("90-syntalos-intan.rules")) {
+    if (!hostUdevRuleExists("70-syntalos-intan.rules")) {
         QMessageBox::warning(m_ctlWindow, QStringLiteral("Hardware configuration not installed"),
                              QStringLiteral("<html>The hardware rules for Syntalos/Intan may not be installed on this system.<br/>"
                                             "This means the Intan hardware may not be accessible and may not work. "
