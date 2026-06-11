@@ -924,6 +924,10 @@ bool LcCamera::getFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
                 return !d->completedQueue.empty() || d->stopping;
             })) {
             // timed out waiting for a frame
+            if (d->log)
+                LOG_WARNING(
+                    d->log,
+                    "Timed out after 5 seconds waiting for a completed camera request; no libcamera requestCompleted callback was received.");
             return false;
         }
         if (d->stopping || d->completedQueue.empty())
