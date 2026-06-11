@@ -44,6 +44,7 @@ jobs:
 
     - name: Setup & start resource sampler
       run: |
+        sudo apt-get update -qq
         sudo apt-get install -yq python3-psutil python3-matplotlib
 
         nohup python3 tests/ci/ci-resource-sampler.py /tmp/ci-resources.csv \
