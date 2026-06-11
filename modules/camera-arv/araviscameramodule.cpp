@@ -29,6 +29,8 @@
 #undef _SYTMP_QT_SIGNALS_DEFINED
 #endif
 
+#include <atomic>
+
 #include "datactl/frametype.h"
 #include "configwindow.h"
 
@@ -141,16 +143,16 @@ public:
     void runThread(OptionalWaitCondition *waitCondition) final
     {
         g_autoptr(GMainLoop) loop = g_main_loop_new(nullptr, FALSE);
+        const auto expectedFps = m_camera->getFPS();
 
         // we carry one second of data or 15 frames in the queue
-        m_camera->setFrameQueueSize(
-            m_camera->getFPS() > 15 ? static_cast<uint>(std::ceil(m_camera->getFPS())) + 1 : 15);
+        m_camera->setFrameQueueSize(expectedFps > 15 ? static_cast<uint>(std::ceil(expectedFps)) + 1 : 15);
 
         // set up clock synchronizer
         // Held via shared_ptr (not the unique_ptr returned by initClockSynchronizer) so
         // the Aravis frame callback below can co-own it by value instead of capturing a
         // reference into this thread's stack frame.
-        std::shared_ptr<SecondaryClockSynchronizer> clockSync = initClockSynchronizer(m_camera->getFPS());
+        std::shared_ptr<SecondaryClockSynchronizer> clockSync = initClockSynchronizer(expectedFps);
         clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD);
 
         // start the synchronizer
@@ -158,37 +160,6 @@ public:
             raiseError(QStringLiteral("Unable to set up clock synchronizer!"));
             return;
         }
-
-        auto timeoutCb = [](gpointer data) -> gboolean {
-            auto pair = static_cast<std::pair<AravisCameraModule *, GMainLoop *> *>(data);
-            auto self = pair->first;
-            auto loop = pair->second;
-
-            if (!self->m_running) {
-                g_main_loop_quit(loop);
-                return G_SOURCE_REMOVE;
-            }
-
-            return G_SOURCE_CONTINUE;
-        };
-
-        auto timeoutData = new std::pair<AravisCameraModule *, GMainLoop *>(this, loop);
-        auto timeoutSrc = g_timeout_source_new(250);
-        g_source_set_callback(timeoutSrc, timeoutCb, timeoutData, [](gpointer data) {
-            delete static_cast<std::pair<AravisCameraModule *, GMainLoop *> *>(data);
-        });
-
-        // display the connected camera model
-        {
-            const auto camId = m_camera->getId();
-            if (camId.id == nullptr || camId.id[0] == '\0')
-                statusMessage(QString::fromUtf8(camId.model));
-            else
-                statusMessage(QStringLiteral("%2 (%3)").arg(camId.model, camId.id));
-        }
-
-        // wait until we actually start acquiring data
-        waitCondition->wait(this);
 
         // Mutable per-acquisition state shared with the Aravis frame callback. It lives
         // on the heap and is co-owned by the callback (captured by value), so the
@@ -198,8 +169,23 @@ public:
             uint64_t frameCount = 0;
             nanoseconds_t sysOffsetToMaster{0};
             guint64 devOffsetToSysNs = 0;
+            std::atomic_uint fpsWindowFrameCount{0};
         };
         auto acqState = std::make_shared<AcqState>();
+
+        // display the connected camera model
+        QString cameraStatus;
+        {
+            const auto camId = m_camera->getId();
+            if (camId.id == nullptr || camId.id[0] == '\0')
+                cameraStatus = QString::fromUtf8(camId.model);
+            else
+                cameraStatus = QStringLiteral("%2 (%3)").arg(camId.model, camId.id);
+            statusMessage(cameraStatus);
+        }
+
+        // wait until we actually start acquiring data
+        waitCondition->wait(this);
 
         auto acqStartResult = m_camera->startAcquisition(true, true, [this, acqState, clockSync](ArvBuffer *buffer) {
             if (!m_running)
@@ -273,6 +259,7 @@ public:
             }
 
             m_outStream->push(Frame(img, acqState->frameCount++, masterTime));
+            acqState->fpsWindowFrameCount++;
         });
 
         if (!acqStartResult) {
@@ -281,6 +268,52 @@ public:
             m_stopped = true;
             return;
         }
+
+        struct TimeoutData {
+            AravisCameraModule *self;
+            GMainLoop *loop;
+            std::shared_ptr<AcqState> acqState;
+            double expectedFps;
+            QString cameraStatus;
+            symaster_timepoint fpsWindowStart = currentTimePoint();
+            bool fpsLow = false;
+        };
+
+        auto timeoutCb = [](gpointer data) -> gboolean {
+            auto state = static_cast<TimeoutData *>(data);
+            auto self = state->self;
+
+            if (!self->m_running) {
+                g_main_loop_quit(state->loop);
+                return G_SOURCE_REMOVE;
+            }
+
+            const auto windowMsec = timeDiffToNowMsec(state->fpsWindowStart).count();
+            if (windowMsec >= 1000) {
+                const auto frameCount = state->acqState->fpsWindowFrameCount.exchange(0);
+                const auto currentFps =
+                    (frameCount * 1000.0) / static_cast<double>(windowMsec);
+
+                if (currentFps < state->expectedFps - 2) {
+                    state->fpsLow = true;
+                    self->setStatusMessage(QStringLiteral("<b><font color=\"red\">Framerate (%1fps) is too low!</font></b>")
+                                               .arg(currentFps, 0, 'f', 1));
+                } else if (state->fpsLow) {
+                    state->fpsLow = false;
+                    self->statusMessage(state->cameraStatus);
+                }
+
+                state->fpsWindowStart = currentTimePoint();
+            }
+
+            return G_SOURCE_CONTINUE;
+        };
+
+        auto timeoutData = new TimeoutData{this, loop, acqState, expectedFps, cameraStatus};
+        auto timeoutSrc = g_timeout_source_new(250);
+        g_source_set_callback(timeoutSrc, timeoutCb, timeoutData, [](gpointer data) {
+            delete static_cast<TimeoutData *>(data);
+        });
 
         // only after the run is started, attach the timeout source
         g_source_attach(timeoutSrc, g_main_loop_get_context(loop));
