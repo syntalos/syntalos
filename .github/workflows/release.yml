@@ -91,12 +91,22 @@ jobs:
 
       - name: Prepare release assets
         run: |
+          set -euo pipefail
           mkdir -p release_assets
 
-          # choose what we want to attach
-          for artifact_dir in artifacts/*/; do
-            cp "$artifact_dir"/syntalos*.zip "$GITHUB_WORKSPACE/release_assets/"
+          # Only the syntalos*.zip packages are release artifacts we want
+          # to attach. Expand to nothing when a directory holds no matching package.
+          shopt -s nullglob
+          count=0
+          for zip in artifacts/*/syntalos*.zip; do
+            cp "$zip" "$GITHUB_WORKSPACE/release_assets/"
+            count=$((count + 1))
           done
+
+          if [ "$count" -eq 0 ]; then
+            echo "::error::No syntalos*.zip release packages were found among the downloaded artifacts." >&2
+            exit 1
+          fi
 
           echo "Assets to upload:"
           ls -la release_assets/
