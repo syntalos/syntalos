@@ -20,6 +20,7 @@
 #include "videorecordmodule.h"
 
 #include "datactl/frametype.h"
+#include <atomic>
 #include <QCoreApplication>
 #include <QDBusConnection>
 #include <QDBusInterface>
@@ -50,8 +51,8 @@ class VideoRecorderModule : public AbstractModule
 
 private:
     bool m_recording;
-    bool m_initDone;
-    bool m_recordingFinished;
+    std::atomic_bool m_initDone;
+    std::atomic_bool m_recordingFinished;
     bool m_startStopped;
     std::shared_ptr<EDLDataset> m_vidDataset;
     std::unique_ptr<VideoWriter> m_videoWriter;
@@ -215,6 +216,11 @@ public:
         std::string currentSecSuffix;
         int secCount = 0;
 
+        // set when a new section was requested but its file has not been created yet - we defer
+        // creation until the section's first frame actually arrives, so that sections which never
+        // receive a frame do not leave an empty, header-only file on disk.
+        bool pendingNewSection = false;
+
         // state of the recording - we are supposed to be running, unless explicitly
         // requested to be stopped
         auto state = m_startStopped ? RecordingState::STOPPED : RecordingState::RUNNING;
@@ -232,6 +238,7 @@ public:
         if (!m_vidDataset) {
             // an error is already emitted at this point, via createDefaultDataset()
             m_running = false;
+            m_recordingFinished = true;
             return;
         }
 
@@ -262,20 +269,14 @@ public:
                         secCount++;
                         currentSecSuffix = std::format("_sec{}", secCount);
 
-                        // we can only start a new section if we were already initialized
-                        // if we weren't for some reason, the section initialization will simply
-                        // be deferred to that point
-                        if (m_initDone) {
-                            // start our new section
-                            if (!m_videoWriter->startNewSection(QStringLiteral("%1%2").arg(
-                                    QString::fromStdString(vidSavePathBase),
-                                    QString::fromStdString(currentSecSuffix)))) {
-                                raiseError(QStringLiteral("Unable to initialize recording of a new section: %1")
-                                               .arg(QString::fromStdString(m_videoWriter->lastError())));
-                                m_recordingFinished = true;
-                                return;
-                            }
-                        }
+                        // Defer creating the new section's file until its first frame actually
+                        // arrives, if we were already initialized. If we weren't for some reason,
+                        // the section initialization will simply be deferred to the regular first-frame
+                        // init path below (which folds the section suffix into the filename); otherwise
+                        // we flag a pending section that startNewSection() will create once we have a
+                        // frame to write.
+                        if (m_initDone)
+                            pendingNewSection = true;
 
                         // resume normal operation
                         state = RecordingState::RUNNING;
@@ -412,6 +413,20 @@ public:
                     statusMessage(QStringLiteral("Recording video %1...").arg(secCount));
             }
 
+            // create the file for a freshly-requested section now that we have a frame to write
+            if (pendingNewSection) {
+                pendingNewSection = false;
+                if (!m_videoWriter->startNewSection(QStringLiteral("%1%2").arg(
+                        QString::fromStdString(vidSavePathBase),
+                        QString::fromStdString(currentSecSuffix)))) {
+                    raiseError(QStringLiteral("Unable to initialize recording of a new section: %1")
+                                   .arg(QString::fromStdString(m_videoWriter->lastError())));
+                    m_running = false;
+                    m_recordingFinished = true;
+                    break;
+                }
+            }
+
             // encode current frame
             if (!m_videoWriter->encodeFrame(frame.mat, frame.time)) {
                 if (m_videoWriter->lastError().empty())
@@ -540,14 +555,11 @@ public:
         // this will terminate the thread
         m_running = false;
 
-        if (m_initDone && m_recording) {
-            // wait until the thread has shut down and we are no longer encoding frames,
-            // then finalize the video. Otherwise we might crash the encoder, as it isn't
-            // threadsafe (for a tiny performance gain)
-            while (!m_recordingFinished) {
-                QCoreApplication::processEvents();
-            }
-        }
+        // wait until the thread has shut down and we are no longer encoding frames,
+        // then finalize the video. Otherwise we might crash the encoder, as it isn't
+        // threadsafe (for a tiny performance gain)
+        while (!m_recordingFinished)
+            processUiEvents();
 
         bool finalizeOk = true;
         if (m_videoWriter.get() != nullptr) {
