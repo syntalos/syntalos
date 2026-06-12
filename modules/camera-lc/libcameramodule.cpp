@@ -104,8 +104,8 @@ public:
         m_camera->setResolution(m_camSettingsWindow->resolution());
         m_camera->setFramerate(requestedFps);
         m_camera->setPixelFormat(m_camSettingsWindow->pixelFormatName());
-        if (!m_camera->connect()) {
-            raiseError(QStringLiteral("Unable to connect camera: %1").arg(m_camera->lastError()));
+        if (auto res = m_camera->connect(); !res) {
+            raiseError(QStringLiteral("Unable to connect camera: %1").arg(res.error()));
             return false;
         }
 
@@ -145,7 +145,6 @@ public:
     void runThread(OptionalWaitCondition *waitCondition) override
     {
         auto fpsLow = false;
-        auto frameRecordFailedCount = 0;
         m_stopped = false;
 
         // wait until we actually start acquiring data
@@ -157,18 +156,19 @@ public:
 
         while (m_running) {
             Frame frame;
-            if (!m_camera->getFrame(frame, m_clockSync.get())) {
-                frameRecordFailedCount++;
-                if (frameRecordFailedCount > 32) {
-                    m_running = false;
-                    raiseError(QStringLiteral(
-                        "Too many attempts to record frames from this camera have failed. Is the camera "
-                        "connected properly?"));
-                }
+            auto res = m_camera->getFrame(frame, m_clockSync.get());
+            if (!res) {
+                // a genuine error means the camera is in serious trouble (it could not
+                // deliver a frame within 10 seconds, etc.) - abort the run immediately
+                m_running = false;
+                raiseError(QStringLiteral("Failed to record frames from this camera: %1").arg(res.error()));
                 continue;
             }
-            // the failure threshold targets consecutive failures, so reset after a good frame
-            frameRecordFailedCount = 0;
+            if (!res.value()) {
+                // succeeded, but no frame was produced this iteration (e.g. a pre-start
+                // frame was discarded) - this is benign, just try again
+                continue;
+            }
 
             // emit this frame on our output port
             m_outStream->push(frame);
@@ -184,7 +184,7 @@ public:
                 // warn only if the sustained average framerate is too low
                 if (currentFps < (m_fps - 2)) {
                     fpsLow = true;
-                    setStatusMessage(QStringLiteral("<b><font color=\"red\">Framerate (%1fps) is too low!</font></b>")
+                    setStatusMessage(QStringLiteral("<b><font color=\"red\">Framerate (%1 fps) is too low!</font></b>")
                                          .arg(currentFps, 0, 'f', 1));
                 } else if (fpsLow) {
                     fpsLow = false;

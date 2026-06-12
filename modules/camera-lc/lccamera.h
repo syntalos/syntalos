@@ -19,6 +19,8 @@
 
 #pragma once
 
+#include <expected>
+
 #include <QList>
 #include <QPair>
 #include <QSize>
@@ -108,19 +110,16 @@ public:
     QList<cv::Size> readFrameSizes(const QString &pixfmt);
     LcControlRange controlRange(const QString &name);
 
-    bool connect();
+    std::expected<void, QString> connect();
     void disconnect();
     bool isConnected() const;
 
-    bool getFrame(Frame &frame, SecondaryClockSynchronizer *clockSync);
-
-    QString lastError() const;
+    std::expected<bool, QString> getFrame(Frame &frame, SecondaryClockSynchronizer *clockSync);
 
     static QList<QPair<QString, QString>> availableCameras();
 
 private:
     std::unique_ptr<LcCameraData> d;
 
-    void fail(const QString &msg);
     void commitV4LSettings();
 };

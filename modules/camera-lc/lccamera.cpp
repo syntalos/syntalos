@@ -254,7 +254,6 @@ public:
 
     // teardown signal
     bool stopping{false};
-    QString lastError;
 
     std::mutex queueMutex;
     std::condition_variable queueCond;
@@ -288,13 +287,6 @@ LcCamera::~LcCamera()
 void LcCamera::setLogger(QuillLogger *logger)
 {
     d->log = logger;
-}
-
-void LcCamera::fail(const QString &msg)
-{
-    d->lastError = msg;
-    if (d->log)
-        LOG_ERROR(d->log, "{}", msg.toStdString());
 }
 
 void LcCamera::setCameraId(const QString &id)
@@ -536,11 +528,6 @@ bool LcCamera::isConnected() const
     return d->state == CamState::Streaming;
 }
 
-QString LcCamera::lastError() const
-{
-    return d->lastError;
-}
-
 /**
  * @brief Resolve the libcamera Camera for the selected ID.
  *
@@ -696,35 +683,29 @@ static void applyControls(LcCameraData *d, ControlList &ctrls)
     }
 }
 
-bool LcCamera::connect()
+std::expected<void, QString> LcCamera::connect()
 {
     if (d->state == CamState::Streaming)
-        return true;
+        return {};
 
     auto mgr = globalCameraManager();
-    if (!mgr) {
-        fail(QStringLiteral("libcamera could not be initialized on this system."));
-        return false;
-    }
+    if (!mgr)
+        return std::unexpected(QStringLiteral("libcamera could not be initialized on this system."));
 
     d->cam = mgr->get(d->camId.toStdString());
-    if (!d->cam) {
-        fail(QStringLiteral("Selected camera '%1' was not found.").arg(d->camId));
-        return false;
-    }
+    if (!d->cam)
+        return std::unexpected(QStringLiteral("Selected camera '%1' was not found.").arg(d->camId));
 
     if (d->cam->acquire() < 0) {
-        fail(QStringLiteral("Could not acquire camera (is it in use by another application?)."));
         d->cam.reset();
-        return false;
+        return std::unexpected(QStringLiteral("Could not acquire camera (is it in use by another application?)."));
     }
     d->state = CamState::Acquired;
 
     d->config = d->cam->generateConfiguration({StreamRole::VideoRecording});
     if (!d->config || d->config->empty()) {
-        fail(QStringLiteral("Could not generate a camera stream configuration."));
         disconnect();
-        return false;
+        return std::unexpected(QStringLiteral("Could not generate a camera stream configuration."));
     }
 
     auto &cfg = d->config->at(0);
@@ -735,15 +716,13 @@ bool LcCamera::connect()
     cfg.bufferCount = 4;
 
     if (d->config->validate() == CameraConfiguration::Invalid) {
-        fail(QStringLiteral("The requested stream configuration is invalid."));
         disconnect();
-        return false;
+        return std::unexpected(QStringLiteral("The requested stream configuration is invalid."));
     }
 
     if (d->cam->configure(d->config.get()) < 0) {
-        fail(QStringLiteral("Failed to apply the stream configuration to the camera."));
         disconnect();
-        return false;
+        return std::unexpected(QStringLiteral("Failed to apply the stream configuration to the camera."));
     }
 
     // adopt the (possibly adjusted) effective configuration
@@ -753,10 +732,9 @@ bool LcCamera::connect()
     d->stream = cfg.stream();
 
     if (!isSupportedFormat(d->activeFormat)) {
-        fail(QStringLiteral("Pixel format '%1' is not supported by this module yet.")
-                 .arg(QString::fromStdString(d->activeFormat.toString())));
         disconnect();
-        return false;
+        return std::unexpected(QStringLiteral("Pixel format '%1' is not supported by this module yet.")
+                                   .arg(QString::fromStdString(d->activeFormat.toString())));
     }
 
     // determine which controls this camera supports
@@ -773,9 +751,8 @@ bool LcCamera::connect()
     // allocate frame buffers
     d->allocator = std::make_unique<FrameBufferAllocator>(d->cam);
     if (d->allocator->allocate(d->stream) < 0) {
-        fail(QStringLiteral("Failed to allocate camera frame buffers."));
         disconnect();
-        return false;
+        return std::unexpected(QStringLiteral("Failed to allocate camera frame buffers."));
     }
 
     const auto &buffers = d->allocator->buffers(d->stream);
@@ -790,22 +767,19 @@ bool LcCamera::connect()
 
         void *mem = mmap(nullptr, length, PROT_READ, MAP_SHARED, fd, 0);
         if (mem == MAP_FAILED) {
-            fail(QStringLiteral("Failed to memory-map a camera frame buffer."));
             disconnect();
-            return false;
+            return std::unexpected(QStringLiteral("Failed to memory-map a camera frame buffer."));
         }
         d->mapped[buffer.get()] = {mem, length};
 
         auto request = d->cam->createRequest();
         if (!request) {
-            fail(QStringLiteral("Failed to create a capture request."));
             disconnect();
-            return false;
+            return std::unexpected(QStringLiteral("Failed to create a capture request."));
         }
         if (request->addBuffer(d->stream, buffer.get()) < 0) {
-            fail(QStringLiteral("Failed to associate a buffer with a capture request."));
             disconnect();
-            return false;
+            return std::unexpected(QStringLiteral("Failed to associate a buffer with a capture request."));
         }
         applyControls(d.get(), request->controls());
         d->requests.push_back(std::move(request));
@@ -827,10 +801,9 @@ bool LcCamera::connect()
     });
 
     if (d->cam->start() < 0) {
-        fail(QStringLiteral("Failed to start the camera."));
         d->cam->requestCompleted.disconnect(this);
         disconnect();
-        return false;
+        return std::unexpected(QStringLiteral("Failed to start the camera."));
     }
     // streaming now; nothing below can fail, so this is also the fully-connected state
     d->state = CamState::Streaming;
@@ -848,7 +821,7 @@ bool LcCamera::connect()
     for (auto &request : d->requests)
         d->cam->queueRequest(request.get());
 
-    return true;
+    return {};
 }
 
 /**
@@ -907,7 +880,7 @@ static cv::Mat convertToBgr(LcCameraData *d, FrameBuffer *buffer, void *base)
     return out;
 }
 
-bool LcCamera::getFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
+std::expected<bool, QString> LcCamera::getFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
 {
     if (d->state != CamState::Streaming)
         return false;
@@ -920,15 +893,12 @@ bool LcCamera::getFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
     symaster_timepoint arrival;
     {
         std::unique_lock<std::mutex> lock(d->queueMutex);
-        if (!d->queueCond.wait_for(lock, std::chrono::seconds(5), [this]() {
+        if (!d->queueCond.wait_for(lock, std::chrono::seconds(10), [this]() {
                 return !d->completedQueue.empty() || d->stopping;
             })) {
-            // timed out waiting for a frame
-            if (d->log)
-                LOG_WARNING(
-                    d->log,
-                    "Timed out after 5 seconds waiting for a completed camera request; no libcamera requestCompleted callback was received.");
-            return false;
+            // a completed request not arriving within 10 seconds means the pipeline is
+            // stalled (camera disconnected, frozen, etc.) -> report this as error
+            return std::unexpected(QStringLiteral("Timed out after 10 seconds waiting for a camera request"));
         }
         if (d->stopping || d->completedQueue.empty())
             return false;
@@ -982,13 +952,12 @@ bool LcCamera::getFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
     }
 
     if (mat.cols != d->frameSize.width || mat.rows != d->frameSize.height) {
-        fail(QStringLiteral("Received frame with unexpected dimensions (%1x%2, expected %3x%4).")
-                 .arg(mat.cols)
-                 .arg(mat.rows)
-                 .arg(d->frameSize.width)
-                 .arg(d->frameSize.height));
         requeue();
-        return false;
+        return std::unexpected(QStringLiteral("Received frame with unexpected dimensions (%1x%2, expected %3x%4).")
+                                   .arg(mat.cols)
+                                   .arg(mat.rows)
+                                   .arg(d->frameSize.width)
+                                   .arg(d->frameSize.height));
     }
 
     // the kernel capture timestamp (nanoseconds, CLOCK_BOOTTIME) is far more precise than
