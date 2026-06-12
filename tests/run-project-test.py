@@ -18,10 +18,10 @@ import argparse
 import tempfile
 import time
 import json
-import csv
 import tomllib
 import zstandard as zstd
 import fnmatch
+import numpy as np
 
 
 class TermColor:
@@ -61,49 +61,6 @@ def validate_toml_fields(file_path, required_fields):
         return True, None
     except Exception as e:
         return False, f"Failed to validate TOML file {file_path}: {e}"
-
-
-def validate_csv_file(file_path, min_rows=0, expected_headers=None):
-    """Validate CSV file structure."""
-    try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            reader = csv.reader(f, delimiter=";")
-            rows = list(reader)
-
-        if not rows:
-            return False, f"CSV file {file_path} is empty"
-
-        headers = rows[0]
-        data_rows = rows[1:]
-
-        if len(data_rows) < min_rows:
-            return (
-                False,
-                f"CSV file {file_path} has {len(data_rows)} data rows but expected at least {min_rows}",
-            )
-
-        if expected_headers:
-            for expected_header in expected_headers:
-                if expected_header not in headers:
-                    return (
-                        False,
-                        f"CSV file {file_path} missing expected header '{expected_header}'. Found: {headers}",
-                    )
-
-        # Validate first row contains data in the expected columns
-        if len(data_rows) > 0 and expected_headers:
-            first_row = data_rows[0]
-            for expected_header in expected_headers:
-                col_idx = headers.index(expected_header)
-                if col_idx >= len(first_row) or first_row[col_idx].strip() == '':
-                    return (
-                        False,
-                        f"CSV file {file_path} first row is missing data for column '{expected_header}'",
-                    )
-
-        return True, None
-    except Exception as e:
-        return False, f"Failed to validate CSV file {file_path}: {e}"
 
 
 def validate_json_file(file_path, required_keys=None, schema=None, min_array_length=None):
@@ -153,6 +110,187 @@ def validate_json_file(file_path, required_keys=None, schema=None, min_array_len
                     False,
                     f"JSON file {file_path} key '{key}' has type {type(content[key]).__name__} but expected {expected_type.__name__}",
                 )
+
+    return True, None
+
+
+def _resolve_dataset(collection, name):
+    """Resolve a slash-separated EDL group/dataset name to an EDLDataset.
+
+    Returns (dataset, None) on success or (None, error_message) on failure.
+    """
+    segments = name.split("/")
+    node = collection
+    for seg in segments[:-1]:
+        node = node.group_by_name(seg)
+        if node is None:
+            return None, f"EDL group '{seg}' (in '{name}') not found"
+    dataset = node.dataset_by_name(segments[-1])
+    if dataset is None:
+        return None, f"EDL dataset '{name}' not found"
+    return dataset, None
+
+
+def _check_tsync(tsf, file_label, min_entries=0, monotonic_column=None, strict_monotonic=True):
+    """Validate a parsed edlio TSyncFile (entry count + optional monotonicity)."""
+    n_entries = tsf.times.shape[0]
+    if n_entries < min_entries:
+        return (
+            False,
+            f"Tsync data of {file_label} has {n_entries} entries but expected at least {min_entries}",
+        )
+
+    if monotonic_column is not None:
+        labels = tsf.time_labels
+        if monotonic_column not in labels:
+            return (
+                False,
+                f"Tsync data of {file_label} has no time column '{monotonic_column}'. Found: {labels}",
+            )
+        col = tsf.times[:, labels.index(monotonic_column)].astype(np.int64)
+        diffs = np.diff(col)
+        if strict_monotonic:
+            ok = bool(np.all(diffs > 0))
+            adverb = "strictly increasing"
+        else:
+            ok = bool(np.all(diffs >= 0))
+            adverb = "non-decreasing"
+        if not ok:
+            return False, f"Tsync column '{monotonic_column}' of {file_label} is not {adverb}"
+
+    return True, f"{n_entries} tsync entries, labels={tsf.time_labels}"
+
+
+def validate_edl_dataset(dataset, spec):
+    """Validate a single EDLDataset against a manifest spec dict.
+
+    Supported keys: 'media_type', 'tsync', 'video', 'csv'.
+    Reads the data through edlio's own readers, which also self-validate file
+    integrity (tsync xxh3 checksums, decodable video, ...).
+    """
+    name = spec.get("name", dataset.name)
+
+    # Reject unknown keys so a typo (e.g. 'tsnyc') can't silently skip a check
+    # and let the dataset pass without being validated at all.
+    known_keys = {"name", "media_type", "tsync", "video", "csv"}
+    unknown_keys = set(spec) - known_keys
+    if unknown_keys:
+        return (
+            False,
+            f"Dataset '{name}' spec has unknown key(s): {sorted(unknown_keys)}. "
+            f"Supported: {sorted(known_keys)}",
+        )
+
+    # primary-data media type assertion
+    if "media_type" in spec:
+        actual = dataset.data.media_type
+        if actual != spec["media_type"]:
+            return (
+                False,
+                f"Dataset '{name}' has media type '{actual}', expected '{spec['media_type']}'",
+            )
+
+    # timesync auxiliary data
+    if "tsync" in spec:
+        cfg = spec["tsync"]
+        try:
+            tsf = next(dataset.read_aux_data("tsync"))
+        except StopIteration:
+            return False, f"Dataset '{name}' has no tsync auxiliary data"
+        except Exception as e:
+            return False, f"Failed to read tsync data of dataset '{name}': {e}"
+        ok, msg = _check_tsync(
+            tsf,
+            f"dataset '{name}'",
+            min_entries=cfg.get("min_entries", 0),
+            monotonic_column=cfg.get("monotonic_column"),
+            strict_monotonic=cfg.get("strict_monotonic", True),
+        )
+        if not ok:
+            return False, msg
+        print(f"    OK: dataset '{name}' tsync: {msg}")
+
+    # video data: decode through edlio and count frames
+    if "video" in spec:
+        cfg = spec["video"]
+        min_frames = cfg.get("min_frames", 0)
+        try:
+            n_frames = sum(1 for _ in dataset.read_data())
+        except Exception as e:
+            return False, f"Failed to read video data of dataset '{name}': {e}"
+        if n_frames < min_frames:
+            return (
+                False,
+                f"Dataset '{name}' video has {n_frames} frames but expected at least {min_frames}",
+            )
+        print(f"    OK: dataset '{name}' video: {n_frames} frames decoded")
+
+    # CSV table data (edlio yields rows as list[str], ';'-delimited, row 0 = header)
+    if "csv" in spec:
+        cfg = spec["csv"]
+        try:
+            rows = list(dataset.read_data())
+        except Exception as e:
+            return False, f"Failed to read CSV data of dataset '{name}': {e}"
+        if not rows:
+            return False, f"Dataset '{name}' CSV is empty"
+        headers = rows[0]
+        data_rows = rows[1:]
+        for header in cfg.get("expected_headers", []):
+            if header not in headers:
+                return (
+                    False,
+                    f"Dataset '{name}' CSV missing expected header '{header}'. Found: {headers}",
+                )
+        min_rows = cfg.get("min_rows", 0)
+        if len(data_rows) < min_rows:
+            return (
+                False,
+                f"Dataset '{name}' CSV has {len(data_rows)} data rows but expected at least {min_rows}",
+            )
+        print(f"    OK: dataset '{name}' CSV: {len(data_rows)} data rows")
+
+    return True, None
+
+
+def _find_edl_collection_root(export_dir):
+    """Locate the EDL collection root (the dir holding the top-level manifest.toml).
+
+    Syntalos exports into a date-named subdirectory (e.g. <export_dir>/2026-06-12/),
+    so the collection root is usually one level below the export directory.
+    """
+    if os.path.exists(os.path.join(export_dir, "manifest.toml")):
+        return export_dir
+    for entry in sorted(os.listdir(export_dir)):
+        sub = os.path.join(export_dir, entry)
+        if os.path.isdir(sub) and os.path.exists(os.path.join(sub, "manifest.toml")):
+            return sub
+    return export_dir
+
+
+def validate_expected_datasets(export_dir, dataset_specs):
+    """Validate datasets by loading the EDL collection and reading through edlio."""
+    try:
+        import edlio
+    except ImportError as e:
+        return False, f"Cannot validate EDL datasets: required package missing: {e}"
+
+    collection_root = _find_edl_collection_root(export_dir)
+    try:
+        collection = edlio.load(collection_root)
+    except Exception as e:
+        return False, f"Failed to load EDL collection at {collection_root}: {e}"
+
+    for spec in dataset_specs:
+        name = spec.get("name")
+        if not name:
+            return False, f"Dataset spec is missing the 'name' key: {spec}"
+        dataset, err = _resolve_dataset(collection, name)
+        if dataset is None:
+            return False, err
+        ok, msg = validate_edl_dataset(dataset, spec)
+        if not ok:
+            return False, msg
 
     return True, None
 
@@ -217,37 +355,9 @@ def check_expected_output(export_dir, expected_files):
                         f"File {found_path} size {file_size} bytes is smaller than expected {expected['min_size_bytes']} bytes",
                     )
 
-            # Text content check
-            if "contains_text" in expected:
-                try:
-                    with open(found_path, "r", encoding="utf-8") as f:
-                        content = f.read()
-                        for text in expected["contains_text"]:
-                            if text not in content:
-                                return (
-                                    False,
-                                    f"File {found_path} does not contain expected text: '{text}'",
-                                )
-                except UnicodeDecodeError:
-                    return (
-                        False,
-                        f"File {found_path} could not be read as text for 'contains_text' check",
-                    )
-
             # TOML field validation
             if "toml_fields" in expected:
                 success, msg = validate_toml_fields(found_path, expected["toml_fields"])
-                if not success:
-                    return False, msg
-
-            # CSV validation
-            if "csv_validation" in expected:
-                csv_config = expected["csv_validation"]
-                min_rows = csv_config.get("min_rows", 0)
-                headers = csv_config.get("expected_headers")
-                success, msg = validate_csv_file(
-                    found_path, min_rows=min_rows, expected_headers=headers
-                )
                 if not success:
                     return False, msg
 
@@ -306,9 +416,12 @@ def run_test(syntalos_bin, manifest_path):
     # drives the run, and Syntalos is terminated once the companion finishes.
     companion_triggers_run = test_config.get("companion_triggers_run", False)
 
-    # Add expected datasets as simple file existence checks
+    # String-form datasets are simple manifest.toml existence checks; dict-form
+    # datasets are validated through edlio (read & verify tsync/video/CSV data).
+    dataset_specs = [d for d in expected_datasets if isinstance(d, dict)]
     for dataset in expected_datasets:
-        expected_output.append(f"{dataset}/manifest.toml")
+        if isinstance(dataset, str):
+            expected_output.append(f"{dataset}/manifest.toml")
 
     if not project_file:
         print(f"Error: 'project_file' not specified in {manifest_path}", file=sys.stderr)
@@ -518,6 +631,15 @@ def run_test(syntalos_bin, manifest_path):
                     return False
                 else:
                     print("  [+] Output validation passed")
+
+            if dataset_specs:
+                success, msg = validate_expected_datasets(export_dir, dataset_specs)
+                if not success:
+                    print_stdout_stderr(stdout_data, stderr_data)
+                    print(f"  [!] Dataset validation failed: {msg}", file=sys.stderr)
+                    return False
+                else:
+                    print("  [+] Dataset validation passed")
 
             if validator_script:
                 validator_path = os.path.join(manifest_dir, "validators", validator_script)

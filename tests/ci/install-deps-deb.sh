@@ -77,6 +77,7 @@ eatmydata apt-get install -yq --no-install-recommends \
     breeze-icon-theme \
     dbus-daemon \
     python3-zstandard \
+    python3-edlio \
     python3-opencv \
     python3-pyqt6 \
     python3-scipy \

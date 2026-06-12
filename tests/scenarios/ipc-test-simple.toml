@@ -12,34 +12,16 @@ toml_fields = ["machine_node", "success"]
 path = "manifest.toml"
 toml_fields = ["collection_id", "format_version", "time_created", "type", "generator"]
 
-[[test.expected_output_files]]
-path = "oop-dev-tab/manifest.toml"
-toml_fields = ["data.media_type", "data.parts"]
+[[test.expected_datasets]]
+name = "oop-dev-tab"
+csv = { expected_headers = ["Index", "Frame Time"], min_rows = 5 }
 
-[[test.expected_output_files]]
-path = "oop-dev-tab/table.csv"
-csv_validation = { expected_headers = ["Index", "Frame Time"], min_rows = 5 }
+[[test.expected_datasets]]
+name = "oop-example-tab"
+csv = { expected_headers = ["Time", "Tag", "Value"], min_rows = 2 }
 
-[[test.expected_output_files]]
-path = "oop-example-tab/manifest.toml"
-toml_fields = ["data.media_type", "data.parts"]
-
-[[test.expected_output_files]]
-path = "oop-example-tab/table.csv"
-csv_validation = { expected_headers = ["Time", "Tag", "Value"], min_rows = 2 }
-
-[[test.expected_output_files]]
-path = "videos/manifest.toml"
-toml_fields = ["collection_id", "type"]
-
-[[test.expected_output_files]]
-path = "videos/python-script/manifest.toml"
-toml_fields = ["data.media_type", "data.parts"]
-
-[[test.expected_output_files]]
-path = "videos/python-script/*-python-script.mkv"
-min_size_bytes = 2650542
-
-[[test.expected_output_files]]
-path = "videos/python-script/*-python-script_timestamps.tsync"
-min_size_bytes = 11600
+[[test.expected_datasets]]
+name = "videos/python-script"
+media_type = "video/x-matroska"
+video = { min_frames = 480 }
+tsync = { min_entries = 480, monotonic_column = "master-time" }

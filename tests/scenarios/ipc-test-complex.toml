@@ -15,42 +15,22 @@ toml_fields = ["machine_node", "success"]
 path = "manifest.toml"
 toml_fields = ["collection_id", "format_version", "time_created", "type", "generator"]
 
-[[test.expected_output_files]]
-path = "tab-3hops/manifest.toml"
-toml_fields = ["data.media_type", "data.parts"]
+[[test.expected_datasets]]
+name = "tab-3hops"
+csv = { expected_headers = ['Index', 'Frame Time'], min_rows = 4 }
 
-[[test.expected_output_files]]
-path = "tab-3hops/table.csv"
-csv_validation = { expected_headers = ['Index', 'Frame Time'], min_rows = 4 }
+[[test.expected_datasets]]
+name = "tab-4hops"
+csv = { expected_headers = ['Index', 'Frame Time'], min_rows = 4 }
 
-[[test.expected_output_files]]
-path = "tab-4hops/manifest.toml"
-toml_fields = ["data.media_type", "data.parts"]
+[[test.expected_datasets]]
+name = "videos/video-2hops"
+media_type = "video/x-matroska"
+video = { min_frames = 200 }
+tsync = { min_entries = 200, monotonic_column = "master-time" }
 
-[[test.expected_output_files]]
-path = "tab-4hops/table.csv"
-csv_validation = { expected_headers = ['Index', 'Frame Time'], min_rows = 4 }
-
-[[test.expected_output_files]]
-path = "videos/video-2hops/manifest.toml"
-toml_fields = ["data.media_type", "data.parts"]
-
-[[test.expected_output_files]]
-path = "videos/video-2hops/*-video-2hops.mkv"
-min_size_bytes = 7380000
-
-[[test.expected_output_files]]
-path = "videos/video-2hops/*-video-2hops_timestamps.tsync"
-min_size_bytes = 5020
-
-[[test.expected_output_files]]
-path = "videos/video-3hops/manifest.toml"
-toml_fields = ["data.media_type", "data.parts"]
-
-[[test.expected_output_files]]
-path = "videos/video-3hops/*-video-3hops.mkv"
-min_size_bytes = 7380000
-
-[[test.expected_output_files]]
-path = "videos/video-3hops/*-video-3hops_timestamps.tsync"
-min_size_bytes = 5020
+[[test.expected_datasets]]
+name = "videos/video-3hops"
+media_type = "video/x-matroska"
+video = { min_frames = 200 }
+tsync = { min_entries = 200, monotonic_column = "master-time" }

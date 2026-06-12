@@ -13,50 +13,26 @@ toml_fields = ["machine_node", "success"]
 path = "manifest.toml"
 toml_fields = ["collection_id", "format_version", "time_created", "type", "generator"]
 
-[[test.expected_output_files]]
-path = "table-input/manifest.toml"
-toml_fields = ["data.media_type", "data.parts"]
+[[test.expected_datasets]]
+name = "table-input"
+csv = { expected_headers = ['Time', 'Tag', 'Value'], min_rows = 4 }
 
-[[test.expected_output_files]]
-path = "table-input/testvalues.csv"
-csv_validation = { expected_headers = ['Time', 'Tag', 'Value'], min_rows = 4 }
+[[test.expected_datasets]]
+name = "extmod-example"
+csv = { expected_headers = ['Time', 'Tag', 'Value'], min_rows = 4 }
 
-[[test.expected_output_files]]
-path = "extmod-example/manifest.toml"
-toml_fields = ["data.media_type", "data.parts"]
+[[test.expected_datasets]]
+name = "pymod-example"
+csv = { expected_headers = ['Time Received [us]', 'Frame Number'], min_rows = 6 }
 
-[[test.expected_output_files]]
-path = "extmod-example/table.csv"
-csv_validation = { expected_headers = ['Time', 'Tag', 'Value'], min_rows = 4 }
+[[test.expected_datasets]]
+name = "videos/libmod-example"
+media_type = "video/x-matroska"
+video = { min_frames = 400 }
+tsync = { min_entries = 400, monotonic_column = "master-time" }
 
-[[test.expected_output_files]]
-path = "pymod-example/manifest.toml"
-toml_fields = ["data.media_type", "data.parts"]
-
-[[test.expected_output_files]]
-path = "pymod-example/table.csv"
-csv_validation = { expected_headers = ['Time Received [us]', 'Frame Number'], min_rows = 6 }
-
-[[test.expected_output_files]]
-path = "videos/libmod-example/manifest.toml"
-toml_fields = ["data.media_type", "data.parts"]
-
-[[test.expected_output_files]]
-path = "videos/libmod-example/*-libmod-example.mkv"
-min_size_bytes = 8200000
-
-[[test.expected_output_files]]
-path = "videos/libmod-example/*-libmod-example_timestamps.tsync"
-min_size_bytes = 10042
-
-[[test.expected_output_files]]
-path = "videos/pymod-example/manifest.toml"
-toml_fields = ["data.media_type", "data.parts"]
-
-[[test.expected_output_files]]
-path = "videos/pymod-example/*-pymod-example.mkv"
-min_size_bytes = 8200000
-
-[[test.expected_output_files]]
-path = "videos/pymod-example/*-pymod-example_timestamps.tsync"
-min_size_bytes = 10042
+[[test.expected_datasets]]
+name = "videos/pymod-example"
+media_type = "video/x-matroska"
+video = { min_frames = 400 }
+tsync = { min_entries = 400, monotonic_column = "master-time" }
