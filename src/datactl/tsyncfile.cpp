@@ -30,11 +30,12 @@
 using namespace Syntalos;
 SY_DEFINE_LOG_CATEGORY(logTSyncFile, "tsyncfile");
 
-// TSYNC file magic number (saved as LE): 8A T S Y N C ⏲
-#define TSYNC_FILE_MAGIC         UINT64_C(0xF223434E5953548A)
+// TSYNC file magic number (saved as LE, UTF-8 encoded after 0x8A guard): 8A T S N C ⏲
+#define TSYNC_FILE_MAGIC         UINT64_C(0xB28FE2434E53548A)
 #define TSYNC_FILE_VERSION_MAJOR 1
 #define TSYNC_FILE_VERSION_MINOR 2
-#define TSYNC_FILE_BLOCK_TERM    UINT64_C(0x1126000000000000)
+
+#define TSYNC_FILE_BLOCK_TERM UINT64_C(0x00000000009198E2)
 
 std::string Syntalos::tsyncFileTimeUnitToString(const TSyncFileTimeUnit &tsftunit)
 {
