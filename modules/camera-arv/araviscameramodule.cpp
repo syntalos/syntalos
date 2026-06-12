@@ -269,13 +269,14 @@ public:
             return;
         }
 
+        // Data for our diagnostic callback to check if we are still supposed to be running,
+        // and if the camera is running at the designated framerate.
         struct TimeoutData {
             AravisCameraModule *self;
             GMainLoop *loop;
             std::shared_ptr<AcqState> acqState;
             double expectedFps;
-            QString cameraStatus;
-            symaster_timepoint fpsWindowStart = currentTimePoint();
+            symaster_timepoint fpsCheckStart = currentTimePoint();
             bool fpsLow = false;
         };
 
@@ -288,28 +289,29 @@ public:
                 return G_SOURCE_REMOVE;
             }
 
-            const auto windowMsec = timeDiffToNowMsec(state->fpsWindowStart).count();
-            if (windowMsec >= 1000) {
-                const auto frameCount = state->acqState->fpsWindowFrameCount.exchange(0);
-                const auto currentFps =
-                    (frameCount * 1000.0) / static_cast<double>(windowMsec);
+            const auto windowMsec = timeDiffToNowMsec(state->fpsCheckStart).count();
+            if (windowMsec <= 2000)
+                return G_SOURCE_CONTINUE;
 
-                if (currentFps < state->expectedFps - 2) {
-                    state->fpsLow = true;
-                    self->setStatusMessage(QStringLiteral("<b><font color=\"red\">Framerate (%1fps) is too low!</font></b>")
-                                               .arg(currentFps, 0, 'f', 1));
-                } else if (state->fpsLow) {
-                    state->fpsLow = false;
-                    self->statusMessage(state->cameraStatus);
-                }
+            const auto frameCount = state->acqState->fpsWindowFrameCount.exchange(0);
+            const auto currentFps = (frameCount * 1000.0) / static_cast<double>(windowMsec);
 
-                state->fpsWindowStart = currentTimePoint();
+            if (currentFps < state->expectedFps * 0.9) {
+                state->fpsLow = true;
+                self->setStatusMessage(
+                    QStringLiteral("<b><font color=\"red\">Framerate (%1 fps) is too low!</font></b>")
+                        .arg(currentFps, 0, 'f', 1));
+            } else if (state->fpsLow) {
+                state->fpsLow = false;
+                self->setStatusMessage({});
             }
+
+            state->fpsCheckStart = currentTimePoint();
 
             return G_SOURCE_CONTINUE;
         };
 
-        auto timeoutData = new TimeoutData{this, loop, acqState, expectedFps, cameraStatus};
+        auto timeoutData = new TimeoutData{this, loop, acqState, expectedFps};
         auto timeoutSrc = g_timeout_source_new(250);
         g_source_set_callback(timeoutSrc, timeoutCb, timeoutData, [](gpointer data) {
             delete static_cast<TimeoutData *>(data);
