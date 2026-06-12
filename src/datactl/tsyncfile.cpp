@@ -470,7 +470,7 @@ bool TimeSyncFileReader::open(const std::string &fname)
     const auto formatVMinor = csReadLE<uint16_t>(file, csState);
     if (formatVMajor != TSYNC_FILE_VERSION_MAJOR || formatVMinor < TSYNC_FILE_VERSION_MINOR) {
         m_lastError = std::format(
-            "Unable to read data: This file is using an incompatible (probably newer) format version: file {}.{} vs "
+            "Unable to read data: This file is using an incompatible format version: file {}.{} vs "
             "supported {}.{}",
             formatVMajor,
             formatVMinor,
