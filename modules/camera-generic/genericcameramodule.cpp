@@ -162,16 +162,17 @@ public:
     void runThread(OptionalWaitCondition *waitCondition) override
     {
         auto fpsLow = false;
-        auto currentFps = m_fps;
         auto frameRecordFailedCount = 0;
         m_stopped = false;
 
         // wait until we actually start acquiring data
         waitCondition->wait(this);
 
-        while (m_running) {
-            const auto cycleStartTime = currentTimePoint();
+        // the framerate is measured over a sliding window
+        auto windowStartTime = currentTimePoint();
+        uint windowFrameCount = 0;
 
+        while (m_running) {
             Frame frame;
             if (!m_camera->recordFrame(frame, m_clockSync.get())) {
                 frameRecordFailedCount++;
@@ -189,18 +190,24 @@ public:
             // emit this frame on our output port
             m_outStream->push(frame);
 
-            const auto totalMsec = timeDiffToNowMsec(cycleStartTime).count();
-            if (totalMsec > 0)
-                currentFps = 1000.0 / static_cast<double>(totalMsec);
+            // evaluate the average framerate roughly every two seconds
+            windowFrameCount++;
+            const auto windowMsec = timeDiffToNowMsec(windowStartTime).count();
+            if (windowMsec >= 2000) {
+                const auto currentFps = (windowFrameCount * 1000.0) / static_cast<double>(windowMsec);
+                windowStartTime = currentTimePoint();
+                windowFrameCount = 0;
 
-            // warn if there is a bigger framerate drop
-            if (currentFps < (m_fps - 2)) {
-                fpsLow = true;
-                setStatusMessage(QStringLiteral("<html><font color=\"red\"><b>Framerate (%1fps) is too low!</b></font>")
-                                     .arg(currentFps, 0, 'f', 1));
-            } else if (fpsLow) {
-                fpsLow = false;
-                statusMessage("Acquiring frames...");
+                // warn only if the sustained average framerate is too low
+                if (currentFps < (m_fps * 0.9)) {
+                    fpsLow = true;
+                    setStatusMessage(
+                        QStringLiteral("<html><font color=\"red\"><b>Framerate (%1 fps) is too low!</b></font>")
+                            .arg(currentFps, 0, 'f', 1));
+                } else if (fpsLow) {
+                    fpsLow = false;
+                    statusMessage("Acquiring frames...");
+                }
             }
         }
 

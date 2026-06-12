@@ -173,16 +173,16 @@ public:
             // emit this frame on our output port
             m_outStream->push(frame);
 
-            // evaluate the average framerate roughly once per second
+            // evaluate the average framerate roughly every two seconds
             windowFrameCount++;
             const auto windowMsec = timeDiffToNowMsec(windowStartTime).count();
-            if (windowMsec >= 1000) {
+            if (windowMsec >= 2000) {
                 const auto currentFps = (windowFrameCount * 1000.0) / static_cast<double>(windowMsec);
                 windowStartTime = currentTimePoint();
                 windowFrameCount = 0;
 
                 // warn only if the sustained average framerate is too low
-                if (currentFps < (m_fps - 2)) {
+                if (currentFps < (m_fps * 0.9)) {
                     fpsLow = true;
                     setStatusMessage(QStringLiteral("<b><font color=\"red\">Framerate (%1 fps) is too low!</font></b>")
                                          .arg(currentFps, 0, 'f', 1));
