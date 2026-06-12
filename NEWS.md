@@ -1,3 +1,19 @@
+Version 3.1.1
+-------------
+Released: 2026-06-12
+
+### Bugfixes:
+ * datactl: Make new-style tsync files distinguishable from older ones and pass edlio validation
+ * udev: Properly detect installed udev rules again
+ * videorecorder: When recording sections, ensure we can't end up with no-frame files
+ * camera-arv: Display status message on FPS mismatch
+ * camera-arv: Make FPS sentinel adaptive instead of a fixed number
+ * camera-lc: Refactor to fail fast if requests don't complete after 10 sec
+ * camera-lc/generic: Check framerate adaptively every 2sec
+
+### Miscellaneous:
+ * tests: Validate generated datasets from GUI tests using edlio
+
 Version 3.1.0
 -------------
 Released: 2026-06-08
