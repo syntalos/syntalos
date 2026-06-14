@@ -337,7 +337,9 @@ public:
         startWaitCondition->wait(this);
 
         m_board->setSyncTimer(m_syTimer);
-        if (!m_board->startAcquisition()) {
+        // The board captures acqStartTimestamp at the instant it commands the hardware to start
+        microseconds_t acqStartTimestamp;
+        if (!m_board->startAcquisition(acqStartTimestamp)) {
             raiseError(QStringLiteral("Failed to start acquisition."));
             return;
         }
@@ -347,7 +349,7 @@ public:
         // This makes index / sample_rate an absolute master-clock time already; the
         // synchronizer then shifts the indices to track ongoing drift.
         const int64_t startSampleOffset = std::llround(
-            static_cast<double>(m_syTimer->timeSinceStartUsec().count()) * sampleRateHz / 1e6);
+            static_cast<double>(acqStartTimestamp.count()) * sampleRateHz / 1e6);
 
         // Synchronized per-sample index vector, computed once per block and shared by all
         // groups (reused across pumps to avoid reallocation).

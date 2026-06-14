@@ -214,8 +214,14 @@ public:
         m_syTimer = std::move(syTimer);
     }
 
-    /** Start streaming samples from the board. */
-    virtual bool startAcquisition() = 0;
+    /**
+     * Start streaming samples from the board.
+     *
+     * @p acqStartTimestamp is set to the master-clock time captured as close as
+     * possible to the instant acquisition is actually commanded to start (i.e.
+     * immediately before the hardware "run" command).
+     */
+    virtual bool startAcquisition(microseconds_t &acqStartTimestamp) = 0;
 
     /** Stop streaming. */
     virtual bool stopAcquisition() = 0;

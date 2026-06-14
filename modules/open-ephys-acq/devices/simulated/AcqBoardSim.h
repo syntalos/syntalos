@@ -67,7 +67,7 @@ public:
     ChannelNamingScheme getNamingScheme() override;
 
     bool isReady() override;
-    bool startAcquisition() override;
+    bool startAcquisition(microseconds_t &acqStartTimestamp) override;
     bool stopAcquisition() override;
 
     bool pumpSamples(std::span<AcqSampleChunk> sinks, microseconds_t &blockAcqTimestamp) override;

@@ -172,11 +172,14 @@ bool AcqBoardSim::isReady()
     return true;
 }
 
-bool AcqBoardSim::startAcquisition()
+bool AcqBoardSim::startAcquisition(microseconds_t &acqStartTimestamp)
 {
     isAcquiring = true;
     sampleNumber = 0;
     acqStart = std::chrono::steady_clock::now();
+    // The simulated board has no startup latency, so the anchor for index 0 is
+    // simply the master-clock time at which acquisition begins.
+    acqStartTimestamp = m_syTimer->timeSinceStartUsec();
     return true;
 }
 

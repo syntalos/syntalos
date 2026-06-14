@@ -1115,7 +1115,7 @@ bool AcqBoardONI::isReady()
     return true;
 }
 
-bool AcqBoardONI::startAcquisition()
+bool AcqBoardONI::startAcquisition(microseconds_t &acqStartTimestamp)
 {
     dataBlock.reset(new Rhd2000ONIDataBlock(evalBoard->getNumEnabledDataStreams(), evalBoard->isUSB3()));
 
@@ -1126,7 +1126,10 @@ bool AcqBoardONI::startAcquisition()
 
     LOG_DEBUG(m_log, "Setting continuous mode");
     evalBoard->setContinuousRunMode(true);
+
     LOG_DEBUG(m_log, "Starting board");
+    // Capture the master-clock anchor immediately before commanding the board to run
+    acqStartTimestamp = m_syTimer->timeSinceStartUsec();
     evalBoard->run();
 
     blockSize = dataBlock->calculateDataBlockSizeInWords(evalBoard->getNumEnabledDataStreams(), evalBoard->isUSB3());
