@@ -369,8 +369,20 @@ public:
      */
     void sendSlice(SliceLoan &&loan)
     {
-        iox2::send(iox2::assume_init(std::move(loan))).value();
-        m_notifier.notify_with_custom_event_id(iox2::EventId(static_cast<size_t>(SyPubSubEvent::Sample))).value();
+        if (auto res = iox2::send(iox2::assume_init(std::move(loan))); !res.has_value())
+            throw std::runtime_error(
+                std::format("Failed to send sample: {}", iox2::bb::into<const char *>(res.error())));
+
+        // The sample is already delivered at this point; a failed notification is not a send
+        // failure - we always over-read, so on transient failures may wake up the receiver next time
+        // Still, it is weird if one succeeds while the other fails, so we must log the issue.
+        if (auto res = m_notifier.notify_with_custom_event_id(
+                iox2::EventId(static_cast<size_t>(SyPubSubEvent::Sample)));
+            !res.has_value())
+            logMessage(
+                datactl::LogSeverity::Warning,
+                "Sample published but subscriber notification failed: {}",
+                iox2::bb::into<const char *>(res.error()));
     }
 
     /**
