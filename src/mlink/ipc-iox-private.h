@@ -213,8 +213,10 @@ public:
                                .open_or_create();
         if (!maybePubSvc.has_value())
             throw std::runtime_error(
-                "Publisher: Failed to open/create pub-sub service for '" + svcNameStr
-                + "': " + iox2::bb::into<const char *>(maybePubSvc.error()));
+                std::format(
+                    "Publisher: Failed to open/create pub-sub service for '{}': {}",
+                    svcNameStr,
+                    iox2::bb::into<const char *>(maybePubSvc.error())));
 
         auto maybePub = std::move(maybePubSvc)
                             .value()
@@ -225,8 +227,10 @@ public:
                             .create();
         if (!maybePub.has_value())
             throw std::runtime_error(
-                "Publisher: Failed to create publisher for '" + svcNameStr
-                + "': " + iox2::bb::into<const char *>(maybePub.error()));
+                std::format(
+                    "Publisher: Failed to create publisher for '{}': {}",
+                    svcNameStr,
+                    iox2::bb::into<const char *>(maybePub.error())));
 
         // Shared event service to notify clients
         auto maybeEvSvc = node.service_builder(svcName)
@@ -237,14 +241,18 @@ public:
                               .open_or_create();
         if (!maybeEvSvc.has_value())
             throw std::runtime_error(
-                "Publisher: Failed to open/create event service for '" + svcNameStr
-                + "': " + iox2::bb::into<const char *>(maybeEvSvc.error()));
+                std::format(
+                    "Publisher: Failed to open/create event service for '{}': {}",
+                    svcNameStr,
+                    iox2::bb::into<const char *>(maybeEvSvc.error())));
 
         auto maybeNotifier = maybeEvSvc.value().notifier_builder().create();
         if (!maybeNotifier.has_value())
             throw std::runtime_error(
-                "Publisher: Failed to create notifier for '" + svcNameStr
-                + "': " + iox2::bb::into<const char *>(maybeNotifier.error()));
+                std::format(
+                    "Publisher: Failed to create notifier for '{}': {}",
+                    svcNameStr,
+                    iox2::bb::into<const char *>(maybeNotifier.error())));
 
         // Event service for the clients to notify the publisher (us)
         auto maybeCtlEvSv = node.service_builder(svcNameCtlEv)
@@ -255,14 +263,18 @@ public:
                                 .open_or_create();
         if (!maybeCtlEvSv.has_value())
             throw std::runtime_error(
-                "Publisher: Failed to open/create control event service for '" + svcNameCtlEvStr
-                + "': " + iox2::bb::into<const char *>(maybeCtlEvSv.error()));
+                std::format(
+                    "Publisher: Failed to open/create control event service for '{}': {}",
+                    svcNameCtlEvStr,
+                    iox2::bb::into<const char *>(maybeCtlEvSv.error())));
 
         auto maybeListener = std::move(maybeCtlEvSv).value().listener_builder().create();
         if (!maybeListener.has_value())
             throw std::runtime_error(
-                "Publisher: Failed to create control listener for '" + svcNameCtlEvStr
-                + "': " + iox2::bb::into<const char *>(maybeListener.error()));
+                std::format(
+                    "Publisher: Failed to create control listener for '{}': {}",
+                    svcNameCtlEvStr,
+                    iox2::bb::into<const char *>(maybeListener.error())));
 
         SyPublisher pub{
             std::move(svcName),
@@ -345,8 +357,9 @@ public:
         auto maybeSlice = m_publisher.loan_slice_uninit(static_cast<uint64_t>(size));
         if (!maybeSlice.has_value())
             throw std::runtime_error(
-                std::string("Publisher::loanSlice: failed to loan slice: ")
-                + iox2::bb::into<const char *>(maybeSlice.error()));
+                std::format(
+                    "Publisher::loanSlice: failed to loan slice: {}",
+                    +iox2::bb::into<const char *>(maybeSlice.error())));
         return std::move(maybeSlice).value();
     }
 
@@ -494,14 +507,18 @@ public:
                                .open_or_create();
         if (!maybeSubSvc.has_value())
             throw std::runtime_error(
-                "Subscriber: failed to open pub-sub service for '" + svcNameStr
-                + "': " + iox2::bb::into<const char *>(maybeSubSvc.error()));
+                std::format(
+                    "Subscriber: failed to open pub-sub service for '{}': {}",
+                    svcNameStr,
+                    iox2::bb::into<const char *>(maybeSubSvc.error())));
 
         auto maybeSub = std::move(maybeSubSvc).value().subscriber_builder().buffer_size(SY_IOX_QUEUE_CAPACITY).create();
         if (!maybeSub.has_value())
             throw std::runtime_error(
-                "Subscriber: failed to create subscriber for '" + svcNameStr
-                + "': " + iox2::bb::into<const char *>(maybeSub.error()));
+                std::format(
+                    "Subscriber: failed to create subscriber for '{}': {}",
+                    svcNameStr,
+                    iox2::bb::into<const char *>(maybeSub.error())));
 
         // Event service to get notified about new samples
         auto maybeEvSvc = node.service_builder(svcName)
@@ -512,14 +529,18 @@ public:
                               .open_or_create();
         if (!maybeEvSvc.has_value())
             throw std::runtime_error(
-                "Subscriber: failed to open/create event service for '" + svcNameStr
-                + "': " + iox2::bb::into<const char *>(maybeEvSvc.error()));
+                std::format(
+                    "Subscriber: failed to open/create event service for '{}': {}",
+                    svcNameStr,
+                    iox2::bb::into<const char *>(maybeEvSvc.error())));
 
         auto maybeListener = std::move(maybeEvSvc).value().listener_builder().create();
         if (!maybeListener.has_value())
             throw std::runtime_error(
-                "Subscriber: failed to create listener for '" + svcNameStr
-                + "': " + iox2::bb::into<const char *>(maybeListener.error()));
+                std::format(
+                    "Subscriber: failed to create listener for '{}': {}",
+                    svcNameStr,
+                    iox2::bb::into<const char *>(maybeListener.error())));
 
         // Event service to notify the publisher that we exist
         auto maybeCtlEvSvc = node.service_builder(svcNameCtlEv)
@@ -530,14 +551,18 @@ public:
                                  .open_or_create();
         if (!maybeCtlEvSvc.has_value())
             throw std::runtime_error(
-                "Subscriber: failed to open/create control event service for '" + svcNameCtlEvStr
-                + "': " + iox2::bb::into<const char *>(maybeCtlEvSvc.error()));
+                std::format(
+                    "Subscriber: failed to open/create control event service for '{}': {}",
+                    svcNameCtlEvStr,
+                    iox2::bb::into<const char *>(maybeCtlEvSvc.error())));
 
         auto maybeNotifier = maybeCtlEvSvc.value().notifier_builder().create();
         if (!maybeNotifier.has_value())
             throw std::runtime_error(
-                "Subscriber: failed to create notifier for '" + svcNameCtlEvStr
-                + "': " + iox2::bb::into<const char *>(maybeNotifier.error()));
+                std::format(
+                    "Subscriber: failed to create notifier for '{}': {}",
+                    svcNameCtlEvStr,
+                    iox2::bb::into<const char *>(maybeNotifier.error())));
 
         SySubscriber sub{
             std::move(svcName),
@@ -699,8 +724,10 @@ IoxPublisher<T> makeTypedPublisher(
                         .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
-            "Failed to open/create pub-sub service for '" + svcNameStr
-            + "': " + iox2::bb::into<const char *>(maybeSvc.error()));
+            std::format(
+                "Failed to open/create pub-sub service for '{}': {}",
+                svcNameStr,
+                iox2::bb::into<const char *>(maybeSvc.error())));
 
     auto maybePub = std::move(maybeSvc)
                         .value()
@@ -709,7 +736,10 @@ IoxPublisher<T> makeTypedPublisher(
                         .create();
     if (!maybePub.has_value())
         throw std::runtime_error(
-            "Failed to create publisher for '" + svcNameStr + "': " + iox2::bb::into<const char *>(maybePub.error()));
+            std::format(
+                "Failed to create publisher for '{}': {}",
+                svcNameStr,
+                iox2::bb::into<const char *>(maybePub.error())));
     return std::move(maybePub).value();
 }
 
@@ -732,12 +762,17 @@ iox2::Subscriber<iox2::ServiceType::Ipc, T, void> makeTypedSubscriber(
                         .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
-            "Failed to open/create pub-sub service for '" + svcNameStr
-            + "': " + iox2::bb::into<const char *>(maybeSvc.error()));
+            std::format(
+                "Failed to open/create pub-sub service for '{}': {}",
+                svcNameStr,
+                iox2::bb::into<const char *>(maybeSvc.error())));
     auto maybeSub = std::move(maybeSvc).value().subscriber_builder().buffer_size(SY_IOX_QUEUE_CAPACITY).create();
     if (!maybeSub.has_value())
         throw std::runtime_error(
-            "Failed to create subscriber for '" + svcNameStr + "': " + iox2::bb::into<const char *>(maybeSub.error()));
+            std::format(
+                "Failed to create subscriber for '{}': {}",
+                svcNameStr,
+                iox2::bb::into<const char *>(maybeSub.error())));
     return std::move(maybeSub).value();
 }
 
@@ -761,8 +796,10 @@ inline IoxSlicePublisher makeSlicePublisher(
                         .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
-            "Failed to open/create slice pub-sub service for '" + svcNameStr
-            + "': " + iox2::bb::into<const char *>(maybeSvc.error()));
+            std::format(
+                "Failed to open/create slice pub-sub service for '{}': {}",
+                svcNameStr,
+                iox2::bb::into<const char *>(maybeSvc.error())));
 
     auto maybePub = std::move(maybeSvc)
                         .value()
@@ -773,8 +810,10 @@ inline IoxSlicePublisher makeSlicePublisher(
                         .create();
     if (!maybePub.has_value())
         throw std::runtime_error(
-            "Failed to create slice publisher for '" + svcNameStr
-            + "': " + iox2::bb::into<const char *>(maybePub.error()));
+            std::format(
+                "Failed to create slice publisher for '{}': {}",
+                svcNameStr,
+                iox2::bb::into<const char *>(maybePub.error())));
     return std::move(maybePub).value();
 }
 
@@ -798,13 +837,17 @@ inline IoxSliceSubscriber makeSliceSubscriber(
                         .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
-            "Failed to open/create slice pub-sub service for '" + svcNameStr
-            + "': " + iox2::bb::into<const char *>(maybeSvc.error()));
+            std::format(
+                "Failed to open/create slice pub-sub service for '{}': {}",
+                svcNameStr,
+                iox2::bb::into<const char *>(maybeSvc.error())));
     auto maybeSub = std::move(maybeSvc).value().subscriber_builder().buffer_size(SY_IOX_QUEUE_CAPACITY).create();
     if (!maybeSub.has_value())
         throw std::runtime_error(
-            "Failed to create slice subscriber for '" + svcNameStr
-            + "': " + iox2::bb::into<const char *>(maybeSub.error()));
+            std::format(
+                "Failed to create slice subscriber for '{}': {}",
+                svcNameStr,
+                iox2::bb::into<const char *>(maybeSub.error())));
     return std::move(maybeSub).value();
 }
 
@@ -824,13 +867,17 @@ inline IoxListener makeEventListener(
                         .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
-            "Failed to open/create event service for '" + svcNameStr
-            + "': " + iox2::bb::into<const char *>(maybeSvc.error()));
+            std::format(
+                "Failed to open/create event service for '{}': {}",
+                svcNameStr,
+                iox2::bb::into<const char *>(maybeSvc.error())));
     auto maybeListener = std::move(maybeSvc).value().listener_builder().create();
     if (!maybeListener.has_value())
         throw std::runtime_error(
-            "Failed to create listener for '" + svcNameStr
-            + "': " + iox2::bb::into<const char *>(maybeListener.error()));
+            std::format(
+                "Failed to create listener for '{}': {}",
+                svcNameStr,
+                iox2::bb::into<const char *>(maybeListener.error())));
     return std::move(maybeListener).value();
 }
 
@@ -850,13 +897,17 @@ inline IoxNotifier makeEventNotifier(
                         .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
-            "Failed to open/create event service for '" + svcNameStr
-            + "': " + iox2::bb::into<const char *>(maybeSvc.error()));
+            std::format(
+                "Failed to open/create event service for '{}': {}",
+                svcNameStr,
+                iox2::bb::into<const char *>(maybeSvc.error())));
     auto maybeNotifier = std::move(maybeSvc).value().notifier_builder().create();
     if (!maybeNotifier.has_value())
         throw std::runtime_error(
-            "Failed to create notifier for '" + svcNameStr
-            + "': " + iox2::bb::into<const char *>(maybeNotifier.error()));
+            std::format(
+                "Failed to create notifier for '{}': {}",
+                svcNameStr,
+                iox2::bb::into<const char *>(maybeNotifier.error())));
     return std::move(maybeNotifier).value();
 }
 
@@ -878,8 +929,10 @@ IoxServer<Req, Res> makeTypedServer(
                         .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
-            "Failed to open/create request-response service for '" + svcNameStr
-            + "': " + iox2::bb::into<const char *>(maybeSvc.error()));
+            std::format(
+                "Failed to open/create request-response service for '{}': {}",
+                svcNameStr,
+                iox2::bb::into<const char *>(maybeSvc.error())));
     auto maybeSrv = std::move(maybeSvc)
                         .value()
                         .server_builder()
@@ -887,7 +940,10 @@ IoxServer<Req, Res> makeTypedServer(
                         .create();
     if (!maybeSrv.has_value())
         throw std::runtime_error(
-            "Failed to create server for '" + svcNameStr + "': " + iox2::bb::into<const char *>(maybeSrv.error()));
+            std::format(
+                "Failed to create server for '{}': {}",
+                svcNameStr,
+                iox2::bb::into<const char *>(maybeSrv.error())));
     return std::move(maybeSrv).value();
 }
 
@@ -909,12 +965,17 @@ IoxClient<Req, Res> makeTypedClient(
                         .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
-            "Failed to open/create request-response service for '" + svcNameStr
-            + "': " + iox2::bb::into<const char *>(maybeSvc.error()));
+            std::format(
+                "Failed to open/create request-response service for '{}': {}",
+                svcNameStr,
+                iox2::bb::into<const char *>(maybeSvc.error())));
     auto maybeClient = std::move(maybeSvc).value().client_builder().create();
     if (!maybeClient.has_value())
         throw std::runtime_error(
-            "Failed to create client for '" + svcNameStr + "': " + iox2::bb::into<const char *>(maybeClient.error()));
+            std::format(
+                "Failed to create client for '{}': {}",
+                svcNameStr,
+                iox2::bb::into<const char *>(maybeClient.error())));
     return std::move(maybeClient).value();
 }
 
@@ -937,8 +998,10 @@ inline auto makeSliceServer(
                         .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
-            "Failed to open/create untyped request-response service for server on '" + svcNameStr
-            + "': " + iox2::bb::into<const char *>(maybeSvc.error()));
+            std::format(
+                "Failed to open/create untyped request-response service for server on '{}': {}",
+                svcNameStr,
+                iox2::bb::into<const char *>(maybeSvc.error())));
     auto srvBuilder = std::move(maybeSvc).value().server_builder().backpressure_strategy(
         iox2::BackpressureStrategy::RetryUntilDelivered);
     if constexpr (is_iox_slice<ResponseT>) {
@@ -950,8 +1013,10 @@ inline auto makeSliceServer(
     auto maybeSrv = std::move(srvBuilder).create();
     if (!maybeSrv.has_value())
         throw std::runtime_error(
-            "Failed to create untyped server for '" + svcNameStr
-            + "': " + iox2::bb::into<const char *>(maybeSrv.error()));
+            std::format(
+                "Failed to create untyped server for '{}': {}",
+                svcNameStr,
+                iox2::bb::into<const char *>(maybeSrv.error())));
     return std::move(maybeSrv).value();
 }
 
@@ -974,8 +1039,10 @@ inline auto makeSliceClient(
                         .open_or_create();
     if (!maybeSvc.has_value())
         throw std::runtime_error(
-            "Failed to open/create untyped request-response service for client on '" + svcNameStr
-            + "': " + iox2::bb::into<const char *>(maybeSvc.error()));
+            std::format(
+                "Failed to open/create untyped request-response service for client on '{}': {}",
+                svcNameStr,
+                iox2::bb::into<const char *>(maybeSvc.error())));
     auto maybeClient = std::move(maybeSvc)
                            .value()
                            .client_builder()
@@ -984,8 +1051,10 @@ inline auto makeSliceClient(
                            .create();
     if (!maybeClient.has_value())
         throw std::runtime_error(
-            "Failed to create untyped client for '" + svcNameStr
-            + "': " + iox2::bb::into<const char *>(maybeClient.error()));
+            std::format(
+                "Failed to create untyped client for '{}': {}",
+                svcNameStr,
+                iox2::bb::into<const char *>(maybeClient.error())));
     return std::move(maybeClient).value();
 }
 
