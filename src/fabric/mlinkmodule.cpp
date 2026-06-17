@@ -159,13 +159,15 @@ public:
     {
         auto maybeResponse = req.loan_uninit();
         if (!maybeResponse.has_value()) {
-            LOG_WARNING(
+            LOG_ERROR(
                 log,
                 "Failed to loan response for port change reply: {}",
                 iox2::bb::into<const char *>(maybeResponse.error()));
             return;
         }
-        iox2::send(std::move(maybeResponse).value().write_payload(DoneResponse{success})).value();
+        if (auto res = iox2::send(std::move(maybeResponse).value().write_payload(DoneResponse{success}));
+            !res.has_value())
+            LOG_ERROR(log, "Failed to send port change reply to worker: {}", iox2::bb::into<const char *>(res.error()));
     }
 
     void replySlice(SliceBiDiActiveRequest &req, const ByteVector &data) const
@@ -181,7 +183,8 @@ public:
         }
         auto rawResponse = std::move(maybeResponse).value();
         std::memcpy(rawResponse.payload_mut().data(), data.data(), data.size());
-        iox2::send(iox2::assume_init(std::move(rawResponse))).value();
+        if (auto res = iox2::send(iox2::assume_init(std::move(rawResponse))); !res.has_value())
+            LOG_ERROR(log, "Failed to send response slice to worker: {}", iox2::bb::into<const char *>(res.error()));
     }
 
     void checkClientSyncDetails(MLinkModule *self)
@@ -276,7 +279,13 @@ public:
         auto pendingReq = std::move(maybeReq).value();
 
         fillReqFn(pendingReq.payload_mut());
-        auto pending = iox2::send(iox2::assume_init(std::move(pendingReq))).value();
+        auto sendRes = iox2::send(iox2::assume_init(std::move(pendingReq)));
+        if (!sendRes.has_value()) {
+            self->raiseError(QStringLiteral("Failed to send request on channel '%1': %2")
+                                 .arg(qstr(channel), qstr(iox2::bb::into<const char *>(sendRes.error()))));
+            return std::nullopt;
+        }
+        auto pending = std::move(sendRes).value();
         notifyClient();
 
         QElapsedTimer timer;
@@ -284,7 +293,13 @@ public:
         while (true) {
             checkClientError(self);
 
-            auto response = pending.receive().value();
+            auto maybeResponse = pending.receive();
+            if (!maybeResponse.has_value()) {
+                self->raiseError(QStringLiteral("Failed to receive response on channel '%1': %2")
+                                     .arg(qstr(channel), qstr(iox2::bb::into<const char *>(maybeResponse.error()))));
+                return std::nullopt;
+            }
+            auto response = std::move(maybeResponse).value();
             if (response.has_value())
                 return response->payload();
 
@@ -357,7 +372,13 @@ public:
         }
         auto rawSlice = std::move(maybeSlice).value();
         std::memmove(rawSlice.payload_mut().data(), bytes.data(), bytes.size());
-        auto pending = iox2::send(iox2::assume_init(std::move(rawSlice))).value();
+        auto sendRes = iox2::send(iox2::assume_init(std::move(rawSlice)));
+        if (!sendRes.has_value()) {
+            self->raiseError(QStringLiteral("Failed to send request on '%1': %2")
+                                 .arg(qstr(channel), qstr(iox2::bb::into<const char *>(sendRes.error()))));
+            return false;
+        }
+        auto pending = std::move(sendRes).value();
         notifyClient();
 
         QElapsedTimer timer;
@@ -369,7 +390,13 @@ public:
                 if (timeoutSec > 4)
                     qApp->processEvents();
             }
-            auto response = pending.receive().value();
+            auto maybeResponse = pending.receive();
+            if (!maybeResponse.has_value()) {
+                self->raiseError(QStringLiteral("Failed to receive response on '%1': %2")
+                                     .arg(qstr(channel), qstr(iox2::bb::into<const char *>(maybeResponse.error()))));
+                return false;
+            }
+            auto response = std::move(maybeResponse).value();
             if (response.has_value())
                 return response->payload().success;
 
@@ -415,7 +442,13 @@ public:
         }
         auto rawSlice = std::move(maybeSlice).value();
         std::memmove(rawSlice.payload_mut().data(), bytes.data(), bytes.size());
-        auto pending = iox2::send(iox2::assume_init(std::move(rawSlice))).value();
+        auto sendRes = iox2::send(iox2::assume_init(std::move(rawSlice)));
+        if (!sendRes.has_value()) {
+            self->raiseError(QStringLiteral("Failed to send request on '%1': %2")
+                                 .arg(qstr(channel), qstr(iox2::bb::into<const char *>(sendRes.error()))));
+            return std::nullopt;
+        }
+        auto pending = std::move(sendRes).value();
         notifyClient();
 
         QElapsedTimer timer;
@@ -428,7 +461,13 @@ public:
                     qApp->processEvents();
             }
 
-            auto response = pending.receive().value();
+            auto maybeResponse = pending.receive();
+            if (!maybeResponse.has_value()) {
+                self->raiseError(QStringLiteral("Failed to receive response on '%1': %2")
+                                     .arg(qstr(channel), qstr(iox2::bb::into<const char *>(maybeResponse.error()))));
+                return std::nullopt;
+            }
+            auto response = std::move(maybeResponse).value();
             if (response.has_value()) {
                 const auto pl = response->payload();
                 return ResData::fromMemory(pl.data(), pl.number_of_bytes());
