@@ -213,9 +213,11 @@ public:
         // LineReading events carry absolute timestamps, so "index" mode does not apply.
         sd.yLabel = sd.sub->metadataValue("data_unit", std::string{"ttl"});
         // Register the canvas port (= this module input port) with the resolved
-        // divisor. Per-line channels are created under it lazily as events for
-        // each lineId arrive, so they group correctly in the channel table.
-        m_plotWindow->canvas()->registerPort(sd.portId, sd.timestampDivisor, sd.yLabel);
+        // divisor. Per-line channels are created lazily as events for each lineId arrive,
+        // so they group correctly in the channel table.
+        // LineReading is edge-triggered, so mark the port to keep its traces visible while
+        // a line stays quiet (sampleAndHold = true).
+        m_plotWindow->canvas()->registerPort(sd.portId, sd.timestampDivisor, sd.yLabel, 1.0, 0.0, true);
     }
 
     void start() override

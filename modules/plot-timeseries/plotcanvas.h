@@ -57,7 +57,8 @@ public:
         double timestampDivisor,
         const std::string &yLabel,
         double dataScale = 1.0,
-        double dataOffset = 0.0);
+        double dataOffset = 0.0,
+        bool sampleAndHold = false);
     void unregisterPort(const std::string &portId);
     void clearAll();
     void clearRuntimeData();

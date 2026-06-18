@@ -167,6 +167,11 @@ struct PortData {
     float timestampDivisor = 1000.0;
     std::string yLabel = "y";
 
+    // True for edge-triggered sources (LineReading): samples are only recorded when
+    // the value changes, so the last value is held until the next reading. Such
+    // channels must stay visible while quiet instead of being clipped to the window.
+    bool sampleAndHold = false;
+
     // Affine transform applied to incoming samples before display:
     //   displayed = dataScale * raw + dataOffset
     float dataScale = 1.0f;
@@ -268,6 +273,12 @@ public:
         size_t tsOffset = 0; // offset into portSnaps[portId].ts for this channel
         size_t visLen = 0;
         std::vector<float> samples;
+
+        // Digital-only: self-contained timestamps (including the synthetic right-edge
+        // hold point). When non-empty, render uses these instead of the shared port
+        // snapshot, so a held line value stays visible across the whole window even
+        // when its last edge predates the window start.
+        std::vector<float> tsOwn;
     };
 
     struct GraphSnap {
@@ -361,7 +372,8 @@ void PlotCanvas::registerPort(
     double timestampDivisor,
     const std::string &yLabel,
     double dataScale,
-    double dataOffset)
+    double dataOffset,
+    bool sampleAndHold)
 {
     const std::lock_guard<std::mutex> lock(d->dataMutex);
     auto &p = d->ports[portId];
@@ -370,6 +382,7 @@ void PlotCanvas::registerPort(
     p.yLabel = yLabel.empty() ? "y" : yLabel;
     p.dataScale = static_cast<float>(dataScale);
     p.dataOffset = static_cast<float>(dataOffset);
+    p.sampleAndHold = sampleAndHold;
     if (p.timestamps.size() == 0)
         p.timestamps.setCapacity(d->bufferSize);
 }
@@ -1052,7 +1065,53 @@ void PlotCanvas::paintGL()
             const auto &c = d->channels[ci];
             if (!c.enabled || c.portId.empty())
                 continue;
-            auto psIt = d->portSnaps.find(c.portId);
+            const auto pIt = d->ports.find(c.portId);
+            if (pIt == d->ports.end())
+                continue;
+            const auto &pd = pIt->second;
+
+            // Sample-and-hold sources (e.g. LineReading) only record a sample when the value
+            // changes. If we clipped them to the visible window like continuous data, a
+            // line that stayed quiet longer than the window would have no point inside it
+            // and the trace would vanish. Instead, build a self-contained snapshot that
+            // keeps the value active at the left edge and extends the last held value to
+            // the right edge, so it renders flat across the window until the next reading.
+            if (pd.sampleAndHold) {
+                const size_t sampTotal = c.samples.size();
+                if (sampTotal == 0)
+                    continue;
+                const size_t portTsTotal = pd.timestamps.size();
+                // Channel samples correspond to the last sampTotal port timestamps.
+                const size_t tsStart = portTsTotal >= sampTotal ? portTsTotal - sampTotal : 0;
+                const size_t lb = pd.timestamps.lowerBoundLogical(tMin);
+                // Start one sample before the window so the value held at the left edge
+                // renders; collapses to the last sample when all edges predate tMin.
+                const size_t startSamp = (lb <= tsStart) ? 0 : std::min(sampTotal - 1, lb - tsStart - 1);
+                const size_t cnt = sampTotal - startSamp;
+
+                Private::ChannelSnap cs;
+                cs.channelIdx = ci;
+                cs.portId = c.portId;
+                cs.signalName = c.signalName;
+                cs.colIdx = c.colIdx;
+                cs.digital = c.digital;
+                cs.tsOffset = 0;
+                cs.tsOwn.resize(cnt);
+                pd.timestamps.copyRange(tsStart + startSamp, cnt, cs.tsOwn.data());
+                cs.samples.resize(cnt);
+                c.samples.copyRange(startSamp, cnt, cs.samples.data());
+                // Extend the held value to the window's right edge.
+                if ((float)d->xLinkMax > cs.tsOwn.back()) {
+                    cs.tsOwn.push_back((float)d->xLinkMax);
+                    cs.samples.push_back(cs.samples.back());
+                }
+                cs.visLen = cs.samples.size();
+                d->channelSnaps.push_back(std::move(cs));
+                continue;
+            }
+
+            // Continuous sources share the port's visible-window snapshot.
+            const auto psIt = d->portSnaps.find(c.portId);
             if (psIt == d->portSnaps.end())
                 continue;
             const auto &ps = psIt->second;
@@ -1211,14 +1270,23 @@ void PlotCanvas::paintGL()
 
             for (int csi : gs.chanSnaps) {
                 const auto &cs = d->channelSnaps[csi];
-                auto psIt = d->portSnaps.find(cs.portId);
-                if (psIt == d->portSnaps.end() || cs.visLen == 0)
-                    continue;
-                const auto &ps = psIt->second;
 
-                const float *tsPtr = ps.ts.data() + cs.tsOffset;
+                // Sample-and-hold channels carry their own timestamps (with a right-edge
+                // hold) so they stay visible while quiet; continuous channels share the
+                // port's visible-window snapshot.
+                const float *tsPtr;
+                int n;
+                if (!cs.tsOwn.empty()) {
+                    tsPtr = cs.tsOwn.data();
+                    n = (int)cs.tsOwn.size();
+                } else {
+                    auto psIt = d->portSnaps.find(cs.portId);
+                    if (psIt == d->portSnaps.end() || cs.visLen == 0)
+                        continue;
+                    tsPtr = psIt->second.ts.data() + cs.tsOffset;
+                    n = (int)cs.visLen;
+                }
                 const float *sampPtr = cs.samples.data();
-                int n = (int)cs.visLen;
 
                 // Min/max envelope decimation: reduce to at most 2 x pixelWidth
                 // points so rendering cost is proportional to display pixels.

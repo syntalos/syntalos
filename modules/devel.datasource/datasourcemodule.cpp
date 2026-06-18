@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -35,7 +35,8 @@ class DataSourceModule : public AbstractModule
 private:
     std::shared_ptr<DataStream<Frame>> m_frameOut;
     std::shared_ptr<DataStream<TableRow>> m_rowsOut;
-    std::shared_ptr<DataStream<LineCommand>> m_fctlOut;
+    std::shared_ptr<DataStream<LineCommand>> m_lcmdOut;
+    std::shared_ptr<DataStream<LineReading>> m_lrdOut;
 
     std::shared_ptr<DataStream<SignalBlockF32>> m_floatOut;
     std::shared_ptr<DataStream<SignalBlockI32>> m_intOut;
@@ -54,6 +55,10 @@ private:
     double m_freqHigh;
     uint64_t m_sampleCount;
 
+    // Edge-triggered digital line state for the LineReading output
+    static constexpr int kNumLines = 3;
+    int m_lineState[kNumLines];
+
 public:
     explicit DataSourceModule(QObject *parent = nullptr)
         : AbstractModule(parent),
@@ -67,10 +72,11 @@ public:
     {
         m_frameOut = registerOutputPort<Frame>(QStringLiteral("frames-out"), QStringLiteral("Frames"));
         m_rowsOut = registerOutputPort<TableRow>(QStringLiteral("rows-out"), QStringLiteral("Table Rows"));
-        m_fctlOut = registerOutputPort<LineCommand>(QStringLiteral("fctl-out"), QStringLiteral("Line Control"));
-        m_floatOut = registerOutputPort<SignalBlockF32>(QStringLiteral("float-out"), QStringLiteral("Sines"));
-        m_intOut = registerOutputPort<SignalBlockI32>(QStringLiteral("int-out"), QStringLiteral("Numbers"));
-        m_uint16Out = registerOutputPort<SignalBlockU16>(QStringLiteral("uint16-out"), QStringLiteral("U16 Counters"));
+        m_lcmdOut = registerOutputPort<LineCommand>(QStringLiteral("linecmd-out"), QStringLiteral("Line Control"));
+        m_lrdOut = registerOutputPort<LineReading>(QStringLiteral("linerd-out"), QStringLiteral("Line Readings"));
+        m_floatOut = registerOutputPort<SignalBlockF32>(QStringLiteral("float-out"), QStringLiteral("Floats"));
+        m_intOut = registerOutputPort<SignalBlockI32>(QStringLiteral("int-out"), QStringLiteral("I32 Integers"));
+        m_uint16Out = registerOutputPort<SignalBlockU16>(QStringLiteral("uint16-out"), QStringLiteral("U16 Integers"));
     }
 
     ~DataSourceModule() override {}
@@ -156,7 +162,14 @@ public:
         m_uint16Out->setMetadataValue("sample_rate", m_sampleRate);
         m_uint16Out->start();
 
-        m_fctlOut->start();
+        m_lcmdOut->start();
+
+        for (int i = 0; i < kNumLines; ++i)
+            m_lineState[i] = -1; // force an initial reading on the first evaluation
+        m_lrdOut->setMetadataValue("time_unit", "microseconds");
+        m_lrdOut->setMetadataValue("data_unit", "ttl");
+        m_lrdOut->setMetadataValue("is_digital", true);
+        m_lrdOut->start();
 
         return true;
     }
@@ -177,7 +190,31 @@ public:
             if (((msec / 1000) % 3) == 0) {
                 LineCommand lcmd(LineCommandKind::WRITE_DIGITAL, 2);
                 lcmd.value = ((msec / 1000) % 2 == 0) ? 1 : 0;
-                m_fctlOut->push(lcmd);
+                m_lcmdOut->push(lcmd);
+            }
+
+            // Edge-triggered LineReading output
+            {
+                const auto nowUs = m_syTimer->timeSinceStartUsec();
+                const double sec = nowUs.count() / 1e6;
+                const long secsInt = static_cast<long>(sec);
+
+                int desired[kNumLines];
+                desired[0] = secsInt % 2;                         // ~1 s high / ~1 s low
+                desired[1] = (secsInt / 4) % 2;                   // toggles every 4 s -> long quiet gaps
+                desired[2] = (std::fmod(sec, 5.0) < 0.1) ? 1 : 0; // brief pulse every 5 s
+
+                for (int i = 0; i < kNumLines; ++i) {
+                    if (desired[i] == m_lineState[i])
+                        continue;
+                    m_lineState[i] = desired[i];
+
+                    LineReading lr;
+                    lr.lineId = static_cast<uint16_t>(i);
+                    lr.value = static_cast<uint32_t>(desired[i]);
+                    lr.time = nowUs;
+                    m_lrdOut->push(lr);
+                }
             }
 
             // Deterministic, sample-rate-driven signal generation. Each value is a
