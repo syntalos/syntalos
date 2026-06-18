@@ -15,7 +15,7 @@ foreach size : ['48x48', '64x64', '128x128']
     )
 endforeach
 
-# systemd tmpfilesd snippet (for systemd which don't clean this up on their own)
+# systemd tmpfilesd snippet (for systems which don't clean up the temp dir on their own)
 if systemd_dep.found()
     install_data('tmpfiles.d/syntalos.conf',
         install_dir: systemd_dep.get_variable(pkgconfig: 'tmpfiles_dir')
