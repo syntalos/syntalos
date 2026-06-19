@@ -308,6 +308,7 @@ void initializeSyLogSystem(quill::LogLevel consoleLogLevel)
     // forward iceoryx2 messages
     static IoxLogger ioxLogForwarder = IoxLogger();
     iox2::set_logger(ioxLogForwarder);
+    iox2::set_log_level(consoleLogLevel <= quill::LogLevel::Debug ? iox2::LogLevel::Debug : iox2::LogLevel::Info);
 
     // configure defaults
     g_defaultLogLevel = consoleLogLevel;
