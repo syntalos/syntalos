@@ -2075,6 +2075,7 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
     auto failedRunDirCleanup = syScopeGuard([this, &edlDir]() {
         emitStatusMessage(QStringLiteral("Removing broken data..."));
         edlDir.removeRecursively();
+        emitStatusMessage(QStringLiteral("Broken run cleaned up."));
     });
 
     // ensure error queue is clean

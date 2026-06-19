@@ -296,6 +296,12 @@ void initializeSyLogSystem(quill::LogLevel consoleLogLevel)
     // register our console sink
     g_consoleSink = quill::Frontend::create_or_get_sink<quill::ConsoleSink>("sy-console");
 
+    // configure defaults *before* any logger is created below: getLogger() stamps each new
+    // logger with g_defaultLogLevel at creation time, so this must be set first or early
+    // loggers would be stuck at the old default and silently drop messages below it.
+    g_defaultLogLevel = consoleLogLevel;
+    g_consoleSink->set_log_level_filter(consoleLogLevel);
+
     // forward datactl library log messages into Quill
     datactl::setLogHandler(datactlLogHandler);
 
@@ -309,10 +315,6 @@ void initializeSyLogSystem(quill::LogLevel consoleLogLevel)
     static IoxLogger ioxLogForwarder = IoxLogger();
     iox2::set_logger(ioxLogForwarder);
     iox2::set_log_level(consoleLogLevel <= quill::LogLevel::Debug ? iox2::LogLevel::Debug : iox2::LogLevel::Info);
-
-    // configure defaults
-    g_defaultLogLevel = consoleLogLevel;
-    g_consoleSink->set_log_level_filter(consoleLogLevel);
 }
 
 void shutdownSyLogSystem()
