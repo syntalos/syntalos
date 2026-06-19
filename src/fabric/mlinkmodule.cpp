@@ -1051,7 +1051,12 @@ bool MLinkModule::runProcess()
     terminateProcess();
 
     // reset connection, just in case we changed our ID
-    resetConnection();
+    try {
+        resetConnection();
+    } catch (const std::exception &e) {
+        raiseError(QStringLiteral("Failed to set up module IPC connection: %1").arg(e.what()));
+        return false;
+    }
 
     if (d->proc->program().isEmpty()) {
         LOG_ERROR(m_log, "MLink module has not set a worker binary");

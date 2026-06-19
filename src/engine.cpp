@@ -2306,6 +2306,12 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
 
     // exporter for streams so out-of-process mlink modules can access them
     auto streamExporter = std::make_unique<StreamExporter>();
+    if (initSuccessful && streamExporter->isFailed()) {
+        initSuccessful = false;
+        d->failed = true;
+        d->runFailedReason = QStringLiteral("Failed to initialize the stream exporter IPC interface.");
+        emitStatusMessage(d->runFailedReason);
+    }
     if (initSuccessful) {
         emitStatusMessage(QStringLiteral("Exporting streams for external modules..."));
 

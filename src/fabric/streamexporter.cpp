@@ -88,7 +88,14 @@ StreamExporter::StreamExporter(const QString &threadName, QObject *parent)
     else
         d->threadName = QStringLiteral("se:%1").arg(threadName);
 
-    d->node.emplace(makeIoxNode("syntalos-stream-exporter"));
+    // Setting up the IPC node may fail (e.g. iceoryx2 node creation errors); flag the
+    // exporter as failed instead of letting the exception escape and abort the engine.
+    try {
+        d->node.emplace(makeIoxNode("syntalos-stream-exporter"));
+    } catch (const std::exception &e) {
+        d->failed = true;
+        LOG_CRITICAL(d->log, "Failed to set up stream exporter IPC node: {}", e.what());
+    }
 }
 
 StreamExporter::~StreamExporter()

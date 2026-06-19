@@ -23,6 +23,7 @@
 
 #include <signal.h>
 #include <sys/prctl.h>
+#include <iostream>
 
 #include "pyworker.h"
 
@@ -35,7 +36,13 @@ int main(int argc, char *argv[])
     a.setQuitOnLastWindowClosed(false);
 
     // Initialize link to Syntalos. There can only be one.
-    auto slink = initSyntalosModuleLink({.renameThread = true});
+    std::unique_ptr<SyntalosLink> slink;
+    try {
+        slink = initSyntalosModuleLink({.renameThread = true});
+    } catch (const std::exception &e) {
+        std::cerr << "Failed to initialize Syntalos module link: " << e.what() << std::endl;
+        return 5;
+    }
     auto worker = std::make_unique<PyWorker>(slink.get(), &a);
 
     // ensure that this process dies with its parent

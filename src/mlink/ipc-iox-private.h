@@ -92,12 +92,22 @@ const iox2::Config &ioxDefaultConfig();
  */
 inline auto makeIoxNode(const std::string &nodeName)
 {
-    return iox2::NodeBuilder()
-        .config(ioxDefaultConfig())
-        .name(iox2::NodeName::create(nodeName.c_str()).value())
-        .signal_handling_mode(iox2::SignalHandlingMode::HandleTerminationRequests)
-        .create<iox2::ServiceType::Ipc>()
-        .value();
+    auto maybeName = iox2::NodeName::create(nodeName.c_str());
+    if (!maybeName.has_value())
+        throw std::runtime_error(std::format("Invalid IPC node name '{}'", nodeName));
+
+    auto maybeNode = iox2::NodeBuilder()
+                         .config(ioxDefaultConfig())
+                         .name(maybeName.value())
+                         .signal_handling_mode(iox2::SignalHandlingMode::HandleTerminationRequests)
+                         .create<iox2::ServiceType::Ipc>();
+    if (!maybeNode.has_value())
+        throw std::runtime_error(
+            std::format(
+                "Failed to create IPC node '{}': {}",
+                nodeName,
+                iox2::bb::into<const char *>(maybeNode.error())));
+    return std::move(maybeNode).value();
 }
 
 /**
