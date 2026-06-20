@@ -10,13 +10,14 @@ modules:
     - "*.la"
   sources:
     - type: archive
-      url: https://libzip.org/download/libzip-1.8.0.tar.xz
-      sha256: f0763bda24ba947e80430be787c4b068d8b6aa6027a26a19923f0acfa3dac97e
+      url: https://libzip.org/download/libzip-1.11.4.tar.xz
+      sha256: 8a247f57d1e3e6f6d11413b12a6f28a9d388de110adc0ec608d893180ed7097b
 
 - name: tiscamera
   buildsystem: cmake-ninja
   builddir: true
   config-opts:
+    - -DCMAKE_POLICY_VERSION_MINIMUM=3.5
     - -DTCAM_INSTALL_FORCE_PREFIX=ON
     - -DTCAM_INSTALL_UDEV=/app/lib/udev
     - -DTCAM_INSTALL_SYSTEMD=/app/lib/systemd/system/
@@ -32,6 +33,4 @@ modules:
   sources:
     - type: git
       url: https://github.com/TheImagingSource/tiscamera.git
-      tag: v-tiscamera-1.1.1
-    - type: patch
-      path: ../patches/tiscam_01_add-includes.patch
+      commit: a0ece27ef145596fe356f0bfdb41547ea4a7604e

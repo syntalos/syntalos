@@ -6,16 +6,16 @@ modules:
   sources:
     - type: git
       url: https://gitlab.com/AOMediaCodec/SVT-AV1.git
-      tag: v2.3.0
+      tag: v4.1.0
 
 - name: libx264
   config-opts:
     - --disable-cli
     - --enable-shared
   sources:
-    - type: archive
-      url: https://download.videolan.org/x264/snapshots/x264-snapshot-20191217-2245-stable.tar.bz2
-      sha256: b2495c8f2930167d470994b1ce02b0f4bfb24b3317ba36ba7f112e9809264160
+    - type: git
+      url: https://code.videolan.org/videolan/x264.git
+      commit: ab393c85eb23c522684d2494a8a5665cebc315a9
 
 - name: x265
   buildsystem: cmake-ninja
@@ -23,11 +23,15 @@ modules:
   subdir: source
   config-opts:
     - -DCMAKE_BUILD_TYPE=RelWithDebInfo
+    - -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+    - -DENABLE_SHARED=ON
     - -DENABLE_CLI=OFF
   sources:
     - type: archive
-      url: https://deb.debian.org/debian/pool/main/x/x265/x265_3.5.orig.tar.gz
-      sha256: e70a3335cacacbba0b3a20ec6fecd6783932288ebc8163ad74bcc9606477cae8
+      url: https://deb.debian.org/debian/pool/main/x/x265/x265_4.1.orig.tar.xz
+      sha256: 85abb8a850000bf693947459c42a666a3ecd6de10a2ac6b3c6647554b14d3270
+    - type: patch
+      path: ../patches/x265_set-minimum-cmake-version-to-3.10.patch
 
 - name: ffmpeg
   config-opts:
@@ -42,7 +46,6 @@ modules:
     - --enable-gpl
     - --enable-version3
     - --enable-optimizations
-    - --enable-postproc
     - --enable-pthreads
     - --enable-gnutls
     - --enable-libxcb-xfixes
@@ -72,9 +75,9 @@ modules:
     - --enable-libvpx
     - --enable-libx264
     - --enable-libx265
-  sources:
-    - type: archive
-      url: https://ffmpeg.org/releases/ffmpeg-7.1.1.tar.xz
-      sha256: 733984395e0dbbe5c046abda2dc49a5544e7e0e1e2366bba849222ae9e3a03b1
   cleanup:
     - /share/ffmpeg/examples
+  sources:
+    - type: archive
+      url: https://ffmpeg.org/releases/ffmpeg-8.1.1.tar.xz
+      sha256: b6863adde98898f42602017462871b5f6333e65aec803fdd7a6308639c52edf3

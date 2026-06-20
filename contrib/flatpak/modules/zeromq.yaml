@@ -1,0 +1,26 @@
+name: zeromq
+modules:
+  - name: zeromq
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+      - -DCMAKE_BUILD_TYPE=Release
+    cleanup:
+      - /bin
+    sources:
+      - type: archive
+        url: https://github.com/zeromq/libzmq/releases/download/v4.3.5/zeromq-4.3.5.tar.gz
+        sha256: 6653ef5910f17954861fe72332e68b03ca6e4d9c7160eb3a8de5a5a913bfab43
+
+  - name: cppzmq
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+      - -DCPPZMQ_BUILD_TESTS=OFF
+    sources:
+      - type: git
+        url: https://github.com/zeromq/cppzmq.git
+        tag: v4.11.0
+        commit: 3bcbd9dad2f57180aacd4b4aea292a74f0de7ef4

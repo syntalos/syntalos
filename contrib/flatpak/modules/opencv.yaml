@@ -1,0 +1,62 @@
+name: opencv
+modules:
+
+- name: opencv
+  buildsystem: cmake-ninja
+  builddir: true
+  config-opts:
+  - -DCMAKE_BUILD_TYPE=RelWithDebInfo
+  - -DOPENCV_EXTRA_MODULES_PATH=../contrib/modules
+  - -DOPENCV_GENERATE_PKGCONFIG=ON
+  - -DWITH_OPENCL=ON
+  - -DWITH_OPENGL=ON
+  - -DWITH_TBB=ON
+  - -DWITH_OPENMP=ON
+  - -DWITH_IPP=ON
+  - -DWITH_VULKAN=ON
+  - -DWITH_LAPACK=ON
+  - -DBUILD_WITH_DEBUG_INFO=OFF
+  - -DBUILD_TESTS=OFF
+  - -DBUILD_PERF_TESTS=OFF
+  - -DBUILD_EXAMPLES=OFF
+  - -DBUILD_opencv_python2=OFF
+  - -DBUILD_opencv_python3=ON
+  - -DINSTALL_C_EXAMPLES=OFF
+  - -DINSTALL_PYTHON_EXAMPLES=OFF
+  - -DCPU_BASELINE=AVX2
+  - -DCPU_DISPATCH=AVX,AVX2
+  - -DWITH_1394=OFF
+  - -DWITH_V4L=ON
+  - -DWITH_PROTOBUF=ON
+  - -DWITH_QT=ON
+  - -DWITH_GTK=OFF
+  - -DBUILD_LIST=core,dnn,features2d,flann,highgui,imgcodecs,imgproc,ml,objdetect,photo,python3,python_bindings_generator,stitching,video,videoio
+  # ugly things so OpenCV manages to find Python
+  - -DOPENCV_SKIP_PYTHON_LOADER=ON
+  - -DPYTHON3_EXECUTABLE=/usr/bin/python3
+  - -DOPENCV_PYTHON3_INSTALL_PATH=/app/lib/python3.13/site-packages
+  - -DPYTHON3_INCLUDE_DIR=/usr/include/python3.13
+  build-options:
+    env:
+      BLAS: /app/lib
+      LAPACK: /app/lib
+    arch:
+      x86_64:
+        config-opts:
+          - -DPYTHON3_LIBRARY=/usr/lib/x86_64-linux-gnu/libpython3.13.so
+      aarch64:
+        config-opts:
+          - -DWITH_CAROTENE=OFF # fails on Flathub ARM builders and is only relevant for ARM
+          # reduced featureset for ARM64 for now: dnn disabled due to build failure
+          - -DBUILD_opencv_dnn=OFF
+          - -DPYTHON3_LIBRARY=/usr/lib/aarch64-linux-gnu/libpython3.13.so
+  cleanup:
+    - bin
+  sources:
+    - type: archive
+      url: https://github.com/opencv/opencv/archive/refs/tags/4.13.0.tar.gz
+      sha256: 1d40ca017ea51c533cf9fd5cbde5b5fe7ae248291ddf2af99d4c17cf8e13017d
+    - type: archive
+      dest: contrib
+      url: https://github.com/opencv/opencv_contrib/archive/refs/tags/4.13.0.tar.gz
+      sha256: 1e0077a4fd2960a7d2f4c9e49d6ba7bb891cac2d1be36d7e8e47aa97a9d1039b

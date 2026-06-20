@@ -1,0 +1,9 @@
+name: libwinpos
+buildsystem: meson
+builddir: true
+config-opts:
+  - -Dexamples=false
+sources:
+  - type: git
+    url: https://github.com/ximion/libwinpos.git
+    commit: e8144d7960b349a486cafcd6a4eb69fb4329c0e5

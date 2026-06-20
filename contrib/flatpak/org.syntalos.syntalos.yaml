@@ -1,10 +1,12 @@
 id: org.syntalos.syntalos
 runtime: org.kde.Sdk
-runtime-version: '6.8'
+runtime-version: '6.10'
 sdk: org.kde.Sdk
 base: com.riverbankcomputing.PyQt.BaseApp
-base-version: '6.8'
+base-version: '6.10'
 separate-locales: false
+sdk-extensions:
+  - org.freedesktop.Sdk.Extension.rust-stable
 
 command: syntalos
 rename-icon: syntalos
@@ -21,6 +23,7 @@ finish-args:
   - --socket=pulseaudio
   - --allow=devel
   - --allow=bluetooth
+  - --filesystem=/run/udev:ro  # needed for libcamera's udev enumeration & some controllers
   - --filesystem=xdg-run/pipewire-0:ro
   - --env=PATH=/app/bin:/usr/bin:/usr/sbin
   - --env=GST_PLUGIN_PATH=/app/lib/gstreamer-1.0:/usr/lib/extensions/gstreamer-1.0
@@ -43,183 +46,170 @@ cleanup-commands:
 
 modules:
 
-- name: OpenCL
-  buildsystem: cmake-ninja
-  sources:
-    - type: archive
-      url: https://github.com/KhronosGroup/OpenCL-Headers/archive/refs/tags/v2024.10.24.tar.gz
-      sha256: 159f2a550592bae49859fee83d372acd152328fdf95c0dcd8b9409f8fad5db93
+  - name: OpenCL
+    buildsystem: cmake-ninja
+    sources:
+      - type: archive
+        url: https://github.com/KhronosGroup/OpenCL-Headers/archive/refs/tags/v2024.10.24.tar.gz
+        sha256: 159f2a550592bae49859fee83d372acd152328fdf95c0dcd8b9409f8fad5db93
 
-- name: xxhash
-  no-autogen: true
-  make-install-args:
-    - PREFIX=${FLATPAK_DEST}
-  cleanup:
-    - bin/*
-    - '*.a'
-    - share/
-  sources:
-    - type: archive
-      url: https://github.com/Cyan4973/xxHash/archive/refs/tags/v0.8.2.tar.gz
-      sha256: baee0c6afd4f03165de7a4e67988d16f0f2b257b51d0e3cb91909302a26a79c4
+  - name: toml++
+    buildsystem: meson
+    builddir: true
+    sources:
+      - type: archive
+        url: https://github.com/marzer/tomlplusplus/archive/refs/tags/v3.4.0.tar.gz
+        sha256: 8517f65938a4faae9ccf8ebb36631a38c1cadfb5efa85d9a72e15b9e97d25155
 
-- name: toml++
-  buildsystem: meson
-  builddir: true
-  sources:
-    - type: archive
-      url: https://github.com/marzer/tomlplusplus/archive/refs/tags/v3.4.0.tar.gz
-      sha256: 8517f65938a4faae9ccf8ebb36631a38c1cadfb5efa85d9a72e15b9e97d25155
+  - name: blake3
+    buildsystem: cmake-ninja
+    builddir: true
+    subdir: c/
+    config-opts:
+      - -DBUILD_SHARED_LIBS:BOOL=YES
+    sources:
+      - type: archive
+        url: https://github.com/BLAKE3-team/BLAKE3/archive/refs/tags/1.8.5.tar.gz
+        sha256: 220bd81286e2a0585beac66d41ac3f4c2c33ae8a4e339fc88cf22d5e00514fe9
 
-- name: iceoryx
-  buildsystem: cmake-ninja
-  builddir: true
-  subdir: iceoryx_meta/
-  config-opts:
-    - -DBUILD_DOC=OFF
-    - -DBUILD_SHARED_LIBS=ON
-    - -DINTROSPECTION=ON
-    - -DTOML_CONFIG=OFF
-  sources:
-    - type: archive
-      url: https://github.com/eclipse-iceoryx/iceoryx/archive/refs/tags/v2.0.6.tar.gz
-      sha256: a2add8ffee0c3357ef985cc46c7de79ccb754ea2bed02c61f2ff805ab2c869f1
+  - name: iceoryx2
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DBUILD_CXX=ON
+      - -DBUILD_TESTING=OFF
+      - -DBUILD_EXAMPLES=OFF
+    build-options:
+      append-path: /usr/lib/sdk/rust-stable/bin
+      env:
+        CARGO_HOME: /run/build/iceoryx2/cargo
+        CARGO_NET_OFFLINE: 'true'
+    sources:
+      - type: archive
+        url: https://github.com/eclipse-iceoryx/iceoryx2/archive/refs/tags/v0.9.1.tar.gz
+        sha256: d76043b1639267086ba6a7f2f8c9e2b7ddb7e38eb3757106cbaf24ee7aadaab5
+      - modules/iceoryx2-cargo-sources.json
 
-- name: openblas
-  no-autogen: true
-  make-args:
-    - DYNAMIC_ARCH=1
-    - FC=gfortran
-    - NO_LAPACKE=1
-    - USE_OPENMP=1
-    - NO_WARMUP=1
-    - NUM_THREADS=64
-  make-install-args:
-    - PREFIX=/app
-  sources:
-    - type: archive
-      url: https://github.com/xianyi/OpenBLAS/releases/download/v0.3.28/OpenBLAS-0.3.28.tar.gz
-      sha256: f1003466ad074e9b0c8d421a204121100b0751c96fc6fcf3d1456bd12f8a00a1
-  cleanup:
-    - "*.a"
-    - "/include"
-    - "/lib/cmake"
+  - name: quill
+    buildsystem: meson
+    builddir: true
+    sources:
+      - type: archive
+        url: https://github.com/odygrd/quill/releases/download/v11.1.0/quill-11.1.0.zip
+        sha256: 2c2aa4c09e11965215656cc11233d5612ee20df4e0cf4664a0b1f74af0059360
 
-- name: eigen3
-  buildsystem: cmake-ninja
-  builddir: true
-  build-extension: true # we don't cleanup headers for Syntalos C++ developer modules
-  sources:
-    - type: archive
-      url: https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.bz2
-      sha256: b4c198460eba6f28d34894e3a5710998818515104d6e74e5cc331ce31e46e626
+  - name: mimalloc
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DMI_BUILD_SHARED:BOOL=ON
+      - -DMI_BUILD_STATIC:BOOL=OFF
+      - -DMI_BUILD_OBJECT:BOOL=ON
+      - -DMI_OVERRIDE:BOOL=ON
+      - -DMI_OPT_ARCH:BOOL=ON
+      - -DMI_INSTALL_TOPLEVEL:BOOL=ON
+    sources:
+      - type: archive
+        url: https://github.com/microsoft/mimalloc/releases/download/v3.3.2/mimalloc-v3.3.2-source.tar.gz
+        sha256: 7ced84a659a95454ce08b725af56331164e6b8673310e5a9a5c612576145456f
 
-- modules/libusb/libusb.json
-- modules/usbutils.yaml
-- modules/ffmpeg.yaml
+  - name: openblas
+    no-autogen: true
+    make-args:
+      - DYNAMIC_ARCH=1
+      - FC=gfortran
+      - NO_LAPACKE=1
+      - USE_OPENMP=1
+      - NO_WARMUP=1
+      - NUM_THREADS=128
+    make-install-args:
+      - PREFIX=/app
+    cleanup:
+      - /bin
+      - /include
+      - /lib/cmake
+      - /lib/*.a
+      - /lib/*.la
+      - /lib/pkgconfig
+      - /share/man
+    sources:
+      - type: archive
+        url: https://github.com/OpenMathLib/OpenBLAS/archive/v0.3.33.tar.gz
+        sha512: 68fa2b90a93a2dfd84dfa586af07d90952fd4f2ad8dfe26061be250e80fec8f1a76ad78977f217c7dbdd26291249f1ac38a07f08ef323eee7a248c4cb67cd670
+        x-checker-data:
+          type: anitya
+          project-id: 2540
+          url-template: https://github.com/OpenMathLib/OpenBLAS/archive/v$version.tar.gz
 
-- name: opencv
-  buildsystem: cmake-ninja
-  builddir: true
-  build-extension: true # we don't cleanup headers for Syntalos C++ developer modules
-  config-opts:
-    - -DCMAKE_BUILD_TYPE=RelWithDebInfo
-    - -DOPENCV_GENERATE_PKGCONFIG=ON
-    - -DWITH_OPENCL=ON
-    - -DWITH_OPENGL=ON
-    - -DWITH_TBB=ON
-    - -DWITH_OPENMP=ON
-    - -DWITH_IPP=ON
-    - -DWITH_VULKAN=ON
-    - -DWITH_LAPACK=ON
-    - -DBUILD_WITH_DEBUG_INFO=OFF
-    - -DBUILD_TESTS=OFF
-    - -DBUILD_PERF_TESTS=OFF
-    - -DBUILD_EXAMPLES=OFF
-    - -DINSTALL_C_EXAMPLES=OFF
-    - -DINSTALL_PYTHON_EXAMPLES=OFF
-    - -DCPU_BASELINE=AVX2
-    - -DCPU_DISPATCH=AVX,AVX2
-    - -DWITH_1394=OFF
-    - -DWITH_V4L=ON
-    - -DWITH_PROTOBUF=ON
-    - -DWITH_QT=ON
-    - -DWITH_GTK=OFF
-    - -DBUILD_LIST=core,dnn,features2d,flann,highgui,imgcodecs,imgproc,ml,objdetect,photo,python_bindings_generator,stitching,video,videoio
-  build-options:
-    env:
-      BLAS: "/app/lib"
-      LAPACK: "/app/lib"
-    arch:
-      aarch64:
-        config-opts:
-          - -DWITH_CAROTENE=OFF # fails on Flathub ARM builders and is only relevant for ARM
-          # reduced featureset for ARM64 for now: dnn disabled due to build failure
-          - -DBUILD_LIST=core,features2d,flann,highgui,imgcodecs,imgproc,ml,objdetect,photo,python_bindings_generator,stitching,video,videoio
-  cleanup:
-    - bin
-  sources:
-    - type: archive
-      url: https://github.com/opencv/opencv/archive/refs/tags/4.11.0.tar.gz
-      sha256: 9a7c11f924eff5f8d8070e297b322ee68b9227e003fd600d4b8122198091665f
-    - type: archive
-      url: https://github.com/opencv/opencv_contrib/archive/refs/tags/4.11.0.tar.gz
-      sha256: 2dfc5957201de2aa785064711125af6abb2e80a64e2dc246aca4119b19687041
+  - name: eigen3
+    buildsystem: cmake-ninja
+    builddir: true
+    cleanup: [] # we don't cleanup headers for Syntalos C++ developer modules
+    sources:
+      - type: archive
+        url: https://gitlab.com/libeigen/eigen/-/archive/3.4.0/eigen-3.4.0.tar.bz2
+        sha256: b4c198460eba6f28d34894e3a5710998818515104d6e74e5cc331ce31e46e626
 
-- name: pybind11
-  buildsystem: simple
-  build-commands:
-    - python3 setup.py build
-    - cmake -G Ninja -DPYBIND11_INSTALL=ON -DPYBIND11_TEST=OFF -DCMAKE_INSTALL_INCLUDEDIR:PATH=${FLATPAK_DEST}/include
-      -DCMAKE_INSTALL_LIBDIR:PATH=${FLATPAK_DEST}/lib -DCMAKE_INSTALL_DATAROOTDIR:PATH=${FLATPAK_DEST}/share
-      .
-    - python3 setup.py install --prefix=${FLATPAK_DEST}
-    - cmake --build .
-    - cmake --install .
-  sources:
-    - type: archive
-      url: https://github.com/pybind/pybind11/archive/refs/tags/v2.13.6.tar.gz
-      sha256: e08cb87f4773da97fa7b5f035de8763abc656d87d5773e62f6da0587d1f0ec20
+  - modules/usbutils.yaml
+  - modules/ffmpeg.yaml
 
-- modules/git.yaml
-- modules/numpy.yaml
-- modules/python/module-requirements.yaml
-- modules/aravis.yaml
-- modules/tiscamera.yaml
-- modules/qtermwidget.yaml
+  - name: pybind11
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DPYBIND11_INSTALL:BOOL=ON
+      - -DPYBIND11_TEST:BOOL=OFF
+      - -DPYTHON_INCLUDE_DIRS=/usr/include/python3.13
+    sources:
+      - type: archive
+        url: https://github.com/pybind/pybind11/archive/refs/tags/v3.0.4.tar.gz
+        sha256: 74b6a2c2b4573a400cafb6ecbf60c98df300cd3d0041296b913d02b2cbbb2676
 
-# Syntalos' Intan-RHX module requires Lua 5.3 for the OpalKelly FrontPanel library
-- modules/lua5.3/lua-5.3.5.json
-- name: okfrontpanel-liblua-compat-symlink
-  buildsystem: simple
-  build-commands:
-    - ln -sf liblua.so.5.3 /app/lib/liblua5.3.so.0
+  - modules/git.yaml
+  - modules/numpy.yaml
+  - modules/opencv.yaml
+  - modules/iir1.yaml
+  - modules/qtermwidget.yaml
+  - modules/zeromq.yaml
+  - modules/winpos-qt.yaml
+  - modules/nlohmann-json.yaml
+  - modules/python/module-requirements.yaml
+  - modules/aravis.yaml
+  - modules/libcamera.yaml
+  - modules/tiscamera.yaml
 
-# the Miniscope module needs libminiscope via PoMiDAQ
-- name: pomidaq
-  buildsystem: cmake-ninja
-  builddir: true
-  config-opts:
-    - -DPYTHON=OFF
-    - -DGUI=OFF
-  sources:
-    - type: git
-      url: https://github.com/bothlab/pomidaq.git
-      tag: v0.6.0
+  # Syntalos' Intan-RHX module requires Lua 5.3 for the OpalKelly FrontPanel library
+  - shared-modules/lua5.3/lua-5.3.5.json
+  - name: okfrontpanel-liblua-compat-symlink
+    buildsystem: simple
+    build-commands:
+      - ln -sf liblua.so.5.3 /app/lib/liblua5.3.so.0
 
-- name: syntalos
-  buildsystem: meson
-  builddir: true
-  build-extension: true # we don't clean up development headers for the C++ workbench Syntalos module
-  config-opts:
-    - -Doptimize-modern-amd64=true
-    - -Dudevdir=/app/lib/udev
-  build-options:
-    arch:
-      aarch64:
-        config-opts:
-          - -Dmodules=camera-arv,camera-tis,miniscope,plot
-  sources:
-    - type: git
-      url: https://github.com/syntalos/syntalos.git
-      path: ../..
+  # the Miniscope module needs libminiscope via PoMiDAQ
+  - name: pomidaq
+    buildsystem: cmake-ninja
+    builddir: true
+    config-opts:
+      - -DPYTHON=OFF
+      - -DGUI=OFF
+    sources:
+      - type: git
+        url: https://github.com/bothlab/pomidaq.git
+        tag: v0.6.1
+
+  - name: syntalos
+    buildsystem: meson
+    builddir: true
+    cleanup: [] # we don't clean up development headers for the C++ workbench Syntalos module
+    config-opts:
+      - -Doptimize-modern-amd64=true
+      - -Dudevdir=/app/lib/udev
+    build-options:
+      arch:
+        aarch64:
+          config-opts:
+            - -Ddisabled-modules=intan-rhx,open-ephys-acq
+    sources:
+       - type: git
+         url: https://github.com/syntalos/syntalos.git
+         path: ../..

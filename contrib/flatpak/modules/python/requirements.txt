@@ -1,2 +1,5 @@
+# required
 virtualenv
 tomlkit
+# helpful for users
+pyserial

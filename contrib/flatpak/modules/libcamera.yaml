@@ -1,0 +1,60 @@
+name: libcamera
+modules:
+
+- name: libpisp
+  buildsystem: meson
+  builddir: true
+  sources:
+    - type: archive
+      url: https://github.com/raspberrypi/libpisp/releases/download/v1.5.0/libpisp-1.5.0.tar.xz
+      sha256: 24d0d68148767e80cc1ac9f8e3278e68dc6e229448139c8efcee38061f434b4f
+
+- name: python3-jinja2
+  buildsystem: simple
+  build-commands:
+    - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+      --prefix=${FLATPAK_DEST} "jinja2" --no-build-isolation
+  sources:
+    - type: file
+      url: https://files.pythonhosted.org/packages/62/a1/3d680cbfd5f4b8f15abc1d571870c5fc3e594bb582bc3b64ea099db13e56/jinja2-3.1.6-py3-none-any.whl
+      sha256: 85ece4451f492d0c13c5dd7c13a64681a86afae63a5f347908daf103ce6d2f67
+    - type: file
+      url: https://files.pythonhosted.org/packages/7e/99/7690b6d4034fffd95959cbe0c02de8deb3098cc577c67bb6a24fe5d7caa7/markupsafe-3.0.3.tar.gz
+      sha256: 722695808f4b6457b320fdc131280796bdceb04ab50fe1795cd540799ebe1698
+- name: python3-pyyaml
+  buildsystem: simple
+  build-commands:
+    - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+      --prefix=${FLATPAK_DEST} "pyyaml" --no-build-isolation
+  sources:
+    - type: file
+      url: https://files.pythonhosted.org/packages/05/8e/961c0007c59b8dd7729d542c61a4d537767a59645b82a0b521206e1e25c2/pyyaml-6.0.3.tar.gz
+      sha256: d76623373421df22fb4cf8817020cbb7ef15c725b9d5e45f17e189bfc384190f
+- name: python3-ply
+  buildsystem: simple
+  build-commands:
+    - pip3 install --verbose --exists-action=i --no-index --find-links="file://${PWD}"
+      --prefix=${FLATPAK_DEST} "ply" --no-build-isolation
+  sources:
+    - type: file
+      url: https://files.pythonhosted.org/packages/a3/58/35da89ee790598a0700ea49b2a66594140f44dec458c07e8e3d4979137fc/ply-3.11-py2.py3-none-any.whl
+      sha256: 096f9b8350b65ebd2fd1346b12452efe5b9607f7482813ffca50c22722a807ce
+
+- name: libcamera
+  buildsystem: meson
+  builddir: true
+  config-opts:
+    - -Dv4l2=true
+    - -Dgstreamer=enabled
+    - -Dlibunwind=disabled
+    - -Dqcam=disabled
+    - -Dcam=disabled
+    - -Dpycamera=disabled
+    - -Dtracing=disabled
+    - -Ddocumentation=disabled
+    - -Dlc-compliance=disabled
+    - -Drpi-awb-nn=disabled
+  sources:
+    - type: archive
+      url: https://gitlab.freedesktop.org/camera/libcamera/-/archive/v0.7.1/libcamera-v0.7.1.tar.gz
+      sha256: 0904342980cb228a7f930ddee813de9f6196bca38a15670e0fb6072a0d143f1d
