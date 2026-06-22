@@ -17,7 +17,7 @@ jobs:
       version: ${{ steps.version.outputs.version }}
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - name: Derive version string
         id: version
@@ -48,7 +48,7 @@ jobs:
     needs: [revision, build-test, build-packages]
     runs-on: ubuntu-slim
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           submodules: recursive
 
@@ -152,7 +152,7 @@ jobs:
 
     steps:
       - name: Checkout Syntalos repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Install Cloudsmith CLI
         uses: cloudsmith-io/cloudsmith-cli-action@v2
