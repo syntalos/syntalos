@@ -103,7 +103,7 @@ jobs:
             }
 
       - name: Update GitHub snapshot release
-        uses: softprops/action-gh-release@v3.0.0
+        uses: softprops/action-gh-release@v3.0.1
         with:
           name: Snapshots
           tag_name: snapshot
