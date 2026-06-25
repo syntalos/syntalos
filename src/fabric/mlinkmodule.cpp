@@ -87,6 +87,7 @@ public:
     // Subscribers to receive information from module processes
     std::optional<IoxSubscriber<ErrorEvent>> subError;
     std::optional<IoxSubscriber<StateChangeEvent>> subStateChange;
+    std::optional<IoxSubscriber<StatusMessageEvent>> subStatusMsg;
     std::optional<IoxSubscriber<SyncDetailsEvent>> subSyncDetails;
     std::optional<IoxSubscriber<SyncOffsetEvent>> subSyncOffset;
     std::optional<IoxUntypedReqServer> srvInPortChange;
@@ -152,6 +153,19 @@ public:
                 self->raiseError(msg);
             else
                 self->raiseError(QStringLiteral("<html><b>%1</b><br/>%2").arg(title, msg));
+        }
+    }
+
+    void checkClientStatusMessage(MLinkModule *self)
+    {
+        if (!subStatusMsg.has_value())
+            return;
+
+        while (true) {
+            auto sample = safeReceive(*subStatusMsg);
+            if (!sample.has_value())
+                break;
+            self->setStatusMessage(QString::fromUtf8(sample->payload().text.unchecked_access().c_str()));
         }
     }
 
@@ -613,6 +627,9 @@ void MLinkModule::handleIncomingControl()
     // State changes
     d->checkClientStateChange(this);
 
+    // Status messages
+    d->checkClientStatusMessage(this);
+
     // Synchronizer notifications
     d->checkClientSyncDetails(this);
     d->checkClientSyncOffset(this);
@@ -786,6 +803,7 @@ void MLinkModule::resetConnection()
     // ensure the old connections are gone before we are trying to create new ones
     d->subError.reset();
     d->subStateChange.reset();
+    d->subStatusMsg.reset();
     d->subSyncDetails.reset();
     d->subSyncOffset.reset();
     d->srvInPortChange.reset();
@@ -797,6 +815,7 @@ void MLinkModule::resetConnection()
     // (re)create subscribers/servers for client -> master data channels
     d->subError.emplace(makeTypedSubscriber<ErrorEvent>(*d->node, d->svcName(ERROR_CHANNEL_ID)));
     d->subStateChange.emplace(makeTypedSubscriber<StateChangeEvent>(*d->node, d->svcName(STATE_CHANNEL_ID)));
+    d->subStatusMsg.emplace(makeTypedSubscriber<StatusMessageEvent>(*d->node, d->svcName(STATUS_MESSAGE_CHANNEL_ID)));
     d->subSyncDetails.emplace(makeTypedSubscriber<SyncDetailsEvent>(*d->node, d->svcName(SYNC_DETAILS_CHANNEL_ID)));
     d->subSyncOffset.emplace(makeTypedSubscriber<SyncOffsetEvent>(*d->node, d->svcName(SYNC_OFFSET_CHANNEL_ID)));
     d->srvInPortChange.emplace(makeSliceServer(*d->node, d->svcName(IN_PORT_CHANGE_CHANNEL_ID)));

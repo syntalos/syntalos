@@ -596,6 +596,11 @@ public:
         m_slink->setState(ModuleState::IDLE);
     }
 
+    void setStatusMessage(const std::optional<std::string> &message)
+    {
+        m_slink->setStatusMessage(message.value_or(std::string()));
+    }
+
     /**
      * Returns true if the experiment is currently running.
      */
@@ -1798,6 +1803,17 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "Signal IDLE (initialization complete) without entering the built-in event loop.\n"
             "\n"
             "Call this before starting a custom loop with :meth:`await_data`.")
+        .def(
+            "set_status_message",
+            &PySyLinkManager::setStatusMessage,
+            py::arg("message") = py::none(),
+            "Set the GUI-visible module status message.\n"
+            "\n"
+            "May contain limited HTML rich text if it starts with '<html>' and must be as short as possible.\n"
+            "Long messages will be truncated.\n"
+            "Pass ``None`` or an empty string to clear it.\n"
+            "\n"
+            ":param message: Human-readable status message.")
 
         // ---- EDL storage access ----
 
