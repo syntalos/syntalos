@@ -831,6 +831,11 @@ static void raise_error(const std::string &message)
     getActiveLink()->raiseError(message);
 }
 
+static void set_status_message(const std::optional<std::string> &message)
+{
+    getActiveLink()->setStatusMessage(message.value_or(std::string()));
+}
+
 static void wait(uint msec)
 {
     auto slink = getActiveLink();
@@ -1339,6 +1344,17 @@ PYBIND11_MODULE(syntalos_mlink, m)
         "Raise a module error, immediately stopping the current run.\n"
         "\n"
         ":param message: Human-readable error description.");
+
+    m.def(
+        "set_status_message",
+        set_status_message,
+        py::arg("message") = py::none(),
+        "Set the GUI-visible module status message.\n"
+        "\n"
+        "May contain Qt rich text.\n"
+        "Pass ``None`` or an empty string to clear it.\n"
+        "\n"
+        ":param message: Human-readable status message.");
 
     m.def(
         "time_since_start_msec",
