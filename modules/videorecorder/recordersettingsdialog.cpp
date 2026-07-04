@@ -153,7 +153,7 @@ void RecorderSettingsDialog::setCodecProps(CodecProperties props)
         ui->losslessCheckBox->setChecked(false);
     } else {
         ui->losslessCheckBox->setEnabled(true);
-        ui->losslessCheckBox->setChecked(false);
+        ui->losslessCheckBox->setChecked(props.isLossless());
     }
     ui->losslessLabel->setEnabled(ui->losslessCheckBox->isEnabled());
 
@@ -191,9 +191,7 @@ void RecorderSettingsDialog::setCodecProps(CodecProperties props)
     // other properties
     ui->losslessCheckBox->setChecked(m_codecProps.isLossless());
 
-    ui->brqWidget->setEnabled(true);
-    if (m_codecProps.losslessMode() == CodecProperties::Always)
-        ui->brqWidget->setEnabled(false);
+    ui->brqWidget->setDisabled(ui->losslessCheckBox->isChecked());
 
     ui->radioButtonBitrate->setChecked(m_codecProps.mode() == CodecProperties::ConstantBitrate);
     on_radioButtonBitrate_toggled(m_codecProps.mode() == CodecProperties::ConstantBitrate);
