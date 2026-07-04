@@ -825,6 +825,7 @@ void VideoWriter::initializeInternal()
             // This codec is lossless by default
             break;
         case VideoCodec::VP9:
+            av_dict_set_int(&codecopts, "crf", 0, 0);
             av_dict_set_int(&codecopts, "lossless", 1, 0);
             break;
         case VideoCodec::H264:
@@ -855,7 +856,7 @@ void VideoWriter::initializeInternal()
         // for more information on the settings.
 
         d->cctx->gop_size = 90;
-        if (d->codecProps.mode() == CodecProperties::ConstantBitrate) {
+        if (!d->codecProps.isLossless() && d->codecProps.mode() == CodecProperties::ConstantBitrate) {
             d->cctx->qmin = 4;
             d->cctx->qmax = 48;
             av_dict_set_int(&codecopts, "crf", 24, 0);
