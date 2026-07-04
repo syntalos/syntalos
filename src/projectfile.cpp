@@ -23,6 +23,7 @@
 #include <QDir>
 #include <QTemporaryFile>
 #include <QMessageBox>
+#include <algorithm>
 #include <utility>
 
 #include "engine.h"
@@ -42,6 +43,19 @@ static void setStatusText(StatusMessageFn fn, const QString &msg)
     if (!fn)
         return;
     fn(msg);
+}
+
+static bool projectArchiveEntryCompare(const QString &left, const QString &right)
+{
+    bool leftIsNumber = false;
+    bool rightIsNumber = false;
+    const auto leftNumber = left.toULongLong(&leftIsNumber);
+    const auto rightNumber = right.toULongLong(&rightIsNumber);
+
+    if (leftIsNumber && rightIsNumber && leftNumber != rightNumber)
+        return leftNumber < rightNumber;
+
+    return QString::compare(left, right, Qt::CaseSensitive) < 0;
 }
 
 static bool saveProjectConfigInternal(
@@ -327,7 +341,7 @@ bool loadProjectConfigurationInteractive(
     setStatusText(statusFn, "Destroying old modules...");
     engine->removeAllModules();
     auto rootEntries = rootDir->entries();
-    rootEntries.sort();
+    std::sort(rootEntries.begin(), rootEntries.end(), projectArchiveEntryCompare);
 
     // load graph settings
     auto graphFile = rootDir->file("graph.toml");
