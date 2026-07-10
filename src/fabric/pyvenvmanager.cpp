@@ -297,7 +297,7 @@ auto createPythonVirtualEnv(const QString &venvName, const QString &requirements
         << "    if [ $? -ne 0 ]\n"
         << "    then\n"
         << "        echo \"\"\n"
-        << "        read -p \"Command failed to run. Press enter to exit.\"\n"
+        << "        read -p \"Command failed to run. Press [Enter] to exit.\"\n"
         << "        exit 1\n"
         << "    fi\n"
         << "}\n"
@@ -310,7 +310,7 @@ auto createPythonVirtualEnv(const QString &venvName, const QString &requirements
         << "run_check pip install -r " << shellQuote(tmpRequirementsFname) << "\n"
 
         << "echo \"\"\n"
-        << "read -p \"Success! Press any key to exit.\""
+        << "read -p \"Success! Press [Enter] to exit.\""
         << "\n";
     shFile.flush();
     shFile.setPermissions(QFileDevice::ExeUser | QFileDevice::ReadUser | QFileDevice::WriteUser);
