@@ -1443,7 +1443,6 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
 {
     int ret;
     bool success = false;
-    bool havePacket = false;
 
     if (!prepareFrame(frame)) {
         std::cerr << "Unable to prepare frame. N: " << d->framesN + 1 << "(" << d->lastError << ")" << std::endl;
@@ -1461,6 +1460,33 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
 
     const auto tsUsec = timestamp.count();
 
+    auto receivePackets = [&]() -> bool {
+        while (true) {
+            ret = avcodec_receive_packet(d->cctx, pkt);
+            if (ret == AVERROR(EAGAIN))
+                return true;
+            if (ret < 0) {
+                d->lastError = std::format("Unable to receive packet from encoder: {}", averrorToString(ret));
+                std::cerr << d->lastError << std::endl;
+                return false;
+            }
+
+            // rescale packet timestamp
+            pkt->duration = 1;
+            av_packet_rescale_ts(pkt, d->cctx->time_base, d->vstrm->time_base);
+
+            // write packet
+            ret = av_write_frame(d->octx, pkt);
+            if (ret < 0) {
+                d->lastError = std::format("Unable to write frame packet to output: {}", averrorToString(ret));
+                std::cerr << d->lastError << std::endl;
+                return false;
+            }
+
+            av_packet_unref(pkt);
+        }
+    };
+
     if (d->hwDevCtx == nullptr) {
         // force FFmpeg to create a copy of the frame, if the codec needs it
         savedBuf0 = d->encFrame->buf[0];
@@ -1477,42 +1503,22 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
     }
 
     // encode video frame
-    ret = avcodec_send_frame(d->cctx, outputFrame);
-    if (ret < 0) {
-        d->lastError = QStringLiteral("Unable to send frame to encoder. N: %1").arg(d->framesN + 1).toStdString();
-        std::cerr << d->lastError << std::endl;
-        goto out;
-    }
-
-    ret = avcodec_receive_packet(d->cctx, pkt);
-    if (ret != 0) {
+    while (true) {
+        ret = avcodec_send_frame(d->cctx, outputFrame);
         if (ret == AVERROR(EAGAIN)) {
-            // Some encoders need to be fed a few frames before they produce a packet, but the
-            // frames are still saved. So we encounter for that fact.
-            havePacket = false;
-        } else {
-            // we have a real error and can not continue
-            d->lastError = std::format("Unable to send packet to codec: {}", averrorToString(ret));
-            std::cerr << d->lastError << std::endl;
-            goto out;
+            if (!receivePackets())
+                goto out;
+            continue;
         }
-    } else {
-        havePacket = true;
-    }
-
-    if (havePacket) {
-        // rescale packet timestamp
-        pkt->duration = 1;
-        av_packet_rescale_ts(pkt, d->cctx->time_base, d->vstrm->time_base);
-
-        // write packet
-        ret = av_write_frame(d->octx, pkt);
         if (ret < 0) {
-            d->lastError = std::format("Unable to write frame packet to output: {}", averrorToString(ret));
+            d->lastError = std::format("Unable to send frame {} to encoder: {}.", d->framesN + 1, averrorToString(ret));
             std::cerr << d->lastError << std::endl;
             goto out;
         }
+        break;
     }
+    if (!receivePackets())
+        goto out;
 
     // store timestamp (if necessary)
     if (d->saveTimestamps) {
