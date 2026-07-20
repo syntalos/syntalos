@@ -443,7 +443,6 @@ public:
 
         hwDevCtx = nullptr;
         hwFrameCtx = nullptr;
-        hwFrame = nullptr;
 
         selectedEncoderName = QStringLiteral("No encoder selected yet");
     }
@@ -488,7 +487,6 @@ public:
 
     AVBufferRef *hwDevCtx;
     AVBufferRef *hwFrameCtx;
-    AVFrame *hwFrame;
 };
 #pragma GCC diagnostic pop
 
@@ -590,6 +588,8 @@ void VideoWriter::initializeHWAccell()
     ctx->height = d->height;
     ctx->format = cst->valid_hw_formats[0];
     ctx->sw_format = AV_PIX_FMT_NV12;
+    // Delayed hardware encoders may retain frame references after avcodec_send_frame().
+    ctx->initial_pool_size = 16;
 
     if ((ret = av_hwframe_ctx_init(d->hwFrameCtx))) {
         av_hwframe_constraints_free(&cst);
@@ -1046,22 +1046,6 @@ void VideoWriter::initializeInternal()
     // allocate input buffer for color conversion
     d->inputFrame = vw_alloc_frame(d->inputPixFormat, d->width, d->height, false);
 
-    if (d->hwDevCtx != nullptr) {
-        // setup frame for hardware acceleration
-
-        d->hwFrame = av_frame_alloc();
-        auto frctx = (AVHWFramesContext *)d->hwFrameCtx->data;
-        d->hwFrame->format = frctx->format;
-        d->hwFrame->hw_frames_ctx = av_buffer_ref(d->hwFrameCtx);
-        d->hwFrame->width = d->width;
-        d->hwFrame->height = d->height;
-
-        if (av_hwframe_get_buffer(d->hwFrameCtx, d->hwFrame, 0)) {
-            finalizeInternal(false);
-            throw std::runtime_error("Failed to retrieve HW frame buffer.");
-        }
-    }
-
     // set file metadata
     AVDictionary *metadataDict = nullptr;
     av_dict_set(&metadataDict, "title", qPrintable(d->videoTitle), 0);
@@ -1166,10 +1150,6 @@ std::expected<void, std::string> VideoWriter::finalizeInternal(bool writeTrailer
     if (d->inputFrame != nullptr) {
         av_frame_free(&d->inputFrame);
         d->inputFrame = nullptr;
-    }
-    if (d->hwFrame != nullptr) {
-        av_frame_free(&d->hwFrame);
-        d->hwFrame = nullptr;
     }
 
     if (d->hwDevCtx != nullptr)
@@ -1456,6 +1436,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
     }
 
     AVBufferRef *savedBuf0 = nullptr;
+    AVFrame *hwFrame = nullptr;
     auto outputFrame = d->encFrame;
 
     const auto tsUsec = timestamp.count();
@@ -1493,13 +1474,28 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
         d->encFrame->buf[0] = nullptr;
     } else {
         // we are GPU accelerated! Copy frame to the GPU.
-        if (av_hwframe_transfer_data(d->hwFrame, d->encFrame, 0)) {
-            d->lastError = QStringLiteral("Failed to upload data to the GPU").toStdString();
+        hwFrame = av_frame_alloc();
+        if (hwFrame == nullptr) {
+            d->lastError = QStringLiteral("Unable to allocate VAAPI video frame.").toStdString();
             std::cerr << d->lastError << std::endl;
             goto out;
         }
-        d->hwFrame->pts = d->encFrame->pts;
-        outputFrame = d->hwFrame;
+
+        ret = av_hwframe_get_buffer(d->hwFrameCtx, hwFrame, 0);
+        if (ret < 0) {
+            d->lastError = std::format("Failed to retrieve VAAPI frame buffer: {}", averrorToString(ret));
+            std::cerr << d->lastError << std::endl;
+            goto out;
+        }
+
+        ret = av_hwframe_transfer_data(hwFrame, d->encFrame, 0);
+        if (ret < 0) {
+            d->lastError = std::format("Failed to upload data to the GPU: {}", averrorToString(ret));
+            std::cerr << d->lastError << std::endl;
+            goto out;
+        }
+        hwFrame->pts = d->encFrame->pts;
+        outputFrame = hwFrame;
     }
 
     // encode video frame
@@ -1553,6 +1549,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
     success = true;
 out:
     av_packet_free(&pkt);
+    av_frame_free(&hwFrame);
 
     // restore frame buffer, so that it can be properly freed in the end
     if (savedBuf0) {
