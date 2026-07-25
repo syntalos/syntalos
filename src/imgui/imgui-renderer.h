@@ -9,6 +9,7 @@
 class QMouseEvent;
 class QWheelEvent;
 class QKeyEvent;
+class QOpenGLContext;
 
 namespace QtImGui
 {
@@ -37,6 +38,13 @@ public:
     void render();
     bool eventFilter(QObject *watched, QEvent *event) override;
 
+    /**
+     * Tell the renderer that the OpenGL context of its host widget was destroyed
+     * and replaced by a new one. All GPU-side objects are rebuilt on the next frame,
+     * while the ImGui context and all its state are preserved.
+     */
+    void notifyContextRecreated();
+
     void ensureContext();
 
     static ImGuiRenderer *instance();
@@ -58,6 +66,7 @@ private:
     void renderDrawList(ImDrawData *draw_data);
     bool createFontsTexture();
     bool createDeviceObjects();
+    void invalidateDeviceObjects();
 
     std::unique_ptr<WindowWrapper> m_window;
     double g_Time = 0.0f;
@@ -66,6 +75,10 @@ private:
     int g_AttribLocationTex = 0, g_AttribLocationProjMtx = 0;
     int g_AttribLocationPosition = 0, g_AttribLocationUV = 0, g_AttribLocationColor = 0;
     unsigned int g_VboHandle = 0, g_VaoHandle = 0, g_ElementsHandle = 0;
+
+    // the GL context the above objects were created in, so we never hand their
+    // names to a context they do not belong to
+    QOpenGLContext *m_glCtx = nullptr;
 
     ImGuiContext *g_ctx = nullptr;
 };

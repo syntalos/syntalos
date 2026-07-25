@@ -34,6 +34,11 @@ public:
         r->render();
     }
 
+    void notifyContextRecreated()
+    {
+        r->notifyContextRecreated();
+    }
+
 private:
     ImGuiRenderer *r;
 };
@@ -224,6 +229,16 @@ void render(RenderRef ref)
     } else {
         auto wrapper = reinterpret_cast<QWindowWrapper *>(ref);
         wrapper->render();
+    }
+}
+
+void notifyContextRecreated(RenderRef ref)
+{
+    if (!ref) {
+        ImGuiRenderer::instance()->notifyContextRecreated();
+    } else {
+        auto wrapper = reinterpret_cast<QWindowWrapper *>(ref);
+        wrapper->notifyContextRecreated();
     }
 }
 

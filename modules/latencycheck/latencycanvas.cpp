@@ -112,6 +112,16 @@ void LatencyCanvas::setBinCount(int bins)
 void LatencyCanvas::initializeGL()
 {
     initializeOpenGLFunctions();
+
+    // Qt calls this again whenever it has replaced our OpenGL context, for example
+    // after the widget was reparented or its window was rebuilt following a screen
+    // configuration change. Only the GPU-side objects are stale in that case - the
+    // ImGui/ImPlot contexts hold all our plot state and must survive.
+    if (d->qigr != nullptr) {
+        QtImGui::notifyContextRecreated(d->qigr);
+        return;
+    }
+
     d->qigr = QtImGui::initialize(this, false);
     d->impCtx = ImPlot::CreateContext();
 

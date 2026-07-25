@@ -3,6 +3,7 @@
 #include <QDateTime>
 #include <QGuiApplication>
 #include <QMouseEvent>
+#include <QOpenGLContext>
 #include <QClipboard>
 #include <QCursor>
 #include <cfloat>
@@ -326,6 +327,61 @@ bool ImGuiRenderer::createFontsTexture()
     return true;
 }
 
+void ImGuiRenderer::invalidateDeviceObjects()
+{
+    // Only issue GL deletions when the context that owns these objects is actually
+    // the current one. Otherwise the names either mean nothing (their context was
+    // destroyed, taking the objects with it) or - much worse - refer to resources
+    // of whatever context happens to be current now.
+    if (m_glCtx != nullptr && QOpenGLContext::currentContext() == m_glCtx) {
+        if (g_VaoHandle != 0)
+            glDeleteVertexArrays(1, &g_VaoHandle);
+        if (g_VboHandle != 0)
+            glDeleteBuffers(1, &g_VboHandle);
+        if (g_ElementsHandle != 0)
+            glDeleteBuffers(1, &g_ElementsHandle);
+
+        if (g_ShaderHandle != 0 && g_VertHandle != 0)
+            glDetachShader(g_ShaderHandle, g_VertHandle);
+        if (g_VertHandle != 0)
+            glDeleteShader(g_VertHandle);
+
+        if (g_ShaderHandle != 0 && g_FragHandle != 0)
+            glDetachShader(g_ShaderHandle, g_FragHandle);
+        if (g_FragHandle != 0)
+            glDeleteShader(g_FragHandle);
+
+        if (g_ShaderHandle != 0)
+            glDeleteProgram(g_ShaderHandle);
+
+        if (g_FontTexture != 0)
+            glDeleteTextures(1, &g_FontTexture);
+    }
+
+    if (g_FontTexture != 0 && g_ctx != nullptr) {
+        // drop the dangling texture ID from the font atlas
+        ImGui::SetCurrentContext(g_ctx);
+        ImGui::GetIO().Fonts->SetTexID(0);
+    }
+
+    g_VaoHandle = g_VboHandle = g_ElementsHandle = 0;
+    g_ShaderHandle = g_VertHandle = g_FragHandle = 0;
+    g_FontTexture = 0;
+    m_glCtx = nullptr;
+}
+
+void ImGuiRenderer::notifyContextRecreated()
+{
+    // Our resolved GL entry points belong to the old context, get them anew first,
+    // so the cleanup below is performed through valid function pointers.
+    initializeOpenGLFunctions();
+
+    // Drop everything that lived in the destroyed context. The names are meaningless
+    // in the new context, so these deletions are ignored by GL - what matters is that
+    // the handles are cleared, which makes newFrame() build the device objects again.
+    invalidateDeviceObjects();
+}
+
 bool ImGuiRenderer::createDeviceObjects()
 {
     // Select current context
@@ -415,6 +471,10 @@ bool ImGuiRenderer::createDeviceObjects()
 
     createFontsTexture();
 
+    // Remember which context owns all of this, so we can tell later whether the
+    // handles are still ours to use (and to delete)
+    m_glCtx = QOpenGLContext::currentContext();
+
     // Restore modified GL state
     glBindTexture(GL_TEXTURE_2D, last_texture);
     glBindBuffer(GL_ARRAY_BUFFER, last_array_buffer);
@@ -478,6 +538,9 @@ ImGuiRenderer::ImGuiRenderer()
 
 ImGuiRenderer::~ImGuiRenderer()
 {
+    // release our GPU resources (a no-op if we never got a context)
+    invalidateDeviceObjects();
+
     // remove this context
     ImGui::DestroyContext(g_ctx);
 }
