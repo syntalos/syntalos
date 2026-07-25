@@ -33,10 +33,22 @@ class ImGuiRenderer : public QObject, QOpenGLExtraFunctions
 {
     Q_OBJECT
 public:
-    void initialize(WindowWrapper *window);
+    /**
+     * Bind this renderer to a window, taking ownership of the wrapper.
+     * The wrapper never owns the renderer in return - see QtImGui::destroy() for
+     * how a renderer is disposed of.
+     */
+    void initialize(std::unique_ptr<WindowWrapper> window);
+
     void newFrame();
     void render();
     bool eventFilter(QObject *watched, QEvent *event) override;
+
+    /**
+     * Whether this is the process-wide renderer returned by instance(), which is
+     * shared by all its users and must never be deleted.
+     */
+    [[nodiscard]] bool isShared() const;
 
     /**
      * Tell the renderer that the OpenGL context of its host widget was destroyed
@@ -69,6 +81,7 @@ private:
     void invalidateDeviceObjects();
 
     std::unique_ptr<WindowWrapper> m_window;
+    bool m_shared = false;
     double g_Time = 0.0f;
     GLuint g_FontTexture = 0;
     int g_ShaderHandle = 0, g_VertHandle = 0, g_FragHandle = 0;

@@ -311,8 +311,21 @@ PlotCanvas::PlotCanvas(QWidget *parent)
 
 PlotCanvas::~PlotCanvas()
 {
-    if (d->impCtx != nullptr)
+    // Release GPU resources while our OpenGL context is still current, and tear
+    // down ImPlot before the ImGui context it was built on top of goes away.
+    const bool haveGlCtx = (context() != nullptr);
+    if (haveGlCtx)
+        makeCurrent();
+
+    if (d->impCtx != nullptr) {
         ImPlot::DestroyContext(d->impCtx);
+        d->impCtx = nullptr;
+    }
+    QtImGui::destroy(d->qigr);
+    d->qigr = nullptr;
+
+    if (haveGlCtx)
+        doneCurrent();
 }
 
 void PlotCanvas::setUpdateInterval(int frequency)

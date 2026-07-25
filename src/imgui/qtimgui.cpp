@@ -2,6 +2,7 @@
 
 #include "imgui-renderer.h"
 #include <QWindow>
+#include <memory>
 #ifdef QT_WIDGETS_LIB
 #include <QWidget>
 #endif
@@ -9,51 +10,36 @@
 namespace QtImGui
 {
 
-class QWindowWrapper : public WindowWrapper
+namespace
 {
-public:
-    QWindowWrapper(ImGuiRenderer *r)
-        : r(r)
-    {
-    }
-    ~QWindowWrapper()
-    {
-        if (r && (r != ImGuiRenderer::instance())) {
-            delete r;
-        }
-    }
 
-public:
-    void newFrame()
-    {
-        r->newFrame();
-    }
+// A RenderRef is just the renderer itself, with a null reference addressing the
+// shared one. The renderer owns the WindowWrapper describing its window, and
+// nothing owns the renderer in return - see QtImGui::destroy().
+ImGuiRenderer *rendererFor(RenderRef ref)
+{
+    if (ref == nullptr)
+        return ImGuiRenderer::instance();
+    return reinterpret_cast<ImGuiRenderer *>(ref);
+}
 
-    void render()
-    {
-        r->render();
-    }
+ImGuiRenderer *createRenderer(bool defaultRender)
+{
+    return defaultRender ? ImGuiRenderer::instance() : new ImGuiRenderer;
+}
 
-    void notifyContextRecreated()
-    {
-        r->notifyContextRecreated();
-    }
-
-private:
-    ImGuiRenderer *r;
-};
+} // namespace
 
 #ifdef QT_WIDGETS_LIB
 
 namespace
 {
 
-class QWidgetWindowWrapper : public QWindowWrapper
+class QWidgetWindowWrapper : public WindowWrapper
 {
 public:
-    QWidgetWindowWrapper(QWidget *w, ImGuiRenderer *r)
-        : QWindowWrapper(r),
-          w(w)
+    QWidgetWindowWrapper(QWidget *w)
+        : w(w)
     {
     }
     void installEventFilter(QObject *object) override
@@ -119,16 +105,9 @@ RenderRef initialize(QWidget *window, bool defaultRender)
     if (window->focusPolicy() == Qt::NoFocus)
         window->setFocusPolicy(Qt::StrongFocus);
 
-    if (defaultRender) {
-        auto *wrapper = new QWidgetWindowWrapper(window, ImGuiRenderer::instance());
-        ImGuiRenderer::instance()->initialize(wrapper);
-        return reinterpret_cast<RenderRef>(dynamic_cast<QWindowWrapper *>(wrapper));
-    } else {
-        auto *render = new ImGuiRenderer();
-        auto *wrapper = new QWidgetWindowWrapper(window, render);
-        render->initialize(wrapper);
-        return reinterpret_cast<RenderRef>(dynamic_cast<QWindowWrapper *>(wrapper));
-    }
+    auto *renderer = createRenderer(defaultRender);
+    renderer->initialize(std::make_unique<QWidgetWindowWrapper>(window));
+    return reinterpret_cast<RenderRef>(renderer);
 }
 
 #endif // QT_WIDGETS_LIB
@@ -136,12 +115,11 @@ RenderRef initialize(QWidget *window, bool defaultRender)
 namespace
 {
 
-class QWindowWindowWrapper : public QWindowWrapper
+class QWindowWindowWrapper : public WindowWrapper
 {
 public:
-    QWindowWindowWrapper(QWindow *w, ImGuiRenderer *r)
-        : QWindowWrapper(r),
-          w(w)
+    QWindowWindowWrapper(QWindow *w)
+        : w(w)
     {
     }
     void installEventFilter(QObject *object) override
@@ -200,46 +178,37 @@ private:
 
 RenderRef initialize(QWindow *window, bool defaultRender)
 {
-    if (defaultRender) {
-        auto *wrapper = new QWindowWindowWrapper(window, ImGuiRenderer::instance());
-        ImGuiRenderer::instance()->initialize(wrapper);
-        return reinterpret_cast<RenderRef>(dynamic_cast<QWindowWrapper *>(wrapper));
-    } else {
-        auto *render = new ImGuiRenderer();
-        auto *wrapper = new QWindowWindowWrapper(window, render);
-        render->initialize(wrapper);
-        return reinterpret_cast<RenderRef>(dynamic_cast<QWindowWrapper *>(wrapper));
-    }
+    auto *renderer = createRenderer(defaultRender);
+    renderer->initialize(std::make_unique<QWindowWindowWrapper>(window));
+    return reinterpret_cast<RenderRef>(renderer);
 }
 
 void newFrame(RenderRef ref)
 {
-    if (!ref) {
-        ImGuiRenderer::instance()->newFrame();
-    } else {
-        auto wrapper = reinterpret_cast<QWindowWrapper *>(ref);
-        wrapper->newFrame();
-    }
+    rendererFor(ref)->newFrame();
 }
 
 void render(RenderRef ref)
 {
-    if (!ref) {
-        ImGuiRenderer::instance()->render();
-    } else {
-        auto wrapper = reinterpret_cast<QWindowWrapper *>(ref);
-        wrapper->render();
-    }
+    rendererFor(ref)->render();
 }
 
 void notifyContextRecreated(RenderRef ref)
 {
-    if (!ref) {
-        ImGuiRenderer::instance()->notifyContextRecreated();
-    } else {
-        auto wrapper = reinterpret_cast<QWindowWrapper *>(ref);
-        wrapper->notifyContextRecreated();
-    }
+    rendererFor(ref)->notifyContextRecreated();
+}
+
+void destroy(RenderRef ref)
+{
+    if (ref == nullptr)
+        return;
+
+    // the shared renderer is not ours to delete
+    auto *renderer = reinterpret_cast<ImGuiRenderer *>(ref);
+    if (renderer->isShared())
+        return;
+
+    delete renderer;
 }
 
 } // namespace QtImGui

@@ -71,9 +71,11 @@ QByteArray g_currentClipboardText;
 
 } // namespace
 
-void ImGuiRenderer::initialize(WindowWrapper *window)
+void ImGuiRenderer::initialize(std::unique_ptr<WindowWrapper> window)
 {
-    m_window.reset(window);
+    // Taking ownership here also discards any window we were bound to before,
+    // which only happens for the shared renderer being handed a new window.
+    m_window = std::move(window);
     initializeOpenGLFunctions();
 
     g_ctx = ImGui::CreateContext();
@@ -115,7 +117,7 @@ void ImGuiRenderer::initialize(WindowWrapper *window)
         return (const char *)g_currentClipboardText.data();
     };
 
-    window->installEventFilter(this);
+    m_window->installEventFilter(this);
 }
 
 void ImGuiRenderer::renderDrawList(ImDrawData *draw_data)
@@ -739,11 +741,17 @@ void ImGuiRenderer::ensureContext()
     ImGui::SetCurrentContext(g_ctx);
 }
 
+bool ImGuiRenderer::isShared() const
+{
+    return m_shared;
+}
+
 ImGuiRenderer *ImGuiRenderer::instance()
 {
     static ImGuiRenderer *instance = nullptr;
     if (!instance) {
         instance = new ImGuiRenderer();
+        instance->m_shared = true;
     }
     return instance;
 }
