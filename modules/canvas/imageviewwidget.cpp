@@ -129,9 +129,12 @@ public:
     bool highlightSaturation;
 
     // OpenGL resources
-    QOpenGLVertexArrayObject vao;
-    QOpenGLBuffer vbo;
-    QOpenGLShaderProgram shaderProgram;
+    // These are heap-allocated because they are tied to a specific GL context:
+    // if our context is recreated (see initializeGL()), they must be destroyed
+    // and built anew rather than reused.
+    std::unique_ptr<QOpenGLVertexArrayObject> vao;
+    std::unique_ptr<QOpenGLBuffer> vbo;
+    std::unique_ptr<QOpenGLShaderProgram> shaderProgram;
 
     // Optimized texture handling
     GLuint textureId;
@@ -218,23 +221,51 @@ ImageViewWidget::ImageViewWidget(QWidget *parent)
 
 ImageViewWidget::~ImageViewWidget()
 {
-    // Clean up OpenGL resources when context is still current
+    // Clean up OpenGL resources while the context is still current.
+    // If we have no context (it was already destroyed, e.g. because the whole
+    // window went away), all GL objects are dead already and we must not call
+    // any GL function - the Qt wrapper objects handle that case themselves.
+    if (context() == nullptr)
+        return;
+
     makeCurrent();
-
-    if (d->textureId != 0)
-        glDeleteTextures(1, &d->textureId);
-    if (d->pboIds[0] != 0)
-        glDeleteBuffers(2, d->pboIds);
-
-    d->vao.destroy();
-    d->vbo.destroy();
-
+    cleanupGL();
     doneCurrent();
+}
+
+void ImageViewWidget::cleanupGL()
+{
+    if (d->textureId != 0) {
+        glDeleteTextures(1, &d->textureId);
+        d->textureId = 0;
+        d->textureWidth = 0;
+        d->textureHeight = 0;
+        d->textureChannels = 0;
+        d->textureDepth = -1;
+    }
+    if (d->pboIds[0] != 0) {
+        glDeleteBuffers(2, d->pboIds);
+        d->pboIds[0] = d->pboIds[1] = 0;
+        d->pboSize = 0;
+        d->pboIndex = 0;
+    }
+    d->pboReady = false;
+
+    // Destroy the context-bound GL objects, they can not be carried over
+    d->vao.reset();
+    d->vbo.reset();
+    d->shaderProgram.reset();
 }
 
 void ImageViewWidget::initializeGL()
 {
     initializeOpenGLFunctions();
+
+    // Qt may recreate our OpenGL context and call this function again - this happens
+    // when the widget is reparented (e.g. undocking its dock widget), but also when
+    // the underlying window is recreated, for example after a screen configuration
+    // change. Any resource from a previous context is invalid now and must go.
+    cleanupGL();
 
     auto bgColor = QColor::fromRgb(150, 150, 150);
     float r = ((float)bgColor.darker().red()) / 255.0f;
@@ -244,18 +275,21 @@ void ImageViewWidget::initializeGL()
     glClearColor(r, g, b, 1.0f);
 
     // Compile & link shaders
-    bool glOkay = true;
-    glOkay = d->shaderProgram.addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource) && glOkay;
-    glOkay = d->shaderProgram.addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource) && glOkay;
+    d->shaderProgram = std::make_unique<QOpenGLShaderProgram>();
 
-    if (!d->shaderProgram.link()) {
+    bool glOkay = true;
+    glOkay = d->shaderProgram->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShaderSource) && glOkay;
+    glOkay = d->shaderProgram->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShaderSource) && glOkay;
+
+    if (!d->shaderProgram->link()) {
         glOkay = false;
-        LOG_ERROR(logRoot, "Unable to link shader program: {}", d->shaderProgram.log());
+        LOG_ERROR(logRoot, "Unable to link shader program: {}", d->shaderProgram->log());
     }
 
     // Initialize VAO & VBO
-    d->vao.create();
-    glOkay = glOkay && d->vao.isCreated();
+    d->vao = std::make_unique<QOpenGLVertexArrayObject>();
+    d->vao->create();
+    glOkay = glOkay && d->vao->isCreated();
     if (!glOkay) {
         QMessageBox::critical(
             this,
@@ -267,25 +301,26 @@ void ImageViewWidget::initializeGL()
             QMessageBox::Ok);
         qFatal(
             "Unable to initialize OpenGL:\nVAO: %s\nShader Log: %s",
-            d->vao.isCreated() ? "true" : "false",
-            qPrintable(d->shaderProgram.log()));
+            d->vao->isCreated() ? "true" : "false",
+            qPrintable(d->shaderProgram->log()));
         exit(6);
     }
 
-    d->vao.bind();
+    d->vao->bind();
 
     GLfloat vertices[] = {-1.0f, -1.0f, 1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f};
 
-    d->vbo.create();
-    d->vbo.bind();
-    d->vbo.setUsagePattern(QOpenGLBuffer::StaticDraw);
-    d->vbo.allocate(vertices, sizeof(vertices));
+    d->vbo = std::make_unique<QOpenGLBuffer>();
+    d->vbo->create();
+    d->vbo->bind();
+    d->vbo->setUsagePattern(QOpenGLBuffer::StaticDraw);
+    d->vbo->allocate(vertices, sizeof(vertices));
 
-    d->shaderProgram.enableAttributeArray(0);
-    d->shaderProgram.setAttributeBuffer(0, GL_FLOAT, 0, 2, 2 * sizeof(GLfloat));
+    d->shaderProgram->enableAttributeArray(0);
+    d->shaderProgram->setAttributeBuffer(0, GL_FLOAT, 0, 2, 2 * sizeof(GLfloat));
 
-    d->vbo.release();
-    d->vao.release();
+    d->vbo->release();
+    d->vao->release();
 
     // Initialize PBOs for async texture uploads (if supported)
     d->pboIds[0] = d->pboIds[1] = 0;
@@ -294,14 +329,22 @@ void ImageViewWidget::initializeGL()
     }
 
     // Cache uniform locations to avoid per-frame string lookups (glGetUniformLocation)
-    d->uniLocAspectRatio = d->shaderProgram.uniformLocation("aspectRatio");
-    d->uniLocBgColor = d->shaderProgram.uniformLocation("bgColor");
-    d->uniLocShowSaturation = d->shaderProgram.uniformLocation("showSaturation");
+    d->uniLocAspectRatio = d->shaderProgram->uniformLocation("aspectRatio");
+    d->uniLocBgColor = d->shaderProgram->uniformLocation("bgColor");
+    d->uniLocShowSaturation = d->shaderProgram->uniformLocation("showSaturation");
 
     // Bind the sampler once to texture unit 0; it never changes
-    d->shaderProgram.bind();
-    d->shaderProgram.setUniformValue("tex", 0);
-    d->shaderProgram.release();
+    d->shaderProgram->bind();
+    d->shaderProgram->setUniformValue("tex", 0);
+    d->shaderProgram->release();
+
+    // Invalidate the uniform value cache: the uniforms of this freshly linked program
+    // are at their defaults, so the values we believe we have set are not in effect.
+    // Without this, a re-initialized context would render with wrong background color,
+    // aspect ratio and saturation settings until they happen to change.
+    d->lastAspectRatio = -1.0f;
+    d->lastHighlightSaturation = !d->highlightSaturation;
+    d->lastBgColor = QVector4D(-1.0f, -1.0f, -1.0f, -1.0f);
 
     // Canvas receives arbitrary crop widths, so we must not rely on OpenGL's default
     // 4-byte unpack alignment when uploading rows.
@@ -464,11 +507,11 @@ void ImageViewWidget::renderImage()
     // Render
     glClear(GL_COLOR_BUFFER_BIT);
 
-    d->shaderProgram.bind();
+    d->shaderProgram->bind();
 
     // Only update uniforms when their values change
     if (d->lastBgColor != d->bgColorVec) {
-        d->shaderProgram.setUniformValue(d->uniLocBgColor, d->bgColorVec);
+        d->shaderProgram->setUniformValue(d->uniLocBgColor, d->bgColorVec);
         d->lastBgColor = d->bgColorVec;
     }
 
@@ -476,20 +519,20 @@ void ImageViewWidget::renderImage()
     const float aspectRatio = static_cast<float>(width()) / height() / imageAspectRatio;
 
     if (std::abs(aspectRatio - d->lastAspectRatio) > 0.001f) {
-        d->shaderProgram.setUniformValue(d->uniLocAspectRatio, aspectRatio);
+        d->shaderProgram->setUniformValue(d->uniLocAspectRatio, aspectRatio);
         d->lastAspectRatio = aspectRatio;
     }
 
     if (d->highlightSaturation != d->lastHighlightSaturation) {
-        d->shaderProgram.setUniformValue(d->uniLocShowSaturation, d->highlightSaturation ? 1.0f : 0.0f);
+        d->shaderProgram->setUniformValue(d->uniLocShowSaturation, d->highlightSaturation ? 1.0f : 0.0f);
         d->lastHighlightSaturation = d->highlightSaturation;
     }
 
-    d->vao.bind();
+    d->vao->bind();
     glDrawArrays(GL_TRIANGLE_FAN, 0, 4);
-    d->vao.release();
+    d->vao->release();
 
-    d->shaderProgram.release();
+    d->shaderProgram->release();
 }
 
 bool ImageViewWidget::showImage(const cv::Mat &mat)

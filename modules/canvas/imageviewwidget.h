@@ -46,6 +46,8 @@ protected:
     void renderImage();
 
 private:
+    void cleanupGL();
+
     class Private;
     Q_DISABLE_COPY(ImageViewWidget)
     std::unique_ptr<Private> d;
