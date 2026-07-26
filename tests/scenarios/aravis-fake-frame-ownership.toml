@@ -1,0 +1,15 @@
+[test]
+name = "Aravis Fake Frame Ownership"
+project_file = "projects/aravis-fake-frame-ownership.syct"
+run_duration_sec = 6
+expected_exit_code = 0
+expected_stdout_contains = [
+    "Module start order: Aravis Fake Camera ⇢ Stalled Consumer ⇢ Lossless Recorder",
+]
+validator_script = "aravis_fake_frame_ownership_validator.py"
+
+[[test.expected_datasets]]
+name = "videos/fake-camera"
+media_type = "video/x-matroska"
+video = { min_frames = 240 }
+tsync = { min_entries = 240, monotonic_column = "master-time" }
