@@ -222,7 +222,9 @@ public:
             clockSync->processTimestamp(masterTime, nsecToUsec(nanoseconds_t(frameDevTimeNs)));
 
             m_decoder->decode(QByteArray::fromRawData(data, static_cast<qsizetype>(size)));
-            cv::Mat img = m_decoder->getCvImage();
+            // Decoders reuse their internal image buffer, so detach the frame before
+            // publishing it to subscribers that may retain it beyond this callback.
+            cv::Mat img = m_decoder->getCvImage().clone();
 
             // sanity check, because sometimes this camera doesn't adhere to the contract...
             if (Q_UNLIKELY(img.cols != m_expectedWidth || img.rows != m_expectedHeight)) {
