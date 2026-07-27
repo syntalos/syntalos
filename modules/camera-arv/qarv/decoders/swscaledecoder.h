@@ -34,8 +34,8 @@ namespace QArv
 {
 
 /*
- * This decoder works by first decoding into RGB48 using libswscale, and then
- * copying data into the appropriate container.
+ * This decoder uses libswscale to convert directly into a caller-owned
+ * cv::Mat.
  */
 class SwScaleDecoder : public QArvDecoder {
 public:
@@ -43,9 +43,8 @@ public:
                    enum AVPixelFormat inputPixfmt,
                    ArvPixelFormat arvPixFmt,
                    int swsFlags = SWS_FAST_BILINEAR | SWS_BITEXACT);
-    virtual ~SwScaleDecoder();
-    void decode(const QByteArray &frame) override;
-    const cv::Mat getCvImage() override;
+    ~SwScaleDecoder() override;
+    void decodeInto(QByteArrayView frame, cv::Mat &output) override;
     int cvType() override;
     ArvPixelFormat pixelFormat() override;
     QByteArray decoderSpecification() override;
@@ -55,9 +54,6 @@ private:
     bool OK;
     QSize size;
     struct SwsContext* ctx;
-    uint8_t* image_pointers[4];
-    int image_strides[4];
-    uint8_t bufferBytesPerPixel;
     int cvMatType;
     enum AVPixelFormat inputPixfmt, outputPixFmt;
     struct AVFrame srcInfo;

@@ -29,15 +29,13 @@ namespace QArv
 class Mono12PackedDecoder : public QArvDecoder {
 public:
     Mono12PackedDecoder(QSize size_);
-    void decode(const QByteArray &frame) override;
-    const cv::Mat getCvImage() override;
+    void decodeInto(QByteArrayView frame, cv::Mat &output) override;
     int cvType() override { return CV_16UC1; }
     ArvPixelFormat pixelFormat() override { return ARV_PIXEL_FORMAT_MONO_12_PACKED; }
     QByteArray decoderSpecification() override;
 
 private:
     QSize size;
-    cv::Mat M;
 };
 
 class Mono12PackedFormat : public QObject, public QArvPixelFormat {

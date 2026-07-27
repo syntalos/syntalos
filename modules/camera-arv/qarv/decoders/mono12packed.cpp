@@ -22,15 +22,16 @@
 using namespace QArv;
 
 Mono12PackedDecoder::Mono12PackedDecoder(QSize size_) :
-    size(size_), M(size_.height(), size_.width(), CV_16U) {}
+    size(size_) {}
 
 
-void Mono12PackedDecoder::decode(const QByteArray &frame) {
+void Mono12PackedDecoder::decodeInto(QByteArrayView frame, cv::Mat &output) {
+    output.create(size.height(), size.width(), CV_16UC1);
     const uchar* dta = reinterpret_cast<const uchar*>(frame.constData());
     const int h = size.height(), w = size.width();
 
     int line = 0;
-    auto linestart = M.ptr<uint16_t>(0);
+    auto linestart = output.ptr<uint16_t>(0);
     int outcurrent = 0;
     const uchar* inptr = dta;
     uint16_t pixel;
@@ -42,7 +43,7 @@ void Mono12PackedDecoder::decode(const QByteArray &frame) {
 
         if (outcurrent == w) {
             if (++line == h) break;
-            linestart = M.ptr<uint16_t>(line);
+            linestart = output.ptr<uint16_t>(line);
             outcurrent = 0;
         }
 
@@ -52,16 +53,12 @@ void Mono12PackedDecoder::decode(const QByteArray &frame) {
 
         if (outcurrent == w) {
             if (++line == h) break;
-            linestart = M.ptr<uint16_t>(line);
+            linestart = output.ptr<uint16_t>(line);
             outcurrent = 0;
         }
 
         inptr += 3;
     }
-}
-
-const cv::Mat Mono12PackedDecoder::getCvImage() {
-    return M;
 }
 
 QByteArray Mono12PackedDecoder::decoderSpecification() {
