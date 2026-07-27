@@ -12,8 +12,7 @@ namespace QArv
 template <ArvPixelFormat fmt>
 class BayerDecoder : public QArvDecoder {
 public:
-    BayerDecoder(QSize size_) : size(size_),
-        decoded(size.height(), size.width(), cvType()) {
+    BayerDecoder(QSize size_) : size(size_), stage1(nullptr) {
         switch (fmt) {
         case ARV_PIXEL_FORMAT_BAYER_GR_10:
         case ARV_PIXEL_FORMAT_BAYER_RG_10:
@@ -135,8 +134,6 @@ public:
         }
     };
 
-    const cv::Mat getCvImage() override { return decoded; }
-
     int cvType() override {
         switch (fmt) {
         case ARV_PIXEL_FORMAT_BAYER_GR_8:
@@ -159,9 +156,9 @@ public:
         return b;
     }
 
-    void decode(const QByteArray &frame) override {
+    void decodeInto(QByteArrayView frame, cv::Mat &output) override {
         // Workaround: cv::Mat has no const data constructor, but data need
-        // not be copied, as QByteArray::data() does.
+        // not be copied.
         void* data =
             const_cast<void*>(reinterpret_cast<const void*>(frame.constData()));
         switch (fmt) {
@@ -182,17 +179,15 @@ public:
 
 #endif
         default:
-            stage1->decode(frame);
-            tmp = stage1->getCvImage();
+            stage1->decodeInto(frame, tmp);
             break;
         }
-        cv::cvtColor(tmp, decoded, cvt);
+        cv::cvtColor(tmp, output, cvt);
     }
 
 private:
     QSize size;
     cv::Mat tmp;
-    cv::Mat decoded;
     QArvDecoder* stage1;
     int cvt;
 };

@@ -34,7 +34,6 @@ class MonoUnpackedDecoder : public QArvDecoder {
 
 private:
     QSize size;
-    cv::Mat M;
     static const bool OutputIsChar = bitsPerPixel <= 8;
     typedef typename std::conditional<OutputIsChar, uint8_t,
                                       uint16_t>::type OutputType;
@@ -45,7 +44,7 @@ private:
 
 public:
     MonoUnpackedDecoder(QSize size_) :
-        size(size_), M(size_.height(), size_.width(), cvMatType) {}
+        size(size_) {}
 
     ArvPixelFormat pixelFormat() override { return pixFmt; }
 
@@ -58,12 +57,13 @@ public:
 
     int cvType() override { return cvMatType; };
 
-    void decode(const QByteArray &frame) override {
+    void decodeInto(QByteArrayView frame, cv::Mat &output) override {
+        output.create(size.height(), size.width(), cvMatType);
         const InputType* dta =
             reinterpret_cast<const InputType*>(frame.constData());
         const int h = size.height(), w = size.width();
         for (int i = 0; i < h; i++) {
-            auto line = M.ptr<OutputType>(i);
+            auto line = output.ptr<OutputType>(i);
             for (int j = 0; j < w; j++) {
                 OutputType tmp;
                 if (typeIsSigned)
@@ -73,10 +73,6 @@ public:
                 line[j] = tmp << (zeroBits);
             }
         }
-    }
-
-    const cv::Mat getCvImage() override {
-        return M;
     }
 };
 

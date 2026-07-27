@@ -1142,8 +1142,8 @@ void ArvConfigWindow::previewFrameReceived(const QByteArray &frame, ArvBuffer *a
     if (frame.isEmpty())
         return;
 
-    decoder->decode(frame);
-    auto img = decoder->getCvImage();
+    decoder->decodeInto(QByteArrayView(frame), m_previewDecodedImage);
+    auto img = m_previewDecodedImage;
 
     if (transformParams.invert) {
         int bits = img.depth() == CV_8U ? 8 : 16;

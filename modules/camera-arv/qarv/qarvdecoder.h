@@ -22,6 +22,7 @@
 
 #include <arv.h>
 #include <QByteArray>
+#include <QByteArrayView>
 #include <QString>
 #include <QSize>
 #include <QImage>
@@ -42,20 +43,18 @@ class QArvDecoder {
 public:
     virtual ~QArvDecoder() {};
 
-    //! Decodes the given frame.
-    virtual void decode(const QByteArray &frame) = 0;
-
     /*!
-     * Returns the decoded frame as an OpenCv matrix. See cvType() for possible
-     * types. The matrix is constant to avoid copying. It references data
-     * internal to the decoder which is overwritten when decode() is called,
-     * so make sure you copy the matrix or otherwise finish using it before
-     * decoding another frame.
+     * Decodes a frame directly into caller-owned storage.
+     *
+     * The decoder allocates or reuses @p output as needed but retains no
+     * reference to its pixel data after this function returns. Callers may
+     * therefore publish the matrix without making a deep copy. A caller that
+     * reuses an output matrix must ensure that no consumer still retains it.
      */
-    virtual const cv::Mat getCvImage() = 0;
+    virtual void decodeInto(QByteArrayView frame, cv::Mat &output) = 0;
 
     /*!
-     * Returns the type of cv::Mat returned by getCvImage(). The decoder chooses
+     * Returns the type of cv::Mat produced by decodeInto(). The decoder chooses
      * the most sensible type given the number of significant bits in input data.
      * Possible types are either CV_8U or CV_16U, with 1 or 3 channels.
      */
