@@ -22,7 +22,9 @@
 
 #include "config.h"
 #include <cmath>
+#include <QEvent>
 #include <QGuiApplication>
+#include <QOpenGLContext>
 #include <QScreen>
 #include <QDir>
 #include <QMainWindow>
@@ -39,6 +41,43 @@
 #include "utils/style.h"
 
 using namespace Syntalos;
+
+namespace
+{
+
+void releaseCurrentOpenGLContext()
+{
+    // A QOpenGLWidget can leave its context current after its top-level window
+    // is hidden. On GLX, restoring that context later may target the old native
+    // drawable and prevent another module window from creating its GL context.
+    // Releasing the binding does not destroy the context or any GL resources.
+    if (auto *context = QOpenGLContext::currentContext())
+        context->doneCurrent();
+}
+
+class ModuleWindowCloseEventFilter final : public QObject
+{
+public:
+    explicit ModuleWindowCloseEventFilter(QObject *parent)
+        : QObject(parent)
+    {
+    }
+
+protected:
+    bool eventFilter(QObject *, QEvent *event) override
+    {
+        if (event->type() == QEvent::Close)
+            releaseCurrentOpenGLContext();
+        return false;
+    }
+};
+
+void watchModuleWindowClose(QWidget *window)
+{
+    window->installEventFilter(new ModuleWindowCloseEventFilter(window));
+}
+
+} // namespace
 
 QString Syntalos::connectionHeatToHumanString(ConnectionHeatLevel heat)
 {
@@ -884,14 +923,18 @@ bool AbstractModule::isSettingsUiVisible()
 
 void AbstractModule::hideDisplayUi()
 {
-    for (auto const &wp : d->displayWindows)
+    for (auto const &wp : d->displayWindows) {
+        releaseCurrentOpenGLContext();
         wp.first->hide();
+    }
 }
 
 void AbstractModule::hideSettingsUi()
 {
-    for (auto const &wp : d->settingsWindows)
+    for (auto const &wp : d->settingsWindows) {
+        releaseCurrentOpenGLContext();
         wp.first->hide();
+    }
 }
 
 void AbstractModule::serializeSettings(const QString &, QVariantHash &, QByteArray &)
@@ -1180,12 +1223,14 @@ std::shared_ptr<EDLGroup> AbstractModule::createStorageGroup(const QString &grou
 
 QWidget *AbstractModule::addDisplayWindow(QWidget *window, bool owned)
 {
+    watchModuleWindowClose(window);
     d->displayWindows.append(qMakePair(window, owned));
     return window;
 }
 
 QWidget *AbstractModule::addSettingsWindow(QWidget *window, bool owned)
 {
+    watchModuleWindowClose(window);
     d->settingsWindows.append(qMakePair(window, owned));
     return window;
 }
@@ -1320,8 +1365,10 @@ void AbstractModule::restoreDisplayUiGeometry(const QVariant &var)
             continue;
         if (winfo.value("visible").toBool())
             wp.first->show();
-        else
+        else {
+            releaseCurrentOpenGLContext();
             wp.first->hide();
+        }
 
         const auto geomData = QByteArray::fromBase64(winfo.value("geometry").toString().toUtf8());
 #ifdef SY_PREFER_WAYLAND
