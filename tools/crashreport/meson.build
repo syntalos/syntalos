@@ -52,5 +52,6 @@ executable('syntalos-crashreport',
     include_directories: [root_include_dir,
                           include_directories('../../src')],
     install_dir: get_option('libexecdir'),
+    install_rpath: sy_libdir,
     install: true
 )
