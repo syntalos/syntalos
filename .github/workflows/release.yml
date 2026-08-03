@@ -155,7 +155,7 @@ jobs:
         uses: actions/checkout@v7
 
       - name: Install Cloudsmith CLI
-        uses: cloudsmith-io/cloudsmith-cli-action@v2
+        uses: cloudsmith-io/cloudsmith-cli-action@v3
         with:
           api-key: ${{ secrets.CLOUDSMITH_KEY }}
 
