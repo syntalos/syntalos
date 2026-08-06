@@ -918,6 +918,21 @@ void VideoWriter::initializeInternal()
         throw std::runtime_error(
             std::format("Failed to open video encoder with the current parameters: {}", averrorToString(ret)));
     }
+    if (codecopts != nullptr) {
+        const AVDictionaryEntry *entry = nullptr;
+        std::string unusedCodecOpts;
+        while ((entry = av_dict_get(codecopts, "", entry, AV_DICT_IGNORE_SUFFIX)) != nullptr) {
+            if (!unusedCodecOpts.empty())
+                unusedCodecOpts += ", ";
+            unusedCodecOpts += entry->key;
+            unusedCodecOpts += "=";
+            unusedCodecOpts += entry->value;
+        }
+        if (!unusedCodecOpts.empty())
+            LOG_WARNING(d->log, "Video encoder ignored codec option(s): {}", unusedCodecOpts);
+
+        av_dict_free(&codecopts);
+    }
 
     // stream codec parameters must be set after opening the encoder
     avcodec_parameters_from_context(d->vstrm->codecpar, d->cctx);
