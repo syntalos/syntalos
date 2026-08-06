@@ -797,16 +797,31 @@ void VideoWriter::initializeInternal()
 
     // set bitrate/crf
     d->cctx->bit_rate = 0;
-    av_dict_set_int(&codecopts, "crf", 0, 0);
-    if (d->codecProps.mode() == CodecProperties::ConstantQuality)
-        av_dict_set_int(&codecopts, "crf", d->codecProps.quality(), 0);
-    else if (d->codecProps.mode() == CodecProperties::ConstantBitrate)
-        d->cctx->bit_rate = d->codecProps.bitrateKbps() * 1000;
 
-    if (d->codecProps.useVaapi()) {
-        // some hardware-accelerated codecs use different options for some reason
-        if (d->codecProps.codec() == VideoCodec::HEVC && d->codecProps.mode() == CodecProperties::ConstantQuality)
-            av_dict_set_int(&codecopts, "qp", d->codecProps.quality(), 0);
+    if (d->codecProps.mode() == CodecProperties::ConstantBitrate) {
+        d->cctx->bit_rate = d->codecProps.bitrateKbps() * 1000;
+    } else if (d->codecProps.mode() == CodecProperties::ConstantQuality) {
+        if (d->codecProps.useVaapi()) {
+            // Explicit reminder that `rc_mode=auto` if not specified.
+            // auto  = driver/FFmpeg chooses, it defaulted to ICQ in a quick test
+            // CQP   = constant quantizer; fixed-ish compression strength, bitrate floats
+            // CBR   = constant bitrate; target file size/stream rate, quality floats
+            // VBR   = variable bitrate; average bitrate target, quality varies less than CBR
+            // ICQ   = intelligent constant quality; VAAPI-specific quality mode
+            // QVBR  = quality-defined variable bitrate; quality target with bitrate behavior
+            // AVBR  = average variable bitrate; average bitrate control
+            av_dict_set(&codecopts, "rc_mode", "auto", 0);
+
+            const int q = std::max(0, d->codecProps.quality());
+            d->cctx->global_quality = q;
+
+            // Optional but clearer for codecs exposing private qp.
+            if (d->codecProps.codec() == VideoCodec::H264 ||
+                d->codecProps.codec() == VideoCodec::HEVC)
+                av_dict_set_int(&codecopts, "qp", q, 0);
+        } else {
+            av_dict_set_int(&codecopts, "crf", d->codecProps.quality(), 0);
+        }
     }
 
     d->cctx->gop_size = 100;
@@ -1381,7 +1396,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
     // encode video frame
     ret = avcodec_send_frame(d->cctx, outputFrame);
     if (ret < 0) {
-        d->lastError = QStringLiteral("Unable to send frame to encoder. N: %1").arg(d->framesN + 1).toStdString();
+        d->lastError = std::format("Unable to send frame {} to encoder: {}.", d->framesN + 1, averrorToString(ret));
         std::cerr << d->lastError << std::endl;
         goto out;
     }
