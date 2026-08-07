@@ -18,26 +18,30 @@
  */
 
 #include "swscaledecoder.h"
-#include <cstdlib>
 #include <opencv2/core/types_c.h>
 #include "../qarv-globals.h"
 
 extern "C" {
 #include <libavutil/pixdesc.h>
 #include <libavutil/imgutils.h>
-#include <libavutil/mem.h>
 }
 
 using namespace QArv;
 
 SwScaleDecoder::SwScaleDecoder(QSize size_, AVPixelFormat inputPixfmt_,
                                ArvPixelFormat arvPixFmt, int swsFlags) :
+    OK(false),
     size(size_),
-    inputPixfmt(inputPixfmt_), arvPixelFormat(arvPixFmt), flags(swsFlags) {
+    ctx(nullptr),
+    cvMatType(-1),
+    inputPixfmt(inputPixfmt_),
+    outputPixFmt(AV_PIX_FMT_NONE),
+    srcInfo{},
+    arvPixelFormat(arvPixFmt),
+    flags(swsFlags) {
     if (size.width() != (size.width() / 2) * 2
         || size.height() != (size.height() / 2) * 2) {
         qDebug().noquote() << "Frame size must be factor of two for SwScaleDecoder.";
-        OK = false;
         return;
     }
     if (sws_isSupportedInput(inputPixfmt) > 0) {
@@ -48,41 +52,32 @@ SwScaleDecoder::SwScaleDecoder(QSize size_, AVPixelFormat inputPixfmt_,
             if (components == 1) {
                 outputPixFmt = AV_PIX_FMT_GRAY16;
                 cvMatType = CV_16UC1;
-                bufferBytesPerPixel = 2;
             } else {
                 outputPixFmt = AV_PIX_FMT_BGR48;
                 cvMatType = CV_16UC3;
-                bufferBytesPerPixel = 6;
             }
         } else {
             if (components == 1) {
                 outputPixFmt = AV_PIX_FMT_GRAY8;
                 cvMatType = CV_8UC1;
-                bufferBytesPerPixel = 1;
             } else {
                 outputPixFmt = AV_PIX_FMT_BGR24;
                 cvMatType = CV_8UC3;
-                bufferBytesPerPixel = 3;
             }
         }
-        OK = 0 < av_image_alloc(image_pointers, image_strides, size.width(),
-                                size.height(), outputPixFmt, 16);
-        if (OK)
-            ctx = sws_getContext(size.width(), size.height(), inputPixfmt,
-                                 size.width(), size.height(), outputPixFmt,
-                                 flags, 0, 0, 0);
+        ctx = sws_getContext(size.width(), size.height(), inputPixfmt,
+                             size.width(), size.height(), outputPixFmt,
+                             flags, nullptr, nullptr, nullptr);
+        OK = ctx != nullptr;
     } else {
         qDebug().noquote() << "Pixel format" << av_get_pix_fmt_name(inputPixfmt)
                      << "is not supported for input.";
-        OK = false;
     }
 }
 
 SwScaleDecoder::~SwScaleDecoder() {
-    if (OK) {
+    if (ctx)
         sws_freeContext(ctx);
-        av_freep(&image_pointers[0]);
-    }
 }
 
 ArvPixelFormat SwScaleDecoder::pixelFormat() {
@@ -97,25 +92,25 @@ int SwScaleDecoder::cvType() {
     return cvMatType;
 }
 
-void SwScaleDecoder::decode(const QByteArray &frame) {
-    if (!OK) return;
+void SwScaleDecoder::decodeInto(QByteArrayView frame, cv::Mat &output) {
+    if (!OK) {
+        output.release();
+        return;
+    }
+
+    output.create(size.height(), size.width(), cvMatType);
     auto dataptr = reinterpret_cast<const uint8_t*>(frame.constData());
     av_image_fill_arrays(srcInfo.data, srcInfo.linesize,
                          const_cast<uint8_t*>(dataptr),
                          inputPixfmt, size.width(), size.height(), 1);
+    uint8_t *outputPointers[4] = {output.data, nullptr, nullptr, nullptr};
+    const int outputStrides[4] = {static_cast<int>(output.step[0]), 0, 0, 0};
     int outheight = sws_scale(ctx, srcInfo.data, srcInfo.linesize,
                               0, size.height(),
-                              image_pointers, image_strides);
+                              outputPointers, outputStrides);
     if (outheight != size.height()) {
         qDebug().noquote() << "swscale error! outheight =" << outheight;
     }
-}
-
-const cv::Mat SwScaleDecoder::getCvImage() {
-    if (!OK) return cv::Mat();
-    cv::Mat M(size.height(), size.width(), cvMatType,
-              image_pointers[0], image_strides[0]);
-    return M;
 }
 
 QByteArray SwScaleDecoder::decoderSpecification() {

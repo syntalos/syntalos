@@ -221,8 +221,8 @@ public:
 
             clockSync->processTimestamp(masterTime, nsecToUsec(nanoseconds_t(frameDevTimeNs)));
 
-            m_decoder->decode(QByteArray::fromRawData(data, static_cast<qsizetype>(size)));
-            cv::Mat img = m_decoder->getCvImage();
+            cv::Mat img;
+            m_decoder->decodeInto(QByteArrayView(data, static_cast<qsizetype>(size)), img);
 
             // sanity check, because sometimes this camera doesn't adhere to the contract...
             if (Q_UNLIKELY(img.cols != m_expectedWidth || img.rows != m_expectedHeight)) {
@@ -258,7 +258,11 @@ public:
                 break;
             }
 
-            m_outStream->push(Frame(img, acqState->frameCount++, masterTime));
+            Frame frame;
+            frame.index = acqState->frameCount++;
+            frame.time = masterTime;
+            frame.mat = std::move(img);
+            m_outStream->push(std::move(frame));
             acqState->fpsWindowFrameCount++;
         });
 
