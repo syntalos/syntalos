@@ -145,8 +145,8 @@ public:
         g_autoptr(GMainLoop) loop = g_main_loop_new(nullptr, FALSE);
         const auto expectedFps = m_camera->getFPS();
 
-        // we carry one second of data or 15 frames in the queue
-        m_camera->setFrameQueueSize(expectedFps > 15 ? static_cast<uint>(std::ceil(expectedFps)) + 1 : 15);
+        // we carry one second of data or 30 frames in the queue
+        m_camera->setFrameQueueSize(expectedFps > 30 ? static_cast<uint>(std::ceil(expectedFps)) + 1 : 30);
 
         // set up clock synchronizer
         // Held via shared_ptr (not the unique_ptr returned by initClockSynchronizer) so
