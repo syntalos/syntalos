@@ -890,11 +890,27 @@ bool QArvCamera::setData(const QModelIndex& index, const QVariant& value,
                             NULL);
     } else if (value.canConvert<QArvEnumeration>()) {
         auto e = qvariant_cast<QArvEnumeration>(value);
+        if (e.currentValue < 0
+            || e.currentValue >= e.values.size()
+            || e.currentValue >= e.isAvailable.size()) {
+            logMessage() << "Unable to set enumeration" << treenode->feature()
+                         << ": invalid selection index" << e.currentValue
+                         << "(values:" << e.values.size()
+                         << ", availability flags:" << e.isAvailable.size() << ")";
+            return false;
+        }
+
         if (e.isAvailable.at(e.currentValue)) {
+            g_autoptr(GError) error = nullptr;
             arv_gc_enumeration_set_string_value(ARV_GC_ENUMERATION(node),
                                                 e.values.at(
                                                     e.currentValue).toLatin1().data(),
-                                                NULL);
+                                                &error);
+            if (error != nullptr) {
+                logMessage() << "Unable to set enumeration" << treenode->feature()
+                             << ":" << error->message;
+                return false;
+            }
         } else return false;
     } else if (value.canConvert<QArvCommand>()) {
         arv_gc_command_execute(ARV_GC_COMMAND(node), NULL);
