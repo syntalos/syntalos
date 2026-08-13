@@ -30,7 +30,7 @@ QArvEditor::QArvEditor(QWidget* parent) : QWidget(parent) {
     setAutoFillBackground(true);
 }
 
-QArvEnumeration::QArvEnumeration() : values(), isAvailable() {}
+QArvEnumeration::QArvEnumeration() : values(), isAvailable(), currentValue(-1) {}
 
 QArvEnumeration::operator QString() const {
     return currentValue >= 0 ? names[currentValue] : QString();
