@@ -23,6 +23,7 @@
 #include <fstream>
 #include <iostream>
 
+#include "datactl/syclock.h"
 #include "fabric/logging.h"
 
 toml::time qTimeToToml(const QTime &qtime)
@@ -32,7 +33,7 @@ toml::time qTimeToToml(const QTime &qtime)
     ttime.hour = qtime.hour();
     ttime.minute = qtime.minute();
     ttime.second = qtime.second();
-    ttime.nanosecond = qtime.msec() * 1000;
+    ttime.nanosecond = qtime.msec() * Syntalos::US_PER_MS * Syntalos::NS_PER_US;
     return ttime;
 }
 
@@ -189,7 +190,7 @@ QByteArray qVariantHashToTomlData(const QVariantHash &varHash)
 
 static QTime tomlTimeToQ(const toml::time &ttime)
 {
-    return QTime(ttime.hour, ttime.minute, ttime.second, ttime.nanosecond / 1000);
+    return QTime(ttime.hour, ttime.minute, ttime.second, ttime.nanosecond / (Syntalos::US_PER_MS * Syntalos::NS_PER_US));
 }
 
 static QDate tomlDateToQ(const toml::date &tdate)
