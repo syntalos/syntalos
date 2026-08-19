@@ -145,8 +145,8 @@ static GLogWriterOutput glibLogWriter(GLogLevelFlags log_level, const GLogField 
 {
     std::string domainStr;
     std::string msgStr;
-    std::string fileStr;
-    std::string funcStr;
+    const char *file = "";
+    const char *func = "";
     int line = 0;
 
     auto assignFieldStr = [](std::string &dst, const GLogField &f) {
@@ -159,6 +159,12 @@ static GLogWriterOutput glibLogWriter(GLogLevelFlags log_level, const GLogField 
             dst.assign(s, static_cast<size_t>(f.length));
     };
 
+    // only accept NUL-terminated field data, as we pass it on as a plain string
+    auto assignFieldCStr = [](const char *&dst, const GLogField &f) {
+        if (f.value && f.length < 0)
+            dst = static_cast<const char *>(f.value);
+    };
+
     for (gsize i = 0; i < n_fields; ++i) {
         const auto &f = fields[i];
         if (!f.key)
@@ -169,9 +175,9 @@ static GLogWriterOutput glibLogWriter(GLogLevelFlags log_level, const GLogField 
         } else if (std::strcmp(f.key, "MESSAGE") == 0) {
             assignFieldStr(msgStr, f);
         } else if (std::strcmp(f.key, "CODE_FILE") == 0) {
-            assignFieldStr(fileStr, f);
+            assignFieldCStr(file, f);
         } else if (std::strcmp(f.key, "CODE_FUNC") == 0) {
-            assignFieldStr(funcStr, f);
+            assignFieldCStr(func, f);
         } else if (std::strcmp(f.key, "CODE_LINE") == 0) {
             std::string lineStr;
             assignFieldStr(lineStr, f);
@@ -212,9 +218,9 @@ static GLogWriterOutput glibLogWriter(GLogLevelFlags log_level, const GLogField 
         quill::MacroMetadata::Event::LogWithRuntimeMetadataShallowCopy,
         logger,
         level,
-        fileStr.empty() ? "" : fileStr.c_str(),
+        file,
         line,
-        funcStr.empty() ? "" : funcStr.c_str(),
+        func,
         "",
         "{}",
         msgStr.empty() ? "" : msgStr.c_str());

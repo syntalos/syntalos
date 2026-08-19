@@ -46,9 +46,13 @@ quill::Logger *getLogger(const char *name);
  */
 quill::Logger *logModTmp(const char *name);
 
+/**
+ * Retrieve the default ("root") logger.
+ */
 inline quill::Logger *getDefaultLogger()
 {
-    return getLogger("root");
+    static quill::Logger *const rootLogger = getLogger("root");
+    return rootLogger;
 }
 
 /**
@@ -62,6 +66,10 @@ void removeLogger(quill::Logger *logger);
  */
 void initializeSyLogSystem(quill::LogLevel consoleLogLevel = quill::LogLevel::Info);
 
+/**
+ * Shut the logging system down and flush all pending messages.
+ * Must be called last in a program, as logging is not possible afterwards.
+ */
 void shutdownSyLogSystem();
 
 } // namespace Syntalos
