@@ -893,7 +893,7 @@ void VideoWriter::initializeInternal()
         if (d->inputPixFormat == AV_PIX_FMT_GRAY8)
             d->encPixFormat = AV_PIX_FMT_GRAY8;
         if (d->inputPixFormat == AV_PIX_FMT_GRAY16LE)
-            d->encPixFormat = AV_PIX_FMT_GRAY8;
+            d->encPixFormat = AV_PIX_FMT_GRAY16LE;
         break;
     default:
         break;
