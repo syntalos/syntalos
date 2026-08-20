@@ -109,6 +109,7 @@ public:
 
     LosslessMode losslessMode() const;
     bool isLossless() const;
+    // Always/Never modes enforce their fixed value; only Option accepts enabled.
     void setLossless(bool enabled);
 
     bool canUseVaapi() const;

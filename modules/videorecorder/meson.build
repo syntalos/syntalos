@@ -44,16 +44,28 @@ module_name = fs.name(meson.current_source_dir()).to_lower().underscorify().repl
 mod_install_dir = join_paths(sy_modules_dir, fs.name(meson.current_source_dir()))
 
 module_moc = []
-if module_moc_hdr.length() != 0 or module_moc_src.length() != 0
-    module_moc += qt.compile_moc(
+module_hdr_moc = []
+module_src_moc = []
+module_ui_moc = []
+if module_moc_hdr.length() != 0
+    module_hdr_moc = qt.compile_moc(
         headers: module_moc_hdr,
+        dependencies: module_deps,
+        extra_args: ['--no-notes'],
+    )
+    module_moc += module_hdr_moc
+endif
+if module_moc_src.length() != 0
+    module_src_moc = qt.compile_moc(
         sources: module_moc_src,
         dependencies: module_deps,
         extra_args: ['--no-notes'],
     )
+    module_moc += module_src_moc
 endif
 if module_ui.length() != 0
-    module_moc += qt.compile_ui(sources: module_ui)
+    module_ui_moc = qt.compile_ui(sources: module_ui)
+    module_moc += module_ui_moc
 endif
 mod = shared_module(module_name,
     [module_hdr, module_moc_hdr,
@@ -85,6 +97,35 @@ install_data(
 foreach fname : module_data
     fs.copyfile(fname)
 endforeach
+
+vrec_settings_test_src = ['recordersettingsdialog-test.cpp']
+vrec_settings_test_moc = qt.compile_moc(sources: vrec_settings_test_src)
+vrec_settings_test_exe = executable(
+    'test-videorecorder-settings',
+    [
+        vrec_settings_test_src,
+        'videowriter.cpp',
+        'recordersettingsdialog.cpp',
+        module_hdr_moc,
+        module_ui_moc,
+        vrec_settings_test_moc,
+    ],
+    dependencies: [
+        syntalos_fabric_dep,
+        module_deps,
+        qt_test_dep,
+    ],
+    cpp_args: module_args,
+)
+vrec_settings_test_env = environment()
+vrec_settings_test_env.set('QT_QPA_PLATFORM', 'offscreen')
+test(
+    'sy-test-videorecorder-settings',
+    vrec_settings_test_exe,
+    env: vrec_settings_test_env,
+    is_parallel: true,
+)
+
 module_hdr = []
 module_src = []
 module_moc_hdr = []

@@ -329,7 +329,17 @@ bool CodecProperties::isLossless() const
 
 void CodecProperties::setLossless(bool enabled)
 {
-    d->lossless = enabled;
+    switch (d->losslessMode) {
+    case Always:
+        d->lossless = true;
+        break;
+    case Never:
+        d->lossless = false;
+        break;
+    case Option:
+        d->lossless = enabled;
+        break;
+    }
 }
 
 bool CodecProperties::canUseVaapi() const
