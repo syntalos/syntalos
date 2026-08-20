@@ -21,6 +21,7 @@
 #include "ui_recordersettingsdialog.h"
 
 #include <QMessageBox>
+#include <QSignalBlocker>
 #include <QThread>
 #include <QVariant>
 
@@ -41,13 +42,16 @@ RecorderSettingsDialog::RecorderSettingsDialog(QWidget *parent)
     // Currently FFV1 is the best option for lossless encoding, and VP9 is the best choice
     // for lossy encoding, unless the CPU is capable of encoding AV1 quickly enough
 
-    ui->codecComboBox->addItem("FFV1", QVariant::fromValue(VideoCodec::FFV1));
-    ui->codecComboBox->addItem("AV1", QVariant::fromValue(VideoCodec::AV1));
-    ui->codecComboBox->addItem("VP9", QVariant::fromValue(VideoCodec::VP9));
-    ui->codecComboBox->addItem("HEVC", QVariant::fromValue(VideoCodec::HEVC));
-    ui->codecComboBox->addItem("H.264", QVariant::fromValue(VideoCodec::H264));
-    ui->codecComboBox->addItem("Raw", QVariant::fromValue(VideoCodec::Raw));
-    ui->codecComboBox->setCurrentIndex(0);
+    {
+        const QSignalBlocker blocker(ui->codecComboBox);
+        ui->codecComboBox->addItem("FFV1", QVariant::fromValue(VideoCodec::FFV1));
+        ui->codecComboBox->addItem("AV1", QVariant::fromValue(VideoCodec::AV1));
+        ui->codecComboBox->addItem("VP9", QVariant::fromValue(VideoCodec::VP9));
+        ui->codecComboBox->addItem("HEVC", QVariant::fromValue(VideoCodec::HEVC));
+        ui->codecComboBox->addItem("H.264", QVariant::fromValue(VideoCodec::H264));
+        ui->codecComboBox->addItem("Raw", QVariant::fromValue(VideoCodec::Raw));
+        ui->codecComboBox->setCurrentIndex(0);
+    }
 
     // take name from source module by default
     ui->nameFromSrcCheckBox->setChecked(true);
@@ -73,6 +77,9 @@ RecorderSettingsDialog::RecorderSettingsDialog(QWidget *parent)
     ui->deferredParallelCountSpinBox->setMinimum(1);
     const auto defaultDeferredTasks = QThread::idealThreadCount() - 2;
     ui->deferredParallelCountSpinBox->setValue((defaultDeferredTasks >= 2) ? defaultDeferredTasks : 2);
+
+    // Synchronize the initial widget state after all controls have been populated.
+    setCodecProps(m_codecProps);
 }
 
 RecorderSettingsDialog::~RecorderSettingsDialog()
@@ -120,6 +127,16 @@ void RecorderSettingsDialog::setCodecProps(CodecProperties props)
 {
     m_codecProps = props;
 
+    // This function renders m_codecProps in the UI. Do not let programmatic
+    // widget updates feed back into and partially overwrite that model.
+    const QSignalBlocker codecBlocker(ui->codecComboBox);
+    const QSignalBlocker losslessBlocker(ui->losslessCheckBox);
+    const QSignalBlocker vaapiBlocker(ui->vaapiCheckBox);
+    const QSignalBlocker renderNodeBlocker(ui->renderNodeComboBox);
+    const QSignalBlocker qualityBlocker(ui->qualitySlider);
+    const QSignalBlocker bitrateBlocker(ui->bitrateSpinBox);
+    const QSignalBlocker modeBlocker(ui->radioButtonBitrate);
+
     // select codec in UI
     for (int i = 0; i < ui->codecComboBox->count(); i++) {
         if (ui->codecComboBox->itemData(i).value<VideoCodec>() == props.codec()) {
@@ -144,30 +161,23 @@ void RecorderSettingsDialog::setCodecProps(CodecProperties props)
         ui->containerComboBox->setCurrentIndex(0);
     ui->containerComboBox->setEnabled(m_codecProps.allowsAviContainer());
 
-    // set lossles UI preferences
-    if (m_codecProps.losslessMode() == CodecProperties::Always) {
-        ui->losslessCheckBox->setEnabled(false);
-        ui->losslessCheckBox->setChecked(true);
-    } else if (m_codecProps.losslessMode() == CodecProperties::Never) {
-        ui->losslessCheckBox->setEnabled(false);
-        ui->losslessCheckBox->setChecked(false);
-    } else {
-        ui->losslessCheckBox->setEnabled(true);
-        ui->losslessCheckBox->setChecked(props.isLossless());
-    }
-    ui->losslessLabel->setEnabled(ui->losslessCheckBox->isEnabled());
+    // set lossless UI preferences
+    const bool losslessEditable = m_codecProps.losslessMode() == CodecProperties::Option;
+    ui->losslessCheckBox->setEnabled(losslessEditable);
+    ui->losslessCheckBox->setChecked(m_codecProps.isLossless());
+    ui->losslessLabel->setEnabled(losslessEditable);
 
     // change VAAPI option
-    if (m_renderNodes.isEmpty()) {
-        ui->vaapiCheckBox->setEnabled(false);
-        ui->vaapiLabel->setEnabled(false);
-        ui->renderNodeLabel->setEnabled(false);
-        ui->renderNodeComboBox->setEnabled(false);
-    } else {
-        ui->vaapiCheckBox->setEnabled(m_codecProps.canUseVaapi());
-        ui->vaapiLabel->setEnabled(m_codecProps.canUseVaapi());
-        ui->vaapiCheckBox->setChecked(m_codecProps.canUseVaapi() ? m_codecProps.useVaapi() : false);
-    }
+    const bool canConfigureVaapi = !m_renderNodes.isEmpty() && m_codecProps.canUseVaapi();
+    if (!canConfigureVaapi)
+        m_codecProps.setUseVaapi(false);
+    const bool useVaapi = m_codecProps.useVaapi();
+    ui->vaapiCheckBox->setEnabled(canConfigureVaapi);
+    ui->vaapiLabel->setEnabled(canConfigureVaapi);
+    ui->vaapiCheckBox->setChecked(useVaapi);
+    ui->vaapiCheckBox->setText(useVaapi ? QStringLiteral("(experimental)") : QStringLiteral(" "));
+    ui->renderNodeLabel->setEnabled(useVaapi);
+    ui->renderNodeComboBox->setEnabled(useVaapi);
 
     // update slicing issue hint
     ui->sliceWarnButton->setVisible(false);
@@ -187,14 +197,13 @@ void RecorderSettingsDialog::setCodecProps(CodecProperties props)
         ui->qualitySlider->setValue(m_codecProps.quality());
     }
     ui->bitrateSpinBox->setValue(m_codecProps.bitrateKbps());
-
-    // other properties
-    ui->losslessCheckBox->setChecked(m_codecProps.isLossless());
+    ui->qualityValLabel->setText(QString::number(m_codecProps.quality()));
 
     ui->brqWidget->setDisabled(ui->losslessCheckBox->isChecked());
 
-    ui->radioButtonBitrate->setChecked(m_codecProps.mode() == CodecProperties::ConstantBitrate);
-    on_radioButtonBitrate_toggled(m_codecProps.mode() == CodecProperties::ConstantBitrate);
+    const bool bitrateMode = m_codecProps.mode() == CodecProperties::ConstantBitrate;
+    ui->radioButtonBitrate->setChecked(bitrateMode);
+    ui->qualityValWidget->setEnabled(!bitrateMode);
 
     // change whether deferred encoding is possible
     ui->encodeAfterRunCheckBox->setEnabled(true);
@@ -289,11 +298,6 @@ void RecorderSettingsDialog::on_nameLineEdit_textChanged(const QString &arg1)
 
 void RecorderSettingsDialog::on_codecComboBox_currentIndexChanged(int)
 {
-    // reset state of lossless infobox
-    ui->losslessCheckBox->setEnabled(true);
-    ui->losslessCheckBox->setChecked(true);
-    ui->containerComboBox->setEnabled(true);
-
     const auto codec = ui->codecComboBox->currentData().value<VideoCodec>();
     if (codec == m_codecProps.codec())
         return;
@@ -313,7 +317,12 @@ void RecorderSettingsDialog::on_nameFromSrcCheckBox_toggled(bool checked)
 void RecorderSettingsDialog::on_losslessCheckBox_toggled(bool checked)
 {
     m_codecProps.setLossless(checked);
-    ui->brqWidget->setDisabled(checked);
+    const bool lossless = m_codecProps.isLossless();
+    if (checked != lossless) {
+        const QSignalBlocker blocker(ui->losslessCheckBox);
+        ui->losslessCheckBox->setChecked(lossless);
+    }
+    ui->brqWidget->setDisabled(lossless);
 }
 
 void RecorderSettingsDialog::on_vaapiCheckBox_toggled(bool checked)
