@@ -1441,6 +1441,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
 
     const auto tsUsec = timestamp.count();
 
+    int drainedPackets = 0;
     auto receivePackets = [&]() -> bool {
         while (true) {
             ret = avcodec_receive_packet(d->cctx, pkt);
@@ -1464,6 +1465,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
                 return false;
             }
 
+            drainedPackets++;
             av_packet_unref(pkt);
         }
     };
@@ -1502,8 +1504,19 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
     while (true) {
         ret = avcodec_send_frame(d->cctx, outputFrame);
         if (ret == AVERROR(EAGAIN)) {
+            // the encoder wants us to make room first, so drain its output queue and retry
+            drainedPackets = 0;
             if (!receivePackets())
                 goto out;
+            if (drainedPackets == 0) {
+                // this must not happen per the FFmpeg send/receive contract - bail out
+                // instead of spinning here forever
+                d->lastError = std::format(
+                    "Encoder refused frame {}, but did not emit a packet to make room for it.",
+                    d->framesN + 1);
+                std::cerr << d->lastError << std::endl;
+                goto out;
+            }
             continue;
         }
         if (ret < 0) {
@@ -1515,6 +1528,14 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
     }
     if (!receivePackets())
         goto out;
+
+    // Give the frame its buffer back now that the encoder is done with it: a slice rollover
+    // below frees d->encFrame and allocates a new one, and restoring the old buffer onto that
+    // new frame at "out" would leak the new frame's buffer.
+    if (savedBuf0 != nullptr) {
+        d->encFrame->buf[0] = savedBuf0;
+        savedBuf0 = nullptr;
+    }
 
     // store timestamp (if necessary)
     if (d->saveTimestamps) {
