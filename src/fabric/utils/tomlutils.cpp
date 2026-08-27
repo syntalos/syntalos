@@ -190,7 +190,11 @@ QByteArray qVariantHashToTomlData(const QVariantHash &varHash)
 
 static QTime tomlTimeToQ(const toml::time &ttime)
 {
-    return QTime(ttime.hour, ttime.minute, ttime.second, ttime.nanosecond / (Syntalos::US_PER_MS * Syntalos::NS_PER_US));
+    return QTime(
+        ttime.hour,
+        ttime.minute,
+        ttime.second,
+        ttime.nanosecond / (Syntalos::US_PER_MS * Syntalos::NS_PER_US));
 }
 
 static QDate tomlDateToQ(const toml::date &tdate)
