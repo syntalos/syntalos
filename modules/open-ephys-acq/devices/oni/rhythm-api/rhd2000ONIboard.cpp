@@ -5,6 +5,28 @@
 #include <iostream>
 #include <thread>
 #include <chrono>
+#include <dlfcn.h>
+#include <mutex>
+
+// Pin the FT600 ONI driver shared library resident for the lifetime of the
+// process. liboni dlclose()s the driver in oni_destroy_ctx(), but the driver
+// statically links libftd3xx/libusb, whose netlink hotplug thread is never
+// joined on teardown. Unmapping the library while that thread is still alive
+// crashes the process (use-after-dlclose). Holding an extra, never-released
+// dlopen reference keeps the loader refcount above zero so the mapping cannot
+// be torn down. This is a workaround that also protects us against unpatched
+// builds of liboni (which additionally set RTLD_NODELETE at the load site).
+// FIXME: We can drop this once https://github.com/open-ephys/liboni/pull/65 was merged.
+static void pinFt600DriverResident()
+{
+    static std::once_flag once;
+    std::call_once(once, [] {
+        // RTLD_NOLOAD only pins the already-loaded object (it is loaded by the
+        // time oni_init_ctx() succeeds); it never loads a fresh copy and is
+        // robust to the loader search path. The handle is leaked on purpose.
+        (void)dlopen("libonidriver_ft600.so", RTLD_NOLOAD | RTLD_NOW | RTLD_NODELETE);
+    });
+}
 
 Rhd2000ONIBoard::Rhd2000ONIBoard()
 {
@@ -53,6 +75,11 @@ int Rhd2000ONIBoard::open (const oni_driver_info_t** driverInfo)
         else
             return -2;
     }
+
+    // The driver library is now loaded and initialized; keep it resident so a
+    // later oni_destroy_ctx() cannot unmap it out from under libusb's still-
+    // running netlink thread.
+    pinFt600DriverResident();
 
     return 1;
 }
