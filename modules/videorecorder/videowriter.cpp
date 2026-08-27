@@ -22,6 +22,7 @@
 #include <QDateTime>
 #include <QFileInfo>
 #include <atomic>
+#include <algorithm>
 #include <cmath>
 #include <fstream>
 #include <iostream>
@@ -830,18 +831,25 @@ void VideoWriter::initializeInternal()
         if (d->codecProps.mode() == CodecProperties::ConstantBitrate) {
             d->cctx->bit_rate = d->codecProps.bitrateKbps() * 1000;
         } else if (d->codecProps.mode() == CodecProperties::ConstantQuality) {
+            // Some encoder wrappers interpret a quantizer of zero as "no quality requested"
+            // and quietly substitute their own default, which is far worse than the best
+            // quality the user just asked for. None of them can encode at a zero quantizer
+            // anyway (that would be lossless, which has its own setting), so ask for the
+            // next-best value instead of being ignored.
+            const int quality = std::max(1, d->codecProps.quality());
+
             if (useVaapi) {
                 // VA-API encoders have no CRF setting, they are set to a fixed quantizer via
                 // their rate-control mode and the generic "global quality" value instead
                 av_dict_set(&codecopts, "rc_mode", "CQP", 0);
-                d->cctx->global_quality = d->codecProps.quality();
+                d->cctx->global_quality = quality;
             } else if (d->codecProps.codec() == VideoCodec::MPEG4) {
                 // the MPEG-4 encoder is one of the old-style ones which only knows qscale
                 d->cctx->flags |= AV_CODEC_FLAG_QSCALE;
-                d->cctx->global_quality = d->codecProps.quality() * FF_QP2LAMBDA;
+                d->cctx->global_quality = quality * FF_QP2LAMBDA;
             } else {
                 // all other software encoders that we use understand CRF
-                av_dict_set_int(&codecopts, "crf", d->codecProps.quality(), 0);
+                av_dict_set_int(&codecopts, "crf", quality, 0);
             }
         }
     }
