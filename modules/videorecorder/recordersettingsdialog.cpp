@@ -144,19 +144,6 @@ void RecorderSettingsDialog::setCodecProps(CodecProperties props)
         ui->containerComboBox->setCurrentIndex(0);
     ui->containerComboBox->setEnabled(m_codecProps.allowsAviContainer());
 
-    // set lossles UI preferences
-    if (m_codecProps.losslessMode() == CodecProperties::Always) {
-        ui->losslessCheckBox->setEnabled(false);
-        ui->losslessCheckBox->setChecked(true);
-    } else if (m_codecProps.losslessMode() == CodecProperties::Never) {
-        ui->losslessCheckBox->setEnabled(false);
-        ui->losslessCheckBox->setChecked(false);
-    } else {
-        ui->losslessCheckBox->setEnabled(true);
-        ui->losslessCheckBox->setChecked(props.isLossless());
-    }
-    ui->losslessLabel->setEnabled(ui->losslessCheckBox->isEnabled());
-
     // change VAAPI option
     if (m_renderNodes.isEmpty()) {
         ui->vaapiCheckBox->setEnabled(false);
@@ -190,6 +177,7 @@ void RecorderSettingsDialog::setCodecProps(CodecProperties props)
 
     // other properties
     ui->losslessCheckBox->setChecked(m_codecProps.isLossless());
+    updateLosslessUiState();
 
     ui->brqWidget->setDisabled(ui->losslessCheckBox->isChecked());
 
@@ -310,6 +298,24 @@ void RecorderSettingsDialog::on_nameFromSrcCheckBox_toggled(bool checked)
     ui->nameLineEdit->setEnabled(!checked);
 }
 
+void RecorderSettingsDialog::updateLosslessUiState()
+{
+    // VA-API encoders have no lossless mode, so that option must not be selectable
+    // while hardware acceleration is active
+    const bool vaapiActive = ui->vaapiCheckBox->isEnabled() && ui->vaapiCheckBox->isChecked();
+
+    if (m_codecProps.losslessMode() == CodecProperties::Always) {
+        ui->losslessCheckBox->setChecked(true);
+        ui->losslessCheckBox->setEnabled(false);
+    } else if (m_codecProps.losslessMode() == CodecProperties::Never || vaapiActive) {
+        ui->losslessCheckBox->setChecked(false);
+        ui->losslessCheckBox->setEnabled(false);
+    } else {
+        ui->losslessCheckBox->setEnabled(true);
+    }
+    ui->losslessLabel->setEnabled(ui->losslessCheckBox->isEnabled());
+}
+
 void RecorderSettingsDialog::on_losslessCheckBox_toggled(bool checked)
 {
     m_codecProps.setLossless(checked);
@@ -327,6 +333,8 @@ void RecorderSettingsDialog::on_vaapiCheckBox_toggled(bool checked)
 
     if (m_codecProps.canUseVaapi())
         m_codecProps.setUseVaapi(checked);
+
+    updateLosslessUiState();
 }
 
 void RecorderSettingsDialog::on_renderNodeComboBox_currentIndexChanged(int index)

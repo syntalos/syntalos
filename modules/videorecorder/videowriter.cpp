@@ -794,19 +794,56 @@ void VideoWriter::initializeInternal()
     }
 
     AVDictionary *codecopts = nullptr;
+    const bool useVaapi = d->codecProps.useVaapi();
+    bool wantSvtAv1Lossless = false;
 
-    // set bitrate/crf
+    // normalize the lossless setting first, so all rate-control decisions below
+    // act on what we are actually going to do
+    if (d->codecProps.codec() == VideoCodec::FFV1 || d->codecProps.codec() == VideoCodec::Raw) {
+        // these codecs are always lossless
+        d->codecProps.setLossless(true);
+    } else if (d->codecProps.isLossless() && d->codecProps.losslessMode() == CodecProperties::Never) {
+        LOG_WARNING(
+            d->log,
+            "The {} codec has no lossless preset, switching to lossy compression.",
+            videoCodecToString(d->codecProps.codec()));
+        d->codecProps.setLossless(false);
+    }
+
+    // None of the VA-API encoders we support is able to encode losslessly (their lowest
+    // quantizer setting is still lossy). Refuse that combination instead of silently
+    // recording lossy data for an experiment that asked for lossless.
+    if (useVaapi && d->codecProps.isLossless()) {
+        finalizeInternal(false);
+        throw std::runtime_error(
+            std::format(
+                "Lossless encoding is not available for the {} codec when VA-API hardware acceleration is used. "
+                "Please disable either the lossless option or hardware acceleration, or select the FFV1 codec "
+                "for lossless recordings.",
+                videoCodecToString(d->codecProps.codec())));
+    }
+
+    // Set the bitrate/quality target. For lossless recordings this is skipped entirely,
+    // the codec-specific settings further below pick the quantizer in that case.
     d->cctx->bit_rate = 0;
-    av_dict_set_int(&codecopts, "crf", 0, 0);
-    if (d->codecProps.mode() == CodecProperties::ConstantQuality)
-        av_dict_set_int(&codecopts, "crf", d->codecProps.quality(), 0);
-    else if (d->codecProps.mode() == CodecProperties::ConstantBitrate)
-        d->cctx->bit_rate = d->codecProps.bitrateKbps() * 1000;
-
-    if (d->codecProps.useVaapi()) {
-        // some hardware-accelerated codecs use different options for some reason
-        if (d->codecProps.codec() == VideoCodec::HEVC && d->codecProps.mode() == CodecProperties::ConstantQuality)
-            av_dict_set_int(&codecopts, "qp", d->codecProps.quality(), 0);
+    if (!d->codecProps.isLossless()) {
+        if (d->codecProps.mode() == CodecProperties::ConstantBitrate) {
+            d->cctx->bit_rate = d->codecProps.bitrateKbps() * 1000;
+        } else if (d->codecProps.mode() == CodecProperties::ConstantQuality) {
+            if (useVaapi) {
+                // VA-API encoders have no CRF setting, they are set to a fixed quantizer via
+                // their rate-control mode and the generic "global quality" value instead
+                av_dict_set(&codecopts, "rc_mode", "CQP", 0);
+                d->cctx->global_quality = d->codecProps.quality();
+            } else if (d->codecProps.codec() == VideoCodec::MPEG4) {
+                // the MPEG-4 encoder is one of the old-style ones which only knows qscale
+                d->cctx->flags |= AV_CODEC_FLAG_QSCALE;
+                d->cctx->global_quality = d->codecProps.quality() * FF_QP2LAMBDA;
+            } else {
+                // all other software encoders that we use understand CRF
+                av_dict_set_int(&codecopts, "crf", d->codecProps.quality(), 0);
+            }
+        }
     }
 
     d->cctx->gop_size = 100;
@@ -817,27 +854,29 @@ void VideoWriter::initializeInternal()
         case VideoCodec::Raw:
             // uncompressed frames are always lossless
             break;
-        case VideoCodec::AV1:
-            av_dict_set_int(&codecopts, "crf", 0, 0);
-            av_dict_set_int(&codecopts, "lossless", 1, 0);
-            break;
         case VideoCodec::FFV1:
             // This codec is lossless by default
             break;
+        case VideoCodec::AV1:
+            // SVT-AV1 has no "lossless" AVOption, and its lowest CRF value is *not* lossless.
+            // Truly lossless coding has to be requested through the encoder's own parameter
+            // list and requires SVT-AV1 >= 3.0
+            av_dict_set(&codecopts, "svtav1-params", "lossless=1", 0);
+            wantSvtAv1Lossless = true;
+            break;
         case VideoCodec::VP9:
-            av_dict_set_int(&codecopts, "crf", 0, 0);
             av_dict_set_int(&codecopts, "lossless", 1, 0);
             break;
         case VideoCodec::H264:
-        case VideoCodec::HEVC:
+            // x264 encodes losslessly at CRF 0
             d->cctx->gop_size = 32;
             av_dict_set_int(&codecopts, "crf", 0, 0);
-            av_dict_set_int(&codecopts, "lossless", 1, 0);
             break;
-        case VideoCodec::MPEG4:
-            // NOTE: MPEG-4 has no lossless option
-            std::cerr << "The MPEG-4 codec has no lossless preset, switching to lossy compression." << std::endl;
-            d->codecProps.setLossless(false);
+        case VideoCodec::HEVC:
+            // unlike x264, x265 is not lossless at CRF 0 and has to be told explicitly
+            // via its own parameter list
+            d->cctx->gop_size = 32;
+            av_dict_set(&codecopts, "x265-params", "lossless=1", 0);
             break;
         default:
             break;
@@ -847,11 +886,12 @@ void VideoWriter::initializeInternal()
 
         if (d->codecProps.codec() == VideoCodec::HEVC) {
             d->cctx->gop_size = 32;
-            av_dict_set(&codecopts, "preset", "veryfast", 0);
+            if (!useVaapi)
+                av_dict_set(&codecopts, "preset", "veryfast", 0);
         }
     }
 
-    if (d->codecProps.codec() == VideoCodec::VP9) {
+    if (d->codecProps.codec() == VideoCodec::VP9 && !useVaapi) {
         // See https://developers.google.com/media/vp9/live-encoding
         // for more information on the settings.
 
@@ -875,7 +915,6 @@ void VideoWriter::initializeInternal()
     }
 
     if (d->codecProps.codec() == VideoCodec::FFV1) {
-        d->codecProps.setLossless(true);               // this codec is always lossless
         d->cctx->level = 3;                            // Ensure we use FFV1 v3
         av_dict_set_int(&codecopts, "slicecrc", 1, 0); // Add CRC information to each slice
         av_dict_set_int(&codecopts, "slices", 24, 0);  // Use 24 slices
@@ -910,14 +949,41 @@ void VideoWriter::initializeInternal()
         d->encPixFormat = AV_PIX_FMT_YUV420P;
     }
 
+    // Lossless recordings keep the full 0-255 value range of the source data instead of
+    // the limited "TV" range that video codecs use by default, so flag that in the stream.
+    if (d->codecProps.isLossless() && d->encPixFormat != d->inputPixFormat)
+        d->cctx->color_range = AVCOL_RANGE_JPEG;
+
     // open video encoder
     ret = avcodec_open2(d->cctx, vcodec, &codecopts);
     if (ret < 0) {
         finalizeInternal(false);
         av_dict_free(&codecopts);
+        if (wantSvtAv1Lossless)
+            throw std::runtime_error(
+                std::format(
+                    "Failed to open the AV1 video encoder for lossless recording: {}. Lossless AV1 encoding "
+                    "requires SVT-AV1 3.0 or newer - if this system provides an older version, please disable "
+                    "the lossless option or select the FFV1 codec for lossless recordings.",
+                    averrorToString(ret)));
         throw std::runtime_error(
             std::format("Failed to open video encoder with the current parameters: {}", averrorToString(ret)));
     }
+
+    // Any option left in the dictionary was not understood by the encoder and was silently
+    // dropped. That is always a bug on our side, so make it visible instead of letting the
+    // user believe a setting was applied.
+    if (codecopts != nullptr) {
+        std::string unusedOpts;
+        const AVDictionaryEntry *entry = nullptr;
+        while ((entry = av_dict_get(codecopts, "", entry, AV_DICT_IGNORE_SUFFIX)) != nullptr) {
+            if (!unusedOpts.empty())
+                unusedOpts += ", ";
+            unusedOpts += std::format("{}={}", entry->key, entry->value);
+        }
+        LOG_WARNING(d->log, "Video encoder {} ignored codec option(s): {}", vcodec->name, unusedOpts);
+    }
+    av_dict_free(&codecopts);
 
     // stream codec parameters must be set after opening the encoder
     avcodec_parameters_from_context(d->vstrm->codecpar, d->cctx);
@@ -942,8 +1008,40 @@ void VideoWriter::initializeInternal()
         throw std::runtime_error("Failed to initialize sample scaler.");
     }
 
+    // If we convert between color spaces for a lossless recording, we must not let the
+    // scaler compress our full-range input data into the limited "TV" range - that would
+    // silently throw away information before the encoder ever gets to see it.
+    // The encoder was already told to flag its output as full-range above.
+    if (d->codecProps.isLossless() && d->encPixFormat != d->inputPixFormat) {
+        int *invTable, *table;
+        int srcRange, dstRange, brightness, contrast, saturation;
+
+        if (sws_getColorspaceDetails(
+                d->swsctx,
+                &invTable,
+                &srcRange,
+                &table,
+                &dstRange,
+                &brightness,
+                &contrast,
+                &saturation)
+            >= 0) {
+            if (sws_setColorspaceDetails(d->swsctx, invTable, 1, table, 1, brightness, contrast, saturation) < 0)
+                LOG_WARNING(
+                    d->log,
+                    "Unable to select full color range for lossless encoding: The recorded data may not be "
+                    "bit-exact.");
+        }
+    }
+
     // allocate frame buffer for encoding
     d->encFrame = vw_alloc_frame(d->encPixFormat, d->width, d->height, true);
+
+    // Old-style encoders like MPEG-4 take their fixed quantizer from the frame rather than
+    // from the codec context. We reuse the same frame for every picture, so setting this once
+    // is enough.
+    if (d->cctx->flags & AV_CODEC_FLAG_QSCALE)
+        d->encFrame->quality = d->cctx->global_quality;
 
     // allocate input buffer for color conversion
     d->inputFrame = vw_alloc_frame(d->inputPixFormat, d->width, d->height, false);

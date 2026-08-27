@@ -90,6 +90,8 @@ private slots:
     void on_radioButtonBitrate_toggled(bool checked);
 
 private:
+    void updateLosslessUiState();
+
     Ui::RecorderSettingsDialog *ui;
 
     QString m_videoName;

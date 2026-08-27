@@ -394,7 +394,9 @@ public:
 
                 MetaStringMap encInfo;
                 encInfo["name"] = m_videoWriter->selectedEncoderName().toStdString();
-                encInfo["lossless"] = m_activeCodecProps.isLossless();
+                // NOTE: We read the lossless flag back from the writer, as it may have adjusted
+                // the setting to match what the selected encoder is actually capable of.
+                encInfo["lossless"] = m_videoWriter->codecProps().isLossless();
                 encInfo["thread_count"] = m_activeCodecProps.threadCount();
                 if (m_activeCodecProps.useVaapi())
                     encInfo["vaapi_enabled"] = true;
