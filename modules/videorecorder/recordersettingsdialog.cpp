@@ -73,6 +73,11 @@ RecorderSettingsDialog::RecorderSettingsDialog(QWidget *parent)
     ui->deferredParallelCountSpinBox->setMinimum(1);
     const auto defaultDeferredTasks = QThread::idealThreadCount() - 2;
     ui->deferredParallelCountSpinBox->setValue((defaultDeferredTasks >= 2) ? defaultDeferredTasks : 2);
+
+    // Render the initial codec properties, now that every control exists. Without this the
+    // widgets keep whatever the .ui file set until the user picks a different codec, which
+    // leaves the lossless checkbox editable for codecs that are always lossless.
+    setCodecProps(m_codecProps);
 }
 
 RecorderSettingsDialog::~RecorderSettingsDialog()
@@ -277,11 +282,6 @@ void RecorderSettingsDialog::on_nameLineEdit_textChanged(const QString &arg1)
 
 void RecorderSettingsDialog::on_codecComboBox_currentIndexChanged(int)
 {
-    // reset state of lossless infobox
-    ui->losslessCheckBox->setEnabled(true);
-    ui->losslessCheckBox->setChecked(true);
-    ui->containerComboBox->setEnabled(true);
-
     const auto codec = ui->codecComboBox->currentData().value<VideoCodec>();
     if (codec == m_codecProps.codec())
         return;

@@ -109,6 +109,7 @@ public:
 
     LosslessMode losslessMode() const;
     bool isLossless() const;
+    /// Codecs that are Always/Never lossless keep their fixed value, only Option honors @p enabled.
     void setLossless(bool enabled);
 
     bool canUseVaapi() const;

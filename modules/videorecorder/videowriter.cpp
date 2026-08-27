@@ -330,7 +330,19 @@ bool CodecProperties::isLossless() const
 
 void CodecProperties::setLossless(bool enabled)
 {
-    d->lossless = enabled;
+    // Whether a codec can be lossless is a property of the codec itself, so codecs that are
+    // always (or never) lossless keep their fixed value no matter what we are asked for here.
+    switch (d->losslessMode) {
+    case Always:
+        d->lossless = true;
+        break;
+    case Never:
+        d->lossless = false;
+        break;
+    case Option:
+        d->lossless = enabled;
+        break;
+    }
 }
 
 bool CodecProperties::canUseVaapi() const
