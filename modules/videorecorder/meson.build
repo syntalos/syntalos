@@ -85,6 +85,9 @@ install_data(
 foreach fname : module_data
     fs.copyfile(fname)
 endforeach
+
+subdir('tests')
+
 module_hdr = []
 module_src = []
 module_moc_hdr = []
