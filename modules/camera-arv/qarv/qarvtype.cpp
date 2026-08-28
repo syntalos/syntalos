@@ -30,10 +30,19 @@ QArvEditor::QArvEditor(QWidget* parent) : QWidget(parent) {
     setAutoFillBackground(true);
 }
 
-QArvEnumeration::QArvEnumeration() : values(), isAvailable(), currentValue(-1) {}
+QArvEnumeration::QArvEnumeration() :
+    names(), values(), isAvailable(), currentValue(-1) {}
+
+// The three lists are filled in lockstep, but a camera may describe an
+// enumeration that leaves them empty or out of sync, so never index past the
+// shortest of them.
+int QArvEnumeration::entryCount() const {
+    return qMin(names.size(), qMin(values.size(), isAvailable.size()));
+}
 
 QArvEnumeration::operator QString() const {
-    return currentValue >= 0 ? names[currentValue] : QString();
+    return currentValue >= 0 && currentValue < entryCount()
+           ? names.at(currentValue) : QString();
 }
 
 static void squeezeLeft(QLayout* layout) {
@@ -63,7 +72,8 @@ void QArvEnumeration::populateEditor(QWidget* editor) const {
     }
     select->clear();
     int choose = 0;
-    for (int i = 0; i < names.size(); i++) {
+    const int count = entryCount();
+    for (int i = 0; i < count; i++) {
         if (isAvailable.at(i)) {
             select->addItem(names.at(i), QVariant::fromValue(values.at(i)));
             if (i < currentValue) choose++;

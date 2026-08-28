@@ -78,6 +78,8 @@ struct QArvEnumeration : QArvType {
     QList<bool> isAvailable;
     int currentValue;
     QArvEnumeration();
+    //! Number of entries that are described completely, see the definition.
+    int entryCount() const;
     operator QString()  const override;
     QArvEditor* createEditor(QWidget* parent) const override;
     void populateEditor(QWidget* editor) const override;
