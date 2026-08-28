@@ -487,19 +487,19 @@ void ScaleTransform::createSettingsUi(QWidget *parent)
 
 MetaSize ScaleTransform::resultSize()
 {
-    return {
-        static_cast<int>(std::round(m_originalSize.width * m_scaleFactor)),
-        static_cast<int>(std::round(m_originalSize.height * m_scaleFactor))};
+    const int width = std::max(2, static_cast<int>(std::round(m_originalSize.width * m_scaleFactor)));
+    const int height = std::max(2, static_cast<int>(std::round(m_originalSize.height * m_scaleFactor)));
+    return {width - width % 2, height - height % 2};
 }
 
 void ScaleTransform::process(cv::Mat &image)
 {
-    // Only process if scale factor is not 1.0 to avoid unnecessary work
-    if (std::abs(m_scaleFactor - 1.0) < 1e-6)
+    const auto size = resultSize();
+    if (image.cols == size.width && image.rows == size.height)
         return;
 
     cv::Mat outMat;
-    cv::resize(image, outMat, cv::Size(), m_scaleFactor, m_scaleFactor, cv::INTER_LINEAR);
+    cv::resize(image, outMat, cv::Size(size.width, size.height), 0, 0, cv::INTER_LINEAR);
     image = outMat;
 }
 
