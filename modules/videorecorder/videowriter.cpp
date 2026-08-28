@@ -880,13 +880,12 @@ void VideoWriter::initializeInternal()
         if (d->encPixFormat == AV_PIX_FMT_BGR24 && !d->codecProps.exactColors())
             d->encPixFormat = AV_PIX_FMT_YUV420P;
 
-        // Matroska is more restrictive than AVI here: it can not store raw RGB at all
-        // (the muxer refuses the stream), and does not handle 16-bit gray either.
+        // FFmpeg's Matroska VFW fallback can store raw 16-bit gray bytes, but it can not
+        // identify them as grayscale and reads them back as RGB555. Raw BGR24 is enabled
+        // explicitly through that fallback when writing the container header below.
         if (d->container == VideoContainer::Matroska) {
             if (d->encPixFormat == AV_PIX_FMT_GRAY16LE || d->encPixFormat == AV_PIX_FMT_GRAY16BE)
                 d->encPixFormat = AV_PIX_FMT_GRAY8;
-            else if (d->encPixFormat == AV_PIX_FMT_BGR24)
-                d->encPixFormat = AV_PIX_FMT_YUV420P;
         }
     }
 
@@ -1195,7 +1194,12 @@ void VideoWriter::initializeInternal()
     d->octx->metadata = metadataDict;
 
     // write format header, after this we are ready to encode frames
-    ret = avformat_write_header(d->octx, nullptr);
+    AVDictionary *formatOpts = nullptr;
+    if (d->container == VideoContainer::Matroska && d->codecProps.codec() == VideoCodec::Raw
+        && d->encPixFormat == AV_PIX_FMT_BGR24)
+        av_dict_set(&formatOpts, "allow_raw_vfw", "1", 0);
+    ret = avformat_write_header(d->octx, &formatOpts);
+    av_dict_free(&formatOpts);
     if (ret < 0) {
         (void)finalizeInternal(false);
         throw std::runtime_error(std::format("Failed to write format header: {}", averrorToString(ret)));
@@ -1807,9 +1811,9 @@ void VideoWriter::setContainer(VideoContainer container)
 
 bool videoCodecCanStoreExactColors(VideoCodec codec, VideoContainer container)
 {
-    // "Raw" simply stores the frames as they arrive, but Matroska refuses raw RGB streams
+    // "Raw" simply stores the frames as they arrive. Matroska uses VFW compatibility mode.
     if (codec == VideoCodec::Raw)
-        return container != VideoContainer::Matroska;
+        return container == VideoContainer::Matroska || container == VideoContainer::AVI;
 
     const auto *vcodec = vw_find_sw_encoder(codec);
     if (vcodec == nullptr)
