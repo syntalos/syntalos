@@ -22,6 +22,23 @@ test('sy-test-basic',
 )
 
 #
+# Frame Buffer Recycling Test
+#
+test_frame_recycling_exe = executable('test-frame-recycling',
+    'test-frame-recycling.cpp',
+    dependencies: [
+        syntalos_datactl_dep,
+        opencv_dep,
+        thread_dep,
+    ]
+)
+test('sy-test-frame-recycling',
+    test_frame_recycling_exe,
+    env: test_env,
+    is_parallel: true,
+)
+
+#
 # Basic Stream Performance Test
 #
 test_streamperf_moc_src = ['test-streamperf.cpp']
