@@ -106,6 +106,15 @@ module_args = [
     '-Wno-missing-declarations',
 ]
 
+# The Mono10/12/14 unpack loops in qarv/decoders/monounpacked.h are the only hot scalar
+# pixel loops we compile ourselves: everything else expensive in this module runs inside
+# OpenCV or libswscale. GCC refuses to vectorize them at -O2, where the very-cheap cost
+# model rejects any loop with a runtime trip count, and that costs an order of magnitude
+# (482 vs 38 microseconds per 1920x1080 Mono12 frame on x86-64-v3). -O3 benefits us here.
+if get_option('optimization') in ['2', '3', 'plain']
+    module_args += '-O3'
+endif
+
 # Install udev rules to make GenICam cameras readable for normal users
 install_data('70-syntalos-cameras.rules',
     install_dir: join_paths(udevdir, 'rules.d')
