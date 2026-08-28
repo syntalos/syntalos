@@ -234,7 +234,9 @@ std::optional<cv::Mat> VideoReader::frameToCVImage(AVFrame *frame)
         dstFormat = srcFormat;
         cvMatType = CV_8UC1;
     } else if (srcFormat == AV_PIX_FMT_GRAY16LE || srcFormat == AV_PIX_FMT_GRAY16BE) {
-        dstFormat = srcFormat;
+        // OpenCV's 16-bit matrices contain native-endian samples. Convert here instead
+        // of exposing big-endian frame bytes as byte-swapped CV_16U values.
+        dstFormat = AV_PIX_FMT_GRAY16;
         cvMatType = CV_16UC1;
     } else {
         dstFormat = AV_PIX_FMT_BGR24;
