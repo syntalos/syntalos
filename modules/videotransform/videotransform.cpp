@@ -402,10 +402,14 @@ void CropTransform::checkAndUpdateRoi()
     // frames with odd dimensions, so never hand a cropped size on that we can not record.
     m_roi.width -= m_roi.width % 2;
     m_roi.height -= m_roi.height % 2;
-    if (m_roi.width < 2)
-        m_roi.width = std::min(2, m_originalSize.width);
-    if (m_roi.height < 2)
-        m_roi.height = std::min(2, m_originalSize.height);
+    if (m_roi.width < 2) {
+        m_roi.x = std::min(m_roi.x, std::max(0, m_originalSize.width - 2));
+        m_roi.width = std::min(2, m_originalSize.width - m_roi.x);
+    }
+    if (m_roi.height < 2) {
+        m_roi.y = std::min(m_roi.y, std::max(0, m_originalSize.height - 2));
+        m_roi.height = std::min(2, m_originalSize.height - m_roi.y);
+    }
 
     // give user some info as to what we are actually doing, if the GUI is set up
     if (m_sizeInfoLabel != nullptr) {
