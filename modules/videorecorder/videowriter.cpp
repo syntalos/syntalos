@@ -1391,10 +1391,17 @@ void VideoWriter::initialize(
     if (hasColor) {
         d->inputPixFormat = AV_PIX_FMT_BGR24;
     } else {
-        if (imgDepth == CV_16U || imgDepth == CV_16S)
+        if (imgDepth == CV_16U || imgDepth == CV_16S) {
             d->inputPixFormat = AV_PIX_FMT_GRAY16LE;
-        else
+            if (imgDepth == CV_16S)
+                LOG_WARNING(
+                    d->log,
+                    "Signed 16-bit grayscale input is stored as unsigned GRAY16. Negative samples will be "
+                    "interpreted as large positive intensities when the video is decoded; use CV_16U input "
+                    "when numeric values must be preserved.");
+        } else {
             d->inputPixFormat = AV_PIX_FMT_GRAY8;
+        }
     }
 
     d->modName = modName;
