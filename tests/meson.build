@@ -119,7 +119,6 @@ test_manifests = [
     'scenarios/latencycheck-smoketest.toml',
     'scenarios/prism-smoketest.toml',
     'scenarios/video-transform-crop.toml',
-    'scenarios/aravis-fake-frame-ownership.toml',
     'scenarios/ipc-test-pycpp-mods.toml',
     'scenarios/ipc-test-pycpp-scripts.toml',
     'scenarios/ipc-test-simple.toml',

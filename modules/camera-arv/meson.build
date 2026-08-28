@@ -111,6 +111,10 @@ install_data('70-syntalos-cameras.rules',
     install_dir: join_paths(udevdir, 'rules.d')
 )
 
+# Unit tests for this module. This has to stay above the generic setup block below,
+# as update-symod-meson.py replaces everything after its sentinel comment.
+subdir('tests')
+
 #
 # Generic module setup
 #
