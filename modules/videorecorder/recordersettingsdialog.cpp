@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -21,6 +21,7 @@
 #include "ui_recordersettingsdialog.h"
 
 #include <QMessageBox>
+#include <QSignalBlocker>
 #include <QThread>
 #include <QVariant>
 
@@ -183,6 +184,8 @@ void RecorderSettingsDialog::setCodecProps(CodecProperties props)
     // other properties
     ui->losslessCheckBox->setChecked(m_codecProps.isLossless());
     updateLosslessUiState();
+    ui->exactColorsCheckBox->setChecked(m_codecProps.exactColors());
+    updateExactColorsUiState();
 
     ui->brqWidget->setDisabled(ui->losslessCheckBox->isChecked());
 
@@ -320,6 +323,100 @@ void RecorderSettingsDialog::on_losslessCheckBox_toggled(bool checked)
 {
     m_codecProps.setLossless(checked);
     ui->brqWidget->setDisabled(checked);
+
+    // Exact colors are only worth their size and speed penalty when the rest of the
+    // recording is lossless too, so follow that setting by default. The user can still
+    // override the result afterwards.
+    ui->exactColorsCheckBox->setChecked(m_codecProps.isLossless());
+    updateExactColorsUiState();
+}
+
+void RecorderSettingsDialog::on_exactColorsCheckBox_toggled(bool checked)
+{
+    m_codecProps.setExactColors(checked);
+    updateExactColorsUiState();
+}
+
+void RecorderSettingsDialog::on_containerComboBox_currentIndexChanged(int index)
+{
+    Q_UNUSED(index)
+    // whether raw RGB frames can be stored depends on the container
+    updateExactColorsUiState();
+}
+
+void RecorderSettingsDialog::updateExactColorsUiState()
+{
+    const bool supported = m_codecProps.isLossless() && !m_codecProps.useVaapi()
+                           && videoCodecCanStoreExactColors(m_codecProps.codec(), videoContainer());
+
+    ui->exactColorsCheckBox->setEnabled(supported);
+    ui->exactColorsLabel->setEnabled(supported);
+
+    // Show what the recording will actually do: a combination that can not store exact
+    // colors must not display a ticked box. The preference itself is left untouched, so
+    // it comes back when the user selects a codec or container that supports it again.
+    const bool effective = supported && m_codecProps.exactColors();
+    if (ui->exactColorsCheckBox->isChecked() != effective) {
+        const QSignalBlocker blocker(ui->exactColorsCheckBox);
+        ui->exactColorsCheckBox->setChecked(effective);
+    }
+
+    ui->exactColorsCheckBox->setToolTip(exactColorsSummary());
+}
+
+QString RecorderSettingsDialog::exactColorsSummary() const
+{
+    // VA-API rules out lossless encoding as well, so name it first - it is the setting
+    // the user has to change to get exact colors back
+    if (m_codecProps.useVaapi())
+        return QStringLiteral(
+            "Hardware encoders always convert color frames to YUV 4:2:0, which loses color "
+            "detail. Disable VA-API acceleration to store colors exactly.");
+
+    if (!m_codecProps.isLossless())
+        return QStringLiteral(
+            "Lossy compression discards color information no matter how the frames are stored, "
+            "so exact colors are only available for lossless recordings.");
+
+    if (!videoCodecCanStoreExactColors(m_codecProps.codec(), videoContainer())) {
+        if (m_codecProps.codec() == VideoCodec::Raw)
+            return QStringLiteral(
+                "The Matroska container can not store raw RGB frames. Select the AVI container "
+                "to keep colors exact, or use the FFV1 codec.");
+        return QStringLiteral(
+                   "%1 can not store colors exactly, frames are converted to YUV 4:2:0. Use the FFV1 "
+                   "codec for bit-exact color recordings.")
+            .arg(QString::fromStdString(videoCodecToString(m_codecProps.codec())));
+    }
+
+    if (m_codecProps.exactColors())
+        return QStringLiteral(
+            "Color frames are stored as RGB and are preserved bit-exactly. This roughly doubles "
+            "the file size and needs about 40% more CPU time.");
+    return QStringLiteral(
+        "Color frames are converted to YUV 4:2:0: smaller files and faster encoding, but color "
+        "detail is lost permanently.");
+}
+
+void RecorderSettingsDialog::on_exactColorsInfoButton_clicked()
+{
+    QMessageBox::information(
+        this,
+        QStringLiteral("Information on exact colors"),
+        QStringLiteral(
+            "<html>"
+            "Video codecs usually store colors as brightness plus two color channels, and keep only a quarter of "
+            "the color samples (&quot;YUV 4:2:0&quot;). That is hard to see, but it permanently discards color "
+            "information, so a recording is never an exact copy of the camera frames &ndash; not even when a "
+            "lossless codec is used.<br/><br/>"
+            "With this option enabled, color frames are stored as RGB instead and every pixel is preserved "
+            "exactly. In exchange, the files are roughly twice as large and encoding needs about 40&#37; more CPU "
+            "time, which matters when recording at a high resolution or framerate.<br/><br/>"
+            "This setting has no effect on grayscale recordings, as those are never subsampled. Not every codec "
+            "can store colors exactly: <b>FFV1</b> is the recommended choice, VP9 and HEVC are able to do it as "
+            "well.<br/><br/>"
+            "<b>Currently:</b> %1")
+            .arg(exactColorsSummary()));
 }
 
 void RecorderSettingsDialog::on_vaapiCheckBox_toggled(bool checked)
@@ -335,6 +432,7 @@ void RecorderSettingsDialog::on_vaapiCheckBox_toggled(bool checked)
         m_codecProps.setUseVaapi(checked);
 
     updateLosslessUiState();
+    updateExactColorsUiState();
 }
 
 void RecorderSettingsDialog::on_renderNodeComboBox_currentIndexChanged(int index)

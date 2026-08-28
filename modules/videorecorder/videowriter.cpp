@@ -121,6 +121,121 @@ VideoContainer stringToVideoContainer(const std::string &str)
     return VideoContainer::Unknown;
 }
 
+static AVCodecID vw_codec_id_for(VideoCodec codec)
+{
+    switch (codec) {
+    case VideoCodec::Raw:
+        return AV_CODEC_ID_RAWVIDEO;
+    case VideoCodec::FFV1:
+        return AV_CODEC_ID_FFV1;
+    case VideoCodec::AV1:
+        return AV_CODEC_ID_AV1;
+    case VideoCodec::VP9:
+        return AV_CODEC_ID_VP9;
+    case VideoCodec::MPEG4:
+        return AV_CODEC_ID_MPEG4;
+    case VideoCodec::H264:
+        return AV_CODEC_ID_H264;
+    case VideoCodec::HEVC:
+        return AV_CODEC_ID_HEVC;
+    default:
+        return AV_CODEC_ID_FFV1;
+    }
+}
+
+/**
+ * Find the software encoder that we use for the given codec.
+ *
+ * We only use SVT-AV1 for AV1 encoding, because it is much faster and even
+ * produced better quality images while encoding live (aom-av1 is not really
+ * suitable for live encoding tasks).
+ */
+static const AVCodec *vw_find_sw_encoder(VideoCodec codec)
+{
+    const auto codecId = vw_codec_id_for(codec);
+    if (codecId == AV_CODEC_ID_AV1)
+        return avcodec_find_encoder_by_name("libsvtav1");
+    return avcodec_find_encoder(codecId);
+}
+
+/**
+ * Retrieve the list of pixel formats an encoder accepts, or NULL if it takes anything.
+ */
+static const enum AVPixelFormat *vw_encoder_pixfmts(const AVCodec *vcodec, const AVCodecContext *cctx)
+{
+    if (vcodec == nullptr)
+        return nullptr;
+
+    const enum AVPixelFormat *fmts = nullptr;
+#if LIBAVCODEC_VERSION_INT > AV_VERSION_INT(61, 13, 100)
+    if (avcodec_get_supported_config(cctx, vcodec, AV_CODEC_CONFIG_PIX_FORMAT, 0, (const void **)&fmts, nullptr) < 0)
+        return nullptr;
+#else
+    fmts = vcodec->pix_fmts;
+#endif
+    return fmts;
+}
+
+/**
+ * Check whether every value of @p from survives a conversion to @p to.
+ */
+static bool vw_pixfmt_conversion_is_lossless(AVPixelFormat from, AVPixelFormat to)
+{
+    if (from == to)
+        return true;
+
+    const auto *fromDesc = av_pix_fmt_desc_get(from);
+    const auto *toDesc = av_pix_fmt_desc_get(to);
+    if (fromDesc == nullptr || toDesc == nullptr)
+        return false;
+
+    // converting between the RGB and YUV color models always rounds
+    const bool fromRgb = (fromDesc->flags & AV_PIX_FMT_FLAG_RGB) != 0;
+    const bool toRgb = (toDesc->flags & AV_PIX_FMT_FLAG_RGB) != 0;
+    if (fromRgb != toRgb)
+        return false;
+
+    // we must neither subsample any plane nor lose bit depth or components
+    return toDesc->log2_chroma_w == fromDesc->log2_chroma_w && toDesc->log2_chroma_h == fromDesc->log2_chroma_h
+           && toDesc->comp[0].depth >= fromDesc->comp[0].depth && toDesc->nb_components >= fromDesc->nb_components;
+}
+
+/**
+ * Check whether an encoder accepts the given pixel format.
+ * A NULL format list means the encoder takes anything (e.g. rawvideo).
+ */
+static bool vw_encoder_supports_pixfmt(const enum AVPixelFormat *fmts, AVPixelFormat fmt)
+{
+    if (fmts == nullptr)
+        return true;
+    for (int i = 0; fmts[i] != AV_PIX_FMT_NONE; i++) {
+        if (fmts[i] == fmt)
+            return true;
+    }
+    return false;
+}
+
+/**
+ * Pick the best RGB pixel format an encoder accepts, so color frames can be stored
+ * without a lossy conversion. Returns AV_PIX_FMT_NONE if the encoder has none.
+ */
+static AVPixelFormat vw_select_rgb_pixfmt(const enum AVPixelFormat *fmts)
+{
+    // ordered by preference: packed without an alpha plane first, then planar RGB
+    static const AVPixelFormat candidates[] = {
+        AV_PIX_FMT_BGR0,
+        AV_PIX_FMT_GBRP,
+        AV_PIX_FMT_BGR24,
+        AV_PIX_FMT_BGRA,
+    };
+
+    for (const auto fmt : candidates) {
+        if (vw_encoder_supports_pixfmt(fmts, fmt))
+            return fmt;
+    }
+    return AV_PIX_FMT_NONE;
+}
+
 static std::string averrorToString(int err)
 {
     char errbuf[AV_ERROR_MAX_STRING_SIZE + 16] = {0};
@@ -138,6 +253,7 @@ public:
     LosslessMode losslessMode;
     EncoderMode mode;
     bool lossless;
+    bool exactColors;
 
     int threadCount;
     bool canUseVaapi;
@@ -247,6 +363,10 @@ CodecProperties::CodecProperties(VideoCodec codec)
                                      .arg(QString::fromStdString(videoCodecToString(codec)))
                                      .toStdString());
     }
+
+    // by default we only pay the size and CPU cost of exact colors when the user asked
+    // for a lossless recording anyway
+    d->exactColors = d->lossless;
 }
 
 CodecProperties::CodecProperties(const QVariantHash &v)
@@ -256,6 +376,7 @@ CodecProperties::CodecProperties(const QVariantHash &v)
 
     setBitrateKbps(v["bitrate"].toInt());
     setLossless(v["lossless"].toBool());
+    setExactColors(v.value("exact-colors", isLossless()).toBool());
     setUseVaapi(v["use-vaapi"].toBool());
     setMode(static_cast<EncoderMode>(v["mode"].toInt()));
     setQuality(v["quality"].toInt());
@@ -269,6 +390,7 @@ QVariantHash CodecProperties::toVariant() const
     v["bitrate"] = QVariant::fromValue(d->bitrate);
     v["codec"] = QVariant::fromValue(static_cast<int>(d->codec));
     v["lossless"] = QVariant::fromValue(d->lossless);
+    v["exact-colors"] = QVariant::fromValue(d->exactColors);
     v["use-vaapi"] = QVariant::fromValue(d->useVaapi);
     v["mode"] = QVariant::fromValue(static_cast<int>(d->mode));
     v["quality"] = QVariant::fromValue(d->quality);
@@ -343,6 +465,16 @@ void CodecProperties::setLossless(bool enabled)
         d->lossless = enabled;
         break;
     }
+}
+
+bool CodecProperties::exactColors() const
+{
+    return d->exactColors;
+}
+
+void CodecProperties::setExactColors(bool enabled)
+{
+    d->exactColors = enabled;
 }
 
 bool CodecProperties::canUseVaapi() const
@@ -657,32 +789,7 @@ void VideoWriter::initializeInternal()
     }
 
     auto codecId = AV_CODEC_ID_AV1;
-    switch (d->codecProps.codec()) {
-    case VideoCodec::Raw:
-        codecId = AV_CODEC_ID_RAWVIDEO;
-        break;
-    case VideoCodec::FFV1:
-        codecId = AV_CODEC_ID_FFV1;
-        break;
-    case VideoCodec::AV1:
-        codecId = AV_CODEC_ID_AV1;
-        break;
-    case VideoCodec::VP9:
-        codecId = AV_CODEC_ID_VP9;
-        break;
-    case VideoCodec::MPEG4:
-        codecId = AV_CODEC_ID_MPEG4;
-        break;
-    case VideoCodec::H264:
-        codecId = AV_CODEC_ID_H264;
-        break;
-    case VideoCodec::HEVC:
-        codecId = AV_CODEC_ID_HEVC;
-        break;
-    default:
-        codecId = AV_CODEC_ID_FFV1;
-        break;
-    }
+    codecId = vw_codec_id_for(d->codecProps.codec());
 
     // sanity check to only try VAAPI codecs if we have whitelisted them
     if (d->codecProps.useVaapi()) {
@@ -712,14 +819,8 @@ void VideoWriter::initializeInternal()
                                          .arg(videoCodecToString(d->codecProps.codec()).c_str())
                                          .toStdString());
     } else {
-        // No hardware acceleration, select software encoder
-        // We only use SVT-AV1 for AV1 encoding, because it is much faster and even
-        // produced better quality images while encoding live (aom-av1 is not really
-        // suitable for live encoding tasks)
-        if (codecId == AV_CODEC_ID_AV1)
-            vcodec = avcodec_find_encoder_by_name("libsvtav1");
-        else
-            vcodec = avcodec_find_encoder(codecId);
+        // no hardware acceleration, select software encoder
+        vcodec = vw_find_sw_encoder(d->codecProps.codec());
     }
     if (vcodec == nullptr)
         throw std::runtime_error(
@@ -753,29 +854,11 @@ void VideoWriter::initializeInternal()
     d->cctx->framerate = d->fps;
     d->cctx->workaround_bugs = FF_BUG_AUTODETECT;
 
-    // select pixel format
-#if LIBAVCODEC_VERSION_INT > AV_VERSION_INT(61, 13, 100)
-    const enum AVPixelFormat *fmts = nullptr;
-    ret = avcodec_get_supported_config(d->cctx, nullptr, AV_CODEC_CONFIG_PIX_FORMAT, 0, (const void **)&fmts, nullptr);
-    if (ret < 0) {
-        LOG_WARNING(
-            d->log,
-            "Failed to get supported pixel formats for codec {}: {}",
-            vcodec->name,
-            averrorToString(ret));
-        d->encPixFormat = AV_PIX_FMT_YUV420P;
-    } else if (fmts == nullptr) {
-        // a NULL list means the codec supports every pixel format (e.g. rawvideo); use our
-        // default - for Raw this is overridden just below based on the input format.
-        d->encPixFormat = AV_PIX_FMT_YUV420P;
-    } else {
-        d->encPixFormat = fmts[0];
-    }
-#else
-    d->encPixFormat = AV_PIX_FMT_YUV420P;
-    if (vcodec->pix_fmts != nullptr)
-        d->encPixFormat = vcodec->pix_fmts[0];
-#endif
+    // select pixel format. A NULL list means the codec supports every pixel format
+    // (e.g. rawvideo); use our default then - for Raw this is overridden further below
+    // based on the input format.
+    const enum AVPixelFormat *fmts = vw_encoder_pixfmts(vcodec, d->cctx);
+    d->encPixFormat = (fmts == nullptr) ? AV_PIX_FMT_YUV420P : fmts[0];
 
     // We must set time_base on the stream as well, otherwise it will be set to default values for some container
     // formats. See https://projects.blender.org/blender/blender/commit/b2e067d98ccf43657404b917b13ad5275f1c96e2 for
@@ -786,15 +869,21 @@ void VideoWriter::initializeInternal()
         d->cctx->thread_count = d->codecProps.threadCount() > 16 ? 16 : d->codecProps.threadCount();
 
     if (d->codecProps.codec() == VideoCodec::Raw) {
-        d->encPixFormat = d->inputPixFormat == AV_PIX_FMT_GRAY8 || d->inputPixFormat == AV_PIX_FMT_GRAY16LE
-                                  || d->inputPixFormat == AV_PIX_FMT_GRAY16BE
-                              ? d->inputPixFormat
-                              : AV_PIX_FMT_YUV420P;
+        // this codec stores the frames as they came in, so keep their format
+        d->encPixFormat = d->inputPixFormat;
 
-        // MKV apparently doesn't handle 16-bit gray
-        if (d->container == VideoContainer::Matroska
-            && (d->encPixFormat == AV_PIX_FMT_GRAY16LE || d->encPixFormat == AV_PIX_FMT_GRAY16BE))
-            d->encPixFormat = AV_PIX_FMT_GRAY8;
+        // halving the size of color frames is the whole point of not preserving them exactly
+        if (d->encPixFormat == AV_PIX_FMT_BGR24 && !d->codecProps.exactColors())
+            d->encPixFormat = AV_PIX_FMT_YUV420P;
+
+        // Matroska is more restrictive than AVI here: it can not store raw RGB at all
+        // (the muxer refuses the stream), and does not handle 16-bit gray either.
+        if (d->container == VideoContainer::Matroska) {
+            if (d->encPixFormat == AV_PIX_FMT_GRAY16LE || d->encPixFormat == AV_PIX_FMT_GRAY16BE)
+                d->encPixFormat = AV_PIX_FMT_GRAY8;
+            else if (d->encPixFormat == AV_PIX_FMT_BGR24)
+                d->encPixFormat = AV_PIX_FMT_YUV420P;
+        }
     }
 
     if (d->octx->oformat->flags & AVFMT_GLOBALHEADER)
@@ -956,6 +1045,33 @@ void VideoWriter::initializeInternal()
         break;
     default:
         break;
+    }
+
+    // If exact colors were requested, store color frames in an RGB format instead of letting
+    // them be converted to YUV, which rounds every value and throws away half of the color
+    // resolution in the subsampled chroma planes. The "Raw" codec is handled above, as it
+    // simply keeps the input format and is restricted by the container instead.
+    if (d->codecProps.exactColors() && d->codecProps.isLossless() && d->inputPixFormat == AV_PIX_FMT_BGR24
+        && d->hwDevCtx == nullptr && d->codecProps.codec() != VideoCodec::Raw) {
+        const auto rgbFmt = vw_select_rgb_pixfmt(fmts);
+        if (rgbFmt != AV_PIX_FMT_NONE)
+            d->encPixFormat = rgbFmt;
+    }
+
+    // The encoder may not be able to store our frames in their original form - converting
+    // color frames to YUV rounds, subsampled chroma planes drop color detail, and a lower
+    // bit depth truncates. Say so rather than let a "lossless" recording quietly not be one.
+    if (d->codecProps.isLossless() && !vw_pixfmt_conversion_is_lossless(d->inputPixFormat, d->encPixFormat)) {
+        const auto *inDesc = av_pix_fmt_desc_get(d->inputPixFormat);
+        const auto *encDesc = av_pix_fmt_desc_get(d->encPixFormat);
+        LOG_WARNING(
+            d->log,
+            "Lossless encoding with {} into {} has to convert the frames from {} to {}, which can not represent "
+            "them exactly. Use the FFV1 codec in a Matroska container for bit-exact recordings.",
+            d->selectedEncoderName.toStdString(),
+            videoContainerToString(d->container),
+            inDesc == nullptr ? "an unknown format" : inDesc->name,
+            encDesc == nullptr ? "an unknown format" : encDesc->name);
     }
 
     // set pixel format to encoder pixel format, unless we are in
@@ -1615,6 +1731,12 @@ out:
     return success;
 }
 
+bool VideoWriter::hasExactColors() const
+{
+    // a lossy encoder quantizes the frames no matter which pixel format they are stored in
+    return d->codecProps.isLossless() && vw_pixfmt_conversion_is_lossless(d->inputPixFormat, d->encPixFormat);
+}
+
 CodecProperties VideoWriter::codecProps() const
 {
     return d->codecProps;
@@ -1676,6 +1798,19 @@ std::string VideoWriter::lastError() const
 void VideoWriter::setContainer(VideoContainer container)
 {
     d->container = container;
+}
+
+bool videoCodecCanStoreExactColors(VideoCodec codec, VideoContainer container)
+{
+    // "Raw" simply stores the frames as they arrive, but Matroska refuses raw RGB streams
+    if (codec == VideoCodec::Raw)
+        return container != VideoContainer::Matroska;
+
+    const auto *vcodec = vw_find_sw_encoder(codec);
+    if (vcodec == nullptr)
+        return false;
+
+    return vw_select_rgb_pixfmt(vw_encoder_pixfmts(vcodec, nullptr)) != AV_PIX_FMT_NONE;
 }
 
 QMap<QString, QString> findVideoRenderNodes()

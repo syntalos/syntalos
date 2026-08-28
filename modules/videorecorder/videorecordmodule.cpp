@@ -397,6 +397,8 @@ public:
                 // NOTE: We read the lossless flag back from the writer, as it may have adjusted
                 // the setting to match what the selected encoder is actually capable of.
                 encInfo["lossless"] = m_videoWriter->codecProps().isLossless();
+                if (useColor)
+                    encInfo["exact_colors"] = m_videoWriter->hasExactColors();
                 encInfo["thread_count"] = m_activeCodecProps.threadCount();
                 if (m_activeCodecProps.useVaapi())
                     encInfo["vaapi_enabled"] = true;
@@ -602,6 +604,7 @@ public:
         settings.insert("video_codec", static_cast<int>(codecProps.codec()));
         settings.insert("video_container", static_cast<int>(m_settingsDialog->videoContainer()));
         settings.insert("lossless", codecProps.isLossless());
+        settings.insert("exact_colors", codecProps.exactColors());
         settings.insert("vaapi_enabled", codecProps.useVaapi());
         settings.insert("bitrate_kbps", codecProps.bitrateKbps());
         settings.insert("quality", codecProps.quality());
@@ -623,6 +626,7 @@ public:
         CodecProperties codecProps(static_cast<VideoCodec>(settings.value("video_codec").toInt()));
         codecProps.setMode(CodecProperties::stringToMode(settings.value("mode").toString()));
         codecProps.setLossless(settings.value("lossless").toBool());
+        codecProps.setExactColors(settings.value("exact_colors", codecProps.isLossless()).toBool());
         codecProps.setUseVaapi(settings.value("vaapi_enabled").toBool());
         codecProps.setBitrateKbps(settings.value("bitrate_kbps", codecProps.bitrateKbps()).toInt());
         codecProps.setQuality(settings.value("quality", codecProps.quality()).toInt());

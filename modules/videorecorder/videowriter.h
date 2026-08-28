@@ -112,6 +112,16 @@ public:
     /// Codecs that are Always/Never lossless keep their fixed value, only Option honors @p enabled.
     void setLossless(bool enabled);
 
+    /**
+     * Whether color frames should be stored in an RGB format instead of being converted
+     * to subsampled YUV. This is required for bit-exact color, but produces bigger files
+     * and needs noticeably more CPU time. It only applies to lossless recordings, has no
+     * effect on grayscale ones, and not every codec and container combination can honor
+     * it - use VideoWriter::hasExactColors() to find out what a running recording actually does.
+     */
+    bool exactColors() const;
+    void setExactColors(bool enabled);
+
     bool canUseVaapi() const;
     bool useVaapi() const;
     void setUseVaapi(bool enabled);
@@ -143,6 +153,13 @@ private:
 };
 
 QMap<QString, QString> findVideoRenderNodes();
+
+/**
+ * Check whether color frames can be stored without a lossy color conversion when using
+ * the given codec and container, i.e. whether CodecProperties::exactColors() has any
+ * effect on the resulting recording.
+ */
+bool videoCodecCanStoreExactColors(VideoCodec codec, VideoContainer container);
 
 /**
  * @brief The VideoWriter class
@@ -181,6 +198,14 @@ public:
     void setTsyncFileCreationTimeOverride(const EdlDateTime &dt);
 
     bool encodeFrame(const cv::Mat &frame, const std::chrono::microseconds &timestamp);
+
+    /**
+     * Whether the frames are actually stored without any lossy pixel format conversion,
+     * i.e. whether this recording preserves the input frames bit-exactly. This may be
+     * false even when CodecProperties::exactColors() was requested, if the selected
+     * encoder or container can not store the frames in their original format.
+     */
+    bool hasExactColors() const;
 
     CodecProperties codecProps() const;
     void setCodec(VideoCodec codec);

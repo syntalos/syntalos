@@ -509,7 +509,7 @@
         <property name="fieldGrowthPolicy">
          <enum>QFormLayout::FieldGrowthPolicy::ExpandingFieldsGrow</enum>
         </property>
-        <item row="1" column="0">
+        <item row="2" column="0">
          <widget class="QLabel" name="vaapiLabel">
           <property name="text">
            <string>VA-API Acceleration</string>
@@ -519,7 +519,7 @@
           </property>
          </widget>
         </item>
-        <item row="1" column="1">
+        <item row="2" column="1">
          <widget class="QCheckBox" name="vaapiCheckBox">
           <property name="font">
            <font>
@@ -551,14 +551,85 @@
           </property>
          </widget>
         </item>
-        <item row="2" column="0">
+        <item row="1" column="0">
+         <widget class="QLabel" name="exactColorsLabel">
+          <property name="text">
+           <string>Exact Colors</string>
+          </property>
+          <property name="buddy">
+           <cstring>exactColorsCheckBox</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="1" column="1">
+         <layout class="QHBoxLayout" name="horizontalLayout_exactColors">
+          <property name="spacing">
+           <number>2</number>
+          </property>
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="QCheckBox" name="exactColorsCheckBox">
+            <property name="toolTip">
+             <string>Store color frames without converting them to subsampled YUV, so their colors are preserved exactly. Grayscale recordings are not affected by this setting.</string>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="exactColorsInfoButton">
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset theme="dialog-information"/>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>16</width>
+              <height>16</height>
+             </size>
+            </property>
+            <property name="flat">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_exactColors">
+            <property name="orientation">
+             <enum>Qt::Orientation::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </item>
+        <item row="3" column="0">
          <widget class="QLabel" name="renderNodeLabel">
           <property name="text">
            <string>Render Node</string>
           </property>
          </widget>
         </item>
-        <item row="2" column="1">
+        <item row="3" column="1">
          <widget class="QComboBox" name="renderNodeComboBox"/>
         </item>
        </layout>
@@ -717,6 +788,8 @@
   <tabstop>deferredInstantEncodeCheckBox</tabstop>
   <tabstop>deferredParallelCountSpinBox</tabstop>
   <tabstop>losslessCheckBox</tabstop>
+  <tabstop>exactColorsCheckBox</tabstop>
+  <tabstop>exactColorsInfoButton</tabstop>
   <tabstop>vaapiCheckBox</tabstop>
   <tabstop>qualitySlider</tabstop>
   <tabstop>bitrateSpinBox</tabstop>

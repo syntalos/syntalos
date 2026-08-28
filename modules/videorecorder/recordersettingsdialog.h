@@ -76,6 +76,9 @@ private slots:
     void on_nameLineEdit_textChanged(const QString &arg1);
     void on_nameFromSrcCheckBox_toggled(bool checked);
     void on_losslessCheckBox_toggled(bool checked);
+    void on_exactColorsCheckBox_toggled(bool checked);
+    void on_containerComboBox_currentIndexChanged(int index);
+    void on_exactColorsInfoButton_clicked();
     void on_vaapiCheckBox_toggled(bool checked);
     void on_renderNodeComboBox_currentIndexChanged(int index);
 
@@ -91,6 +94,8 @@ private slots:
 
 private:
     void updateLosslessUiState();
+    void updateExactColorsUiState();
+    QString exactColorsSummary() const;
 
     Ui::RecorderSettingsDialog *ui;
 
