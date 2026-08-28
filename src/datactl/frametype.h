@@ -47,8 +47,12 @@ namespace Syntalos
  */
 inline void matEnsureExclusive(cv::Mat &mat, int rows, int cols, int type)
 {
-    const bool canReuse = (mat.data != nullptr) && (mat.u != nullptr && mat.u->refcount == 1) && (mat.rows == rows)
-                          && (mat.cols == cols) && (mat.type() == type);
+    const bool sameLayout = (mat.data != nullptr) && (mat.u != nullptr) && (mat.rows == rows) && (mat.cols == cols)
+                            && (mat.type() == type);
+
+    // OpenCV changes this internal counter through CV_XADD. A zero delta gives us
+    // a compatible atomic read while subscriber threads concurrently release frames.
+    const bool canReuse = sameLayout && (CV_XADD(&mat.u->refcount, 0) == 1);
     if (!canReuse)
         mat = cv::Mat(rows, cols, type);
 }
