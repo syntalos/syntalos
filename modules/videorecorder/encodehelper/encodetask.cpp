@@ -277,6 +277,8 @@ void EncodeTask::run()
                 QVariantHash encInfo;
                 encInfo.insert("name", vwriter.selectedEncoderName());
                 encInfo.insert("lossless", vwriter.codecProps().isLossless());
+                if (useColor)
+                    encInfo.insert("exact_colors", vwriter.hasExactColors());
                 encInfo.insert("thread_count", vwriter.codecProps().threadCount());
                 if (vwriter.codecProps().useVaapi())
                     encInfo.insert("vaapi_enabled", true);
