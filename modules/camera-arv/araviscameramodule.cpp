@@ -170,6 +170,10 @@ public:
             nanoseconds_t sysOffsetToMaster{0};
             guint64 devOffsetToSysNs = 0;
             std::atomic_uint fpsWindowFrameCount{0};
+
+            // Buffer the decoder writes into, recycled between frames. Only ever touched
+            // from the Aravis frame callback, which Aravis runs single-threaded.
+            cv::Mat decodeBuf;
         };
         auto acqState = std::make_shared<AcqState>();
 
@@ -221,8 +225,25 @@ public:
 
             clockSync->processTimestamp(masterTime, nsecToUsec(nanoseconds_t(frameDevTimeNs)));
 
-            cv::Mat img;
-            m_decoder->decodeInto(QByteArrayView(data, static_cast<qsizetype>(size)), img);
+            // Hand the decoder a buffer we exclusively own, so it can recycle the previous
+            // frame's pixel memory instead of allocating a new block for every frame.
+            // While a subscriber is lagging behind it still holds the frames we published,
+            // and matEnsureExclusive() then hands out fresh memory to keep them intact.
+            auto &decodeBuf = acqState->decodeBuf;
+            const auto decoderCvType = m_decoder->cvType();
+            if (Q_UNLIKELY(decoderCvType < 0)) {
+                // the decoder picks its own output type, so we can not pre-size the buffer
+                // and just make sure it does not overwrite an already published frame
+                decodeBuf.release();
+            } else {
+                matEnsureExclusive(decodeBuf, m_expectedHeight, m_expectedWidth, decoderCvType);
+            }
+
+            m_decoder->decodeInto(QByteArrayView(data, static_cast<qsizetype>(size)), decodeBuf);
+
+            // shallow reference: the transforms below may rebind img to a differently shaped
+            // matrix (rotation), which must not cost us the recycled decode buffer
+            cv::Mat img = decodeBuf;
 
             // sanity check, because sometimes this camera doesn't adhere to the contract...
             if (Q_UNLIKELY(img.cols != m_expectedWidth || img.rows != m_expectedHeight)) {
