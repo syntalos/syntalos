@@ -880,13 +880,8 @@ void VideoWriter::initializeInternal()
         if (d->encPixFormat == AV_PIX_FMT_BGR24 && !d->codecProps.exactColors())
             d->encPixFormat = AV_PIX_FMT_YUV420P;
 
-        // FFmpeg's Matroska VFW fallback can store raw 16-bit gray bytes, but it can not
-        // identify them as grayscale and reads them back as RGB555. Raw BGR24 is enabled
-        // explicitly through that fallback when writing the container header below.
-        if (d->container == VideoContainer::Matroska) {
-            if (d->encPixFormat == AV_PIX_FMT_GRAY16LE || d->encPixFormat == AV_PIX_FMT_GRAY16BE)
-                d->encPixFormat = AV_PIX_FMT_GRAY8;
-        }
+        // Raw BGR24 and GRAY16 need explicit Matroska mappings; these are selected when
+        // writing the container header below.
     }
 
     if (d->octx->oformat->flags & AVFMT_GLOBALHEADER)
@@ -1194,11 +1189,31 @@ void VideoWriter::initializeInternal()
     d->octx->metadata = metadataDict;
 
     // write format header, after this we are ready to encode frames
+    const bool rawMatroska =
+        d->container == VideoContainer::Matroska && d->codecProps.codec() == VideoCodec::Raw;
+    const bool rawGray16 = rawMatroska
+                           && (d->encPixFormat == AV_PIX_FMT_GRAY16LE || d->encPixFormat == AV_PIX_FMT_GRAY16BE);
+
     AVDictionary *formatOpts = nullptr;
-    if (d->container == VideoContainer::Matroska && d->codecProps.codec() == VideoCodec::Raw
-        && d->encPixFormat == AV_PIX_FMT_BGR24)
+    if (rawMatroska && d->encPixFormat == AV_PIX_FMT_BGR24)
         av_dict_set(&formatOpts, "allow_raw_vfw", "1", 0);
-    ret = avformat_write_header(d->octx, &formatOpts);
+
+    if (rawGray16) {
+        // Matroska represents native raw video as V_UNCOMPRESSED and requires an
+        // UncompressedFourCC to identify its pixel packing. FFmpeg knows the GRAY16
+        // FourCC, but generic mux initialization clears rawvideo tags before the
+        // Matroska muxer sees them. Initialize first and restore the tag afterwards;
+        // the VFW fallback is not suitable because it reads 16-bit gray as RGB555.
+        ret = avformat_init_output(d->octx, nullptr);
+        if (ret >= 0)
+            d->vstrm->codecpar->codec_tag = avcodec_pix_fmt_to_codec_tag(d->encPixFormat);
+        if (ret >= 0 && d->vstrm->codecpar->codec_tag == 0)
+            ret = AVERROR(EINVAL);
+        if (ret >= 0)
+            ret = avformat_write_header(d->octx, nullptr);
+    } else {
+        ret = avformat_write_header(d->octx, &formatOpts);
+    }
     av_dict_free(&formatOpts);
     if (ret < 0) {
         (void)finalizeInternal(false);
