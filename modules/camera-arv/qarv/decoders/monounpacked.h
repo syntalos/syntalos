@@ -42,6 +42,11 @@ private:
     static const uint zeroBits = 8*sizeof(OutputType) - bitsPerPixel;
     static const uint signedShiftBits = bitsPerPixel - 1;
 
+    // True if the camera payload already has the exact layout of our output
+    // (Mono8 and Mono16), so that decoding is a plain copy.
+    static constexpr bool isPassthrough = !typeIsSigned && zeroBits == 0
+                                          && sizeof(InputType) == sizeof(OutputType);
+
 public:
     MonoUnpackedDecoder(QSize size_) :
         size(size_) {}
@@ -58,10 +63,23 @@ public:
     int cvType() override { return cvMatType; };
 
     void decodeInto(QByteArrayView frame, cv::Mat &output) override {
-        output.create(size.height(), size.width(), cvMatType);
         const InputType* dta =
             reinterpret_cast<const InputType*>(frame.constData());
         const int h = size.height(), w = size.width();
+
+        if constexpr (isPassthrough) {
+            // Nothing to unpack, so just copy the payload over. This is worth
+            // special-casing: the generic loop below is not vectorized at -O2, which
+            // makes it more than ten times slower for a full-size mono frame.
+            // Workaround: cv::Mat has no const data constructor, but the data is only
+            // read from here.
+            void* data =
+                const_cast<void*>(reinterpret_cast<const void*>(dta));
+            cv::Mat(h, w, cvMatType, data).copyTo(output);
+            return;
+        }
+
+        output.create(h, w, cvMatType);
         for (int i = 0; i < h; i++) {
             auto line = output.ptr<OutputType>(i);
             for (int j = 0; j < w; j++) {
