@@ -144,6 +144,7 @@ public:
             // deferred encoding is enabled, so we actually have to save a raw video file
             m_videoWriter->setContainer(VideoContainer::Matroska);
             CodecProperties cprops(VideoCodec::Raw);
+            cprops.setExactColors(codecProps.isLossless() && codecProps.exactColors());
             codecProps = cprops;
         }
         m_videoWriter->setCodecProps(codecProps);
