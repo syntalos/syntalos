@@ -1223,6 +1223,14 @@ void VideoWriter::initialize(
         throw std::runtime_error(QStringLiteral("Received invalid framerate: %1").arg(fps).toStdString());
     if (width < 64 || height < 64)
         throw std::runtime_error("Frame dimensions are to small: Need to be at least 64x64px for most decoders.");
+    if ((width % 2) != 0 || (height % 2) != 0)
+        throw std::runtime_error(QStringLiteral(
+                                     "Received odd frame dimensions: %1x%2px. Most video codecs subsample the color "
+                                     "planes by two and can not encode frames with an odd width or height, so please "
+                                     "adjust the frame size of the data source to be even in both dimensions.")
+                                     .arg(width)
+                                     .arg(height)
+                                     .toStdString());
 
     d->width = width;
     d->height = height;

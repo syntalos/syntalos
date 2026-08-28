@@ -398,6 +398,15 @@ void CropTransform::checkAndUpdateRoi()
     m_roi.width = std::max(1, std::min(m_roi.width, m_originalSize.width - m_roi.x));
     m_roi.height = std::max(1, std::min(m_roi.height, m_originalSize.height - m_roi.y));
 
+    // Most video codecs subsample the chroma planes by two and therefore can not encode
+    // frames with odd dimensions, so never hand a cropped size on that we can not record.
+    m_roi.width -= m_roi.width % 2;
+    m_roi.height -= m_roi.height % 2;
+    if (m_roi.width < 2)
+        m_roi.width = std::min(2, m_originalSize.width);
+    if (m_roi.height < 2)
+        m_roi.height = std::min(2, m_originalSize.height);
+
     // give user some info as to what we are actually doing, if the GUI is set up
     if (m_sizeInfoLabel != nullptr) {
         m_sizeInfoLabel->setText(QStringLiteral(
@@ -413,9 +422,11 @@ void CropTransform::checkAndUpdateRoi()
                                      .arg(m_originalSize.height));
 
         m_sbX->setRange(0, std::max(0, m_originalSize.width - m_roi.width));
-        m_sbWidth->setRange(1, std::max(1, m_originalSize.width - m_roi.x));
+        m_sbWidth->setRange(2, std::max(2, m_originalSize.width - m_roi.x));
         m_sbY->setRange(0, std::max(0, m_originalSize.height - m_roi.height));
-        m_sbHeight->setRange(1, std::max(1, m_originalSize.height - m_roi.y));
+        m_sbHeight->setRange(2, std::max(2, m_originalSize.height - m_roi.y));
+        m_sbWidth->setSingleStep(2);
+        m_sbHeight->setSingleStep(2);
 
         // Update spinboxes with the correct values - now they represent actual width/height, not end coordinates
         if (m_sbWidth->value() != m_roi.width) {
