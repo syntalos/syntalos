@@ -28,6 +28,31 @@
 
 namespace Syntalos
 {
+
+/**
+ * @brief Make @p mat an exclusively owned matrix of the given shape
+ *
+ * Reuses the existing pixel buffer if it already has the requested dimensions and type
+ * and we are its sole owner, otherwise a fresh buffer is allocated. This keeps a
+ * steady-state producer from allocating once per frame, while staying safe when a
+ * consumer lags behind: if the refcount is greater than one, subscriber queues still
+ * hold shallow copies of the previously published frame, and overwriting the buffer in
+ * place would corrupt them. Assigning a new matrix drops our reference instead, so
+ * those queued copies stay valid until their owners are done with them.
+ *
+ * Any producer that wants to recycle its output buffer must go through this.
+ * cv::Mat::create() alone is NOT sufficient: it keeps an existing buffer whenever the
+ * requested dimensions and type already match, no matter how many other references to
+ * it exist.
+ */
+inline void matEnsureExclusive(cv::Mat &mat, int rows, int cols, int type)
+{
+    const bool canReuse = (mat.data != nullptr) && (mat.u != nullptr && mat.u->refcount == 1) && (mat.rows == rows)
+                          && (mat.cols == cols) && (mat.type() == type);
+    if (!canReuse)
+        mat = cv::Mat(rows, cols, type);
+}
+
 /**
  * @brief A single frame of a video stream
  *
@@ -182,17 +207,9 @@ struct Frame final : BaseDataType {
         std::memcpy(&type, ptr + offset, sizeof(type));
         offset += sizeof(type);
 
-        // Reuse the existing cv::Mat pixel buffer when:
-        // - same dimensions and type (no reallocation needed), AND
-        // - refcount == 1, i.e. we are the sole owner.
-        // If refcount > 1 the subscriber queues still hold references to the
-        // previous frame's pixels.  Assigning a new cv::Mat decrements the old
-        // refcount (keeping their copies valid) and allocates a fresh buffer
-        // so we never overwrite data that is still in use downstream.
-        const bool canReuse = (frame.mat.data != nullptr) && (frame.mat.u != nullptr && frame.mat.u->refcount == 1)
-                              && (frame.mat.rows == height) && (frame.mat.cols == width) && (frame.mat.type() == type);
-        if (!canReuse)
-            frame.mat = cv::Mat(height, width, type);
+        // Reuse the existing cv::Mat pixel buffer if we are its sole owner, otherwise
+        // get a fresh one so we never overwrite data that is still queued downstream.
+        matEnsureExclusive(frame.mat, height, width, type);
 
         const size_t dataSize = frame.mat.elemSize() * static_cast<size_t>(width * height);
         std::memcpy(frame.mat.data, ptr + offset, dataSize);
