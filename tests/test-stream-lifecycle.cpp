@@ -66,6 +66,20 @@ private slots:
         stream.push(Frame(1));
         QCOMPARE(subscription->approxPendingCount(), size_t(1));
     }
+
+    void suspensionSurvivesDormancyCycle()
+    {
+        DataStream<Frame> stream;
+        auto subscription = stream.subscribe();
+
+        subscription->suspend();
+        stream.setDormant(true);
+        stream.setDormant(false);
+        stream.start();
+
+        stream.push(Frame(0));
+        QCOMPARE(subscription->approxPendingCount(), size_t(0));
+    }
 };
 
 QTEST_MAIN(TestStreamLifecycle)
