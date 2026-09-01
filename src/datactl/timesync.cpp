@@ -709,8 +709,9 @@ void SecondaryClockSynchronizer::processTimestamp(
             // correct fluke unconditionally
             masterTimestamp = masterTimestampFAdj;
 
-            // prevent any time-travel into the past (this should be impossible, but better be safe)
-            if (masterTimestamp < m_lastMasterTS)
+            // Prevent any time-travel into the past (this should be impossible, but better be safe),
+            // and advance exact duplicates so adjusted timestamps remain strictly increasing.
+            if (masterTimestamp <= m_lastMasterTS)
                 masterTimestamp = m_lastMasterTS + microseconds_t(1);
 
             if (m_strategies.hasFlag(TimeSyncStrategy::WRITE_TSYNCFILE))
@@ -756,8 +757,9 @@ void SecondaryClockSynchronizer::processTimestamp(
                 || (m_strategies.hasFlag(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD)
                     && m_clockCorrectionOffset.count() < 0))
                 masterTimestamp = secondaryAcqTimestamp - m_expectedOffset - m_clockCorrectionOffset;
-            // prevent any time-travel into the past
-            if (masterTimestamp < m_lastMasterTS)
+            // Prevent any time-travel into the past and advance exact duplicates so adjusted
+            // timestamps remain strictly increasing.
+            if (masterTimestamp <= m_lastMasterTS)
                 masterTimestamp = m_lastMasterTS + microseconds_t(1);
         }
 
@@ -813,17 +815,17 @@ void SecondaryClockSynchronizer::processTimestamp(
     m_clockCorrectionOffset.count());
     */
 
-    // ensure time doesn't run backwards - this really shouldn't happen at this
-    // point, but we prevent this just in case
-    if (masterTimestamp < m_lastMasterTS) {
+    // Ensure time doesn't run backwards - this really shouldn't happen at this
+    // point, but we prevent this just in case. Advance by one microsecond instead
+    // of reusing the previous time so adjusted timestamps remain strictly increasing.
+    if (masterTimestamp <= m_lastMasterTS) {
         SY_LOG_WARNING(
             logTimeSync,
-            "[{}] Timestamp moved backwards when calculating adjusted new time: {} < {} (mitigated by reusing previous "
-            "time)",
+            "[{}] Adjusted timestamp did not advance: {} <= {} (mitigated by advancing 1 us)",
             m_id,
             masterTimestamp.count(),
             m_lastMasterTS.count());
-        masterTimestamp = m_lastMasterTS;
+        masterTimestamp = m_lastMasterTS + microseconds_t(1);
     }
 
     // remember the secondary clock timestamp & master timestamp for the next iteration

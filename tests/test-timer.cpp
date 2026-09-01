@@ -172,10 +172,10 @@ private slots:
             auto syncMasterTS = curMasterTS;
             sync->processTimestamp(syncMasterTS, curSecondaryTS);
 
-            // timestamps must never go backwards
+            // adjusted timestamps must remain strictly increasing
             QVERIFY2(
-                syncMasterTS.count() >= lastMasterTS.count(),
-                qPrintable(QString::number(syncMasterTS.count()) + " >= " + QString::number(lastMasterTS.count())));
+                syncMasterTS.count() > lastMasterTS.count(),
+                qPrintable(QString::number(syncMasterTS.count()) + " > " + QString::number(lastMasterTS.count())));
             lastMasterTS = syncMasterTS;
 
             if (adjustmentIterN > 0) {
@@ -234,10 +234,10 @@ private slots:
             auto syncMasterTS = curMasterTS;
             sync->processTimestamp(syncMasterTS, curSecondaryTS);
 
-            // timestamps must never go backwards
+            // adjusted timestamps must remain strictly increasing
             QVERIFY2(
-                syncMasterTS.count() >= lastMasterTS.count(),
-                qPrintable(QString::number(syncMasterTS.count()) + " >= " + QString::number(lastMasterTS.count())));
+                syncMasterTS.count() > lastMasterTS.count(),
+                qPrintable(QString::number(syncMasterTS.count()) + " > " + QString::number(lastMasterTS.count())));
             lastMasterTS = syncMasterTS;
 
             // sanity checks
@@ -281,10 +281,10 @@ private slots:
 
             sync->processTimestamp(syncMasterTS, curSecondaryTS);
 
-            // timestamps must never go backwards
+            // adjusted timestamps must remain strictly increasing
             QVERIFY2(
-                syncMasterTS.count() >= lastMasterTS.count(),
-                qPrintable(QString::number(syncMasterTS.count()) + " >= " + QString::number(lastMasterTS.count())));
+                syncMasterTS.count() > lastMasterTS.count(),
+                qPrintable(QString::number(syncMasterTS.count()) + " > " + QString::number(lastMasterTS.count())));
             lastMasterTS = syncMasterTS;
 
             if (expectFlukeDivergence) {
@@ -320,10 +320,10 @@ private slots:
             auto syncMasterTS = curMasterTS;
             sync->processTimestamp(syncMasterTS, curSecondaryTS);
 
-            // timestamps must never go backwards
+            // adjusted timestamps must remain strictly increasing
             QVERIFY2(
-                syncMasterTS.count() >= lastMasterTS.count(),
-                qPrintable(QString::number(syncMasterTS.count()) + " >= " + QString::number(lastMasterTS.count())));
+                syncMasterTS.count() > lastMasterTS.count(),
+                qPrintable(QString::number(syncMasterTS.count()) + " > " + QString::number(lastMasterTS.count())));
             lastMasterTS = syncMasterTS;
 
             if (adjustmentIterN > 0) {
