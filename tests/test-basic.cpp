@@ -4,6 +4,7 @@
 #include <iostream>
 #include <limits>
 #include "datactl/datatypes.h"
+#include "datactl/frametype.h"
 
 using namespace Syntalos;
 
@@ -102,6 +103,37 @@ private slots:
     {
         QCOMPARE(numToString(true), "true");
         QCOMPARE(numToString(false), "false");
+    }
+
+    void testMatEnsureExclusive()
+    {
+        cv::Mat mat(4, 4, CV_8UC1);
+        const auto *buffer = mat.data;
+
+        // sole owner and unchanged shape: the pixel buffer has to be recycled
+        matEnsureExclusive(mat, 4, 4, CV_8UC1);
+        QCOMPARE(mat.data, buffer);
+
+        // a subscriber still holds a shallow copy of the published frame, so we must
+        // not hand the same buffer out again (this is what cv::Mat::create() would do)
+        cv::Mat queued = mat;
+        matEnsureExclusive(mat, 4, 4, CV_8UC1);
+        QVERIFY(mat.data != buffer);
+        QCOMPARE(queued.data, buffer);
+        QCOMPARE(mat.rows, 4);
+        QCOMPARE(mat.cols, 4);
+        QCOMPARE(mat.type(), CV_8UC1);
+
+        // a different shape or type always needs a new buffer
+        buffer = mat.data;
+        matEnsureExclusive(mat, 8, 4, CV_8UC1);
+        QVERIFY(mat.data != buffer);
+        QCOMPARE(mat.rows, 8);
+
+        buffer = mat.data;
+        matEnsureExclusive(mat, 8, 4, CV_16UC1);
+        QVERIFY(mat.data != buffer);
+        QCOMPARE(mat.type(), CV_16UC1);
     }
 };
 

@@ -13,6 +13,7 @@ test_basic_moc = qt.compile_moc(sources: test_basic_moc_src)
 test_basic_exe = executable('test-basic',
                             [test_basic_moc_src, test_basic_moc],
                             dependencies: [syntalos_fabric_dep,
+                                           opencv_dep,
                                            qt_test_dep]
 )
 test('sy-test-basic',
