@@ -561,7 +561,6 @@ private:
 
     void reset()
     {
-        m_suspended = false;
         m_active = true;
         m_throttle = 0;
         m_notifyPending = false;
