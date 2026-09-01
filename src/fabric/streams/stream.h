@@ -188,6 +188,7 @@ public:
           m_notifyPending(false),
           m_active(true),
           m_suspended(false),
+          m_dormant(false),
           m_throttle(0),
           m_skippedElements(0),
           m_log(getLogger("subscription"))
@@ -316,7 +317,7 @@ public:
 
     bool isSuspended() const
     {
-        return m_suspended;
+        return m_suspended || m_dormant;
     }
 
     /**
@@ -469,6 +470,7 @@ private:
     std::atomic_bool m_notifyPending;
     std::atomic_bool m_active;
     std::atomic_bool m_suspended;
+    std::atomic_bool m_dormant;
     std::atomic_uint m_throttle;
     std::atomic_uint m_skippedElements;
 
@@ -485,13 +487,20 @@ private:
         m_metadata = metadata;
     }
 
+    void setDormant(bool dormant)
+    {
+        m_dormant = dormant;
+        if (dormant)
+            clearPendingQueuePreservingSuspension();
+    }
+
     // Common implementation for both lvalue and rvalue push paths.
     // U is deduced as either `const T &` (copy) or `T` (move) via std::forward.
     template<typename U>
     void pushImpl(U &&data)
     {
-        // don't accept any new data if we are suspended
-        if (m_suspended)
+        // don't accept any new data if we are suspended or the stream is dormant
+        if (m_suspended || m_dormant)
             return;
 
         // check if we can throttle the enqueueing speed of data
@@ -657,11 +666,7 @@ public:
         sub->setMetadata(m_metadata);
         m_subs.push_back(sub);
 
-        // suspend if we are dormant
-        if (m_explicitDormant)
-            sub->suspend();
-        else
-            sub->resume();
+        sub->setDormant(m_explicitDormant);
 
         return sub;
     }
@@ -726,7 +731,7 @@ public:
 
             // if this stream is dormant, then we suspend all subscribers
             for (auto &sub : m_subs)
-                sub->suspend();
+                sub->setDormant(true);
             return;
         }
 
@@ -823,13 +828,8 @@ public:
     {
         m_explicitDormant = dormant;
 
-        // if this stream is dormant, then we suspend all subscribers
-        for (auto &sub : m_subs) {
-            if (dormant)
-                sub->suspend();
-            else
-                sub->resume();
-        }
+        for (auto &sub : m_subs)
+            sub->setDormant(dormant);
     }
 
     [[nodiscard]] bool hasSubscribers() const override
