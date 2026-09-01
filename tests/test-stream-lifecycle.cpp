@@ -33,6 +33,39 @@ private slots:
         stream.push(Frame(4));
         QCOMPARE(subscription->approxPendingCount(), size_t(1));
     }
+
+    void suspensionSurvivesClearPending()
+    {
+        DataStream<Frame> stream;
+        auto subscription = stream.subscribe();
+        stream.start();
+
+        subscription->suspend();
+        subscription->clearPending();
+        stream.push(Frame(0));
+        QCOMPARE(subscription->approxPendingCount(), size_t(0));
+
+        subscription->resume();
+        stream.push(Frame(1));
+        QCOMPARE(subscription->approxPendingCount(), size_t(1));
+    }
+
+    void suspensionSurvivesThrottleChange()
+    {
+        DataStream<Frame> stream;
+        auto subscription = stream.subscribe();
+        stream.start();
+
+        subscription->suspend();
+        subscription->setThrottleItemsPerSec(1);
+        stream.push(Frame(0));
+        QCOMPARE(subscription->approxPendingCount(), size_t(0));
+
+        subscription->resume();
+        subscription->setThrottleItemsPerSec(0);
+        stream.push(Frame(1));
+        QCOMPARE(subscription->approxPendingCount(), size_t(1));
+    }
 };
 
 QTEST_MAIN(TestStreamLifecycle)
