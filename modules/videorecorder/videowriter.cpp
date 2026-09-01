@@ -1058,10 +1058,11 @@ void VideoWriter::initializeInternal()
             d->encPixFormat = rgbFmt;
     }
 
-    // The encoder may not be able to store our frames in their original form - converting
-    // color frames to YUV rounds, subsampled chroma planes drop color detail, and a lower
-    // bit depth truncates. Say so rather than let a "lossless" recording quietly not be one.
-    if (d->codecProps.isLossless() && !vw_pixfmt_conversion_is_lossless(d->inputPixFormat, d->encPixFormat)) {
+    // If exact colors were requested, warn when the encoder still can not store the frames
+    // in their original form. Converting color frames to YUV rounds, subsampled chroma planes
+    // drop color detail, and a lower bit depth truncates.
+    if (d->codecProps.exactColors() && d->codecProps.isLossless()
+        && !vw_pixfmt_conversion_is_lossless(d->inputPixFormat, d->encPixFormat)) {
         const auto *inDesc = av_pix_fmt_desc_get(d->inputPixFormat);
         const auto *encDesc = av_pix_fmt_desc_get(d->encPixFormat);
         LOG_WARNING(
