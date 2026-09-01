@@ -371,10 +371,7 @@ public:
     {
         // suspend receiving new data
         m_suspended = true;
-
-        // drop currently pending data
-        while (m_queue.pop()) {
-        }
+        clearPendingQueuePreservingSuspension();
     }
 
     /**
@@ -390,10 +387,7 @@ public:
      */
     void clearPending() override
     {
-        m_suspended = true;
-        while (m_queue.pop()) {
-        }
-        m_suspended = false;
+        clearPendingQueuePreservingSuspension();
     }
 
     size_t approxPendingCount() const override
@@ -444,11 +438,8 @@ public:
         // clear current queue contents quickly in case we throttle down the subscription
         // (this prevents clients from skipping elements too much if they are overeager
         // when adjusting the throttle value)
-        if (newThrottle > m_throttle) {
-            // suspending and immediately resuming efficiently clears the current buffer
-            suspend();
-            resume();
-        }
+        if (newThrottle > m_throttle)
+            clearPendingQueuePreservingSuspension();
 
         // apply
         m_throttle = newThrottle;
@@ -461,6 +452,16 @@ public:
     }
 
 private:
+    void clearPendingQueuePreservingSuspension()
+    {
+        // Lifecycle operations are serialized by the engine. Concurrent suspend()/resume()
+        // could be overwritten by the restore below, but is unlikely in normal runs.
+        const bool wasSuspended = m_suspended.exchange(true);
+        while (m_queue.pop()) {
+        }
+        m_suspended = wasSuspended;
+    }
+
     DataStream<T> *m_stream;
     BlockingReaderWriterQueue<std::optional<T>> m_queue;
     int m_eventfd;
