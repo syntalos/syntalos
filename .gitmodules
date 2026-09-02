@@ -7,3 +7,6 @@
 [submodule "vendor/liboni"]
 	path = vendor/liboni
 	url = https://github.com/open-ephys/liboni.git
+[submodule "vendor/SpikeGLX-CPP-SDK"]
+	path = vendor/SpikeGLX-CPP-SDK
+	url = https://github.com/billkarsh/SpikeGLX-CPP-SDK.git

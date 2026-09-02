@@ -29,7 +29,7 @@ meson setup \
     -Db_lto=false \
     -Dmaintainer=true \
     -Dgui-tests=true \
-    -Dmodules="camera-arv,camera-lc,camera-tis,miniscope,signalfilter,intan-rhx,open-ephys-acq" \
+    -Dmodules="camera-arv,camera-lc,camera-tis,miniscope,signalfilter,spikeglx,intan-rhx,open-ephys-acq" \
     -Ddisabled-modules=$disabled_modules \
     ..
 

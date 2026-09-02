@@ -131,3 +131,36 @@ libonidriver_ft600 = shared_library(
 )
 
 endif # 'open-ephys-acq' in get_option('modules')
+
+
+sglxapi_dep = disabler()
+if 'spikeglx' in modules_enabled
+
+#
+# SpikeGLX-CPP-SDK
+#
+if not fs.is_file('SpikeGLX-CPP-SDK/Build/SglxApi.h')
+    error('SpikeGLX-CPP-SDK submodule is missing. Did you run `git submodule update --init`?')
+endif
+sglxapi_inc = include_directories('SpikeGLX-CPP-SDK/Build', is_system: true)
+sglxapi_src = files(
+    'SpikeGLX-CPP-SDK/Build/SglxApi.cpp',
+    'SpikeGLX-CPP-SDK/Build/SglxCppClient.cpp',
+    'SpikeGLX-CPP-SDK/Build/Comm.cpp',
+    'SpikeGLX-CPP-SDK/Build/NetClient.cpp',
+    'SpikeGLX-CPP-SDK/Build/Socket.cpp',
+)
+sglxapi_lib = static_library(
+    'sglxapi',
+    sglxapi_src,
+    include_directories: sglxapi_inc,
+    # upstream code, don't fail on its warnings in maintainer mode
+    cpp_args: ['-w'],
+    pic: true,
+)
+sglxapi_dep = declare_dependency(
+    link_with: sglxapi_lib,
+    include_directories: sglxapi_inc,
+)
+
+endif # 'spikeglx' in get_option('modules')

@@ -13,6 +13,7 @@ option('modules',
            'miniscope',      # UCLA Miniscope module
            'open-ephys-acq', # Open Ephys Acquisition Board module
            'signalfilter',   # Filter signal blocks
+           'spikeglx',       # SpikeGLX remote-control module
        ],
        value : [
            'camera-arv',
@@ -21,6 +22,7 @@ option('modules',
            'miniscope',
            'open-ephys-acq',
            'signalfilter',
+           'spikeglx',
        ],
        description: 'Select modules to enable.'
 )
