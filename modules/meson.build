@@ -73,6 +73,9 @@ endif
 if 'signalfilter' in modules_enabled
     subdir('signalfilter')
 endif
+if 'spikeglx' in modules_enabled
+    subdir('spikeglx')
+endif
 
 # Misc
 subdir('jsonwriter')
