@@ -102,7 +102,7 @@ public:
     QString netControlHost() const;
     void setNetControlHost(const QString &host);
 
-    QString netInstanceId() const;
+    QString instanceId() const;
     void setInstanceId(const QString &id);
 
     QString lastProjectDir() const;

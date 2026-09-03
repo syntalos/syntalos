@@ -30,6 +30,7 @@
 #include "datactl/datatypes.h"
 #include "datactl/timesync.h"
 #include "datactl/tsyncfile.h"
+#include "globalconfig.h"
 #include "sglxclient.h"
 #include "sglxutils.h"
 #include "spikeglxsettingsdialog.h"
@@ -128,6 +129,7 @@ private:
     TestSubject m_subject;
     bool m_isEphemeralRun = false;
     QString m_experimentId;
+    QString m_instanceId; /// ID of this Syntalos instance, sent to SpikeGLX so it knows who controlled it
     bool m_sglxRunStartedByUs = false;
 
 public:
@@ -412,7 +414,7 @@ public:
             parts << extra;
 
         if (info.isEphemeral) {
-            // the user probably wants to delete this, but we won't know for sure - but we can label ephemeral runs
+            // the user probably wants to delete this, but we won't know for sure (so we label the temporary run)
             auto time = QDateTime::currentDateTime();
             parts.prepend("temp");
             parts << time.toString("hhmm");
@@ -426,6 +428,7 @@ public:
         m_subject = info.subject;
         m_isEphemeralRun = info.isEphemeral;
         m_experimentId = info.experimentId;
+        m_instanceId = GlobalConfig().instanceId();
         m_streams.clear();
         m_syncStreams.clear();
         m_dataset.reset();
@@ -958,6 +961,7 @@ public:
             kv["sy_experiment_id"] = m_experimentId.toStdString();
             kv["sy_run_name"] = m_runName.toStdString();
             kv["sy_module_name"] = name().toStdString();
+            kv["sy_instance_id"] = m_instanceId.toStdString();
             const auto wallUs = std::chrono::duration_cast<std::chrono::microseconds>(
                                     m_syTimer->startWallTime().time_since_epoch())
                                     .count();

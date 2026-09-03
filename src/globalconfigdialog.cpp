@@ -58,7 +58,7 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent)
     ui->sbNetControlPort->setValue(m_gc->netControlPort());
     ui->sbNetFeedbackPort->setValue(m_gc->netFeedbackPort());
     ui->leNetHost->setText(m_gc->netControlHost());
-    ui->leNetInstanceId->setText(m_gc->netInstanceId());
+    ui->leNetInstanceId->setText(m_gc->instanceId());
 
     // advanced section
     ui->defaultNicenessSpinBox->setMaximum(20);

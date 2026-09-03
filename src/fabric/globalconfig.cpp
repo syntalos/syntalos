@@ -261,7 +261,7 @@ void GlobalConfig::setNetControlHost(const QString &host)
     m_s->setValue("net_control/host", host);
 }
 
-QString GlobalConfig::netInstanceId() const
+QString GlobalConfig::instanceId() const
 {
     auto id = m_s->value("app/instance_id").toString();
     if (id.isEmpty()) {
@@ -277,7 +277,7 @@ QString GlobalConfig::netInstanceId() const
 void GlobalConfig::setInstanceId(const QString &id)
 {
     // never persist an empty ID
-    m_s->setValue("app/instance_id", id.isEmpty() ? netInstanceId() : id);
+    m_s->setValue("app/instance_id", id.isEmpty() ? instanceId() : id);
 }
 
 QString GlobalConfig::lastProjectDir() const

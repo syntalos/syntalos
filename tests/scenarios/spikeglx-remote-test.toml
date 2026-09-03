@@ -17,6 +17,8 @@ expected_stdout_contains = [
     "Received: SETRUNNAME",
     "Received: STARTRUN",
     "Received: SETMETADATA sy_collection_id=",
+    "Received: SETMETADATA sy_experiment_id=",
+    "Received: SETMETADATA sy_instance_id=",
     "Received: SETRECORDENAB 1",
     "Received: SETRECORDENAB 0",
     "Received: STOPRUN",
@@ -25,6 +27,10 @@ expected_stdout_contains = [
 [[test.expected_output_files]]
 path = "attributes.toml"
 toml_fields = ["machine_node", "success"]
+
+[[test.expected_output_files]]
+path = "spikeglx-remote/attributes.toml"
+toml_fields = ["spikeglx_version", "host", "remote_run_dir", "last_gate_index", "last_trigger_index"]
 
 [[test.expected_output_files]]
 path = "manifest.toml"

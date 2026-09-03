@@ -1342,7 +1342,7 @@ NetworkControlConfig MainWindow::buildNetControlConfig() const
     cfg.controlPort = (m_netCtlPortOverride >= 0) ? m_netCtlPortOverride : m_gconf->netControlPort();
     cfg.feedbackPort = (m_netFbPortOverride >= 0) ? m_netFbPortOverride : m_gconf->netFeedbackPort();
     cfg.controlHost = m_gconf->netControlHost();
-    cfg.instanceId = m_gconf->netInstanceId();
+    cfg.instanceId = m_gconf->instanceId();
     cfg.expectedClientCount = ui->sbNetExpectedClients->value();
     cfg.controlTimeoutMs = ui->sbNetTimeout->value();
     return cfg;
