@@ -133,7 +133,7 @@ public:
         return ModuleDriverKind::EVENTS_DEDICATED;
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const RunInfo &info) override
     {
         m_isrcKind = InputSourceKind::NONE;
         clearDataReceivedEventRegistrations();
@@ -145,7 +145,7 @@ public:
         }
 
         // we don't write anything to disk if we aren't going to use the data anyway
-        m_writeData = !isEphemeralRun();
+        m_writeData = !info.isEphemeral;
 
         // Only a single input port exists at a time
         m_floatSub.reset();

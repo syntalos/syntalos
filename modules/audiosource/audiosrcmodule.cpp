@@ -220,7 +220,7 @@ public:
         }
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const RunInfo &) override
     {
         if (m_pipeline == nullptr)
             setupPipeline();

@@ -452,7 +452,7 @@ public:
         m_codeWindow->setWindowTitle(QStringLiteral("%1 - Editor").arg(name()));
     }
 
-    bool prepare(const TestSubject &testSubject) override
+    bool prepare(const RunInfo &info) override
     {
         m_portEditAction->setEnabled(false);
         m_serialSelector->setEnabled(false);

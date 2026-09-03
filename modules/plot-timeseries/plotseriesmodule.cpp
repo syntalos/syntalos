@@ -92,7 +92,7 @@ public:
         return ModuleDriverKind::EVENTS_DEDICATED;
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const RunInfo &) override
     {
         m_active = false;
         m_fpSubs.clear();

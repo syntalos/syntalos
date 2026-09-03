@@ -60,7 +60,7 @@ public:
         return ModuleFeature::SHOW_SETTINGS;
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const RunInfo &) override
     {
         clearDataReceivedEventRegistrations();
         m_framesIn = nullptr;

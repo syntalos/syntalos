@@ -176,9 +176,15 @@ struct TestSubjectInfo {
 
 /**
  * @brief Information about the current run and its data storage location.
+ *
+ * All information here is only valid for the current run, and reset before
+ * each prepare() step.
  */
-struct RunInfo {
-    Uuid uuid{};                         /// EDL collection UUID
+struct LinkRunInfo {
+    Uuid uuid{};                         /// Unique, machine-readable identifier of this run (EDL collection UUID)
+    TestSubjectInfo subject;             /// The test subject this run is for
+    std::string experimentId;            /// The (final, with placeholders expanded) experiment identifier
+    bool isEphemeral = false;            /// True if this run is temporary and will store no persistent data
     std::string moduleName;              /// User-provided module name
     std::shared_ptr<EDLGroup> rootGroup; /// EDL tree root for data storage for the current run
 };
@@ -213,7 +219,7 @@ public:
     [[nodiscard]] std::shared_ptr<SyncTimer> timer() const;
 
     const TestSubjectInfo &testSubject() const;
-    const RunInfo &runInfo() const;
+    const LinkRunInfo &runInfo() const;
 
     /**
      * @brief Reserve a sub-group under the given parent in the master's canonical EDL tree,

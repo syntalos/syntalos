@@ -133,7 +133,7 @@ public:
         return true;
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const RunInfo &) override
     {
         m_frameOut->setMetadataValue("framerate", (double)m_fps);
         m_frameOut->setMetadataValue("size", MetaSize(m_outFrameSize.width(), m_outFrameSize.height()));

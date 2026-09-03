@@ -59,9 +59,9 @@ public:
         return ModuleFeature::NONE;
     }
 
-    bool prepare(const TestSubject &testSubject) override
+    bool prepare(const RunInfo &info) override
     {
-        m_subjectId = testSubject.id;
+        m_subjectId = info.subject.id;
         if (m_subjectId.isEmpty())
             m_subjectId = QStringLiteral("SIU"); // subject ID unknown
 

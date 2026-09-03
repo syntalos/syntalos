@@ -226,7 +226,7 @@ public:
         rebuildOutputPorts();
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const RunInfo &) override
     {
         // Lock the settings UI for the duration of the run. Live changes
         // would reconfigure the board behind the run loop and crash.

@@ -2043,7 +2043,7 @@ bool Engine::waitForModulesReady(const ModuleRunOrder &modOrder)
  * doing *no* error checking on the data export path anymore.
  * It may never be called from anything but internal engine functions.
  */
-bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
+bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOverride)
 {
     // Cleanup that must happen on every exit path. Without this, listener-side
     // state (runOriginRemote, pending ACKs) and engine-injected metadata can
@@ -2122,7 +2122,7 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
 
     // create new experiment directory layout (EDL) collection to store
     // all data modules generate in
-    auto storageCollection = std::make_shared<EDLCollection>(d->exportName.toStdString(), recordingId);
+    auto storageCollection = std::make_shared<EDLCollection>(d->exportName.toStdString(), recordingIdOverride);
     storageCollection->setPath(exportDirPath.toStdString());
     storageCollection->setCollectionHasMoniker(d->useCollectionMoniker);
 
@@ -2223,6 +2223,13 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
     }
 
     // prepare modules
+    const RunInfo runInfo{
+        .uuid = storageCollection->collectionId(),
+        .subject = d->testSubject,
+        .experimentId = d->experimentIdFinal,
+        .isEphemeral = d->runIsEphemeral,
+    };
+
     for (auto &mod : modOrder.start) {
         // Prepare module. At this point it should have a timer,
         // the location where data is saved and be in the PREPARING state.
@@ -2234,7 +2241,6 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
         mod->setStatusMessage(QString());
         mod->setTimer(d->timer);
         mod->setState(ModuleState::PREPARING);
-        mod->setEphemeralRun(d->runIsEphemeral);
 
         mod->setSimpleStorageNames(d->simpleStorageNames);
         if ((modInfo != nullptr) && (!modInfo->storageGroupName().isEmpty())) {
@@ -2267,7 +2273,7 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingId)
         mod->clearDataReceivedEventRegistrations();
 
         // prepare the module
-        if (!mod->prepare(d->testSubject)) {
+        if (!mod->prepare(runInfo)) {
             initSuccessful = false;
             d->failed = true;
             d->runFailedReason = QStringLiteral("Prepare step failed for: %1(%2)").arg(mod->id(), mod->name());

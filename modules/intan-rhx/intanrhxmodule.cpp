@@ -152,7 +152,7 @@ void IntanRhxModule::updateStartWaitCondition(OptionalWaitCondition *waitConditi
     m_controllerIntf->updateStartWaitCondition(waitCondition);
 }
 
-bool IntanRhxModule::prepare(const TestSubject &)
+bool IntanRhxModule::prepare(const RunInfo &)
 {
     // the Intan module is a singleton, so we can "grab" this very generic name here
     auto dstore = createDefaultDataset(QStringLiteral("intan-signals"));

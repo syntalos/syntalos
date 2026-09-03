@@ -122,7 +122,7 @@ public:
         m_settingsDialog->updateCurrentDeviceName();
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const RunInfo &) override
     {
         // do not accept any frames yet
         m_acceptFrames = false;

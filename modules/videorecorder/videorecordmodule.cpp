@@ -69,6 +69,8 @@ private:
 
     QString m_subjectName;
 
+    bool m_isEphemeralRun = false;
+
 public:
     explicit VideoRecorderModule(QObject *parent = nullptr)
         : AbstractModule(parent),
@@ -117,7 +119,7 @@ public:
         return binFname;
     }
 
-    bool prepare(const TestSubject &subject) override
+    bool prepare(const RunInfo &info) override
     {
         if (!m_settingsDialog->videoNameFromSource() && m_settingsDialog->videoName().isEmpty()) {
             raiseError("Video recording name is not set. Please set it in the settings to continue.");
@@ -174,7 +176,8 @@ public:
         // we can record!
         m_inSub = m_inPort->subscription();
         m_recording = true;
-        m_subjectName = subject.id;
+        m_subjectName = info.subject.id;
+        m_isEphemeralRun = info.isEphemeral;
 
         // don't permit configuration changes while we are running
         m_settingsDialog->setEnabled(false);
@@ -448,7 +451,7 @@ public:
 
     void enqueueVideosForDeferredEncoding()
     {
-        if (isEphemeralRun()) {
+        if (m_isEphemeralRun) {
             LOG_INFO(m_log, "Not performing deferred encoding, run was ephemeral.");
             return;
         }

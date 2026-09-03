@@ -207,7 +207,7 @@ public:
         m_canvas->setWindowTitle(name);
     }
 
-    bool prepare(const TestSubject &) final
+    bool prepare(const RunInfo &) final
     {
         // Capture settings for the duration of this run
         m_mode = m_settingsDlg->mode();

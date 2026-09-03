@@ -95,7 +95,7 @@ public:
     QString readProcessOutput(OutChannelType channel = ChannelAll);
 
     void markIncomingForExport(StreamExporter *exporter);
-    bool prepare(const TestSubject &subject) override;
+    bool prepare(const RunInfo &info) override;
     void start() override;
     void stop() override;
     void runThread(OptionalWaitCondition *startWaitCondition) override;

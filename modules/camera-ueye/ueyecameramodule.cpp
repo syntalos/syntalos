@@ -72,7 +72,7 @@ public:
         return ModuleFeature::RUN_THREADED | ModuleFeature::SHOW_SETTINGS;
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const RunInfo &) override
     {
         m_fps = m_camSettingsWindow->framerate();
         m_currentFps = m_fps;

@@ -655,6 +655,11 @@ public:
         return py::bytes(reinterpret_cast<const char *>(uuid.data()), uuid.size());
     }
 
+    const LinkRunInfo &runInfo()
+    {
+        return m_slink->runInfo();
+    }
+
     std::shared_ptr<EDLGroup> rootGroup()
     {
         auto g = m_slink->runInfo().rootGroup;
@@ -1672,6 +1677,31 @@ PYBIND11_MODULE(syntalos_mlink, m)
      * Module registration (for standalone Python modules)
      */
 
+    py::class_<TestSubjectInfo>(m, "TestSubject", "The test subject an experiment run is performed on.")
+        .def_readonly("id", &TestSubjectInfo::id, "Identifier of the test subject.")
+        .def_readonly("group", &TestSubjectInfo::group, "Group the test subject belongs to.");
+
+    py::class_<LinkRunInfo>(
+        m,
+        "RunInfo",
+        "Information about the current experiment run. Refreshed before ``on_prepare`` and only valid for that run.")
+        .def_property_readonly(
+            "uuid",
+            [](const LinkRunInfo &ri) {
+                return py::bytes(reinterpret_cast<const char *>(ri.uuid.bytes.data()), ri.uuid.bytes.size());
+            },
+            "Unique identifier of this run as 16 raw bytes (UUIDv7); also the EDL collection UUID.")
+        .def_readonly("subject", &LinkRunInfo::subject, "The :class:`TestSubject` this run is for.")
+        .def_readonly(
+            "experiment_id",
+            &LinkRunInfo::experimentId,
+            "The experiment identifier of this run, with any placeholders already expanded.")
+        .def_readonly(
+            "is_ephemeral",
+            &LinkRunInfo::isEphemeral,
+            "True if this run is temporary and all of its data will be discarded afterwards.")
+        .def_readonly("module_name", &LinkRunInfo::moduleName, "The user-visible name of this module.");
+
     py::class_<PySyLinkManager>(m, "SyntalosLink", "Manages the connection to Syntalos.")
         .def_property(
             "on_prepare",
@@ -1827,9 +1857,16 @@ PYBIND11_MODULE(syntalos_mlink, m)
         // ---- EDL storage access ----
 
         .def_property_readonly(
+            "run_info",
+            &PySyLinkManager::runInfo,
+            py::return_value_policy::reference_internal,
+            "Information about the current run (:class:`RunInfo`): subject, experiment ID, UUID, ...\n"
+            "Refreshed before :attr:`on_prepare` and only valid for that run.")
+        .def_property_readonly(
             "run_uuid",
             &PySyLinkManager::runUuid,
-            "The run's collection UUID as 16 raw bytes (UUIDv7). Available after prepare().")
+            "The run's collection UUID as 16 raw bytes (UUIDv7). Available after prepare().\n"
+            "Shorthand for ``run_info.uuid``.")
         .def_property_readonly(
             "root_group",
             &PySyLinkManager::rootGroup,

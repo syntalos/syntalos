@@ -68,7 +68,7 @@ public:
         return ModuleFeature::SHOW_DISPLAY | ModuleFeature::SHOW_SETTINGS | ModuleFeature::CALL_UI_EVENTS;
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const RunInfo &) override
     {
         // sanity check
         if (!m_settingsDlg->useNameFromSource() && m_settingsDlg->dataName().isEmpty()) {

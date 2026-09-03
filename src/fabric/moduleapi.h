@@ -271,6 +271,25 @@ struct Q_DECL_EXPORT TestSubject {
 };
 
 /**
+ * @brief Details of a single, prepared experiment run.
+ *
+ * Passed to AbstractModule::prepare() and only valid for that run. Modules that
+ * need any of this information in later phases (start/stop, worker threads)
+ * must copy what they need, so no stale state leaks into the next run.
+ *
+ * An ephemeral (or volatile) run is a type of run where no data is stored permanently.
+ * Usually, a Syntalos module will not need to handle this type of run explicitly, but there
+ * are some cases where a module needs to be aware that all data will get deleted immediately
+ * after a run has completed (e.g. if postprocessing steps are deferred to an external process).
+ */
+struct Q_DECL_EXPORT RunInfo {
+    Uuid uuid{};              /// Unique, machine-readable identifier of this run
+    TestSubject subject;      /// The test subject this run is for
+    QString experimentId;     /// The (final, with placeholders expanded) experiment identifier of this run
+    bool isEphemeral = false; /// True if this run is temporary and will store no persistent data
+};
+
+/**
  * @brief Enum specifying directionality of a port (in or out)
  */
 enum class PortDirection {
@@ -652,9 +671,10 @@ public:
      *
      * Prepare this module to run. This method is called once
      * prior to every experiment run.
+     * @param info Subject, experiment ID and storage mode of the upcoming run.
      * @return true if success
      */
-    virtual bool prepare(const TestSubject &testSubject) = 0;
+    virtual bool prepare(const RunInfo &info) = 0;
 
     /**
      * @brief Run when the experiment is started and the HRTimer has an initial time set.
@@ -1104,17 +1124,6 @@ protected:
     bool isRealtimeApproved() const;
 
     /**
-     * @brief Returns true if the currently ongoing or last run is/was ephemeral
-     *
-     * An emphameral (or volatile) run is a type of run where no data is stored permanently.
-     * Usually, a Syntalos module will not need to handle this type of run explicitly, but there
-     * are some cases where a module needs to be aware that all data will get deleted immediately
-     * after a run has completed (e.g. if postprocessing steps are deferred to an external process).
-     * @return True if the current run is/was ephemeral.
-     */
-    bool isEphemeralRun() const;
-
-    /**
      * @brief Handle USB hotplug events
      *
      * This function is called by the engine when a new USB device appears or leaves.
@@ -1155,7 +1164,6 @@ private:
     void setDefaultRTPriority(int prio);
     void setDefaultThreadNiceness(int nice);
     void setRealtimeApproved(bool approved);
-    void setEphemeralRun(bool isEphemeral);
 };
 
 } // namespace Syntalos

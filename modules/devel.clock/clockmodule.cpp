@@ -80,7 +80,7 @@ public:
         return ModuleDriverKind::THREAD_DEDICATED;
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const RunInfo &) override
     {
         m_stopped = true;
         m_tabOut->setSuggestedDataName(QStringLiteral("table-%1/time-pulses").arg(datasetNameSuggestion()));

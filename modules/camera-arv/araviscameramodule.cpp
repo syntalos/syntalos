@@ -109,7 +109,7 @@ public:
         return ModuleFeature::REALTIME | ModuleFeature::SHOW_SETTINGS;
     }
 
-    bool prepare(const TestSubject &) final
+    bool prepare(const RunInfo &) final
     {
         if (!m_camera) {
             raiseError(QStringLiteral("No camera selected!"));

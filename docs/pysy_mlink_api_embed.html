@@ -1641,6 +1641,86 @@ or <code>list</code> of <code>int</code>/<code>str</code> values.</li>
 
 </div>
 </section>
+<section id="RunInfo">
+<div class="attr class">
+
+<span class="def">class</span>
+<span class="name">RunInfo</span>:
+
+
+</div>
+<a class="headerlink" href="#RunInfo"></a>
+
+<div class="docstring"><p>Information about the current experiment run. Refreshed before <code>on_prepare</code> and only valid for that run.</p>
+</div>
+
+
+<div id="RunInfo.experiment_id" class="classattr">
+<div class="attr variable">
+<span class="name">experiment_id</span><span class="annotation">: str</span>
+
+
+</div>
+<a class="headerlink" href="#RunInfo.experiment_id"></a>
+
+<div class="docstring"><p>The experiment identifier of this run, with any placeholders already expanded.</p>
+</div>
+
+
+</div>
+<div id="RunInfo.is_ephemeral" class="classattr">
+<div class="attr variable">
+<span class="name">is_ephemeral</span><span class="annotation">: bool</span>
+
+
+</div>
+<a class="headerlink" href="#RunInfo.is_ephemeral"></a>
+
+<div class="docstring"><p>True if this run is temporary and all of its data will be discarded afterwards.</p>
+</div>
+
+
+</div>
+<div id="RunInfo.module_name" class="classattr">
+<div class="attr variable">
+<span class="name">module_name</span><span class="annotation">: str</span>
+
+
+</div>
+<a class="headerlink" href="#RunInfo.module_name"></a>
+
+<div class="docstring"><p>The user-visible name of this module.</p>
+</div>
+
+
+</div>
+<div id="RunInfo.subject" class="classattr">
+<div class="attr variable">
+<span class="name">subject</span><span class="annotation">: <a href="#TestSubject">TestSubject</a></span>
+
+
+</div>
+<a class="headerlink" href="#RunInfo.subject"></a>
+
+<div class="docstring"><p>The <code><a href="#TestSubject">TestSubject</a></code> this run is for.</p>
+</div>
+
+
+</div>
+<div id="RunInfo.uuid" class="classattr">
+<div class="attr variable">
+<span class="name">uuid</span><span class="annotation">: bytes</span>
+
+
+</div>
+<a class="headerlink" href="#RunInfo.uuid"></a>
+
+<div class="docstring"><p>Unique identifier of this run as 16 raw bytes (UUIDv7); also the EDL collection UUID.</p>
+</div>
+
+
+</div>
+</section>
 <section id="SecondaryClockSynchronizer">
 <div class="attr class">
 
@@ -2575,6 +2655,20 @@ bytes-like payload (<code>bytes</code> or <code>bytearray</code>). If not regist
 
 
 </div>
+<div id="SyntalosLink.run_info" class="classattr">
+<div class="attr variable">
+<span class="name">run_info</span><span class="annotation">: <a href="#RunInfo">RunInfo</a></span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.run_info"></a>
+
+<div class="docstring"><p>Information about the current run (<code><a href="#RunInfo">RunInfo</a></code>): subject, experiment ID, UUID, ...
+Refreshed before <code><a href="#SyntalosLink.on_prepare">on_prepare</a></code> and only valid for that run.</p>
+</div>
+
+
+</div>
 <div id="SyntalosLink.run_uuid" class="classattr">
 <div class="attr variable">
 <span class="name">run_uuid</span><span class="annotation">: bytes</span>
@@ -2583,7 +2677,8 @@ bytes-like payload (<code>bytes</code> or <code>bytearray</code>). If not regist
 </div>
 <a class="headerlink" href="#SyntalosLink.run_uuid"></a>
 
-<div class="docstring"><p>The run's collection UUID as 16 raw bytes (UUIDv7). Available after prepare().</p>
+<div class="docstring"><p>The run's collection UUID as 16 raw bytes (UUIDv7). Available after prepare().
+Shorthand for <code>run_info.uuid</code>.</p>
 </div>
 
 
@@ -2603,6 +2698,47 @@ bytes-like payload (<code>bytes</code> or <code>bytearray</code>). If not regist
 </div>
 
 
+</section>
+<section id="TestSubject">
+<div class="attr class">
+
+<span class="def">class</span>
+<span class="name">TestSubject</span>:
+
+
+</div>
+<a class="headerlink" href="#TestSubject"></a>
+
+<div class="docstring"><p>The test subject an experiment run is performed on.</p>
+</div>
+
+
+<div id="TestSubject.group" class="classattr">
+<div class="attr variable">
+<span class="name">group</span><span class="annotation">: str</span>
+
+
+</div>
+<a class="headerlink" href="#TestSubject.group"></a>
+
+<div class="docstring"><p>Group the test subject belongs to.</p>
+</div>
+
+
+</div>
+<div id="TestSubject.id" class="classattr">
+<div class="attr variable">
+<span class="name">id</span><span class="annotation">: str</span>
+
+
+</div>
+<a class="headerlink" href="#TestSubject.id"></a>
+
+<div class="docstring"><p>Identifier of the test subject.</p>
+</div>
+
+
+</div>
 </section>
 <section id="TimeSyncStrategy">
 <div class="attr class">

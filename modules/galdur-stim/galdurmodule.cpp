@@ -71,7 +71,7 @@ public:
         m_settingsDlg->updatePortList();
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const RunInfo &) override
     {
         m_settingsDlg->setRunning(true);
 

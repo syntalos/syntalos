@@ -272,7 +272,7 @@ public:
         return ModuleDriverKind::EVENTS_DEDICATED;
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const RunInfo &info) override
     {
         clearDataReceivedEventRegistrations();
         m_settingsDlg->setRunning(true);
@@ -282,7 +282,7 @@ public:
             return false;
         }
 
-        m_writeData = !isEphemeralRun();
+        m_writeData = !info.isEphemeral;
 
         m_sub.reset();
         if (!m_inPort || !m_inPort->hasSubscription()) {

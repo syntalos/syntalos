@@ -54,7 +54,7 @@ public:
         return ModuleDriverKind::THREAD_DEDICATED;
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const RunInfo &) override
     {
         if (m_frameIn->hasSubscription()) {
             auto framesSub = m_frameIn->subscription();

@@ -451,8 +451,7 @@ public:
     std::vector<std::shared_ptr<InputPortInfo>> inPortInfo;
     std::vector<std::shared_ptr<OutputPortInfo>> outPortInfo;
     std::shared_ptr<SyncTimer> syTimer;
-    TestSubjectInfo testSubject;
-    RunInfo runInfo;
+    LinkRunInfo runInfo;
     bool allowAsyncStart = true;
 
     LoadScriptFn loadScriptCb;
@@ -1045,12 +1044,13 @@ void SyntalosLink::processPendingControl()
         const auto pl = req->payload();
         const auto prepReq = PrepareRunRequest::fromMemory(pl.data(), pl.number_of_bytes());
 
-        // update test subject details
-        d->testSubject.id = prepReq.subjectId;
-        d->testSubject.group = prepReq.subjectGroup;
-
         // set up run info and build local EDL tree root
+        d->runInfo = LinkRunInfo{};
         d->runInfo.uuid = Uuid(prepReq.runUuid);
+        d->runInfo.subject.id = prepReq.subjectId;
+        d->runInfo.subject.group = prepReq.subjectGroup;
+        d->runInfo.experimentId = prepReq.experimentId;
+        d->runInfo.isEphemeral = prepReq.isEphemeral;
         d->runInfo.moduleName = prepReq.moduleName;
         if (!prepReq.edlRootPath.empty()) {
             const fs::path rootPath(prepReq.edlRootPath);
@@ -1378,10 +1378,10 @@ std::shared_ptr<SyncTimer> SyntalosLink::timer() const
 
 const TestSubjectInfo &SyntalosLink::testSubject() const
 {
-    return d->testSubject;
+    return d->runInfo.subject;
 }
 
-const RunInfo &SyntalosLink::runInfo() const
+const LinkRunInfo &SyntalosLink::runInfo() const
 {
     return d->runInfo;
 }

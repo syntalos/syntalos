@@ -1344,7 +1344,7 @@ void MLinkModule::shutdownOutputPorts()
     d->outPortSubs.clear();
 }
 
-bool MLinkModule::prepare(const TestSubject &subject)
+bool MLinkModule::prepare(const RunInfo &info)
 {
     // ensure we are reading any messages from the module process
     d->ctlEventTimer->start();
@@ -1394,9 +1394,11 @@ bool MLinkModule::prepare(const TestSubject &subject)
     // call the module's own startup preparations
     const auto sg = storageGroup();
     PrepareRunRequest prepReq{
-        .subjectId = subject.id.toStdString(),
-        .subjectGroup = subject.group.toStdString(),
-        .runUuid = sg ? sg->collectionId() : Uuid(),
+        .runUuid = info.uuid,
+        .subjectId = info.subject.id.toStdString(),
+        .subjectGroup = info.subject.group.toStdString(),
+        .experimentId = info.experimentId.toStdString(),
+        .isEphemeral = info.isEphemeral,
         .edlRootPath = sg ? sg->path().string() : std::string{},
         .moduleName = name().toStdString(),
     };

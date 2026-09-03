@@ -136,7 +136,7 @@ public:
                     .arg(prefix, QString::fromStdString(m_device.model()), QString::fromStdString(m_device.serial())));
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const RunInfo &) override
     {
         m_deviceLost = false;
         m_device = m_ctlDialog->selectedDevice();

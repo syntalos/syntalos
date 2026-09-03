@@ -90,7 +90,7 @@ public:
         m_settingsDialog->updatePortList();
     }
 
-    bool prepare(const TestSubject &) final
+    bool prepare(const RunInfo &) final
     {
         // cleanup
         m_pinMap.clear();

@@ -86,7 +86,7 @@ public:
         return ModuleFeature::REALTIME | ModuleFeature::SHOW_SETTINGS;
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const RunInfo &) override
     {
         if (m_camera->cameraId().isEmpty()) {
             raiseError("Unable to continue: No valid camera was selected!");

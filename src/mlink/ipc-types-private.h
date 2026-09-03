@@ -519,9 +519,11 @@ static const std::string LOAD_SETTINGS_CALL_ID = "LoadSettings";
  * This makes the module enter the PREPARING stage.
  */
 struct PrepareRunRequest {
+    Uuid runUuid;
     std::string subjectId;
     std::string subjectGroup;
-    Uuid runUuid;
+    std::string experimentId;
+    bool isEphemeral = false;
     std::string edlRootPath;
     std::string moduleName;
 
@@ -529,9 +531,11 @@ struct PrepareRunRequest {
     {
         ByteVector bytes;
         BinaryStreamWriter stream(bytes);
+        stream.write(runUuid);
         stream.write(subjectId);
         stream.write(subjectGroup);
-        stream.write(runUuid);
+        stream.write(experimentId);
+        stream.write(isEphemeral);
         stream.write(edlRootPath);
         stream.write(moduleName);
         return bytes;
@@ -541,9 +545,11 @@ struct PrepareRunRequest {
     {
         PrepareRunRequest req;
         BinaryStreamReader stream(memory, size);
+        stream.read(req.runUuid);
         stream.read(req.subjectId);
         stream.read(req.subjectGroup);
-        stream.read(req.runUuid);
+        stream.read(req.experimentId);
+        stream.read(req.isEphemeral);
         stream.read(req.edlRootPath);
         stream.read(req.moduleName);
         return req;

@@ -126,6 +126,8 @@ private:
     MetaStringMap m_portsMeta;
     QString m_runName;
     TestSubject m_subject;
+    bool m_isEphemeralRun = false;
+    QString m_experimentId;
     bool m_sglxRunStartedByUs = false;
 
 public:
@@ -385,36 +387,21 @@ public:
      * Build the SpikeGLX run name for this recording:
      * <yyyyMMdd>_<subject>_<experiment>_<collection short tag>[_<extra>], leaving out unavailable parts.
      */
-    QString makeRunName(const TestSubject &subject) const
+    QString makeRunName(const RunInfo &info) const
     {
         const auto now = QDateTime::currentDateTime();
         QStringList parts;
         parts << now.toString(QStringLiteral("yyyyMMdd"));
 
-        const auto subjectId = subject.id.trimmed();
+        const auto subjectId = info.subject.id.trimmed();
         if (!subjectId.isEmpty())
             parts << subjectId;
 
-        // The experiment ID is not exposed to modules. The collection name is
-        // "<subject>_<yyyy-MM-dd>_<experiment>" (parts in the user's chosen order,
-        // empty ones omitted), so recover it by removing what we know.
-        if (m_dataset) {
-            const EDLUnit *unit = m_dataset.get();
-            while (unit->parent() != nullptr)
-                unit = unit->parent();
-            auto tokens = qstr(unit->name()).split('_', Qt::SkipEmptyParts);
-            tokens.removeOne(now.date().toString(QStringLiteral("yyyy-MM-dd")));
-            const auto subjectTokens = subjectId.split('_', Qt::SkipEmptyParts);
-            for (int i = 0; !subjectTokens.isEmpty() && i + subjectTokens.size() <= tokens.size(); ++i) {
-                if (tokens.mid(i, subjectTokens.size()) == subjectTokens) {
-                    tokens.remove(i, subjectTokens.size());
-                    break;
-                }
-            }
-            const auto experimentId = tokens.join('_');
-            if (!experimentId.isEmpty())
-                parts << experimentId;
+        const auto experimentId = info.experimentId.trimmed();
+        if (!experimentId.isEmpty())
+            parts << experimentId;
 
+        if (m_dataset) {
             const auto tag = qstr(m_dataset->collectionShortTag());
             if (!tag.isEmpty())
                 parts << tag;
@@ -424,7 +411,7 @@ public:
         if (!extra.isEmpty())
             parts << extra;
 
-        if (isEphemeralRun()) {
+        if (info.isEphemeral) {
             // the user probably wants to delete this, but we won't know for sure - but we can label ephemeral runs
             auto time = QDateTime::currentDateTime();
             parts.prepend("temp");
@@ -434,9 +421,11 @@ public:
         return SglxUtils::sanitizeRunName(parts.join('_'));
     }
 
-    bool prepare(const TestSubject &subject) override
+    bool prepare(const RunInfo &info) override
     {
-        m_subject = subject;
+        m_subject = info.subject;
+        m_isEphemeralRun = info.isEphemeral;
+        m_experimentId = info.experimentId;
         m_streams.clear();
         m_syncStreams.clear();
         m_dataset.reset();
@@ -661,7 +650,7 @@ public:
         }
 
         // run name & SpikeGLX run start
-        m_runName = makeRunName(subject);
+        m_runName = makeRunName(info);
         m_dataset->insertAttribute("run_name", m_runName.toStdString());
 
         if (m_mode == RunControlMode::FullControl) {
@@ -966,16 +955,17 @@ public:
             kv["sy_collection_id"] = m_dataset->collectionId().toHex();
             kv["sy_subject_id"] = m_subject.id.toStdString();
             kv["sy_subject_group"] = m_subject.group.toStdString();
+            kv["sy_experiment_id"] = m_experimentId.toStdString();
             kv["sy_run_name"] = m_runName.toStdString();
             kv["sy_module_name"] = name().toStdString();
             const auto wallUs = std::chrono::duration_cast<std::chrono::microseconds>(
                                     m_syTimer->startWallTime().time_since_epoch())
                                     .count();
             kv["sy_start_wall_time_us"] = std::to_string(wallUs);
+            if (m_isEphemeralRun)
+                kv["sy_ephemeral_run"] = "true";
             if (auto r = m_client.setMetadata(kv); !r)
                 LOG_WARNING(m_log, "Unable to set SpikeGLX metadata: {}", r.error());
-            if (isEphemeralRun())
-                kv["sy_ephemeral_run"] = "true";
         }
 
         // open the recording gate

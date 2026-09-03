@@ -86,7 +86,7 @@ public:
         return ModuleFeature::REALTIME | ModuleFeature::SHOW_SETTINGS;
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const RunInfo &) override
     {
         const auto camSerial = m_camSettingsWindow->selectedCameraSerial();
         if (camSerial.isEmpty()) {

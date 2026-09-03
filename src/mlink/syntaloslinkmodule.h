@@ -88,15 +88,16 @@ protected:
     [[nodiscard]] std::shared_ptr<SyncTimer> timer() const;
 
     /**
-     * Information about the current test subject. Refreshed
-     * before prepare() is called.
+     * Information about the current test subject.
+     * Refreshed before prepare() is called.
      */
     const TestSubjectInfo &testSubject() const;
 
     /**
-     * The run info (EDL root group, UUID, etc.). Available after prepare() is called.
+     * Information about the current run (subject, experiment ID, UUID, EDL root group, etc.).
+     * Refreshed before prepare() is called and only valid for that run.
      */
-    const RunInfo &runInfo() const;
+    const LinkRunInfo &runInfo() const;
 
     /**
      * @brief Create (or return cached) the default dataset for this module.

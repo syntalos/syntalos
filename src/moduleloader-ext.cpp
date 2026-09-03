@@ -68,12 +68,12 @@ public:
         return runProcess();
     }
 
-    bool prepare(const TestSubject &testSubject) override
+    bool prepare(const RunInfo &info) override
     {
         if (!isProcessRunning())
             ensureModuleRunning();
 
-        return MLinkModule::prepare(testSubject);
+        return MLinkModule::prepare(info);
     }
 
     void showSettingsUi() override

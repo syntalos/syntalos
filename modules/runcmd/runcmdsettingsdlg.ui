@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>587</width>
-    <height>304</height>
+    <width>586</width>
+    <height>330</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -32,7 +32,7 @@
    <item>
     <widget class="QLabel" name="label">
      <property name="text">
-      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select a command to be run when the experiment is started.&lt;/p&gt;&lt;p&gt;The command will have the following environment variables available to get more information about the experiment:&lt;/p&gt;&lt;p&gt;* SY_START_TIME_UNIX_MS - UNIX timestamp of the experiment start, in milliseconds&lt;/p&gt;&lt;p&gt;* SY_SUBJECT_ID - Identifier of the test subject&lt;/p&gt;&lt;p&gt;* SY_SUBJECT_GROUP - Group of the test subject&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+      <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Select a command to be run when the experiment is started.&lt;/p&gt;&lt;p&gt;The command will have the following environment variables available to get more information about the experiment:&lt;/p&gt;&lt;ul style=&quot;margin-top: 0px; margin-bottom: 0px; margin-left: 0px; margin-right: 0px; -qt-list-indent: 1;&quot;&gt;&lt;li style=&quot; margin-top:12px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Hack';&quot;&gt;SY_START_TIME_UNIX_MS&lt;/span&gt; - UNIX timestamp of the experiment start, in milliseconds&lt;/li&gt;&lt;li style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Hack';&quot;&gt;SY_SUBJECT_ID&lt;/span&gt; - Identifier of the test subject&lt;/li&gt;&lt;li style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Hack';&quot;&gt;SY_SUBJECT_GROUP&lt;/span&gt; - Group of the test subject&lt;/li&gt;&lt;li style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Hack';&quot;&gt;SY_EXPERIMENT_ID&lt;/span&gt; - Identifier of the experiment&lt;/li&gt;&lt;li style=&quot; margin-top:0px; margin-bottom:12px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-family:'Hack';&quot;&gt;SY_RUN_EPHEMERAL&lt;/span&gt; - Set to 1 if the run is temporary and its data will be discarded&lt;/li&gt;&lt;/ul&gt;&lt;/body&gt;&lt;/html&gt;</string>
      </property>
      <property name="wordWrap">
       <bool>true</bool>
@@ -89,10 +89,10 @@
    <item>
     <widget class="QDialogButtonBox" name="buttonBox">
      <property name="orientation">
-      <enum>Qt::Horizontal</enum>
+      <enum>Qt::Orientation::Horizontal</enum>
      </property>
      <property name="standardButtons">
-      <set>QDialogButtonBox::Ok</set>
+      <set>QDialogButtonBox::StandardButton::Ok</set>
      </property>
     </widget>
    </item>

@@ -250,14 +250,14 @@ public:
         return true;
     }
 
-    bool prepare(const TestSubject &testSubject) override
+    bool prepare(const RunInfo &info) override
     {
         setOutputCaptured(true);
 
         if (!isProcessRunning())
             ensurePythonCodeRunning();
 
-        return MLinkModule::prepare(testSubject);
+        return MLinkModule::prepare(info);
     }
 
     void showSettingsUi() override

@@ -163,7 +163,7 @@ bool SyntalosLinkModule::loadSettings(const ByteVector &settings, const fs::path
     return true;
 }
 
-const RunInfo &SyntalosLinkModule::runInfo() const
+const LinkRunInfo &SyntalosLinkModule::runInfo() const
 {
     return m_slink->runInfo();
 }

@@ -450,7 +450,7 @@ public:
         }
     }
 
-    bool prepare(const TestSubject &testSubject) override
+    bool prepare(const RunInfo &info) override
     {
         m_portEditAction->setEnabled(false);
         m_manualCompileAction->setEnabled(false);
@@ -493,7 +493,7 @@ public:
         m_consoleTabWidget->setCurrentIndex(1);
         appProcessEvents();
 
-        return MLinkModule::prepare(testSubject);
+        return MLinkModule::prepare(info);
     }
 
     void stop() override

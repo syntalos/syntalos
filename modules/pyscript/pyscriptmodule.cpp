@@ -228,7 +228,7 @@ public:
         m_scriptWindow->activateWindow();
     }
 
-    bool prepare(const TestSubject &testSubject) override
+    bool prepare(const RunInfo &info) override
     {
         if (!ensureAndSetBaseVirtualEnv())
             return false;
@@ -237,7 +237,7 @@ public:
         m_pyconsoleWidget->clear();
         setScript(m_scriptView->document()->text());
 
-        return MLinkModule::prepare(testSubject);
+        return MLinkModule::prepare(info);
     }
 
     void stop() override

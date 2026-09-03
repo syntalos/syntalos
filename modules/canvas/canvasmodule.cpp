@@ -88,7 +88,7 @@ public:
         return ModuleFeature::CALL_UI_EVENTS | ModuleFeature::SHOW_DISPLAY;
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const RunInfo &) override
     {
         m_frameSub.reset();
         m_ctlSub.reset();

@@ -80,7 +80,7 @@ public:
     ModuleDriverKind driver() const override;
 
     void updateStartWaitCondition(OptionalWaitCondition *waitCondition) override;
-    bool prepare(const TestSubject&) override;
+    bool prepare(const RunInfo &) override;
 
     void processUiEvents() override;
     void start() override;

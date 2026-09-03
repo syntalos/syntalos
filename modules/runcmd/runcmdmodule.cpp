@@ -119,11 +119,13 @@ public:
         return list;
     }
 
-    bool prepare(const TestSubject &testSubject) override
+    bool prepare(const RunInfo &info) override
     {
         m_procEnv = QProcessEnvironment::systemEnvironment();
-        m_procEnv.insert("SY_SUBJECT_ID", testSubject.id);
-        m_procEnv.insert("SY_SUBJECT_GROUP", testSubject.group);
+        m_procEnv.insert("SY_SUBJECT_ID", info.subject.id);
+        m_procEnv.insert("SY_SUBJECT_GROUP", info.subject.group);
+        m_procEnv.insert("SY_EXPERIMENT_ID", info.experimentId);
+        m_procEnv.insert("SY_RUN_EPHEMERAL", info.isEphemeral ? QStringLiteral("1") : QStringLiteral("0"));
 
         if (m_inSandbox && m_settings->runOnHost()) {
             m_proc->setProgram("flatpak-spawn");

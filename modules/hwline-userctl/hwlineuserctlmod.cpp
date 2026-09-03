@@ -54,7 +54,7 @@ public:
         return ModuleFeature::SHOW_DISPLAY;
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const RunInfo &) override
     {
         m_fmCtlStream->start();
         return true;

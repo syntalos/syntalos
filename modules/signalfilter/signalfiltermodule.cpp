@@ -169,7 +169,7 @@ public:
         m_out = registerOutputPortByTypeId(typeId, QStringLiteral("signals-out"), tag + QStringLiteral(" Filtered"));
     }
 
-    bool prepare(const TestSubject &) override
+    bool prepare(const RunInfo &) override
     {
         clearDataReceivedEventRegistrations();
         m_settingsDlg->setRunning(true);

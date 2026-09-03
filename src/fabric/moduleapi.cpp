@@ -586,7 +586,6 @@ public:
     std::shared_ptr<EDLDataset> defaultDataset;
 
     bool initialized;
-    bool runIsEmphemeral;
 
     ModuleModifiers modifiers;
 };
@@ -615,7 +614,6 @@ AbstractModule::AbstractModule(const ModuleInfo *info, QObject *parent)
 
     d->modifiers = ModuleModifier::ENABLED | ModuleModifier::STOP_ON_FAILURE;
     d->s_eventsMaxModulesPerThread = -1;
-    d->runIsEmphemeral = false;
 }
 
 AbstractModule::AbstractModule(QObject *parent)
@@ -1253,11 +1251,6 @@ bool AbstractModule::isRealtimeApproved() const
     return d->realtimeApproved;
 }
 
-bool AbstractModule::isEphemeralRun() const
-{
-    return d->runIsEmphemeral;
-}
-
 void AbstractModule::usbHotplugEvent(UsbHotplugEventKind kind)
 {
     /* do nothing */
@@ -1415,11 +1408,6 @@ void AbstractModule::setDefaultThreadNiceness(int nice)
 void AbstractModule::setRealtimeApproved(bool approved)
 {
     d->realtimeApproved = approved;
-}
-
-void AbstractModule::setEphemeralRun(bool isEphemeral)
-{
-    d->runIsEmphemeral = isEphemeral;
 }
 
 void AbstractModule::setStatusMessage(const QString &message)
