@@ -48,6 +48,7 @@
 #include "datactl/datatypes.h"
 #include "porteditordialog.h"
 #include "utils/style.h"
+#include "utils/kteditor.h"
 #include "utils/misc.h"
 
 #include "upyconsole.h"
@@ -72,7 +73,7 @@ public:
           m_stopped(true)
     {
         // set up code editor
-        auto editor = KTextEditor::Editor::instance();
+        auto editor = kTextEditorInstance();
 
         // create a new document
         auto upyDoc = editor->createDocument(this);

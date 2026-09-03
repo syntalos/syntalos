@@ -47,6 +47,7 @@
 #include "globalconfig.h"
 #include "pyvenvmanager.h"
 #include "utils/style.h"
+#include "utils/kteditor.h"
 
 SYNTALOS_MODULE(PyScriptModule);
 
@@ -64,7 +65,7 @@ public:
         setWorkerMode(ModuleWorkerMode::TRANSIENT);
 
         // set up code editor
-        auto editor = KTextEditor::Editor::instance();
+        auto editor = kTextEditorInstance();
         // create a new document
         auto pyDoc = editor->createDocument(this);
 

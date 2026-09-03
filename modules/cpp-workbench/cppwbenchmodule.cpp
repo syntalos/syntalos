@@ -46,6 +46,7 @@
 #include "porteditordialog.h"
 #include "globalconfig.h"
 #include "utils/style.h"
+#include "utils/kteditor.h"
 #include "utils/misc.h"
 
 SYNTALOS_MODULE(CppWBenchModule);
@@ -63,7 +64,7 @@ public:
         m_cacheRoot = gconf.userCacheDir();
 
         // set up code editor
-        auto editor = KTextEditor::Editor::instance();
+        auto editor = kTextEditorInstance();
 
         // create a new document
         auto cppDoc = editor->createDocument(this);
