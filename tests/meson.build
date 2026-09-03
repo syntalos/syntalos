@@ -137,6 +137,9 @@ endif
 if 'open-ephys-acq' in modules_enabled
     test_manifests += 'scenarios/openephys-acq-smoketest.toml'
 endif
+if 'spikeglx' in modules_enabled
+    test_manifests += 'scenarios/spikeglx-remote-test.toml'
+endif
 
 if get_option('gui-tests')
     foreach manifest : test_manifests

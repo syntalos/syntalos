@@ -1,0 +1,31 @@
+[test]
+name = "SpikeGLX Remote Test"
+project_file = "projects/spikeglx-remote-test.syct"
+run_duration_sec = 8
+timeout_sec = 120
+expected_exit_code = 0
+expected_datasets = [
+    "imec0-ap",
+    { name = "spikeglx-remote", tsync = { min_entries = 5, monotonic_column = "master-time" } },
+]
+validator_script = "zarr_writer_validator.py"
+
+[test.companion_process]
+script = "validators/spikeglx_mock_server.py"
+startup_wait_sec = 1.0
+expected_stdout_contains = [
+    "Received: SETRUNNAME",
+    "Received: STARTRUN",
+    "Received: SETMETADATA sy_collection_id=",
+    "Received: SETRECORDENAB 1",
+    "Received: SETRECORDENAB 0",
+    "Received: STOPRUN",
+]
+
+[[test.expected_output_files]]
+path = "attributes.toml"
+toml_fields = ["machine_node", "success"]
+
+[[test.expected_output_files]]
+path = "manifest.toml"
+toml_fields = ["collection_id", "format_version", "time_created", "type", "generator"]
