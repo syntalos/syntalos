@@ -615,7 +615,7 @@ public:
             ss.name = si->name;
             ss.sampleRate = si->sampleRate;
             ss.writer = std::make_unique<TimeSyncFileWriter>();
-            ss.writer->setSyncMode(TSyncFileMode::CONTINUOUS);
+            ss.writer->setSyncMode(TSyncFileMode::SYNCPOINTS);
             ss.writer->setTimeNames("sample-count", "master-time");
             ss.writer->setTimeUnits(TSyncFileTimeUnit::INDEX, TSyncFileTimeUnit::MICROSECONDS);
             ss.writer->setTimeDataTypes(TSyncFileDataType::UINT64, TSyncFileDataType::UINT64);
