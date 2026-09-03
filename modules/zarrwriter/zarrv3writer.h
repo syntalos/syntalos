@@ -50,6 +50,7 @@ class ZarrV3Array
 {
 public:
     enum class DType {
+        Int16,
         Int32,
         UInt16,
         UInt32,

@@ -56,6 +56,9 @@ ZarrV3Array::ZarrV3Array(
     static_assert(std::numeric_limits<double>::is_iec559, "This writer requires IEEE-754 doubles");
 
     switch (dtype) {
+    case DType::Int16:
+        m_typeSize = sizeof(int16_t);
+        break;
     case DType::Int32:
         m_typeSize = sizeof(int32_t);
         break;
@@ -358,6 +361,9 @@ bool ZarrV3Array::writeMetadata()
     // Data type
     QString dtypeStr;
     switch (m_dtype) {
+    case DType::Int16:
+        dtypeStr = QStringLiteral("int16");
+        break;
     case DType::Int32:
         dtypeStr = QStringLiteral("int32");
         break;

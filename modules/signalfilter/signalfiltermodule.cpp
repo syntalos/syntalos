@@ -36,7 +36,8 @@ SYNTALOS_MODULE(SignalFilterModule)
 enum class SignalKind {
     None,
     Float,
-    Int,
+    Int32,
+    Int16,
     UInt16
 };
 
@@ -45,7 +46,9 @@ static SignalKind signalKindFromTypeId(int typeId)
     if (typeId == SignalBlockF32::staticTypeId())
         return SignalKind::Float;
     if (typeId == SignalBlockI32::staticTypeId())
-        return SignalKind::Int;
+        return SignalKind::Int32;
+    if (typeId == SignalBlockI16::staticTypeId())
+        return SignalKind::Int16;
     if (typeId == SignalBlockU16::staticTypeId())
         return SignalKind::UInt16;
     return SignalKind::None;
@@ -88,15 +91,18 @@ class SignalFilterModule : public AbstractModule
 
 private:
     std::shared_ptr<StreamInputPort<SignalBlockF32>> m_floatIn;
-    std::shared_ptr<StreamInputPort<SignalBlockI32>> m_intIn;
+    std::shared_ptr<StreamInputPort<SignalBlockI32>> m_int32In;
+    std::shared_ptr<StreamInputPort<SignalBlockI16>> m_int16In;
     std::shared_ptr<StreamInputPort<SignalBlockU16>> m_uint16In;
 
     std::shared_ptr<DataStream<SignalBlockF32>> m_floatOut;
-    std::shared_ptr<DataStream<SignalBlockI32>> m_intOut;
+    std::shared_ptr<DataStream<SignalBlockI32>> m_int32Out;
+    std::shared_ptr<DataStream<SignalBlockI16>> m_int16Out;
     std::shared_ptr<DataStream<SignalBlockU16>> m_uint16Out;
 
     std::shared_ptr<StreamSubscription<SignalBlockF32>> m_floatSub;
-    std::shared_ptr<StreamSubscription<SignalBlockI32>> m_intSub;
+    std::shared_ptr<StreamSubscription<SignalBlockI32>> m_int32Sub;
+    std::shared_ptr<StreamSubscription<SignalBlockI16>> m_int16Sub;
     std::shared_ptr<StreamSubscription<SignalBlockU16>> m_uint16Sub;
 
     SignalFilterSettingsDialog *m_settingsDlg;
@@ -169,10 +175,12 @@ public:
         clearInPorts();
         clearOutPorts();
         m_floatIn.reset();
-        m_intIn.reset();
+        m_int32In.reset();
+        m_int16In.reset();
         m_uint16In.reset();
         m_floatOut.reset();
-        m_intOut.reset();
+        m_int32Out.reset();
+        m_int16Out.reset();
         m_uint16Out.reset();
 
         setStatusMessage({});
@@ -183,11 +191,17 @@ public:
                 QStringLiteral("signals-out"),
                 QStringLiteral("F32 Filtered"));
             break;
-        case SignalKind::Int:
-            m_intIn = registerInputPort<SignalBlockI32>(QStringLiteral("signals-in"), QStringLiteral("I32 Source"));
-            m_intOut = registerOutputPort<SignalBlockI32>(
+        case SignalKind::Int32:
+            m_int32In = registerInputPort<SignalBlockI32>(QStringLiteral("signals-in"), QStringLiteral("I32 Source"));
+            m_int32Out = registerOutputPort<SignalBlockI32>(
                 QStringLiteral("signals-out"),
                 QStringLiteral("I32 Filtered"));
+            break;
+        case SignalKind::Int16:
+            m_int16In = registerInputPort<SignalBlockI16>(QStringLiteral("signals-in"), QStringLiteral("I16 Source"));
+            m_int16Out = registerOutputPort<SignalBlockI16>(
+                QStringLiteral("signals-out"),
+                QStringLiteral("I16 Filtered"));
             break;
         case SignalKind::UInt16:
             m_uint16In = registerInputPort<SignalBlockU16>(QStringLiteral("signals-in"), QStringLiteral("U16 Source"));
@@ -227,7 +241,8 @@ public:
             LOG_WARNING(m_log, "Channel selection is empty; all channels will pass through unfiltered");
 
         m_floatSub.reset();
-        m_intSub.reset();
+        m_int32Sub.reset();
+        m_int16Sub.reset();
         m_uint16Sub.reset();
 
         if (m_floatIn && m_floatIn->hasSubscription()) {
@@ -238,14 +253,22 @@ public:
             m_floatOut->setMetadata(updateOutputMetadata(m_floatSub->metadata()));
             m_floatOut->start();
             registerDataReceivedEvent(&SignalFilterModule::onFloatReceived, m_floatSub);
-        } else if (m_intIn && m_intIn->hasSubscription()) {
-            m_intSub = m_intIn->subscription();
-            m_kind = SignalKind::Int;
-            if (!resolveSampleRate(m_intSub->metadataValue("sample_rate", -1.0)))
+        } else if (m_int32In && m_int32In->hasSubscription()) {
+            m_int32Sub = m_int32In->subscription();
+            m_kind = SignalKind::Int32;
+            if (!resolveSampleRate(m_int32Sub->metadataValue("sample_rate", -1.0)))
                 return false;
-            m_intOut->setMetadata(updateOutputMetadata(m_intSub->metadata()));
-            m_intOut->start();
-            registerDataReceivedEvent(&SignalFilterModule::onIntReceived, m_intSub);
+            m_int32Out->setMetadata(updateOutputMetadata(m_int32Sub->metadata()));
+            m_int32Out->start();
+            registerDataReceivedEvent(&SignalFilterModule::onIntReceived, m_int32Sub);
+        } else if (m_int16In && m_int16In->hasSubscription()) {
+            m_int16Sub = m_int16In->subscription();
+            m_kind = SignalKind::Int16;
+            if (!resolveSampleRate(m_int16Sub->metadataValue("sample_rate", -1.0)))
+                return false;
+            m_int16Out->setMetadata(updateOutputMetadata(m_int16Sub->metadata()));
+            m_int16Out->start();
+            registerDataReceivedEvent(&SignalFilterModule::onInt16Received, m_int16Sub);
         } else if (m_uint16In && m_uint16In->hasSubscription()) {
             m_uint16Sub = m_uint16In->subscription();
             m_kind = SignalKind::UInt16;
@@ -285,7 +308,12 @@ public:
 
     void onIntReceived()
     {
-        processBlocks(m_intSub, m_intOut);
+        processBlocks(m_int32Sub, m_int32Out);
+    }
+
+    void onInt16Received()
+    {
+        processBlocks(m_int16Sub, m_int16Out);
     }
 
     void onUInt16Received()

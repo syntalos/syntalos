@@ -1022,8 +1022,9 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .value("Frame", BaseDataType::TypeId::Frame, "A video frame.")
         .value("LineCommand", BaseDataType::TypeId::LineCommand, "Outbound command to a hardware signal line.")
         .value("LineReading", BaseDataType::TypeId::LineReading, "Timestamped reading from a hardware signal line.")
-        .value("SignalBlockI32", BaseDataType::TypeId::SignalBlockI32, "A block of 32-bit integer samples.")
+        .value("SignalBlockI16", BaseDataType::TypeId::SignalBlockI16, "A block of 16-bit signed integer samples.")
         .value("SignalBlockU16", BaseDataType::TypeId::SignalBlockU16, "A block of 16-bit unsigned integer samples.")
+        .value("SignalBlockI32", BaseDataType::TypeId::SignalBlockI32, "A block of 32-bit integer samples.")
         .value("SignalBlockF32", BaseDataType::TypeId::SignalBlockF32, "A block of 32-bit float samples.");
 
     /**
@@ -1115,13 +1116,13 @@ PYBIND11_MODULE(syntalos_mlink, m)
      ** Signal Blocks
      **/
 
-    py::class_<SignalBlockI32>(m, "SignalBlockI32", "A block of timestamped 32-bit integer signal data.")
+    py::class_<SignalBlockI16>(m, "SignalBlockI16", "A block of timestamped 16-bit signed integer signal data.")
         .def(py::init<>())
-        .def_readwrite("timestamps", &SignalBlockI32::timestamps, "1-D array of sample timestamps in µs.")
-        .def_readwrite("data", &SignalBlockI32::data, "2-D data matrix: rows = samples, columns = channels.")
-        .def_property_readonly("length", &SignalBlockI32::length, "Number of samples (rows) in this block.")
-        .def_property_readonly("rows", &SignalBlockI32::rows, "Number of rows (samples).")
-        .def_property_readonly("cols", &SignalBlockI32::cols, "Number of columns (channels).");
+        .def_readwrite("timestamps", &SignalBlockI16::timestamps, "1-D array of sample timestamps in µs.")
+        .def_readwrite("data", &SignalBlockI16::data, "2-D data matrix: rows = samples, columns = channels.")
+        .def_property_readonly("length", &SignalBlockI16::length, "Number of samples (rows) in this block.")
+        .def_property_readonly("rows", &SignalBlockI16::rows, "Number of rows (samples).")
+        .def_property_readonly("cols", &SignalBlockI16::cols, "Number of columns (channels).");
 
     py::class_<SignalBlockU16>(m, "SignalBlockU16", "A block of timestamped 16-bit unsigned integer signal data.")
         .def(py::init<>())
@@ -1130,6 +1131,14 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .def_property_readonly("length", &SignalBlockU16::length, "Number of samples (rows) in this block.")
         .def_property_readonly("rows", &SignalBlockU16::rows, "Number of rows (samples).")
         .def_property_readonly("cols", &SignalBlockU16::cols, "Number of columns (channels).");
+
+    py::class_<SignalBlockI32>(m, "SignalBlockI32", "A block of timestamped 32-bit integer signal data.")
+        .def(py::init<>())
+        .def_readwrite("timestamps", &SignalBlockI32::timestamps, "1-D array of sample timestamps in µs.")
+        .def_readwrite("data", &SignalBlockI32::data, "2-D data matrix: rows = samples, columns = channels.")
+        .def_property_readonly("length", &SignalBlockI32::length, "Number of samples (rows) in this block.")
+        .def_property_readonly("rows", &SignalBlockI32::rows, "Number of rows (samples).")
+        .def_property_readonly("cols", &SignalBlockI32::cols, "Number of columns (channels).");
 
     py::class_<SignalBlockF32>(m, "SignalBlockF32", "A block of timestamped 32-bit float signal data.")
         .def(py::init<>())

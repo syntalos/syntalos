@@ -39,7 +39,8 @@ private:
     std::shared_ptr<DataStream<LineReading>> m_lrdOut;
 
     std::shared_ptr<DataStream<SignalBlockF32>> m_floatOut;
-    std::shared_ptr<DataStream<SignalBlockI32>> m_intOut;
+    std::shared_ptr<DataStream<SignalBlockI32>> m_int32Out;
+    std::shared_ptr<DataStream<SignalBlockI16>> m_int16Out;
     std::shared_ptr<DataStream<SignalBlockU16>> m_uint16Out;
 
     int m_fps;
@@ -75,8 +76,9 @@ public:
         m_lcmdOut = registerOutputPort<LineCommand>(QStringLiteral("linecmd-out"), QStringLiteral("Line Control"));
         m_lrdOut = registerOutputPort<LineReading>(QStringLiteral("linerd-out"), QStringLiteral("Line Readings"));
         m_floatOut = registerOutputPort<SignalBlockF32>(QStringLiteral("float-out"), QStringLiteral("Floats"));
-        m_intOut = registerOutputPort<SignalBlockI32>(QStringLiteral("int-out"), QStringLiteral("I32 Integers"));
-        m_uint16Out = registerOutputPort<SignalBlockU16>(QStringLiteral("uint16-out"), QStringLiteral("U16 Integers"));
+        m_int32Out = registerOutputPort<SignalBlockI32>(QStringLiteral("i32-out"), QStringLiteral("I32 Integers"));
+        m_int16Out = registerOutputPort<SignalBlockI16>(QStringLiteral("i16-out"), QStringLiteral("I16 Integers"));
+        m_uint16Out = registerOutputPort<SignalBlockU16>(QStringLiteral("u16-out"), QStringLiteral("U16 Integers"));
     }
 
     ~DataSourceModule() override {}
@@ -150,11 +152,17 @@ public:
         m_floatOut->setMetadataValue("sample_rate", m_sampleRate);
         m_floatOut->start();
 
-        m_intOut->setMetadataValue("signal_names", MetaArray{"Int Low"});
-        m_intOut->setMetadataValue("time_unit", "microseconds");
-        m_intOut->setMetadataValue("data_unit", "au");
-        m_intOut->setMetadataValue("sample_rate", m_sampleRate);
-        m_intOut->start();
+        m_int32Out->setMetadataValue("signal_names", MetaArray{"Int Low"});
+        m_int32Out->setMetadataValue("time_unit", "microseconds");
+        m_int32Out->setMetadataValue("data_unit", "au");
+        m_int32Out->setMetadataValue("sample_rate", m_sampleRate);
+        m_int32Out->start();
+
+        m_int16Out->setMetadataValue("signal_names", MetaArray{"I16 Low", "I16 High"});
+        m_int16Out->setMetadataValue("time_unit", "microseconds");
+        m_int16Out->setMetadataValue("data_unit", "au");
+        m_int16Out->setMetadataValue("sample_rate", m_sampleRate);
+        m_int16Out->start();
 
         m_uint16Out->setMetadataValue("signal_names", MetaArray{"U16 Low", "U16 High"});
         m_uint16Out->setMetadataValue("time_unit", "microseconds");
@@ -226,6 +234,7 @@ public:
 
             SignalBlockF32 fsb(blockLen, 3);
             SignalBlockI32 isb(blockLen, 1);
+            SignalBlockI16 ssb(blockLen, 2);
             SignalBlockU16 usb(blockLen, 2);
             for (int i = 0; i < blockLen; ++i) {
                 const uint64_t n = m_sampleCount + static_cast<uint64_t>(i);
@@ -243,6 +252,11 @@ public:
                 isb.timestamps[i] = ts;
                 isb.data(i, 0) = static_cast<int32_t>(std::lround(1000.0 * lo));
 
+                // signed 16-bit: exercise the negative half of the range as well
+                ssb.timestamps[i] = ts;
+                ssb.data(i, 0) = static_cast<int16_t>(std::lround(1000.0 * lo));
+                ssb.data(i, 1) = static_cast<int16_t>(std::lround(1000.0 * hi));
+
                 usb.timestamps[i] = ts;
                 usb.data(i, 0) = static_cast<uint16_t>(std::lround(2000.0 + 1000.0 * lo));
                 usb.data(i, 1) = static_cast<uint16_t>(std::lround(2000.0 + 1000.0 * hi));
@@ -250,7 +264,8 @@ public:
             m_sampleCount += static_cast<uint64_t>(blockLen);
 
             m_floatOut->push(std::move(fsb));
-            m_intOut->push(std::move(isb));
+            m_int32Out->push(std::move(isb));
+            m_int16Out->push(std::move(ssb));
             m_uint16Out->push(std::move(usb));
 
             dataIndex++;

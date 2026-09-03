@@ -37,6 +37,7 @@ SignalFilterSettingsDialog::SignalFilterSettingsDialog(QWidget *parent)
     // input type selector (only the signal block types make sense here)
     ui->inputTypeSel->addDataType(SignalBlockF32::staticTypeId(), QStringLiteral("Float32 Signals"));
     ui->inputTypeSel->addDataType(SignalBlockI32::staticTypeId(), QStringLiteral("Int32 Signals"));
+    ui->inputTypeSel->addDataType(SignalBlockI16::staticTypeId(), QStringLiteral("Int16 Signals"));
     ui->inputTypeSel->addDataType(SignalBlockU16::staticTypeId(), QStringLiteral("UInt16 Signals"));
     ui->inputTypeSel->setToolTip(QStringLiteral(
         "Frequency filters remove the DC offset, so filtering raw integer/unsigned signals is "

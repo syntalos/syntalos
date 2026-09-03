@@ -28,7 +28,9 @@ except ImportError as e:
 MIN_SAMPLES = 8
 
 
-def validate_converted_zarr(store_path: str, expected_dtype: str, conversion_desc: str) -> None:
+def validate_converted_zarr(
+    store_path: str, expected_dtype: str, conversion_desc: str, expect_negative: bool = False
+) -> None:
     print(f"  Checking store: {store_path}")
 
     try:
@@ -72,15 +74,24 @@ def validate_converted_zarr(store_path: str, expected_dtype: str, conversion_des
     if np.any(np.diff(ts_arr.astype(np.int64)) < 0):
         raise RuntimeError(f"Timestamps in '{store_path}' are not monotonically non-decreasing")
 
+    # A signed source must keep its negative half through the conversion;
+    # a sign/zero-extension mix-up would show up here as an all-positive store.
+    if expect_negative and not np.any(data[:] < 0):
+        raise RuntimeError(
+            f"Expected negative values in '{store_path}' ({conversion_desc}), but all values are >= 0"
+        )
+
     print(f"    OK: {n_samples} samples × {n_channels} channel(s), dtype={data.dtype}")
 
 
 # Map between the dataset names in the project and the zarr files they should
 # produce, along with the data dtype each conversion is expected to yield.
 EXPECTED_STORES = {
-    "u16-to-i32-direct": ("u16-to-i32-direct.zarr", "int32", "U16→I32"),
-    "u16-to-i32-mlinkpy": ("u16-to-i32-mlinkpy.zarr", "int32", "U16→I32"),
-    "i32-to-f32-direct": ("i32-to-f32-direct.zarr", "float32", "I32→F32"),
+    "u16-to-i32-direct": ("u16-to-i32-direct.zarr", "int32", "U16→I32", False),
+    "u16-to-i32-mlinkpy": ("u16-to-i32-mlinkpy.zarr", "int32", "U16→I32", False),
+    "i32-to-f32-direct": ("i32-to-f32-direct.zarr", "float32", "I32→F32", True),
+    "i16-to-i32-direct": ("i16-to-i32-direct.zarr", "int32", "I16→I32", True),
+    "i16-to-f32-direct": ("i16-to-f32-direct.zarr", "float32", "I16→F32", True),
 }
 
 
@@ -95,7 +106,12 @@ def main() -> int:
         return 1
 
     errors = []
-    for dataset_name, (store_basename, expected_dtype, conversion_desc) in EXPECTED_STORES.items():
+    for dataset_name, (
+        store_basename,
+        expected_dtype,
+        conversion_desc,
+        expect_negative,
+    ) in EXPECTED_STORES.items():
         matches = glob.glob(
             os.path.join(export_dir, "**", dataset_name, store_basename),
             recursive=True,
@@ -107,7 +123,7 @@ def main() -> int:
             continue
         for store in matches:
             try:
-                validate_converted_zarr(store, expected_dtype, conversion_desc)
+                validate_converted_zarr(store, expected_dtype, conversion_desc, expect_negative)
             except RuntimeError as e:
                 errors.append(str(e))
 

@@ -104,7 +104,7 @@ BaseDataType::TypeId BaseDataType::typeIdFromString(const std::string &str)
     return result;
 }
 
-SignalBlockI32::SignalBlockI32(struct SignalBlockU16 &&src)
+SignalBlockI32::SignalBlockI32(struct SignalBlockI16 &&src)
 {
     // The data matrix has a different scalar type, so the cast must read every
     // element anyway; only the timestamps can actually be moved.
@@ -112,13 +112,13 @@ SignalBlockI32::SignalBlockI32(struct SignalBlockU16 &&src)
     data = src.data.cast<int32_t>();
 }
 
-SignalBlockF32::SignalBlockF32(struct SignalBlockU16 &&src)
+SignalBlockI32::SignalBlockI32(struct SignalBlockU16 &&src)
 {
     timestamps = std::move(src.timestamps);
-    data = src.data.cast<float>();
+    data = src.data.cast<int32_t>();
 }
 
-SignalBlockF32::SignalBlockF32(struct SignalBlockI32 &&src)
+SignalBlockF32::SignalBlockF32(struct SignalBlockI16 &&src)
 {
     timestamps = std::move(src.timestamps);
     data = src.data.cast<float>();
@@ -134,6 +134,18 @@ SignalBlockI32::SignalBlockI32(struct SignalBlockF32 &&src)
     // bound is the largest float that still fits, 2^31 - 128.
     constexpr float maxF = 2147483520.0f; // largest float <= INT32_MAX
     data = src.data.array().isNaN().select(0.0f, src.data.array()).max(INT32_MIN).min(maxF).cast<int32_t>().matrix();
+}
+
+SignalBlockF32::SignalBlockF32(struct SignalBlockU16 &&src)
+{
+    timestamps = std::move(src.timestamps);
+    data = src.data.cast<float>();
+}
+
+SignalBlockF32::SignalBlockF32(struct SignalBlockI32 &&src)
+{
+    timestamps = std::move(src.timestamps);
+    data = src.data.cast<float>();
 }
 
 } // namespace Syntalos

@@ -233,9 +233,11 @@ syntalos_mlink    </h1>
 
 <p>LineReading : Timestamped reading from a hardware signal line.</p>
 
-<p>SignalBlockI32 : A block of 32-bit integer samples.</p>
+<p>SignalBlockI16 : A block of 16-bit signed integer samples.</p>
 
 <p>SignalBlockU16 : A block of 16-bit unsigned integer samples.</p>
+
+<p>SignalBlockI32 : A block of 32-bit integer samples.</p>
 
 <p>SignalBlockF32 : A block of 32-bit float samples.</p>
 </div>
@@ -304,6 +306,17 @@ syntalos_mlink    </h1>
 
 </div>
 <a class="headerlink" href="#DataType.SignalBlockF32"></a>
+
+
+
+</div>
+<div id="DataType.SignalBlockI16" class="classattr">
+<div class="attr variable">
+<span class="name">SignalBlockI16</span><span class="annotation">: ClassVar[<a href="#DataType">DataType</a>]</span>
+
+
+</div>
+<a class="headerlink" href="#DataType.SignalBlockI16"></a>
 
 
 
@@ -382,7 +395,7 @@ syntalos_mlink    </h1>
 <div class="attr function">
 
 <span class="def">def</span>
-<span class="name">add_aux_file</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	<span class="n">file_name</span><span class="p">:</span> <span class="nb">str</span>,</span><span class="param">	<span class="n">key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>,</span><span class="param">	<span class="n">summary</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>,</span><span class="param">	<span class="n">scan</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span></span><span class="return-annotation">) -> <span class="n">pathlib</span><span class="o">.</span><span class="n">_local</span><span class="o">.</span><span class="n">Path</span>:</span></span>
+<span class="name">add_aux_file</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	<span class="n">file_name</span><span class="p">:</span> <span class="nb">str</span>,</span><span class="param">	<span class="n">key</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>,</span><span class="param">	<span class="n">summary</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>,</span><span class="param">	<span class="n">scan</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span></span><span class="return-annotation">) -> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span>:</span></span>
 
 
 </div>
@@ -399,7 +412,7 @@ syntalos_mlink    </h1>
 <div class="attr function">
 
 <span class="def">def</span>
-<span class="name">path_for_basename</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">basename</span><span class="p">:</span> <span class="nb">str</span></span><span class="return-annotation">) -> <span class="n">pathlib</span><span class="o">.</span><span class="n">_local</span><span class="o">.</span><span class="n">Path</span>:</span></span>
+<span class="name">path_for_basename</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">basename</span><span class="p">:</span> <span class="nb">str</span></span><span class="return-annotation">) -> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span>:</span></span>
 
 
 </div>
@@ -431,7 +444,7 @@ syntalos_mlink    </h1>
 <div class="attr function">
 
 <span class="def">def</span>
-<span class="name">set_data_file</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	<span class="n">file_name</span><span class="p">:</span> <span class="nb">str</span>,</span><span class="param">	<span class="n">summary</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>,</span><span class="param">	<span class="n">scan</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span></span><span class="return-annotation">) -> <span class="n">pathlib</span><span class="o">.</span><span class="n">_local</span><span class="o">.</span><span class="n">Path</span>:</span></span>
+<span class="name">set_data_file</span><span class="signature pdoc-code multiline">(<span class="param">	<span class="bp">self</span>,</span><span class="param">	<span class="n">file_name</span><span class="p">:</span> <span class="nb">str</span>,</span><span class="param">	<span class="n">summary</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s1">&#39;&#39;</span>,</span><span class="param">	<span class="n">scan</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span></span><span class="return-annotation">) -> <span class="n">pathlib</span><span class="o">.</span><span class="n">Path</span>:</span></span>
 
 
 </div>
@@ -478,7 +491,7 @@ syntalos_mlink    </h1>
 </div>
 <div id="EdlDataset.path" class="classattr">
 <div class="attr variable">
-<span class="name">path</span><span class="annotation">: pathlib._local.Path</span>
+<span class="name">path</span><span class="annotation">: pathlib.Path</span>
 
 
 </div>
@@ -564,7 +577,7 @@ syntalos_mlink    </h1>
 </div>
 <div id="EdlGroup.path" class="classattr">
 <div class="attr variable">
-<span class="name">path</span><span class="annotation">: pathlib._local.Path</span>
+<span class="name">path</span><span class="annotation">: pathlib.Path</span>
 
 
 </div>
@@ -1874,6 +1887,86 @@ indicate it is running too fast.</p>
 
 </div>
 </section>
+<section id="SignalBlockI16">
+<div class="attr class">
+
+<span class="def">class</span>
+<span class="name">SignalBlockI16</span>:
+
+
+</div>
+<a class="headerlink" href="#SignalBlockI16"></a>
+
+<div class="docstring"><p>A block of timestamped 16-bit signed integer signal data.</p>
+</div>
+
+
+<div id="SignalBlockI16.cols" class="classattr">
+<div class="attr variable">
+<span class="name">cols</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#SignalBlockI16.cols"></a>
+
+<div class="docstring"><p>Number of columns (channels).</p>
+</div>
+
+
+</div>
+<div id="SignalBlockI16.data" class="classattr">
+<div class="attr variable">
+<span class="name">data</span><span class="annotation">: Annotated[numpy.ndarray[tuple[Any, ...], numpy.dtype[numpy.int16]], &#39;[m, n]&#39;]</span>
+
+
+</div>
+<a class="headerlink" href="#SignalBlockI16.data"></a>
+
+<div class="docstring"><p>2-D data matrix: rows = samples, columns = channels.</p>
+</div>
+
+
+</div>
+<div id="SignalBlockI16.length" class="classattr">
+<div class="attr variable">
+<span class="name">length</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#SignalBlockI16.length"></a>
+
+<div class="docstring"><p>Number of samples (rows) in this block.</p>
+</div>
+
+
+</div>
+<div id="SignalBlockI16.rows" class="classattr">
+<div class="attr variable">
+<span class="name">rows</span><span class="annotation">: int</span>
+
+
+</div>
+<a class="headerlink" href="#SignalBlockI16.rows"></a>
+
+<div class="docstring"><p>Number of rows (samples).</p>
+</div>
+
+
+</div>
+<div id="SignalBlockI16.timestamps" class="classattr">
+<div class="attr variable">
+<span class="name">timestamps</span><span class="annotation">: Annotated[numpy.ndarray[tuple[Any, ...], numpy.dtype[numpy.uint64]], &#39;[m, 1]&#39;]</span>
+
+
+</div>
+<a class="headerlink" href="#SignalBlockI16.timestamps"></a>
+
+<div class="docstring"><p>1-D array of sample timestamps in µs.</p>
+</div>
+
+
+</div>
+</section>
 <section id="SignalBlockI32">
 <div class="attr class">
 
@@ -2270,6 +2363,31 @@ before the first run is prepared.</p>
 <blockquote>
 <p>An <code><a href="#OutputPort">OutputPort</a></code> handle.</p>
 </blockquote>
+</div>
+
+
+</div>
+<div id="SyntalosLink.set_status_message" class="classattr">
+<div class="attr function">
+
+<span class="def">def</span>
+<span class="name">set_status_message</span><span class="signature pdoc-code condensed">(<span class="param"><span class="bp">self</span>, </span><span class="param"><span class="n">message</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span></span><span class="return-annotation">) -> <span class="kc">None</span>:</span></span>
+
+
+</div>
+<a class="headerlink" href="#SyntalosLink.set_status_message"></a>
+
+<div class="docstring"><p>Set the GUI-visible module status message.</p>
+
+<p>May contain limited HTML rich text if it starts with '<html>' and must be as short as possible.
+Long messages will be truncated.
+Pass <code>None</code> or an empty string to clear it.</p>
+
+<h6 id="parameters">Parameters</h6>
+
+<ul>
+<li><strong>message</strong>:  Human-readable status message.</li>
+</ul>
 </div>
 
 

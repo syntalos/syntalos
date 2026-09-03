@@ -1469,8 +1469,9 @@ size_t Engine::guessStreamItemSizeBytes(VariantStreamSubscription *sub)
 
     // otherwise fall back to a coarse guess
     switch (sub->dataTypeId()) {
-    case BaseDataType::SignalBlockI32:
+    case BaseDataType::SignalBlockI16:
     case BaseDataType::SignalBlockU16:
+    case BaseDataType::SignalBlockI32:
     case BaseDataType::SignalBlockF32:
         return 64 * 1024;
     default:

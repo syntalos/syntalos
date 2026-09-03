@@ -5,6 +5,7 @@
 #include <limits>
 #include "datactl/datatypes.h"
 #include "datactl/frametype.h"
+#include "streams/stream.h"
 
 using namespace Syntalos;
 
@@ -134,6 +135,46 @@ private slots:
         matEnsureExclusive(mat, 8, 4, CV_16UC1);
         QVERIFY(mat.data != buffer);
         QCOMPARE(mat.type(), CV_16UC1);
+    }
+
+    void testStreamTypeCompatibility()
+    {
+        const auto compat = [](BaseDataType::TypeId from, BaseDataType::TypeId to) {
+            return checkStreamTypesCompatible(from, to);
+        };
+        using T = BaseDataType;
+
+        // identity
+        QVERIFY(compat(T::SignalBlockI16, T::SignalBlockI16));
+        QVERIFY(compat(T::Frame, T::Frame));
+
+        // widening casts of the 16-bit integer blocks
+        QVERIFY(compat(T::SignalBlockI16, T::SignalBlockI32));
+        QVERIFY(compat(T::SignalBlockI16, T::SignalBlockF32));
+        QVERIFY(compat(T::SignalBlockU16, T::SignalBlockI32));
+        QVERIFY(compat(T::SignalBlockU16, T::SignalBlockF32));
+        QVERIFY(compat(T::SignalBlockI32, T::SignalBlockF32));
+        QVERIFY(compat(T::SignalBlockF32, T::SignalBlockI32));
+
+        // signedness must never be reinterpreted implicitly
+        QVERIFY(!compat(T::SignalBlockI16, T::SignalBlockU16));
+        QVERIFY(!compat(T::SignalBlockU16, T::SignalBlockI16));
+
+        // no narrowing into the 16-bit types
+        QVERIFY(!compat(T::SignalBlockI32, T::SignalBlockI16));
+        QVERIFY(!compat(T::SignalBlockF32, T::SignalBlockI16));
+        QVERIFY(!compat(T::SignalBlockI32, T::SignalBlockU16));
+        QVERIFY(!compat(T::SignalBlockF32, T::SignalBlockU16));
+
+        // unrelated types
+        QVERIFY(!compat(T::Frame, T::SignalBlockI16));
+        QVERIFY(!compat(T::SignalBlockI16, T::TableRow));
+
+        // name round-trip of the new type
+        QCOMPARE(BaseDataType::typeIdFromString("SignalBlockI16"), T::SignalBlockI16);
+        QCOMPARE(
+            QString::fromStdString(BaseDataType::typeIdToString(T::SignalBlockI16)),
+            QStringLiteral("SignalBlockI16"));
     }
 };
 

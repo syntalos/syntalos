@@ -117,8 +117,9 @@ public:
         Frame,
         LineCommand,
         LineReading,
-        SignalBlockI32,
+        SignalBlockI16,
         SignalBlockU16,
+        SignalBlockI32,
         SignalBlockF32,
         Last
     };
@@ -262,6 +263,7 @@ enum class ControlCommandKind {
 
 // Forward declarations
 struct Frame;
+struct SignalBlockI16;
 struct SignalBlockU16;
 
 /**
@@ -540,23 +542,22 @@ enum class SignalDataType {
 };
 
 /**
- * @brief A block of 32-bit signed integer signal data with timestamps.
+ * @brief A block of 16-bit signed integer signal data with timestamps.
+ *
+ * Used by DAQ hardware that natively produces signed 16-bit samples.
  */
-struct SignalBlockI32 final : BaseDataType {
-    SY_DEFINE_DATA_TYPE(SignalBlockI32)
+struct SignalBlockI16 final : BaseDataType {
+    SY_DEFINE_DATA_TYPE(SignalBlockI16)
 
     VectorXu64 timestamps;
-    MatrixXi32 data;
+    MatrixXi16 data;
 
-    explicit SignalBlockI32(uint sampleCount = 60, uint channelCount = 1)
+    explicit SignalBlockI16(uint sampleCount = 60, uint channelCount = 1)
     {
         assert(channelCount > 0);
         timestamps.resize(sampleCount);
         data.resize(sampleCount, channelCount);
     }
-
-    explicit SignalBlockI32(struct SignalBlockU16 &&src);
-    explicit SignalBlockI32(struct SignalBlockF32 &&src);
 
     [[nodiscard]] size_t length() const
     {
@@ -594,13 +595,13 @@ struct SignalBlockI32 final : BaseDataType {
         return true;
     }
 
-    static SignalBlockI32 fromMemory(const void *memory, size_t size)
+    static SignalBlockI16 fromMemory(const void *memory, size_t size)
     {
-        SignalBlockI32 obj;
+        SignalBlockI16 obj;
         BinaryStreamReader stream(memory, size);
 
         obj.timestamps = deserializeEigen<VectorXu64>(stream);
-        obj.data = deserializeEigen<MatrixXi32>(stream);
+        obj.data = deserializeEigen<MatrixXi16>(stream);
 
         return obj;
     }
@@ -673,6 +674,74 @@ struct SignalBlockU16 final : BaseDataType {
 };
 
 /**
+ * @brief A block of 32-bit signed integer signal data with timestamps.
+ */
+struct SignalBlockI32 final : BaseDataType {
+    SY_DEFINE_DATA_TYPE(SignalBlockI32)
+
+    VectorXu64 timestamps;
+    MatrixXi32 data;
+
+    explicit SignalBlockI32(uint sampleCount = 60, uint channelCount = 1)
+    {
+        assert(channelCount > 0);
+        timestamps.resize(sampleCount);
+        data.resize(sampleCount, channelCount);
+    }
+
+    explicit SignalBlockI32(struct SignalBlockI16 &&src);
+    explicit SignalBlockI32(struct SignalBlockU16 &&src);
+    explicit SignalBlockI32(struct SignalBlockF32 &&src);
+
+    [[nodiscard]] size_t length() const
+    {
+        return timestamps.size();
+    }
+
+    [[nodiscard]] size_t rows() const
+    {
+        return data.rows();
+    }
+
+    [[nodiscard]] size_t cols() const
+    {
+        return data.cols();
+    }
+
+    [[nodiscard]] ssize_t memorySize() const override
+    {
+        // exact serialized size, matching serializeEigen() used in writeToMemory()
+        return serializedEigenSize(timestamps) + serializedEigenSize(data);
+    }
+
+    bool writeToMemory(void *memory, ssize_t size = -1) const override
+    {
+        return writeEigenPairToMemory(memory, size, timestamps, data);
+    }
+
+    bool toBytes(ByteVector &output) const override
+    {
+        BinaryStreamWriter stream(output);
+
+        serializeEigen(stream, timestamps);
+        serializeEigen(stream, data);
+
+        return true;
+    }
+
+    static SignalBlockI32 fromMemory(const void *memory, size_t size)
+    {
+        SignalBlockI32 obj;
+        BinaryStreamReader stream(memory, size);
+
+        obj.timestamps = deserializeEigen<VectorXu64>(stream);
+        obj.data = deserializeEigen<MatrixXi32>(stream);
+
+        return obj;
+    }
+};
+
+/**
  * @brief A block of 32-bit floating-point timestamped signal data.
  */
 struct SignalBlockF32 final : BaseDataType {
@@ -696,6 +765,7 @@ struct SignalBlockF32 final : BaseDataType {
             data(0, i) = floatVec[i];
     }
 
+    explicit SignalBlockF32(struct SignalBlockI16 &&src);
     explicit SignalBlockF32(struct SignalBlockU16 &&src);
     explicit SignalBlockF32(struct SignalBlockI32 &&src);
 
@@ -752,8 +822,16 @@ struct SignalBlockF32 final : BaseDataType {
  *
  * Append a new type here when adding it to the TypeId enum.
  */
-using StreamTypeList = std::
-    tuple<ControlCommand, TableRow, Frame, LineCommand, LineReading, SignalBlockI32, SignalBlockU16, SignalBlockF32>;
+using StreamTypeList = std::tuple<
+    ControlCommand,
+    TableRow,
+    Frame,
+    LineCommand,
+    LineReading,
+    SignalBlockI16,
+    SignalBlockU16,
+    SignalBlockI32,
+    SignalBlockF32>;
 
 /**
  * @brief Call `fn(std::type_identity<T>{})` for every T in StreamTypeList.

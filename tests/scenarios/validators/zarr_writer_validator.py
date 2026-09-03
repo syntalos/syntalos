@@ -8,8 +8,8 @@
 Validator for the Zarr Writer module test.
 
 Checks that each generated *.zarr store is a valid Zarr v3 group containing
-readable 'timestamps' (uint64, 1-D) and 'data' (float32, float64, int32 or
-uint16, 2-D) arrays with consistent row counts and at least some samples.
+readable 'timestamps' (uint64, 1-D) and 'data' (float32, float64, int32,
+int16, uint16 or uint32, 2-D) arrays with consistent row counts and at least some samples.
 
 Usage: zarr_writer_validator.py <export_dir>
 """
@@ -67,7 +67,9 @@ def validate_zarr_store(store_path: str) -> None:
         np.dtype("float32"),
         np.dtype("float64"),
         np.dtype("int32"),
+        np.dtype("int16"),
         np.dtype("uint16"),
+        np.dtype("uint32"),  # line readings: [line_id, value] rows
     )
     if data.dtype not in allowed_dtypes:
         raise RuntimeError(

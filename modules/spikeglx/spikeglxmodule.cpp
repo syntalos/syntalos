@@ -60,7 +60,7 @@ struct FetchStream {
     SglxUtils::ChanGroup group = SglxUtils::ChanGroup::ALL;
     std::vector<int> relChans; /// channel indices relative to the group
     std::vector<int> absChans; /// channel indices within the stream
-    std::shared_ptr<DataStream<SignalBlockI32>> stream;
+    std::shared_ptr<DataStream<SignalBlockI16>> stream;
 
     // run state
     double sampleRate = 0;
@@ -70,7 +70,7 @@ struct FetchStream {
     int maxSamps = 1;
     std::unique_ptr<FreqCounterSynchronizer> syncer;
     std::vector<int16_t> buffer;
-    SignalBlockI32 block;
+    SignalBlockI16 block;
     uint64_t gapCount = 0;
     uint64_t droppedSamples = 0;
     uint64_t fetchedSamples = 0;
@@ -193,7 +193,7 @@ public:
             currentIds.insert(fs.portId);
 
             const auto title = QStringLiteral("%1 %2").arg(fs.streamName, SglxUtils::chanGroupName(*group));
-            fs.stream = registerOutputPort<SignalBlockI32>(fs.portId, title);
+            fs.stream = registerOutputPort<SignalBlockI16>(fs.portId, title);
             newStreams.push_back(std::move(fs));
         }
 
@@ -814,7 +814,7 @@ public:
         portMeta.insert("data_scale", scale);
         m_portsMeta.insert(fs.portId.toStdString(), portMeta);
 
-        fs.block = SignalBlockI32(1, static_cast<uint>(fs.absChans.size()));
+        fs.block = SignalBlockI16(1, static_cast<uint>(fs.absChans.size()));
         return true;
     }
 
@@ -930,13 +930,12 @@ public:
             const int nCh = res->nChans;
             fs.block.data.resize(n, nCh);
             fs.block.timestamps.resize(n);
-            const int16_t *src = fs.buffer.data();
+            // the SDK buffer is sample-major int16, exactly our row-major block layout
+            fs.block.data = Eigen::Map<const MatrixXi16>(fs.buffer.data(), n, nCh);
             for (int s = 0; s < n; ++s) {
                 const int64_t idx = static_cast<int64_t>(res->headCt + s) - static_cast<int64_t>(fs.refSampleCount)
                                     + fs.startSampleOffset;
                 fs.block.timestamps(s) = static_cast<uint64_t>(std::max<int64_t>(idx, 0));
-                for (int c = 0; c < nCh; ++c)
-                    fs.block.data(s, c) = src[static_cast<size_t>(s) * nCh + c];
             }
             if (fs.syncer)
                 fs.syncer->processTimestamps(recvTs, 0, 1, fs.block.timestamps);
@@ -1295,7 +1294,8 @@ public:
         m_settingsDlg->setFetchIntervalMs(settings.value(QStringLiteral("fetch_interval_ms"), 50).toInt());
         m_settingsDlg->setFetchMaxBlockMs(settings.value(QStringLiteral("fetch_max_block_ms"), 250).toInt());
         m_settingsDlg->setOverrunPolicy(
-            settings.value(QStringLiteral("fetch_overrun_policy"), QStringLiteral("abort")).toString() == QLatin1String("skip")
+            settings.value(QStringLiteral("fetch_overrun_policy"), QStringLiteral("abort")).toString()
+                    == QLatin1String("skip")
                 ? SpikeGLXSettingsDialog::SkipAhead
                 : SpikeGLXSettingsDialog::AbortRun);
 

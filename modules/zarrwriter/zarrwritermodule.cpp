@@ -42,20 +42,23 @@ SYNTALOS_MODULE(ZarrWriterModule)
 
 enum class InputSourceKind {
     NONE,
-    FLOAT,
-    INT,
+    INT16,
     UINT16,
+    INT32,
+    FLOAT,
     LINE_READING
 };
 
 static InputSourceKind inputSourceKindFromTypeId(int typeId)
 {
-    if (typeId == SignalBlockF32::staticTypeId())
-        return InputSourceKind::FLOAT;
-    if (typeId == SignalBlockI32::staticTypeId())
-        return InputSourceKind::INT;
+    if (typeId == SignalBlockI16::staticTypeId())
+        return InputSourceKind::INT16;
     if (typeId == SignalBlockU16::staticTypeId())
         return InputSourceKind::UINT16;
+    if (typeId == SignalBlockI32::staticTypeId())
+        return InputSourceKind::INT32;
+    if (typeId == SignalBlockF32::staticTypeId())
+        return InputSourceKind::FLOAT;
     if (typeId == LineReading::staticTypeId())
         return InputSourceKind::LINE_READING;
     return InputSourceKind::NONE;
@@ -82,6 +85,7 @@ public:
         m_sourceSel->addNoneEntry();
         m_sourceSel->addDataType(SignalBlockF32::staticTypeId(), QStringLiteral("Float32 Signals"));
         m_sourceSel->addDataType(SignalBlockI32::staticTypeId(), QStringLiteral("Int32 Signals"));
+        m_sourceSel->addDataType(SignalBlockI16::staticTypeId(), QStringLiteral("Int16 Signals"));
         m_sourceSel->addDataType(SignalBlockU16::staticTypeId(), QStringLiteral("UInt16 Signals"));
         m_sourceSel->addDataType(LineReading::staticTypeId(), QStringLiteral("Line Readings"));
         sourceLayout->addRow(QStringLiteral("Input type:"), m_sourceSel);
@@ -176,11 +180,13 @@ private:
 
     std::shared_ptr<StreamInputPort<SignalBlockF32>> m_floatIn;
     std::shared_ptr<StreamInputPort<SignalBlockI32>> m_intIn;
+    std::shared_ptr<StreamInputPort<SignalBlockI16>> m_int16In;
     std::shared_ptr<StreamInputPort<SignalBlockU16>> m_uint16In;
     std::shared_ptr<StreamInputPort<LineReading>> m_lineIn;
 
     std::shared_ptr<StreamSubscription<SignalBlockF32>> m_floatSub;
     std::shared_ptr<StreamSubscription<SignalBlockI32>> m_intSub;
+    std::shared_ptr<StreamSubscription<SignalBlockI16>> m_int16Sub;
     std::shared_ptr<StreamSubscription<SignalBlockU16>> m_uint16Sub;
     std::shared_ptr<StreamSubscription<LineReading>> m_lineSub;
 
@@ -236,6 +242,7 @@ public:
         clearInPorts();
         m_floatIn.reset();
         m_intIn.reset();
+        m_int16In.reset();
         m_uint16In.reset();
         m_lineIn.reset();
 
@@ -246,8 +253,11 @@ public:
                 QStringLiteral("f32sig-in"),
                 QStringLiteral("Float32 Signals"));
             break;
-        case InputSourceKind::INT:
+        case InputSourceKind::INT32:
             m_intIn = registerInputPort<SignalBlockI32>(QStringLiteral("i32sig-in"), QStringLiteral("Int32 Signals"));
+            break;
+        case InputSourceKind::INT16:
+            m_int16In = registerInputPort<SignalBlockI16>(QStringLiteral("i16sig-in"), QStringLiteral("Int16 Signals"));
             break;
         case InputSourceKind::UINT16:
             m_uint16In = registerInputPort<SignalBlockU16>(
@@ -300,8 +310,15 @@ public:
         m_intSub.reset();
         if (m_intIn && m_intIn->hasSubscription()) {
             m_intSub = m_intIn->subscription();
-            m_isrcKind = InputSourceKind::INT;
+            m_isrcKind = InputSourceKind::INT32;
             registerDataReceivedEvent(&ZarrWriterModule::onIntSignalBlockReceived, m_intSub);
+        }
+
+        m_int16Sub.reset();
+        if (m_int16In && m_int16In->hasSubscription()) {
+            m_int16Sub = m_int16In->subscription();
+            m_isrcKind = InputSourceKind::INT16;
+            registerDataReceivedEvent(&ZarrWriterModule::onInt16SignalBlockReceived, m_int16Sub);
         }
 
         m_uint16Sub.reset();
@@ -350,7 +367,7 @@ public:
             m_chunkCount = chunkCountFromSampleRate(m_sampleRate);
             break;
         }
-        case InputSourceKind::INT: {
+        case InputSourceKind::INT32: {
             mdata = m_intSub->metadata();
             m_signalNames.clear();
             for (const auto &v : m_intSub->metadataValue("signal_names", MetaArray{}))
@@ -361,6 +378,20 @@ public:
             m_dataScale = m_intSub->metadataValue("data_scale", 1.0);
             m_dataOffset = m_intSub->metadataValue("data_offset", 0.0);
             m_sampleRate = m_intSub->metadataValue("sample_rate", -1.0);
+            m_chunkCount = chunkCountFromSampleRate(m_sampleRate);
+            break;
+        }
+        case InputSourceKind::INT16: {
+            mdata = m_int16Sub->metadata();
+            m_signalNames.clear();
+            for (const auto &v : m_int16Sub->metadataValue("signal_names", MetaArray{}))
+                if (const auto s = v.get<std::string>())
+                    m_signalNames << QString::fromStdString(*s);
+            m_timeUnit = QString::fromStdString(m_int16Sub->metadataValue("time_unit", std::string{}));
+            m_dataUnit = QString::fromStdString(m_int16Sub->metadataValue("data_unit", std::string{}));
+            m_dataScale = m_int16Sub->metadataValue("data_scale", 1.0);
+            m_dataOffset = m_int16Sub->metadataValue("data_offset", 0.0);
+            m_sampleRate = m_int16Sub->metadataValue("sample_rate", -1.0);
             m_chunkCount = chunkCountFromSampleRate(m_sampleRate);
             break;
         }
@@ -526,8 +557,11 @@ private:
         case InputSourceKind::FLOAT:
             dataDtype = ZarrV3Array::DType::Float32;
             break;
-        case InputSourceKind::INT:
+        case InputSourceKind::INT32:
             dataDtype = ZarrV3Array::DType::Int32;
+            break;
+        case InputSourceKind::INT16:
+            dataDtype = ZarrV3Array::DType::Int16;
             break;
         case InputSourceKind::UINT16:
             dataDtype = ZarrV3Array::DType::UInt16;
@@ -691,6 +725,11 @@ private:
     void onIntSignalBlockReceived()
     {
         handleSignalBlock(m_intSub);
+    }
+
+    void onInt16SignalBlockReceived()
+    {
+        handleSignalBlock(m_int16Sub);
     }
 
     void onUInt16SignalBlockReceived()

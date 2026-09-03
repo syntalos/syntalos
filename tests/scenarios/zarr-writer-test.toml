@@ -3,8 +3,10 @@ name = "Zarr Writer Test"
 project_file = "projects/zarr-writer-test.syct"
 run_duration_sec = 10
 expected_exit_code = 0
-expected_datasets = ["numbers_i32", "numbers_u16", "sinesource"]
-expected_stdout_contains = ["Module start order: NumberSource ⇢ SineSource ⇢ Zarr Writer ⇢ Zarr Writer 2 ⇢ Zarr Writer 3"]
+expected_datasets = ["numbers_i32", "numbers_u16", "numbers_float", "numbers_i16", "linereadings"]
+expected_stdout_contains = [
+    "Module start order: Data Source A ⇢ Data Source B ⇢ Zarr Writer ⇢ Zarr Writer 2 ⇢ Zarr Writer 3 ⇢ Zarr Writer 4 ⇢ Zarr Writer 5"
+]
 validator_script = "zarr_writer_validator.py"
 
 [[test.expected_output_files]]

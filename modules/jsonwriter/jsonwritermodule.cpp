@@ -29,7 +29,7 @@ SYNTALOS_MODULE(JSONWriterModule)
 enum class InputSourceKind {
     NONE,
     FLOAT,
-    INT,
+    INT32,
     ROW,
     LINE_READING
 };
@@ -39,7 +39,7 @@ static InputSourceKind inputSourceKindFromTypeId(int typeId)
     if (typeId == SignalBlockF32::staticTypeId())
         return InputSourceKind::FLOAT;
     if (typeId == SignalBlockI32::staticTypeId())
-        return InputSourceKind::INT;
+        return InputSourceKind::INT32;
     if (typeId == TableRow::staticTypeId())
         return InputSourceKind::ROW;
     if (typeId == LineReading::staticTypeId())
@@ -106,7 +106,7 @@ public:
         case InputSourceKind::FLOAT:
             m_floatIn = registerInputPort<SignalBlockF32>(QStringLiteral("f32sig-in"), QStringLiteral("Float Signals"));
             break;
-        case InputSourceKind::INT:
+        case InputSourceKind::INT32:
             m_intIn = registerInputPort<SignalBlockI32>(QStringLiteral("i32sig-in"), QStringLiteral("Integer Signals"));
             break;
         case InputSourceKind::ROW:
@@ -159,7 +159,7 @@ public:
         m_intSub.reset();
         if (m_intIn && m_intIn->hasSubscription()) {
             m_intSub = m_intIn->subscription();
-            m_isrcKind = InputSourceKind::INT;
+            m_isrcKind = InputSourceKind::INT32;
 
             registerDataReceivedEvent(&JSONWriterModule::onIntSignalBlockReceived, m_intSub);
         }
@@ -205,7 +205,7 @@ public:
                 if (const auto s = v.get<std::string>())
                     signalNames << QString::fromStdString(*s);
             break;
-        case InputSourceKind::INT:
+        case InputSourceKind::INT32:
             mdata = m_intSub->metadata();
             for (const auto &v : m_intSub->metadataValue("signal_names", MetaArray{}))
                 if (const auto s = v.get<std::string>())
@@ -348,7 +348,7 @@ public:
             dataOffset = m_floatSub->metadataValue("data_offset", 0.0);
             sampleRate = m_floatSub->metadataValue("sample_rate", -1.0);
             break;
-        case InputSourceKind::INT:
+        case InputSourceKind::INT32:
             for (const auto &v : m_intSub->metadataValue("signal_names", MetaArray{}))
                 if (const auto s = v.get<std::string>())
                     columns << QString::fromStdString(*s);
@@ -383,7 +383,7 @@ public:
             return;
         }
 
-        if (m_isrcKind == InputSourceKind::FLOAT || m_isrcKind == InputSourceKind::INT) {
+        if (m_isrcKind == InputSourceKind::FLOAT || m_isrcKind == InputSourceKind::INT32) {
             if (timeUnit.isEmpty())
                 columns.prepend("timestamp");
             else
