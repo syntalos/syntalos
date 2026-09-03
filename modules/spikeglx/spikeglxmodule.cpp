@@ -576,17 +576,6 @@ public:
             }
             m_dataset->insertAttribute("streams", streamsMeta);
         }
-        if (m_settingsDlg->storeParams()) {
-            if (auto params = m_client.params()) {
-                MetaStringMap pm;
-                for (const auto &[k, v] : *params)
-                    pm.insert(k, MetaValue(v));
-                m_dataset->insertAttribute("spikeglx_params", pm);
-            } else {
-                LOG_WARNING(m_log, "Unable to fetch SpikeGLX parameters: {}", params.error());
-            }
-        }
-
         // live-data ports
         m_portsMeta.clear();
         if (m_fetchEnabled) {
@@ -661,6 +650,18 @@ public:
         } else {
             if (auto rn = m_client.runName())
                 m_dataset->insertAttribute("run_name", rn->c_str());
+        }
+
+        // store SpikeGLX's parameters, now that the run is started and all of them are available
+        if (m_settingsDlg->storeParams()) {
+            if (auto params = m_client.params()) {
+                MetaStringMap pm;
+                for (const auto &[k, v] : *params)
+                    pm.insert(k, MetaValue(v));
+                m_dataset->insertAttribute("spikeglx_params", pm);
+            } else {
+                LOG_WARNING(m_log, "Unable to fetch SpikeGLX parameters: {}", params.error());
+            }
         }
 
         // Push our identity into the metadata of the next SpikeGLX file-set, i.e. the one
