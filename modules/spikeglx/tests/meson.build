@@ -7,7 +7,7 @@ test_sglxutils_moc = qt.compile_moc(
 
 test_sglxutils_exe = executable('test-spikeglx-utils',
     ['test-spikeglx-utils.cpp',
-        '../modules/spikeglx/sglxutils.cpp',
+        '../sglxutils.cpp',
         test_sglxutils_moc],
     include_directories: include_directories('..'),
     dependencies: [syntalos_fabric_dep, qt_test_dep]
@@ -15,5 +15,4 @@ test_sglxutils_exe = executable('test-spikeglx-utils',
 
 test('sy-test-spikeglx-utils',
     test_sglxutils_exe,
-    env: test_env,
 )
