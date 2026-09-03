@@ -121,6 +121,27 @@ public:
     virtual MetaValue metadataValue(const QString &key, const MetaValue &defaultValue = nullptr) const = 0;
     virtual MetaValue metadataValue(CommonMetadataKey key, const MetaValue &defaultValue = nullptr) const = 0;
 
+    /**
+     * @brief Get a metadata value converted to @p MT, or @p fallback if it is missing or has a different type.
+     *
+     * These route through the virtual metadata() accessor so adapters (e.g.
+     * StreamSubscriptionAdapter) that hold no metadata of their own can
+     * forward to their backing subscription.
+     */
+    template<typename MT>
+    [[nodiscard]] MT metadataValue(const QString &key, MT fallback) const
+    {
+        const auto v = metadata().value(key.toStdString());
+        return v.has_value() ? v->template getOr<MT>(std::move(fallback)) : std::move(fallback);
+    }
+
+    template<typename MT>
+    [[nodiscard]] MT metadataValue(CommonMetadataKey key, MT fallback) const
+    {
+        const auto v = metadata().value(CommonMetadataKeyMap->value(key));
+        return v.has_value() ? v->template getOr<MT>(std::move(fallback)) : std::move(fallback);
+    }
+
     // used internally by Syntalos
     virtual void forcePushNullopt() = 0;
 
@@ -279,22 +300,8 @@ public:
         return m_metadata.valueOr(CommonMetadataKeyMap->value(key), defaultValue);
     }
 
-    template<typename MT>
-    [[nodiscard]] MT metadataValue(const QString &key, MT fallback) const
-    {
-        // Route through the virtual metadata() accessor so adapters (e.g.
-        // StreamSubscriptionAdapter) that hold no metadata of their own
-        // can forward to their backing subscription.
-        const auto v = metadata().value(key.toStdString());
-        return v.has_value() ? v->template getOr<MT>(std::move(fallback)) : std::move(fallback);
-    }
-
-    template<typename MT>
-    [[nodiscard]] MT metadataValue(CommonMetadataKey key, MT fallback) const
-    {
-        const auto v = metadata().value(CommonMetadataKeyMap->value(key));
-        return v.has_value() ? v->template getOr<MT>(std::move(fallback)) : std::move(fallback);
-    }
+    // the overrides above would otherwise hide the typed convenience accessors
+    using VariantStreamSubscription::metadataValue;
 
     bool unsubscribe() override
     {
@@ -1022,6 +1029,8 @@ public:
     {
         return m_inner->metadataValue(key, defaultValue);
     }
+
+    using VariantStreamSubscription::metadataValue;
 
     void forcePushNullopt() override
     {

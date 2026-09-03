@@ -49,6 +49,16 @@ void DataTypeSelector::addAllDataTypes()
         addItem(QString::fromStdString(name), id);
 }
 
+void DataTypeSelector::addSignalBlockTypes()
+{
+    forEachSignalBlockType([this](auto tag) {
+        using T = typename decltype(tag)::type;
+        const auto label = scalarTypeName<signal_block_scalar_t<T>>() + " Signals";
+        addItem(QString::fromStdString(label), T::staticTypeId());
+        return false;
+    });
+}
+
 int DataTypeSelector::selectedTypeId() const
 {
     return currentData().toInt();

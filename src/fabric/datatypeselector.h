@@ -59,6 +59,11 @@ public:
     void addAllDataTypes();
 
     /**
+     * @brief Add all SignalBlock* types, labelled by their sample type (e.g. "Int16 Signals").
+     */
+    void addSignalBlockTypes();
+
+    /**
      * @brief TypeId of the current selection (BaseDataType::Unknown if "None").
      */
     int selectedTypeId() const;

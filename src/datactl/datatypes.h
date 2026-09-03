@@ -818,33 +818,150 @@ struct SignalBlockF32 final : BaseDataType {
 };
 
 /**
- * @brief Compile-time list of all stream data types.
+ * @brief Compile-time list of all SignalBlock* types.
  *
- * Append a new type here when adding it to the TypeId enum.
+ * Append a new signal block type here when adding it to the TypeId enum.
+ * Code that works on signal blocks generically (writers, filters, type
+ * selectors) iterates this list, so it needs no per-type changes.
  */
-using StreamTypeList = std::tuple<
-    ControlCommand,
-    TableRow,
-    Frame,
-    LineCommand,
-    LineReading,
-    SignalBlockI16,
-    SignalBlockU16,
-    SignalBlockI32,
-    SignalBlockF32>;
+using SignalBlockTypeList = std::tuple<SignalBlockI16, SignalBlockU16, SignalBlockI32, SignalBlockF32>;
 
 /**
- * @brief Call `fn(std::type_identity<T>{})` for every T in StreamTypeList.
+ * @brief Compile-time list of all stream data types.
+ *
+ * Append a new (non-signal-block) type here when adding it to the TypeId enum.
+ * Note that this list contains Frame, which is only forward-declared in this
+ * header: code instantiating templates over the full list must also include
+ * datactl/frametype.h.
+ */
+using StreamTypeList = decltype(std::tuple_cat(
+    std::declval<std::tuple<ControlCommand, TableRow, Frame, LineCommand, LineReading>>(),
+    std::declval<SignalBlockTypeList>()));
+
+/**
+ * @brief Call `fn(std::type_identity<T>{})` for every T in the type list @p List.
  *
  * The lambda must return bool: `true` to stop iterating (typically "I found
  * what I was looking for"), `false` to keep going.
  */
+template<typename List, typename Fn>
+constexpr bool forEachTypeIn(Fn &&fn)
+{
+    return [&]<size_t... Is>(std::index_sequence<Is...>) {
+        return (fn(std::type_identity<std::tuple_element_t<Is, List>>{}) || ...);
+    }(std::make_index_sequence<std::tuple_size_v<List>>{});
+}
+
+/**
+ * @brief Call `fn(std::type_identity<T>{})` for every T in StreamTypeList.
+ */
 template<typename Fn>
 constexpr bool forEachStreamType(Fn &&fn)
 {
-    return [&]<size_t... Is>(std::index_sequence<Is...>) {
-        return (fn(std::type_identity<std::tuple_element_t<Is, StreamTypeList>>{}) || ...);
-    }(std::make_index_sequence<std::tuple_size_v<StreamTypeList>>{});
+    return forEachTypeIn<StreamTypeList>(std::forward<Fn>(fn));
+}
+
+/**
+ * @brief Call `fn(std::type_identity<T>{})` for every T in SignalBlockTypeList.
+ */
+template<typename Fn>
+constexpr bool forEachSignalBlockType(Fn &&fn)
+{
+    return forEachTypeIn<SignalBlockTypeList>(std::forward<Fn>(fn));
+}
+
+/**
+ * @brief Call `fn(std::type_identity<T>{})` for the type in @p List with the given ID.
+ *
+ * @return True if a type with this ID exists in the list (and fn was called), false otherwise.
+ */
+template<typename List, typename Fn>
+constexpr bool withTypeIn(int typeId, Fn &&fn)
+{
+    return forEachTypeIn<List>([&](auto tag) {
+        using T = typename decltype(tag)::type;
+        if (T::staticTypeId() != typeId)
+            return false;
+        fn(tag);
+        return true;
+    });
+}
+
+/**
+ * @brief Call `fn(static_cast<T &>(data))` with the concrete type of @p data, if it is in @p List.
+ *
+ * This lets code that only holds a BaseDataType reference (e.g. obtained via
+ * VariantStreamSubscription::callIfNextVar) dispatch to a generic lambda.
+ *
+ * @return True if the type was found in the list (and fn was called), false otherwise.
+ */
+template<typename List, typename Fn>
+bool visitDataIn(BaseDataType &data, Fn &&fn)
+{
+    return withTypeIn<List>(data.typeId(), [&](auto tag) {
+        using T = typename decltype(tag)::type;
+        fn(static_cast<T &>(data));
+    });
+}
+
+/**
+ * @brief Call `fn(std::type_identity<T>{})` for the signal block type with the given ID.
+ */
+template<typename Fn>
+constexpr bool withSignalBlockType(int typeId, Fn &&fn)
+{
+    return withTypeIn<SignalBlockTypeList>(typeId, std::forward<Fn>(fn));
+}
+
+/**
+ * @brief Call `fn(static_cast<T &>(data))` if @p data is a signal block, with T its concrete type.
+ * @return True if @p data was a signal block (and fn was called), false otherwise.
+ */
+template<typename Fn>
+bool visitSignalBlock(BaseDataType &data, Fn &&fn)
+{
+    return visitDataIn<SignalBlockTypeList>(data, std::forward<Fn>(fn));
+}
+
+/**
+ * @brief Satisfied by every SignalBlock* type.
+ *
+ * A signal block carries a vector of per-sample timestamps and a row-major
+ * Eigen matrix of samples (rows = samples, columns = channels).
+ */
+template<typename T>
+concept SignalBlockType = std::derived_from<T, BaseDataType> && requires(T t) {
+    { t.timestamps } -> std::same_as<VectorXu64 &>;
+    typename std::remove_cvref_t<decltype(t.data)>::Scalar;
+    { t.data.rows() };
+    { t.data.cols() };
+    { t.data.data() };
+};
+
+/**
+ * @brief Scalar element type of a SignalBlock* type.
+ */
+template<SignalBlockType T>
+using signal_block_scalar_t = typename std::remove_cvref_t<decltype(std::declval<T>().data)>::Scalar;
+
+/**
+ * @brief Human-readable name of an arithmetic scalar type, e.g. "Int16", "UInt16", "Float32".
+ *
+ * With @p abbreviated set, a short lowercase form is returned instead ("i16", "u16", "f32"),
+ * which is suitable for port IDs and similar identifiers.
+ */
+template<typename Scalar>
+    requires std::is_arithmetic_v<Scalar>
+inline std::string scalarTypeName(bool abbreviated = false)
+{
+    std::string prefix;
+    if constexpr (std::is_floating_point_v<Scalar>)
+        prefix = abbreviated ? "f" : "Float";
+    else if constexpr (std::is_signed_v<Scalar>)
+        prefix = abbreviated ? "i" : "Int";
+    else
+        prefix = abbreviated ? "u" : "UInt";
+    return prefix + std::to_string(sizeof(Scalar) * 8);
 }
 
 /**

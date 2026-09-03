@@ -33,25 +33,17 @@
 
 SYNTALOS_MODULE(SignalFilterModule)
 
-enum class SignalKind {
-    None,
-    Float,
-    Int32,
-    Int16,
-    UInt16
-};
-
-static SignalKind signalKindFromTypeId(int typeId)
+/**
+ * @brief Short sample-type tag ("F32", "I16", ...) for a signal block type ID, empty if not a signal block.
+ */
+static QString signalTagForTypeId(int typeId)
 {
-    if (typeId == SignalBlockF32::staticTypeId())
-        return SignalKind::Float;
-    if (typeId == SignalBlockI32::staticTypeId())
-        return SignalKind::Int32;
-    if (typeId == SignalBlockI16::staticTypeId())
-        return SignalKind::Int16;
-    if (typeId == SignalBlockU16::staticTypeId())
-        return SignalKind::UInt16;
-    return SignalKind::None;
+    QString tag;
+    withSignalBlockType(typeId, [&](auto t) {
+        using T = typename decltype(t)::type;
+        tag = QString::fromStdString(scalarTypeName<signal_block_scalar_t<T>>(true)).toUpper();
+    });
+    return tag;
 }
 
 /**
@@ -90,25 +82,15 @@ class SignalFilterModule : public AbstractModule
     Q_OBJECT
 
 private:
-    std::shared_ptr<StreamInputPort<SignalBlockF32>> m_floatIn;
-    std::shared_ptr<StreamInputPort<SignalBlockI32>> m_int32In;
-    std::shared_ptr<StreamInputPort<SignalBlockI16>> m_int16In;
-    std::shared_ptr<StreamInputPort<SignalBlockU16>> m_uint16In;
-
-    std::shared_ptr<DataStream<SignalBlockF32>> m_floatOut;
-    std::shared_ptr<DataStream<SignalBlockI32>> m_int32Out;
-    std::shared_ptr<DataStream<SignalBlockI16>> m_int16Out;
-    std::shared_ptr<DataStream<SignalBlockU16>> m_uint16Out;
-
-    std::shared_ptr<StreamSubscription<SignalBlockF32>> m_floatSub;
-    std::shared_ptr<StreamSubscription<SignalBlockI32>> m_int32Sub;
-    std::shared_ptr<StreamSubscription<SignalBlockI16>> m_int16Sub;
-    std::shared_ptr<StreamSubscription<SignalBlockU16>> m_uint16Sub;
+    // One input/output port pair of the signal block type the user selected;
+    // the concrete type is only dispatched on when data arrives.
+    std::shared_ptr<VarStreamInputPort> m_inPort;
+    std::shared_ptr<VariantDataStream> m_out;
+    std::shared_ptr<VariantStreamSubscription> m_sub;
 
     SignalFilterSettingsDialog *m_settingsDlg;
     FilterPipeline m_pipeline;
 
-    SignalKind m_kind;
     double m_sampleRate;
     bool m_useAllChannels;
     std::set<int> m_selectedChannels;
@@ -128,7 +110,6 @@ private:
 public:
     explicit SignalFilterModule(SignalFilterModuleInfo *modInfo, QObject *parent = nullptr)
         : AbstractModule(parent),
-          m_kind(SignalKind::None),
           m_sampleRate(-1.0),
           m_useAllChannels(true)
     {
@@ -174,51 +155,23 @@ public:
         // Only safe on the main thread while not running.
         clearInPorts();
         clearOutPorts();
-        m_floatIn.reset();
-        m_int32In.reset();
-        m_int16In.reset();
-        m_uint16In.reset();
-        m_floatOut.reset();
-        m_int32Out.reset();
-        m_int16Out.reset();
-        m_uint16Out.reset();
+        m_inPort.reset();
+        m_out.reset();
 
         setStatusMessage({});
-        switch (signalKindFromTypeId(m_settingsDlg->selectedTypeId())) {
-        case SignalKind::Float:
-            m_floatIn = registerInputPort<SignalBlockF32>(QStringLiteral("signals-in"), QStringLiteral("F32 Source"));
-            m_floatOut = registerOutputPort<SignalBlockF32>(
-                QStringLiteral("signals-out"),
-                QStringLiteral("F32 Filtered"));
-            break;
-        case SignalKind::Int32:
-            m_int32In = registerInputPort<SignalBlockI32>(QStringLiteral("signals-in"), QStringLiteral("I32 Source"));
-            m_int32Out = registerOutputPort<SignalBlockI32>(
-                QStringLiteral("signals-out"),
-                QStringLiteral("I32 Filtered"));
-            break;
-        case SignalKind::Int16:
-            m_int16In = registerInputPort<SignalBlockI16>(QStringLiteral("signals-in"), QStringLiteral("I16 Source"));
-            m_int16Out = registerOutputPort<SignalBlockI16>(
-                QStringLiteral("signals-out"),
-                QStringLiteral("I16 Filtered"));
-            break;
-        case SignalKind::UInt16:
-            m_uint16In = registerInputPort<SignalBlockU16>(QStringLiteral("signals-in"), QStringLiteral("U16 Source"));
-            m_uint16Out = registerOutputPort<SignalBlockU16>(
-                QStringLiteral("signals-out"),
-                QStringLiteral("U16 Filtered"));
-            break;
-        case SignalKind::None:
+        const int typeId = m_settingsDlg->selectedTypeId();
+        const auto tag = signalTagForTypeId(typeId);
+        if (tag.isEmpty()) {
             setStatusMessage(QStringLiteral("No input signal type selected!"));
-            break;
+            return;
         }
+        m_inPort = registerInputPortByTypeId(typeId, QStringLiteral("signals-in"), tag + QStringLiteral(" Source"));
+        m_out = registerOutputPortByTypeId(typeId, QStringLiteral("signals-out"), tag + QStringLiteral(" Filtered"));
     }
 
     bool prepare(const TestSubject &) override
     {
         clearDataReceivedEventRegistrations();
-        m_kind = SignalKind::None;
         m_settingsDlg->setRunning(true);
 
         // discard any live updates queued before this run started
@@ -240,50 +193,19 @@ public:
         if (!m_useAllChannels && m_selectedChannels.empty())
             LOG_WARNING(m_log, "Channel selection is empty; all channels will pass through unfiltered");
 
-        m_floatSub.reset();
-        m_int32Sub.reset();
-        m_int16Sub.reset();
-        m_uint16Sub.reset();
-
-        if (m_floatIn && m_floatIn->hasSubscription()) {
-            m_floatSub = m_floatIn->subscription();
-            m_kind = SignalKind::Float;
-            if (!resolveSampleRate(m_floatSub->metadataValue("sample_rate", -1.0)))
-                return false;
-            m_floatOut->setMetadata(updateOutputMetadata(m_floatSub->metadata()));
-            m_floatOut->start();
-            registerDataReceivedEvent(&SignalFilterModule::onFloatReceived, m_floatSub);
-        } else if (m_int32In && m_int32In->hasSubscription()) {
-            m_int32Sub = m_int32In->subscription();
-            m_kind = SignalKind::Int32;
-            if (!resolveSampleRate(m_int32Sub->metadataValue("sample_rate", -1.0)))
-                return false;
-            m_int32Out->setMetadata(updateOutputMetadata(m_int32Sub->metadata()));
-            m_int32Out->start();
-            registerDataReceivedEvent(&SignalFilterModule::onIntReceived, m_int32Sub);
-        } else if (m_int16In && m_int16In->hasSubscription()) {
-            m_int16Sub = m_int16In->subscription();
-            m_kind = SignalKind::Int16;
-            if (!resolveSampleRate(m_int16Sub->metadataValue("sample_rate", -1.0)))
-                return false;
-            m_int16Out->setMetadata(updateOutputMetadata(m_int16Sub->metadata()));
-            m_int16Out->start();
-            registerDataReceivedEvent(&SignalFilterModule::onInt16Received, m_int16Sub);
-        } else if (m_uint16In && m_uint16In->hasSubscription()) {
-            m_uint16Sub = m_uint16In->subscription();
-            m_kind = SignalKind::UInt16;
-            if (!resolveSampleRate(m_uint16Sub->metadataValue("sample_rate", -1.0)))
-                return false;
-            m_uint16Out->setMetadata(updateOutputMetadata(m_uint16Sub->metadata()));
-            m_uint16Out->start();
-            registerDataReceivedEvent(&SignalFilterModule::onUInt16Received, m_uint16Sub);
-        }
-
-        if (m_kind == SignalKind::None) {
+        m_sub.reset();
+        if (!m_inPort || !m_out || !m_inPort->hasSubscription()) {
             // nothing connected: nothing to do this run
             setStateDormant();
             return true;
         }
+
+        m_sub = m_inPort->subscriptionVar();
+        if (!resolveSampleRate(m_sub->metadataValue("sample_rate", -1.0)))
+            return false;
+        m_out->setMetadata(updateOutputMetadata(m_sub->metadata()));
+        m_out->start();
+        registerDataReceivedEvent(&SignalFilterModule::onDataReceived, m_sub);
 
         // now that the sample rate is known, validate the whole filter design
         QString verr;
@@ -301,24 +223,22 @@ public:
         m_settingsDlg->setRunning(false);
     }
 
-    void onFloatReceived()
+    void onDataReceived()
     {
-        processBlocks(m_floatSub, m_floatOut);
-    }
+        // Apply any GUI-driven channel/filter changes at this block boundary.
+        applyLiveUpdates();
 
-    void onIntReceived()
-    {
-        processBlocks(m_int32Sub, m_int32Out);
-    }
-
-    void onInt16Received()
-    {
-        processBlocks(m_int16Sub, m_int16Out);
-    }
-
-    void onUInt16Received()
-    {
-        processBlocks(m_uint16Sub, m_uint16Out);
+        // Drain everything queued to keep the subscription from backing up.
+        const ProcessVarFn processItem = [this](BaseDataType &data) {
+            visitSignalBlock(data, [this](auto &block) {
+                using T = std::remove_cvref_t<decltype(block)>;
+                filterBlock(block);
+                // the output port was registered with the very same type as the input
+                std::static_pointer_cast<DataStream<T>>(m_out)->push(std::move(block));
+            });
+        };
+        while (m_sub->callIfNextVar(processItem)) {
+        }
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
@@ -546,30 +466,10 @@ private:
         }
     }
 
-    template<typename SubT, typename OutT>
-    void processBlocks(SubT &sub, OutT &out)
-    {
-        if (!sub || !out)
-            return;
-
-        // Apply any GUI-driven channel/filter changes at this block boundary.
-        applyLiveUpdates();
-
-        // Drain everything queued to keep the subscription from backing up.
-        while (true) {
-            auto maybe = sub->peekNext();
-            if (!maybe.has_value())
-                break;
-            auto block = std::move(*maybe);
-            filterBlock(block);
-            out->push(std::move(block));
-        }
-    }
-
-    template<typename BlockT>
+    template<SignalBlockType BlockT>
     void filterBlock(BlockT &block)
     {
-        using Scalar = typename std::remove_reference_t<decltype(block.data)>::Scalar;
+        using Scalar = signal_block_scalar_t<BlockT>;
 
         const int nRows = static_cast<int>(block.data.rows());
         const int nCols = static_cast<int>(block.data.cols());

@@ -40,28 +40,46 @@
 
 SYNTALOS_MODULE(ZarrWriterModule)
 
-enum class InputSourceKind {
-    NONE,
-    INT16,
-    UINT16,
-    INT32,
-    FLOAT,
-    LINE_READING
-};
-
-static InputSourceKind inputSourceKindFromTypeId(int typeId)
+/**
+ * Zarr data type matching a signal block's scalar sample type.
+ */
+template<typename Scalar>
+constexpr ZarrV3Array::DType zarrDTypeFor()
 {
-    if (typeId == SignalBlockI16::staticTypeId())
-        return InputSourceKind::INT16;
-    if (typeId == SignalBlockU16::staticTypeId())
-        return InputSourceKind::UINT16;
-    if (typeId == SignalBlockI32::staticTypeId())
-        return InputSourceKind::INT32;
-    if (typeId == SignalBlockF32::staticTypeId())
-        return InputSourceKind::FLOAT;
+    if constexpr (std::is_same_v<Scalar, int16_t>)
+        return ZarrV3Array::DType::Int16;
+    else if constexpr (std::is_same_v<Scalar, uint16_t>)
+        return ZarrV3Array::DType::UInt16;
+    else if constexpr (std::is_same_v<Scalar, int32_t>)
+        return ZarrV3Array::DType::Int32;
+    else if constexpr (std::is_same_v<Scalar, uint32_t>)
+        return ZarrV3Array::DType::UInt32;
+    else if constexpr (std::is_same_v<Scalar, uint64_t>)
+        return ZarrV3Array::DType::UInt64;
+    else if constexpr (std::is_same_v<Scalar, float>)
+        return ZarrV3Array::DType::Float32;
+    else if constexpr (std::is_same_v<Scalar, double>)
+        return ZarrV3Array::DType::Float64;
+    else
+        static_assert(sizeof(Scalar) == 0, "No Zarr data type known for this signal block scalar type");
+}
+
+/**
+ * Port ID / title for an input of the given stream type.
+ * The IDs are persisted in project files, so they must remain stable.
+ */
+static std::pair<QString, QString> inputPortNamesForType(int typeId)
+{
     if (typeId == LineReading::staticTypeId())
-        return InputSourceKind::LINE_READING;
-    return InputSourceKind::NONE;
+        return {QStringLiteral("lines-in"), QStringLiteral("Line Readings")};
+
+    std::pair<QString, QString> names;
+    withSignalBlockType(typeId, [&](auto tag) {
+        using Scalar = signal_block_scalar_t<typename decltype(tag)::type>;
+        names.first = QString::fromStdString(scalarTypeName<Scalar>(true) + "sig-in");
+        names.second = QString::fromStdString(scalarTypeName<Scalar>() + " Signals");
+    });
+    return names;
 }
 
 class ZarrSettingsDialog : public QDialog
@@ -83,10 +101,7 @@ public:
 
         m_sourceSel = new DataTypeSelector(this);
         m_sourceSel->addNoneEntry();
-        m_sourceSel->addDataType(SignalBlockF32::staticTypeId(), QStringLiteral("Float32 Signals"));
-        m_sourceSel->addDataType(SignalBlockI32::staticTypeId(), QStringLiteral("Int32 Signals"));
-        m_sourceSel->addDataType(SignalBlockI16::staticTypeId(), QStringLiteral("Int16 Signals"));
-        m_sourceSel->addDataType(SignalBlockU16::staticTypeId(), QStringLiteral("UInt16 Signals"));
+        m_sourceSel->addSignalBlockTypes();
         m_sourceSel->addDataType(LineReading::staticTypeId(), QStringLiteral("Line Readings"));
         sourceLayout->addRow(QStringLiteral("Input type:"), m_sourceSel);
 
@@ -178,19 +193,12 @@ private:
     static constexpr int64_t ZARR_CHUNK_MAX = 100000;
     static constexpr int64_t ZARR_CHUNK_DEFAULT = 10000; // fallback when sample rate is unknown
 
-    std::shared_ptr<StreamInputPort<SignalBlockF32>> m_floatIn;
-    std::shared_ptr<StreamInputPort<SignalBlockI32>> m_intIn;
-    std::shared_ptr<StreamInputPort<SignalBlockI16>> m_int16In;
-    std::shared_ptr<StreamInputPort<SignalBlockU16>> m_uint16In;
-    std::shared_ptr<StreamInputPort<LineReading>> m_lineIn;
+    // Exactly one input port exists at a time, of the type the user selected.
+    // Its concrete stream type is only looked at when data arrives.
+    std::shared_ptr<VarStreamInputPort> m_inPort;
+    std::shared_ptr<VariantStreamSubscription> m_sub;
 
-    std::shared_ptr<StreamSubscription<SignalBlockF32>> m_floatSub;
-    std::shared_ptr<StreamSubscription<SignalBlockI32>> m_intSub;
-    std::shared_ptr<StreamSubscription<SignalBlockI16>> m_int16Sub;
-    std::shared_ptr<StreamSubscription<SignalBlockU16>> m_uint16Sub;
-    std::shared_ptr<StreamSubscription<LineReading>> m_lineSub;
-
-    InputSourceKind m_isrcKind;
+    bool m_lineEvents; // input is a sparse LineReading event stream, not signal blocks
     bool m_writeData;
     int m_expectedChannels; // 0 = not advertised by upstream, skip channel count validation
     int64_t m_chunkCount;
@@ -214,7 +222,7 @@ private:
 public:
     explicit ZarrWriterModule(ZarrWriterModuleInfo *modInfo, QObject *parent = nullptr)
         : AbstractModule(parent),
-          m_isrcKind(InputSourceKind::NONE),
+          m_lineEvents(false),
           m_writeData(false),
           m_expectedChannels(0),
           m_chunkCount(ZARR_CHUNK_DEFAULT)
@@ -240,37 +248,16 @@ public:
         // Rebuild the single input port to match the selected data type.
         // Only safe on the main thread while not running.
         clearInPorts();
-        m_floatIn.reset();
-        m_intIn.reset();
-        m_int16In.reset();
-        m_uint16In.reset();
-        m_lineIn.reset();
+        m_inPort.reset();
 
         setStatusMessage({});
-        switch (inputSourceKindFromTypeId(m_settingsDlg->selectedTypeId())) {
-        case InputSourceKind::FLOAT:
-            m_floatIn = registerInputPort<SignalBlockF32>(
-                QStringLiteral("f32sig-in"),
-                QStringLiteral("Float32 Signals"));
-            break;
-        case InputSourceKind::INT32:
-            m_intIn = registerInputPort<SignalBlockI32>(QStringLiteral("i32sig-in"), QStringLiteral("Int32 Signals"));
-            break;
-        case InputSourceKind::INT16:
-            m_int16In = registerInputPort<SignalBlockI16>(QStringLiteral("i16sig-in"), QStringLiteral("Int16 Signals"));
-            break;
-        case InputSourceKind::UINT16:
-            m_uint16In = registerInputPort<SignalBlockU16>(
-                QStringLiteral("u16sig-in"),
-                QStringLiteral("UInt16 Signals"));
-            break;
-        case InputSourceKind::LINE_READING:
-            m_lineIn = registerInputPort<LineReading>(QStringLiteral("lines-in"), QStringLiteral("Line Readings"));
-            break;
-        case InputSourceKind::NONE:
+        const int typeId = m_settingsDlg->selectedTypeId();
+        const auto [portId, portTitle] = inputPortNamesForType(typeId);
+        if (portId.isEmpty()) {
             setStatusMessage("No input port type selected!");
-            break;
+            return;
         }
+        m_inPort = registerInputPortByTypeId(typeId, portId, portTitle);
     }
 
     ~ZarrWriterModule() override = default;
@@ -288,7 +275,6 @@ public:
     bool prepare(const TestSubject &) override
     {
         clearDataReceivedEventRegistrations();
-        m_isrcKind = InputSourceKind::NONE;
         m_settingsDlg->setRunning(true);
 
         if (!m_settingsDlg->useNameFromSource() && m_settingsDlg->dataName().isEmpty()) {
@@ -298,48 +284,16 @@ public:
 
         m_writeData = !isEphemeralRun();
 
-        // Only a single input port exists at a time, matching the type the user
-        // selected in the settings
-        m_floatSub.reset();
-        if (m_floatIn && m_floatIn->hasSubscription()) {
-            m_floatSub = m_floatIn->subscription();
-            m_isrcKind = InputSourceKind::FLOAT;
-            registerDataReceivedEvent(&ZarrWriterModule::onFloatSignalBlockReceived, m_floatSub);
-        }
-
-        m_intSub.reset();
-        if (m_intIn && m_intIn->hasSubscription()) {
-            m_intSub = m_intIn->subscription();
-            m_isrcKind = InputSourceKind::INT32;
-            registerDataReceivedEvent(&ZarrWriterModule::onIntSignalBlockReceived, m_intSub);
-        }
-
-        m_int16Sub.reset();
-        if (m_int16In && m_int16In->hasSubscription()) {
-            m_int16Sub = m_int16In->subscription();
-            m_isrcKind = InputSourceKind::INT16;
-            registerDataReceivedEvent(&ZarrWriterModule::onInt16SignalBlockReceived, m_int16Sub);
-        }
-
-        m_uint16Sub.reset();
-        if (m_uint16In && m_uint16In->hasSubscription()) {
-            m_uint16Sub = m_uint16In->subscription();
-            m_isrcKind = InputSourceKind::UINT16;
-            registerDataReceivedEvent(&ZarrWriterModule::onUInt16SignalBlockReceived, m_uint16Sub);
-        }
-
-        m_lineSub.reset();
-        if (m_lineIn && m_lineIn->hasSubscription()) {
-            m_lineSub = m_lineIn->subscription();
-            m_isrcKind = InputSourceKind::LINE_READING;
-            registerDataReceivedEvent(&ZarrWriterModule::onLineReadingReceived, m_lineSub);
-        }
-
-        if (m_isrcKind == InputSourceKind::NONE) {
+        m_sub.reset();
+        if (!m_inPort || !m_inPort->hasSubscription()) {
             // nothing is connected, so there is nothing for us to do this run
             setStateDormant();
             return true;
         }
+
+        m_sub = m_inPort->subscriptionVar();
+        m_lineEvents = m_sub->dataTypeId() == LineReading::staticTypeId();
+        registerDataReceivedEvent(&ZarrWriterModule::onDataReceived, m_sub);
 
         setStateReady();
         return true;
@@ -347,86 +301,30 @@ public:
 
     void start() override
     {
-        if (m_isrcKind == InputSourceKind::NONE || !m_writeData)
+        if (!m_sub || !m_writeData)
             return;
 
         // collect stream metadata
-        MetaStringMap mdata;
-        switch (m_isrcKind) {
-        case InputSourceKind::FLOAT: {
-            mdata = m_floatSub->metadata();
-            m_signalNames.clear();
-            for (const auto &v : m_floatSub->metadataValue("signal_names", MetaArray{}))
-                if (const auto s = v.get<std::string>())
-                    m_signalNames << QString::fromStdString(*s);
-            m_timeUnit = QString::fromStdString(m_floatSub->metadataValue("time_unit", std::string{}));
-            m_dataUnit = QString::fromStdString(m_floatSub->metadataValue("data_unit", std::string{}));
-            m_dataScale = m_floatSub->metadataValue("data_scale", 1.0);
-            m_dataOffset = m_floatSub->metadataValue("data_offset", 0.0);
-            m_sampleRate = m_floatSub->metadataValue("sample_rate", -1.0);
-            m_chunkCount = chunkCountFromSampleRate(m_sampleRate);
-            break;
-        }
-        case InputSourceKind::INT32: {
-            mdata = m_intSub->metadata();
-            m_signalNames.clear();
-            for (const auto &v : m_intSub->metadataValue("signal_names", MetaArray{}))
-                if (const auto s = v.get<std::string>())
-                    m_signalNames << QString::fromStdString(*s);
-            m_timeUnit = QString::fromStdString(m_intSub->metadataValue("time_unit", std::string{}));
-            m_dataUnit = QString::fromStdString(m_intSub->metadataValue("data_unit", std::string{}));
-            m_dataScale = m_intSub->metadataValue("data_scale", 1.0);
-            m_dataOffset = m_intSub->metadataValue("data_offset", 0.0);
-            m_sampleRate = m_intSub->metadataValue("sample_rate", -1.0);
-            m_chunkCount = chunkCountFromSampleRate(m_sampleRate);
-            break;
-        }
-        case InputSourceKind::INT16: {
-            mdata = m_int16Sub->metadata();
-            m_signalNames.clear();
-            for (const auto &v : m_int16Sub->metadataValue("signal_names", MetaArray{}))
-                if (const auto s = v.get<std::string>())
-                    m_signalNames << QString::fromStdString(*s);
-            m_timeUnit = QString::fromStdString(m_int16Sub->metadataValue("time_unit", std::string{}));
-            m_dataUnit = QString::fromStdString(m_int16Sub->metadataValue("data_unit", std::string{}));
-            m_dataScale = m_int16Sub->metadataValue("data_scale", 1.0);
-            m_dataOffset = m_int16Sub->metadataValue("data_offset", 0.0);
-            m_sampleRate = m_int16Sub->metadataValue("sample_rate", -1.0);
-            m_chunkCount = chunkCountFromSampleRate(m_sampleRate);
-            break;
-        }
-        case InputSourceKind::UINT16: {
-            mdata = m_uint16Sub->metadata();
-            m_signalNames.clear();
-            for (const auto &v : m_uint16Sub->metadataValue("signal_names", MetaArray{}))
-                if (const auto s = v.get<std::string>())
-                    m_signalNames << QString::fromStdString(*s);
-            m_timeUnit = QString::fromStdString(m_uint16Sub->metadataValue("time_unit", std::string{}));
-            m_dataUnit = QString::fromStdString(m_uint16Sub->metadataValue("data_unit", std::string{}));
-            m_dataScale = m_uint16Sub->metadataValue("data_scale", 1.0);
-            m_dataOffset = m_uint16Sub->metadataValue("data_offset", 0.0);
-            m_sampleRate = m_uint16Sub->metadataValue("sample_rate", -1.0);
-            m_chunkCount = chunkCountFromSampleRate(m_sampleRate);
-            break;
-        }
-        case InputSourceKind::LINE_READING: {
+        const MetaStringMap mdata = m_sub->metadata();
+        m_signalNames.clear();
+        for (const auto &v : m_sub->metadataValue("signal_names", MetaArray{}))
+            if (const auto s = v.get<std::string>())
+                m_signalNames << QString::fromStdString(*s);
+        m_dataUnit = QString::fromStdString(m_sub->metadataValue("data_unit", std::string{}));
+        if (m_lineEvents) {
             // Sparse edge events: recorded as a timestamps array + a 2-column
             // [line_id, value] data array. The data columns are fixed, so the
             // upstream signal_names (line labels) are kept only for the dataset
-            // attributes, not the array schema.
-            mdata = m_lineSub->metadata();
-            m_signalNames.clear();
-            for (const auto &v : m_lineSub->metadataValue("signal_names", MetaArray{}))
-                if (const auto s = v.get<std::string>())
-                    m_signalNames << QString::fromStdString(*s);
-            m_timeUnit = QString::fromStdString(m_lineSub->metadataValue("time_unit", std::string{"microseconds"}));
-            m_dataUnit = QString::fromStdString(m_lineSub->metadataValue("data_unit", std::string{}));
-            m_chunkCount = chunkCountFromSampleRate(-1.0); // events are irregular: use default chunk size
-            break;
+            // attributes, not the array schema. Events are irregular, so the
+            // default chunk size is used.
+            m_timeUnit = QString::fromStdString(m_sub->metadataValue("time_unit", std::string{"microseconds"}));
+        } else {
+            m_timeUnit = QString::fromStdString(m_sub->metadataValue("time_unit", std::string{}));
+            m_dataScale = m_sub->metadataValue("data_scale", 1.0);
+            m_dataOffset = m_sub->metadataValue("data_offset", 0.0);
+            m_sampleRate = m_sub->metadataValue("sample_rate", -1.0);
         }
-        default:
-            return;
-        }
+        m_chunkCount = chunkCountFromSampleRate(m_sampleRate);
 
         m_srcModType = QString::fromStdString(mdata.valueOr<std::string>("src_mod_type", std::string{}));
 
@@ -537,7 +435,7 @@ private:
         return std::clamp(count, ZARR_CHUNK_MIN, ZARR_CHUNK_MAX);
     }
 
-    void ensureArraysInitialized(int nCols)
+    void ensureArraysInitialized(int nCols, ZarrV3Array::DType dataDtype)
     {
         // validate channel count against what the upstream source advertised.
         if (nCols != m_expectedChannels) {
@@ -551,26 +449,6 @@ private:
         // skip if we are already initialized
         if (m_tsArray)
             return;
-
-        ZarrV3Array::DType dataDtype;
-        switch (m_isrcKind) {
-        case InputSourceKind::FLOAT:
-            dataDtype = ZarrV3Array::DType::Float32;
-            break;
-        case InputSourceKind::INT32:
-            dataDtype = ZarrV3Array::DType::Int32;
-            break;
-        case InputSourceKind::INT16:
-            dataDtype = ZarrV3Array::DType::Int16;
-            break;
-        case InputSourceKind::UINT16:
-            dataDtype = ZarrV3Array::DType::UInt16;
-            break;
-        default:
-            raiseError(QStringLiteral("Internal error: unknown input source kind"));
-            m_writeData = false;
-            return;
-        }
 
         // 1-D timestamps array: shape = [total_samples], dtype = uint64
         m_tsArray = std::make_unique<ZarrV3Array>(
@@ -688,15 +566,30 @@ private:
         }
     }
 
-    template<typename SubPtr>
-    void handleSignalBlock(SubPtr &sub)
+    void onDataReceived()
     {
-        const auto maybeData = sub->peekNext();
-        if (!maybeData.has_value() || !m_writeData)
-            return;
-        const auto &block = maybeData.value();
+        // Drain everything queued - even when not saving or after a fatal
+        // error - otherwise items pile up unbounded.
+        const ProcessVarFn processItem = [this](BaseDataType &data) {
+            if (!m_writeData)
+                return;
+            if (m_lineEvents)
+                writeLineReading(static_cast<const LineReading &>(data));
+            else
+                visitSignalBlock(data, [this](auto &block) {
+                    writeSignalBlock(block);
+                });
+        };
+        while (m_sub->callIfNextVar(processItem)) {
+        }
+    }
 
-        ensureArraysInitialized(static_cast<int>(block.data.cols()));
+    template<SignalBlockType T>
+    void writeSignalBlock(const T &block)
+    {
+        using Scalar = signal_block_scalar_t<T>;
+
+        ensureArraysInitialized(static_cast<int>(block.data.cols()), zarrDTypeFor<Scalar>());
         if (!m_writeData)
             return; // ensureArraysInitialized hit a fatal condition (channel mismatch, etc.)
 
@@ -717,51 +610,23 @@ private:
         }
     }
 
-    void onFloatSignalBlockReceived()
+    void writeLineReading(const LineReading &ev)
     {
-        handleSignalBlock(m_floatSub);
-    }
+        // Append the timestamp and the [line_id, value] row in lockstep so
+        // they stay aligned by index.
+        ensureLineArraysInitialized();
+        if (!m_writeData)
+            return;
 
-    void onIntSignalBlockReceived()
-    {
-        handleSignalBlock(m_intSub);
-    }
+        const uint64_t t = static_cast<uint64_t>(ev.time.count());
+        const uint32_t row[2] = {static_cast<uint32_t>(ev.lineId), static_cast<uint32_t>(ev.value)};
+        m_tsArray->appendBytes(&t, 1);
+        m_dataArray->appendBytes(row, 1);
 
-    void onInt16SignalBlockReceived()
-    {
-        handleSignalBlock(m_int16Sub);
-    }
-
-    void onUInt16SignalBlockReceived()
-    {
-        handleSignalBlock(m_uint16Sub);
-    }
-
-    void onLineReadingReceived()
-    {
-        // Drain all queued events; append the timestamp and the [line_id, value]
-        // row in lockstep so they stay aligned by index.
-        while (auto maybeData = m_lineSub->peekNext()) {
-            // Always drain the queue, even when not saving or after
-            // a fatal error - otherwise events pile up unbounded.
-            if (!m_writeData)
-                continue;
-
-            const auto &ev = maybeData.value();
-            ensureLineArraysInitialized();
-            if (!m_writeData)
-                continue;
-
-            const uint64_t t = static_cast<uint64_t>(ev.time.count());
-            const uint32_t row[2] = {static_cast<uint32_t>(ev.lineId), static_cast<uint32_t>(ev.value)};
-            m_tsArray->appendBytes(&t, 1);
-            m_dataArray->appendBytes(row, 1);
-
-            if (m_tsArray->hasError() || m_dataArray->hasError()) {
-                const QString msg = m_tsArray->hasError() ? m_tsArray->errorMessage() : m_dataArray->errorMessage();
-                raiseError(QStringLiteral("Zarr writer I/O error: ") + msg);
-                m_writeData = false; // keep draining the rest; do not return
-            }
+        if (m_tsArray->hasError() || m_dataArray->hasError()) {
+            const QString msg = m_tsArray->hasError() ? m_tsArray->errorMessage() : m_dataArray->errorMessage();
+            raiseError(QStringLiteral("Zarr writer I/O error: ") + msg);
+            m_writeData = false; // the caller keeps draining the queue
         }
     }
 };
