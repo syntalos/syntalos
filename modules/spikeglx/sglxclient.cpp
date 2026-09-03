@@ -19,6 +19,7 @@
 
 #include "sglxclient.h"
 
+#include <algorithm>
 #include <cerrno>
 #include <clocale>
 #include <cstring>
@@ -38,6 +39,33 @@ namespace Sglx
 {
 
 static_assert(std::is_same_v<int16_t, short>, "SDK sample type must match int16_t");
+
+namespace
+{
+
+/**
+ * Sample buffer adapter for sglx_fetch().
+ *
+ * The SDK's own cClient_sglx_fetch resizes its vector and then returns `&data[0]`,
+ * which is undefined for the empty vector that a zero-sample reply ("no new data yet")
+ * produces - and aborts outright with hardened libstdc++ assertions.
+ */
+struct FetchBuffer final : T_sglx_fetch {
+    std::vector<int16_t> &data;
+
+    explicit FetchBuffer(std::vector<int16_t> &buffer)
+        : data(buffer)
+    {
+    }
+
+    short *base_addr(int nshort) override
+    {
+        data.resize(static_cast<size_t>(std::max(nshort, 0)));
+        return data.data();
+    }
+};
+
+} // namespace
 
 /**
  * Guards SDK handle creation/destruction process-wide: the SDK keeps
@@ -560,7 +588,7 @@ Client::Result<FetchResult> Client::fetch(
     if (startSamp == 0)
         return std::unexpected(std::string("FETCH: start sample must be > 0"));
 
-    cClient_sglx_fetch io(buffer);
+    FetchBuffer io(buffer);
     io.js = static_cast<short>(sid.js);
     io.ip = static_cast<short>(sid.ip);
     io.channel_subset = chans.empty() ? nullptr : chans.data();
