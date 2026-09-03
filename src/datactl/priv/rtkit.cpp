@@ -34,6 +34,7 @@
 #endif
 
 #include <climits>
+#include <cstdlib>
 #include <format>
 #include <sys/resource.h>
 #include <sys/syscall.h>
@@ -58,6 +59,34 @@ static const char RTPORTAL_INTERFACE_NAME[] = "org.freedesktop.portal.Realtime";
 static const char RTKIT_SERVICE_NAME[] = "org.freedesktop.RealtimeKit1";
 static const char RTKIT_OBJECT_PATH[] = "/org/freedesktop/RealtimeKit1";
 static const char RTKIT_INTERFACE_NAME[] = "org.freedesktop.RealtimeKit1";
+
+// Upper bound for any synchronous D-Bus request we make. These calls are issued from
+// threads that are about to start processing data, so a stuck request must not stall
+// them for GDBus' default 25 s (see runningInSandbox() for why that can happen).
+static const int RTKIT_DBUS_TIMEOUT_MSEC = 5000;
+
+/**
+ * Check whether we are running inside an application sandbox (Flatpak or Snap).
+ *
+ * Only sandboxed applications need the XDG Realtime portal, since they can not talk to
+ * rtkit-daemon on the system bus directly. Outside of a sandbox we skip the portal
+ * entirely: xdg-desktop-portal (at least up to 1.22) does not cope with concurrent
+ * requests to its Realtime interface and may never answer one of them, which would
+ * stall the calling thread until the D-Bus timeout expires.
+ */
+static bool runningInSandbox()
+{
+    const char *container = std::getenv("container");
+    if (container != nullptr && std::string(container) == "flatpak")
+        return true;
+    const char *flatpakId = std::getenv("FLATPAK_ID");
+    if (flatpakId != nullptr && flatpakId[0] != '\0')
+        return true;
+    const char *snap = std::getenv("SNAP");
+    if (snap != nullptr && snap[0] != '\0')
+        return true;
+    return false;
+}
 
 static bool variantToInt64(GVariant *variant, int64_t *value)
 {
@@ -90,20 +119,22 @@ RtKit::RtKit()
 {
     g_autoptr(GError) error = nullptr;
 
-    // Create proxy for realtime portal (session bus)
-    m_rtPortalProxy = g_dbus_proxy_new_for_bus_sync(
-        G_BUS_TYPE_SESSION,
-        G_DBUS_PROXY_FLAGS_NONE,
-        nullptr,
-        RTPORTAL_SERVICE_NAME,
-        RTPORTAL_OBJECT_PATH,
-        RTPORTAL_INTERFACE_NAME,
-        nullptr,
-        &error);
+    // Create proxy for realtime portal (session bus), but only if we actually need it
+    if (runningInSandbox()) {
+        m_rtPortalProxy = g_dbus_proxy_new_for_bus_sync(
+            G_BUS_TYPE_SESSION,
+            G_DBUS_PROXY_FLAGS_NONE,
+            nullptr,
+            RTPORTAL_SERVICE_NAME,
+            RTPORTAL_OBJECT_PATH,
+            RTPORTAL_INTERFACE_NAME,
+            nullptr,
+            &error);
 
-    if (error != nullptr) {
-        m_lastError = std::format("Failed to create Realtime Portal proxy: {}", error->message);
-        g_clear_error(&error);
+        if (error != nullptr) {
+            m_lastError = std::format("Failed to create Realtime Portal proxy: {}", error->message);
+            g_clear_error(&error);
+        }
     }
 
     // Create proxy for RtKit (system bus)
@@ -164,7 +195,7 @@ bool RtKit::makeHighPriority(pid_t thread, int niceLevel)
             "MakeThreadHighPriorityWithPID",
             g_variant_new("(tti)", (guint64)getpid(), (guint64)thread, (gint32)niceLevel),
             G_DBUS_CALL_FLAGS_NONE,
-            -1,
+            RTKIT_DBUS_TIMEOUT_MSEC,
             nullptr,
             &error);
 
@@ -180,7 +211,7 @@ bool RtKit::makeHighPriority(pid_t thread, int niceLevel)
             "MakeThreadHighPriority",
             g_variant_new("(ti)", (guint64)thread, (gint32)niceLevel),
             G_DBUS_CALL_FLAGS_NONE,
-            -1,
+            RTKIT_DBUS_TIMEOUT_MSEC,
             nullptr,
             &error);
 
@@ -230,7 +261,7 @@ bool RtKit::makeRealtime(pid_t thread, uint priority)
             "MakeThreadRealtimeWithPID",
             g_variant_new("(ttu)", (guint64)getpid(), (guint64)thread, (guint32)priority),
             G_DBUS_CALL_FLAGS_NONE,
-            -1,
+            RTKIT_DBUS_TIMEOUT_MSEC,
             nullptr,
             &error);
 
@@ -246,7 +277,7 @@ bool RtKit::makeRealtime(pid_t thread, uint priority)
             "MakeThreadRealtime",
             g_variant_new("(tu)", (guint64)thread, (guint32)priority),
             G_DBUS_CALL_FLAGS_NONE,
-            -1,
+            RTKIT_DBUS_TIMEOUT_MSEC,
             nullptr,
             &error);
 
@@ -274,7 +305,7 @@ int64_t RtKit::getIntProperty(const std::string &propName, bool *ok)
             "org.freedesktop.DBus.Properties.Get",
             g_variant_new("(ss)", RTPORTAL_INTERFACE_NAME, propName.c_str()),
             G_DBUS_CALL_FLAGS_NONE,
-            -1,
+            RTKIT_DBUS_TIMEOUT_MSEC,
             nullptr,
             &error);
 
@@ -312,7 +343,7 @@ int64_t RtKit::getIntProperty(const std::string &propName, bool *ok)
             "org.freedesktop.DBus.Properties.Get",
             g_variant_new("(ss)", RTKIT_INTERFACE_NAME, propName.c_str()),
             G_DBUS_CALL_FLAGS_NONE,
-            -1,
+            RTKIT_DBUS_TIMEOUT_MSEC,
             nullptr,
             &error);
 
