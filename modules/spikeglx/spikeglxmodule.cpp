@@ -87,11 +87,6 @@ struct SyncStream {
 
 } // namespace
 
-static QString wallTimeString()
-{
-    return QDateTime::currentDateTime().toString(Qt::ISODateWithMs);
-}
-
 static std::string groupPortSuffix(SglxUtils::ChanGroup group)
 {
     return SglxUtils::chanGroupName(group).toLower().toStdString();
@@ -547,8 +542,7 @@ public:
         m_dataset->insertAttribute("spikeglx_version", m_client.version());
         m_dataset->insertAttribute("host", host.toStdString());
         m_dataset->insertAttribute("port", static_cast<int64_t>(port));
-        m_dataset->insertAttribute("run_control", runControlModeString(m_configuredMode));
-        m_dataset->insertAttribute("run_control_effective", runControlModeString(m_mode));
+        m_dataset->insertAttribute("run_control", runControlModeString(m_mode)); // effective control mode
         if (!m_settingsDlg->deviceString().isEmpty())
             m_dataset->insertAttribute("device_string", m_settingsDlg->deviceString().toStdString());
         if (auto addrs = m_client.probeAddrs())
@@ -654,11 +648,8 @@ public:
 
         // run name & SpikeGLX run start
         m_runName = makeRunName(info);
-        m_dataset->insertAttribute("run_name", m_runName.toStdString());
-
         if (m_mode == RunControlMode::FullControl) {
             setStatusMessage(QStringLiteral("Starting SpikeGLX run '%1'…").arg(m_runName));
-            m_dataset->insertAttribute("run_start_wall_time", wallTimeString().toStdString());
             if (auto r = m_client.startRun(m_runName.toStdString()); !r) {
                 raiseError(QStringLiteral("Unable to start SpikeGLX run '%1': %2").arg(m_runName, qstr(r.error())));
                 return false;
@@ -970,6 +961,8 @@ public:
                 kv["sy_ephemeral_run"] = "true";
             if (auto r = m_client.setMetadata(kv); !r)
                 LOG_WARNING(m_log, "Unable to set SpikeGLX metadata: {}", r.error());
+
+            m_dataset->insertAttribute("run_start_wall_time_us", wallUs);
         }
 
         // open the recording gate
