@@ -222,8 +222,8 @@ void Camera::setResolution(const cv::Size &size)
 
     // The supported resolutions are enumerated up front (see readFrameSizes()), so we just request
     // the chosen size here.
-    setCameraProperty(cv::CAP_PROP_FRAME_WIDTH, d->frameSize.width, false);
-    setCameraProperty(cv::CAP_PROP_FRAME_HEIGHT, d->frameSize.height, false);
+    (void)setCameraProperty(cv::CAP_PROP_FRAME_WIDTH, d->frameSize.width, false);
+    (void)setCameraProperty(cv::CAP_PROP_FRAME_HEIGHT, d->frameSize.height, false);
 }
 
 double Camera::framerate() const
@@ -264,7 +264,7 @@ void Camera::setExposure(double value)
         value = 2047;
 
     d->exposure = value;
-    setCameraProperty(cv::CAP_PROP_EXPOSURE, value, false);
+    (void)setCameraProperty(cv::CAP_PROP_EXPOSURE, value, false);
 }
 
 double Camera::brightness() const
@@ -280,7 +280,7 @@ void Camera::setBrightness(double value)
         value = -100;
 
     d->brightness = value;
-    setCameraProperty(cv::CAP_PROP_BRIGHTNESS, value, false);
+    (void)setCameraProperty(cv::CAP_PROP_BRIGHTNESS, value, false);
 }
 
 double Camera::contrast() const
@@ -296,7 +296,7 @@ void Camera::setContrast(double value)
         value = 255;
 
     d->contrast = value;
-    setCameraProperty(cv::CAP_PROP_CONTRAST, value, false);
+    (void)setCameraProperty(cv::CAP_PROP_CONTRAST, value, false);
 }
 
 double Camera::saturation() const
@@ -310,7 +310,7 @@ void Camera::setSaturation(double value)
         value = 255;
 
     d->saturation = value;
-    setCameraProperty(cv::CAP_PROP_SATURATION, value, false);
+    (void)setCameraProperty(cv::CAP_PROP_SATURATION, value, false);
 }
 
 double Camera::hue() const
@@ -326,7 +326,7 @@ void Camera::setHue(double value)
         value = -100;
 
     d->hue = value;
-    setCameraProperty(cv::CAP_PROP_HUE, value, false);
+    (void)setCameraProperty(cv::CAP_PROP_HUE, value, false);
 }
 
 double Camera::gain() const
@@ -340,7 +340,7 @@ void Camera::setGain(double value)
         value = 255;
 
     d->gain = value;
-    setCameraProperty(cv::CAP_PROP_GAIN, value, false);
+    (void)setCameraProperty(cv::CAP_PROP_GAIN, value, false);
 }
 
 int Camera::autoExposureRaw() const
@@ -351,7 +351,7 @@ int Camera::autoExposureRaw() const
 void Camera::setAutoExposureRaw(int value)
 {
     d->autoExposureRaw = value;
-    setCameraProperty(cv::CAP_PROP_AUTO_EXPOSURE, d->autoExposureRaw, true, 0.5);
+    (void)setCameraProperty(cv::CAP_PROP_AUTO_EXPOSURE, d->autoExposureRaw, true, 0.5);
 }
 
 bool Camera::connect()

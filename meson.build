@@ -38,14 +38,18 @@ cmake  = import('cmake')
 #
 # Compiler version check
 #
-if cpp_compiler.get_id() == 'gcc' and cpp_compiler.version().version_compare('<14.0')
-    error('GCC 14 or newer is required to build Syntalos. Please upgrade your compiler.')
-elif cpp_compiler.get_id() == 'clang' and cpp_compiler.version().version_compare('<19')
-    error('Clang 19 or newer is required to build Syntalos. Please upgrade your compiler.')
+if cpp_compiler.get_id() == 'gcc'
+    if cpp_compiler.version().version_compare('<14.0')
+        error('GCC 14 or newer is required to build Syntalos. Please upgrade your compiler.')
+    endif
+elif cpp_compiler.get_id() == 'clang'
+    if cpp_compiler.version().version_compare('<19')
+        error('Clang 19 or newer is required to build Syntalos. Please upgrade your compiler.')
+    endif
 else
     warning('Using ' + cpp_compiler.get_id() + ' ' + cpp_compiler.version() + ' to build Syntalos. ' +
-            'This compiler version is not officially supported, but may work. ' +
-            'If you encounter build or runtime issues, please try upgrading to a supported compiler version.')
+            'This compiler is not officially supported, but may work. ' +
+            'If you encounter build or runtime issues, please try building with GCC or Clang instead.')
 endif
 
 #
@@ -103,6 +107,11 @@ add_project_arguments(
     '-Wno-error=missing-field-initializers',
     '-Wno-unused-parameter',
     '-Wno-error=unused-parameter',
+
+    # FIXME: GCC >= 16 warns about SFINAE probes on types that are only completed later.
+    # This triggers all over the Qt 6 headers, so the diagnostic is not actionable
+    # for us and just breaks the build with -Werror.
+    '-Wno-sfinae-incomplete',
   ]),
   language: 'cpp'
 )

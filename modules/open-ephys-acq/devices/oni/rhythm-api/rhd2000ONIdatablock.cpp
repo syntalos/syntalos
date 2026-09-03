@@ -144,7 +144,6 @@ void Rhd2000ONIDataBlock::fillFromUsbBuffer (unsigned char usbBuffer[], int bloc
 {
     int index, t, channel, stream, i;
     int samplesToRead = nSamples <= 0 ? samplesPerBlock : nSamples;
-    int num = 0;
 
     index = blockIndex * 2 * calculateDataBlockSizeInWords (numDataStreams, usb3);
     for (t = 0; t < samplesToRead; ++t)
@@ -154,8 +153,6 @@ void Rhd2000ONIDataBlock::fillFromUsbBuffer (unsigned char usbBuffer[], int bloc
             std::cerr << "Error in Rhd2000EvalBoard::readDataBlock: Incorrect header." << std::endl;
             break;
         }
-        else
-            num++;
         //else cerr << "Block ok" << std::endl;
         index += 8; // magic number header width (bytes)
         timeStamp[t] = convertUsbTimeStamp (usbBuffer, index);
@@ -198,7 +195,6 @@ void Rhd2000ONIDataBlock::fillFromUsbBuffer (unsigned char usbBuffer[], int bloc
         ttlOut[t] = convertUsbWord (usbBuffer, index);
         index += 2;
     }
-    //std::cout << "Read " << num << " valid samples with " << numDataStreams << " streams. Usb mode status: " << usb3 << std::endl;
 }
 
 // Print the contents of RHD2000 registers from a selected USB data stream (0-7)

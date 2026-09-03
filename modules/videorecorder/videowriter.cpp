@@ -648,7 +648,11 @@ VideoWriter::VideoWriter()
 
 VideoWriter::~VideoWriter()
 {
-    finalize();
+    // we can not report failures from here, but a botched finalization may leave an
+    // unplayable video behind, so at least make some noise about it in the log
+    const auto res = finalize();
+    if (!res)
+        LOG_WARNING(d->log, "Failed to finalize video on destruction: {}", res.error());
 }
 
 void VideoWriter::setLogger(QuillLogger *logger)
@@ -784,7 +788,7 @@ void VideoWriter::initializeInternal()
     // open output IO context
     ret = avio_open2(&d->octx->pb, qPrintable(fname), AVIO_FLAG_WRITE, nullptr, nullptr);
     if (ret < 0) {
-        finalizeInternal(false);
+        (void)finalizeInternal(false);
         throw std::runtime_error(QStringLiteral("Failed to open output I/O context: %1").arg(ret).toStdString());
     }
 
@@ -916,7 +920,7 @@ void VideoWriter::initializeInternal()
     // quantizer setting is still lossy). Refuse that combination instead of silently
     // recording lossy data for an experiment that asked for lossless.
     if (useVaapi && d->codecProps.isLossless()) {
-        finalizeInternal(false);
+        (void)finalizeInternal(false);
         throw std::runtime_error(
             std::format(
                 "Lossless encoding is not available for the {} codec when VA-API hardware acceleration is used. "
@@ -1094,7 +1098,7 @@ void VideoWriter::initializeInternal()
     // open video encoder
     ret = avcodec_open2(d->cctx, vcodec, &codecopts);
     if (ret < 0) {
-        finalizeInternal(false);
+        (void)finalizeInternal(false);
         av_dict_free(&codecopts);
         if (wantSvtAv1Lossless)
             throw std::runtime_error(
@@ -1141,7 +1145,7 @@ void VideoWriter::initializeInternal()
         nullptr);
 
     if (!d->swsctx) {
-        finalizeInternal(false);
+        (void)finalizeInternal(false);
         throw std::runtime_error("Failed to initialize sample scaler.");
     }
 
@@ -1193,7 +1197,7 @@ void VideoWriter::initializeInternal()
     // write format header, after this we are ready to encode frames
     ret = avformat_write_header(d->octx, nullptr);
     if (ret < 0) {
-        finalizeInternal(false);
+        (void)finalizeInternal(false);
         throw std::runtime_error(std::format("Failed to write format header: {}", averrorToString(ret)));
     }
     d->framePts = 0;
@@ -1207,7 +1211,7 @@ void VideoWriter::initializeInternal()
         d->tsfWriter.setChunkSize(std::lround(av_q2d(d->fps) * 60.0)); // new chunk about every minute
         d->tsfWriter.setFileName(timestampFname.toStdString());
         if (!d->tsfWriter.open(d->modName.toStdString(), d->collectionId)) {
-            finalizeInternal(false);
+            (void)finalizeInternal(false);
             throw std::runtime_error(std::format("Unable to initialize timesync file: {}", d->tsfWriter.lastError()));
         }
     }

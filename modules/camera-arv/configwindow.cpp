@@ -543,7 +543,15 @@ void ArvConfigWindow::toggleVideoPreview(bool start)
             m_realFps = camera->getFPS();
             camera->setFPS(10);
             pixelFormatSelector->setEnabled(false);
-            camera->startAcquisition();
+            const auto acqRes = camera->startAcquisition();
+            if (!acqRes) {
+                setCameraInUse(false);
+                pixelFormatSelector->setEnabled(pixelFormatSelector->count() > 1);
+                QMessageBox::warning(
+                    this,
+                    QStringLiteral("%1 - Failed to start preview").arg(cameraSelector->currentText()),
+                    QStringLiteral("Unable to start image acquisition for the camera preview: %1").arg(acqRes.error()));
+            }
         }
     } else if (!start && started) {
         started = false;

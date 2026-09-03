@@ -114,7 +114,7 @@ private slots:
         auto vidGroup = collection->groupByName("videos", EDLCreateFlag::CREATE_OR_OPEN).value_or(nullptr);
         auto dsCam = vidGroup->datasetByName("Top Camera", EDLCreateFlag::MUST_CREATE).value_or(nullptr);
         dsCam->addDataFilePart("camera-video.mkv");
-        vidGroup->groupByName("cats", EDLCreateFlag::CREATE_OR_OPEN);
+        QVERIFY(vidGroup->groupByName("cats", EDLCreateFlag::CREATE_OR_OPEN).has_value());
 
         QTemporaryDir dir;
         QVERIFY(dir.isValid());

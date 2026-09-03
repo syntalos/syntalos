@@ -30,6 +30,7 @@
 #include <QMessageBox>
 #include <QThreadPool>
 #include <QTimer>
+#include <unistd.h>
 
 #include "encodetask.h"
 
@@ -168,6 +169,7 @@ void TaskManager::obtainSleepShutdownIdleInhibitor()
     if (!iface.isValid()) {
         LOG_INFO(m_log, "Unable to connect to logind DBus interface");
         m_idleInhibitFd = -1;
+        return;
     }
 
     QDBusReply<QDBusUnixFileDescriptor> reply;
@@ -180,6 +182,7 @@ void TaskManager::obtainSleepShutdownIdleInhibitor()
     if (!reply.isValid()) {
         LOG_INFO(m_log, "Unable to request sleep/shutdown/idle inhibitor from logind.");
         m_idleInhibitFd = -1;
+        return;
     }
 
     m_idleInhibitFd = ::dup(reply.value().fileDescriptor());

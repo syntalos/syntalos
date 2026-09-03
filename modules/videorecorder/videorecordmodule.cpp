@@ -527,7 +527,14 @@ public:
 
         // we need to explicitly save the dataset here to ensure any globs are finalized into
         // actual data- and aux file parts.
-        m_vidDataset->save();
+        const auto dsSaveRes = m_vidDataset->save();
+        if (!dsSaveRes) {
+            raiseError(QStringLiteral(
+                           "Unable to save video dataset prior to deferred encoding, so no encoding jobs "
+                           "were scheduled. Videos of this run will remain unencoded. Message: %1")
+                           .arg(QString::fromStdString(dsSaveRes.error())));
+            return;
+        }
 
         // schedule encoding jobs in the external encoder process
         for (auto &dataPart : m_vidDataset->dataFile().parts) {

@@ -2140,7 +2140,10 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
     // if we should save internal diagnostic data, create a group for it!
     if (d->saveInternal) {
         d->edlInternalData = std::make_shared<EDLGroup>();
-        d->edlInternalData->setName("syntalos_internal");
+        // the group has no path yet, so this can not actually fail - but do not stay silent if it ever does
+        const auto igNameRes = d->edlInternalData->setName("syntalos_internal");
+        if (!igNameRes)
+            LOG_WARNING(d->log, "Unable to name internal data group: {}", igNameRes.error());
         storageCollection->addChild(d->edlInternalData);
         LOG_INFO(d->log, "Writing some internal data to datasets for debugging and analysis");
     }
@@ -2919,7 +2922,10 @@ void Engine::onSynchronizerDetailsChanged(const std::string &id, const TimeSyncS
         modId = mod->id();
 
     auto ds = std::make_shared<EDLDataset>();
-    ds->setName(std::format("{}-{}", modId.toStdString(), id));
+    // the dataset has no path yet, so this can not actually fail - but do not stay silent if it ever does
+    const auto dsNameRes = ds->setName(std::format("{}-{}", modId.toStdString(), id));
+    if (!dsNameRes)
+        LOG_WARNING(d->log, "Unable to name internal timesync dataset: {}", dsNameRes.error());
     d->edlInternalData->addChild(ds);
 
     auto tsw = std::make_shared<TimeSyncFileWriter>();

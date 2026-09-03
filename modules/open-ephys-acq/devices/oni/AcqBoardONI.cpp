@@ -1318,13 +1318,10 @@ bool AcqBoardONI::pumpSamples(std::span<AcqSampleChunk> sinks, microseconds_t &b
         // Walk the chunks and fill them by reading the same raw bytes the algorithm
         // above just consumed. We use thisSample[] for sanity (it's already been
         // populated with the upstream scaling) but write *raw uint16* into the chunks.
-        int electrodeBase = 0;
         for (size_t hs = 0; hs < headstages.size(); ++hs) {
             const auto *headstage = headstages[hs].get();
             if (!headstage->isConnected())
                 continue;
-
-            const int hsActive = headstage->getNumActiveChannels();
 
             // Find the matching electrode + aux chunks for this headstage.
             for (auto &sink : sinks) {
@@ -1367,10 +1364,9 @@ bool AcqBoardONI::pumpSamples(std::span<AcqSampleChunk> sinks, microseconds_t &b
                     // first stream slot.
                     const int hsStreamStart = headstage->getStreamIndex(0);
                     // Compute the offset in the interleaved thisSample/auxBuffer
-                    // layout: it's electrodeBase + (hs's electrode count) for the
-                    // start of this hs's aux trio. But auxBuffer[] is indexed by
-                    // the same channel counter that thisSample uses, so we need
-                    // electrodeTotal + auxOffsetForHs.
+                    // layout: auxBuffer[] is indexed by the same channel counter
+                    // that thisSample uses, so the start of this headstage's aux
+                    // trio is electrodeTotal + auxOffsetForHs.
                     const int electrodeTotal = getNumDataOutputs(ChannelKind::Electrode);
                     int auxOffset = 0;
                     for (size_t prev = 0; prev < hs; ++prev) {
@@ -1393,7 +1389,6 @@ bool AcqBoardONI::pumpSamples(std::span<AcqSampleChunk> sinks, microseconds_t &b
                     }
                 }
             }
-            electrodeBase += hsActive;
         }
 
         // ADC chunk (groupIndex = -1).
