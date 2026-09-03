@@ -442,6 +442,8 @@ public:
                 LOG_INFO(m_log, "Stopping the SpikeGLX run again after failed preparation");
                 if (auto r = m_client.stopRun(); !r)
                     LOG_WARNING(m_log, "Unable to stop SpikeGLX run: {}", r.error());
+                else
+                    setPlaceholderRunName();
                 m_sglxRunStartedByUs = false;
             }
             m_runActive = false;
@@ -1106,13 +1108,16 @@ public:
             else
                 LOG_WARNING(m_log, "Unable to disable SpikeGLX recording: {}", r.error());
         }
+
         collectRunInfo();
+
         if (m_mode == RunControlMode::FullControl) {
             Sglx::Client::Result<void> r;
             const auto ts = FUNC_EXEC_TIMESTAMP(startTime, r = m_client.stopRun());
             if (r) {
                 m_dataset->insertAttribute("run_stop_master_time_us", static_cast<int64_t>(ts.count()));
                 m_sglxRunStartedByUs = false;
+                setPlaceholderRunName();
             } else {
                 LOG_WARNING(m_log, "Unable to stop SpikeGLX run: {}", r.error());
             }
@@ -1141,6 +1146,20 @@ public:
         }
         if (m_fetchEnabled)
             m_dataset->insertAttribute("live_data", fetchStats);
+    }
+
+    /**
+     * Leave SpikeGLX with an unused run name. SpikeGLX verifies its remembered
+     * run name whenever parameters are (re)validated and refuses names that already
+     * exist on disk, which would otherwise break remote device detection after a
+     * SpikeGLX restart, and requires the user to pick a new name for manual runs.
+     */
+    void setPlaceholderRunName()
+    {
+        const auto placeholder = QStringLiteral("syntalos_next_%1")
+                                     .arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss")));
+        if (auto r = m_client.setRunName(placeholder.toStdString()); !r)
+            LOG_WARNING(m_log, "Unable to set placeholder run name in SpikeGLX: {}", r.error());
     }
 
     /** Record where SpikeGLX wrote its files. */
