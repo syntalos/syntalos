@@ -10,12 +10,14 @@
 
 // Pin the FT600 ONI driver shared library resident for the lifetime of the
 // process. liboni dlclose()s the driver in oni_destroy_ctx(), but the driver
-// statically links libftd3xx/libusb, whose netlink hotplug thread is never
+// statically links libftd3xx/libusb, whose udev/netlink hotplug thread is never
 // joined on teardown. Unmapping the library while that thread is still alive
-// crashes the process (use-after-dlclose). Holding an extra, never-released
-// dlopen reference keeps the loader refcount above zero so the mapping cannot
-// be torn down. This is a workaround that also protects us against unpatched
-// builds of liboni (which additionally set RTLD_NODELETE at the load site).
+// crashes the process (use-after-dlclose): the thread sits in poll() and dies
+// with SIGSEGV as soon as the next hotplug event (e.g. a new input device
+// appearing when a remote-desktop session connects) wakes it up in code that no
+// longer exists. Holding an extra, never-released dlopen reference keeps the
+// loader refcount above zero so the mapping cannot be torn down. This is a
+// workaround.
 // FIXME: We can drop this once https://github.com/open-ephys/liboni/pull/65 was merged.
 static void pinFt600DriverResident()
 {
@@ -62,6 +64,12 @@ int Rhd2000ONIBoard::open (const oni_driver_info_t** driverInfo)
     ctx = oni_create_ctx ("ft600"); // "ft600" is the driver name for the usb
     if (ctx == NULL)
         return -1;
+
+    // The driver library is now loaded and initialized; keep it resident so a
+    // later oni_destroy_ctx() cannot unmap it out from under libusb's still-
+    // running netlink thread.
+    pinFt600DriverResident();
+
     if (driverInfo)
         getONIDriverInfo (driverInfo);
 
@@ -75,11 +83,6 @@ int Rhd2000ONIBoard::open (const oni_driver_info_t** driverInfo)
         else
             return -2;
     }
-
-    // The driver library is now loaded and initialized; keep it resident so a
-    // later oni_destroy_ctx() cannot unmap it out from under libusb's still-
-    // running netlink thread.
-    pinFt600DriverResident();
 
     return 1;
 }
