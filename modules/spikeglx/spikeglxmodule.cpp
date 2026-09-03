@@ -661,6 +661,25 @@ public:
                 m_dataset->insertAttribute("run_name", rn->c_str());
         }
 
+        // Push our identity into the metadata of the next SpikeGLX file-set, i.e. the one
+        // created when the gate opens. SpikeGLX attaches pending metadata when a file-set is
+        // opened, so this has to happen before SETRECORDENAB 1 - and doing it here keeps the
+        // round-trips out of the time-critical path between the start signal and the gate.
+        if (m_mode != RunControlMode::Monitor && m_pushMetadata) {
+            std::map<std::string, std::string> kv;
+            kv["sy_collection_id"] = m_dataset->collectionId().toHex();
+            kv["sy_subject_id"] = m_subject.id.toStdString();
+            kv["sy_subject_group"] = m_subject.group.toStdString();
+            kv["sy_experiment_id"] = m_experimentId.toStdString();
+            kv["sy_run_name"] = m_runName.toStdString();
+            kv["sy_module_name"] = name().toStdString();
+            kv["sy_instance_id"] = m_instanceId.toStdString();
+            if (m_isEphemeralRun)
+                kv["sy_ephemeral_run"] = "true";
+            if (auto r = m_client.setMetadata(kv); !r)
+                LOG_WARNING(m_log, "Unable to set SpikeGLX metadata: {}", r.error());
+        }
+
         for (auto &fs : m_fetchStreams) {
             if (m_fetchEnabled)
                 fs.stream->start();
@@ -937,33 +956,15 @@ public:
             m_threadDone = true;
         });
 
+        bool failed = false;
         startWaitCondition->wait(this);
         const auto startTime = m_syTimer->startTime();
-        bool failed = false;
+        const auto startWallUs = std::chrono::duration_cast<std::chrono::microseconds>(
+                                     m_syTimer->startWallTime().time_since_epoch())
+                                     .count();
+        m_dataset->insertAttribute("run_start_wall_time_us", startWallUs);
 
-        // push our identity into the metadata of the next SpikeGLX file-set
-        if (m_mode != RunControlMode::Monitor && m_pushMetadata) {
-            std::map<std::string, std::string> kv;
-            kv["sy_collection_id"] = m_dataset->collectionId().toHex();
-            kv["sy_subject_id"] = m_subject.id.toStdString();
-            kv["sy_subject_group"] = m_subject.group.toStdString();
-            kv["sy_experiment_id"] = m_experimentId.toStdString();
-            kv["sy_run_name"] = m_runName.toStdString();
-            kv["sy_module_name"] = name().toStdString();
-            kv["sy_instance_id"] = m_instanceId.toStdString();
-            const auto wallUs = std::chrono::duration_cast<std::chrono::microseconds>(
-                                    m_syTimer->startWallTime().time_since_epoch())
-                                    .count();
-            kv["sy_start_wall_time_us"] = std::to_string(wallUs);
-            if (m_isEphemeralRun)
-                kv["sy_ephemeral_run"] = "true";
-            if (auto r = m_client.setMetadata(kv); !r)
-                LOG_WARNING(m_log, "Unable to set SpikeGLX metadata: {}", r.error());
-
-            m_dataset->insertAttribute("run_start_wall_time_us", wallUs);
-        }
-
-        // open the recording gate
+        // Open the recording gate right away (identity and prep data has been sent in prepare())
         if (m_mode != RunControlMode::Monitor) {
             Sglx::Client::Result<void> r;
             const auto ts = FUNC_EXEC_TIMESTAMP(startTime, r = m_client.setRecordingEnable(true));
