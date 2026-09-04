@@ -174,7 +174,7 @@ void TestVideoRecorder::matroskaRoundtrip(VideoCodec codec, AVCodecID expectedCo
     // Read the frames back the same way the deferred encoder does
     VideoReader reader;
     QVERIFY2(reader.open(filename), qPrintable(reader.lastError()));
-    for (int i = 0; i < frameCount; ++i) {
+    for (size_t i = 0; i < frameCount; ++i) {
         const auto frame = reader.readFrame();
         QVERIFY2(frame.has_value(), qPrintable(reader.lastError()));
         QCOMPARE(frame->second, i);
