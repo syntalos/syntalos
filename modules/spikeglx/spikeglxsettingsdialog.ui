@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>574</width>
-    <height>820</height>
+    <height>878</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -167,7 +167,14 @@
       <item row="0" column="1">
        <layout class="QHBoxLayout" name="modeLayout">
         <item>
-         <widget class="QComboBox" name="modeComboBox"/>
+         <widget class="QComboBox" name="modeComboBox">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
         </item>
         <item>
          <widget class="QPushButton" name="modeInfoButton">
