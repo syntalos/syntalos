@@ -337,14 +337,43 @@ void SpikeGLXSettingsDialog::appendFetchRow(const FetchEntry &entry)
         groupCombo->addItem(SglxUtils::chanGroupName(g));
     const int gidx = groupCombo->findText(entry.group.toUpper());
     groupCombo->setCurrentIndex(gidx < 0 ? 0 : gidx);
-    connect(groupCombo, &QComboBox::currentTextChanged, this, [this] {
+    connect(groupCombo, &QComboBox::currentTextChanged, this, [this, groupCombo] {
+        updateChannelCellHint(groupCombo);
         if (!m_updating)
             emit fetchEntriesChanged();
     });
     ui->fetchTable->setCellWidget(row, 1, groupCombo);
 
     ui->fetchTable->setItem(row, 2, new QTableWidgetItem(entry.channels));
+    updateChannelCellHint(groupCombo);
     m_updating = false;
+}
+
+/**
+ * The channel column means something different for the digital groups, where it
+ * selects lines packed into 16-bit words rather than channels. The row is looked
+ * up from the group selector, as row indices shift when entries are removed.
+ */
+void SpikeGLXSettingsDialog::updateChannelCellHint(QComboBox *groupCombo)
+{
+    QTableWidgetItem *item = nullptr;
+    for (int row = 0; row < ui->fetchTable->rowCount(); ++row) {
+        if (ui->fetchTable->cellWidget(row, 1) == groupCombo) {
+            item = ui->fetchTable->item(row, 2);
+            break;
+        }
+    }
+    if (item == nullptr)
+        return;
+
+    const auto group = SglxUtils::parseChanGroup(groupCombo->currentText());
+    if (group && SglxUtils::isDigitalGroup(*group))
+        item->setToolTip(
+            tr("Line numbers within the group, counted as word * 16 + bit "
+               "(the imec sync waveform is line 6). Empty selects all lines. "
+               "Each selected line is published as a stream of level-change events."));
+    else
+        item->setToolTip(tr("Channel indices relative to the group, e.g. \"0:31,64\". Empty selects all channels."));
 }
 
 void SpikeGLXSettingsDialog::setFetchEntries(const QList<FetchEntry> &entries)

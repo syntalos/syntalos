@@ -54,6 +54,7 @@ class MockState:
             2: [
                 {
                     "name": "imec0",
+                    "js": 2,
                     "rate": 30000.0,
                     "counts": [384, 384, 1],
                     "sn": ("9223372036854775807", -1),
@@ -64,6 +65,7 @@ class MockState:
             1: [
                 {
                     "name": "obx0",
+                    "js": 1,
                     "rate": 30000.0,
                     "counts": [12, 1, 1],
                     "sn": ("21000042", 3),
@@ -88,17 +90,45 @@ class MockState:
         return int((time.monotonic() - self.run_start) * stream["rate"])
 
 
+def digital_words(stream):
+    """Absolute channel indices of the stream's packed digital words, by group name."""
+    names = {2: ["AP", "LF", "SY"], 1: ["XA", "DW", "SY"], 0: ["MN", "MA", "XA", "DW"]}[
+        stream["js"]
+    ]
+    words = {}
+    offset = 0
+    for name, count in zip(names, stream["counts"]):
+        if name in ("SY", "DW"):
+            for w in range(count):
+                words[offset + w] = name
+        offset += count
+    return words
+
+
 def gen_samples(stream, chans, start, n):
-    """Generate n samples for the given absolute channel indices, sample-major int16."""
-    nchan_total = sum(stream["counts"])
+    """Generate n samples for the given absolute channel indices, sample-major int16.
+
+    Digital words are packed the way SpikeGLX packs them: the lowest numbered line
+    sits in the lowest order bit. The SY word carries the 1 Hz sync square wave in
+    bit #6 (and a permanently set bit #0, the acquisition-start flag); the DW word
+    drives all of its 12 lines (bits 0-11) with the same square wave.
+    """
     rate = stream["rate"]
-    digital_start = nchan_total - stream["counts"][-1]  # last group is SY/DW
+    dwords = digital_words(stream)
+
+    def digital(idx):
+        """Value of a digital word for sample index array/scalar `idx`."""
+        return (idx // (rate / 2.0)) % 2
+
     if np is not None:
         idx = np.arange(start, start + n, dtype=np.float64)
         out = np.empty((n, len(chans)), dtype=np.int16)
         for j, c in enumerate(chans):
-            if c >= digital_start:
-                out[:, j] = ((idx // (rate / 2.0)) % 2).astype(np.int16)
+            group = dwords.get(c)
+            if group == "SY":
+                out[:, j] = (1 | (digital(idx).astype(np.int64) << 6)).astype(np.int16)
+            elif group == "DW":
+                out[:, j] = (digital(idx).astype(np.int64) * 0x0FFF).astype(np.int16)
             else:
                 freq = 1.0 + (c % 10)
                 out[:, j] = (2000.0 * np.sin(2.0 * math.pi * freq * idx / rate)).astype(np.int16)
@@ -107,8 +137,11 @@ def gen_samples(stream, chans, start, n):
     vals = []
     for i in range(start, start + n):
         for c in chans:
-            if c >= digital_start:
-                vals.append(int((i // (rate / 2.0)) % 2))
+            group = dwords.get(c)
+            if group == "SY":
+                vals.append(1 | (int(digital(i)) << 6))
+            elif group == "DW":
+                vals.append(int(digital(i)) * 0x0FFF)
             else:
                 freq = 1.0 + (c % 10)
                 vals.append(int(2000.0 * math.sin(2.0 * math.pi * freq * i / rate)))

@@ -110,6 +110,43 @@ private slots:
         QCOMPARE(channelListToSpec({}), QString());
     }
 
+    void digitalLines()
+    {
+        // digital lines are packed into 16-bit words, so a line is word * 16 + bit
+        QCOMPARE(digitalLineCount(1), 16);
+        QCOMPARE(digitalLineCount(4), 64);
+
+        // a single SY word: the whole line spec fits into word 0
+        auto r = parseChannelSpec(QString(), digitalLineCount(1), QStringLiteral("Line"));
+        QVERIFY(r.has_value());
+        QCOMPARE(r->size(), 16ul);
+        QCOMPARE(digitalWordsForLines(*r), (std::vector<int>{0}));
+
+        // the imec sync waveform
+        r = parseChannelSpec(QStringLiteral("6"), digitalLineCount(1), QStringLiteral("Line"));
+        QVERIFY(r.has_value());
+        QCOMPARE(*r, (std::vector<int>{6}));
+        QCOMPARE(digitalWordsForLines(*r), (std::vector<int>{0}));
+
+        // a quad-base probe has four SY words, one per shank
+        r = parseChannelSpec(QStringLiteral("0:63"), digitalLineCount(4), QStringLiteral("Line"));
+        QVERIFY(r.has_value());
+        QCOMPARE(digitalWordsForLines(*r), (std::vector<int>{0, 1, 2, 3}));
+
+        // a sparse selection only needs the words the lines live in
+        r = parseChannelSpec(QStringLiteral("6,33"), digitalLineCount(4), QStringLiteral("Line"));
+        QVERIFY(r.has_value());
+        QCOMPARE(*r, (std::vector<int>{6, 33}));
+        QCOMPARE(digitalWordsForLines(*r), (std::vector<int>{0, 2}));
+
+        QCOMPARE(digitalWordsForLines({}), (std::vector<int>{}));
+
+        // lines beyond the group are rejected, and the message names them as lines
+        auto bad = parseChannelSpec(QStringLiteral("16"), digitalLineCount(1), QStringLiteral("Line"));
+        QVERIFY(!bad.has_value());
+        QVERIFY(bad.error().startsWith(QStringLiteral("Line entry '16'")));
+    }
+
     void runNameSanitizing()
     {
         QCOMPARE(sanitizeRunName(QStringLiteral("mouse 12/exp:1")), QStringLiteral("mouse_12_exp_1"));

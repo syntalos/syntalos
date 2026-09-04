@@ -139,7 +139,10 @@ std::expected<std::pair<int, int>, QString> chanGroupRange(int js, const std::ve
         QStringLiteral("Channel group %1 does not exist in this stream type").arg(chanGroupName(group)));
 }
 
-std::expected<std::vector<int>, QString> parseChannelSpec(const QString &spec, int groupChanCount)
+std::expected<std::vector<int>, QString> parseChannelSpec(
+    const QString &spec,
+    int groupChanCount,
+    const QString &itemNoun)
 {
     std::vector<int> result;
     if (groupChanCount <= 0)
@@ -168,15 +171,15 @@ std::expected<std::vector<int>, QString> parseChannelSpec(const QString &spec, i
             lo = range[0].toInt(&okLo);
             hi = range[1].toInt(&okHi);
         } else {
-            return std::unexpected(QStringLiteral("Invalid channel range '%1'").arg(item));
+            return std::unexpected(QStringLiteral("Invalid %1 range '%2'").arg(itemNoun.toLower(), item));
         }
         if (!okLo || !okHi)
-            return std::unexpected(QStringLiteral("Invalid channel entry '%1'").arg(item));
+            return std::unexpected(QStringLiteral("Invalid %1 entry '%2'").arg(itemNoun.toLower(), item));
         if (lo > hi)
             std::swap(lo, hi);
         if (lo < 0 || hi >= groupChanCount)
-            return std::unexpected(QStringLiteral("Channel entry '%1' is outside of the valid range 0:%2")
-                                       .arg(item)
+            return std::unexpected(QStringLiteral("%1 entry '%2' is outside of the valid range 0:%3")
+                                       .arg(itemNoun, item)
                                        .arg(groupChanCount - 1));
         for (int c = lo; c <= hi; ++c)
             chans.insert(c);
@@ -184,6 +187,14 @@ std::expected<std::vector<int>, QString> parseChannelSpec(const QString &spec, i
 
     result.assign(chans.begin(), chans.end());
     return result;
+}
+
+std::vector<int> digitalWordsForLines(const std::vector<int> &lines)
+{
+    std::set<int> words;
+    for (const auto l : lines)
+        words.insert(l / digitalLinesPerWord);
+    return std::vector<int>(words.begin(), words.end());
 }
 
 QString channelListToSpec(const std::vector<int> &chans)

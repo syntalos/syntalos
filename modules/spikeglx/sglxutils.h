@@ -74,11 +74,32 @@ std::expected<std::pair<int, int>, QString> chanGroupRange(int js, const std::ve
  *
  * Indices are relative to the group; an empty spec (or "all") selects
  * every channel. The result is sorted and duplicate-free.
+ * For digital groups the same syntax selects line numbers, in which case
+ * @p itemNoun should name that to get sensible error messages.
  */
-std::expected<std::vector<int>, QString> parseChannelSpec(const QString &spec, int groupChanCount);
+std::expected<std::vector<int>, QString> parseChannelSpec(
+    const QString &spec,
+    int groupChanCount,
+    const QString &itemNoun = QStringLiteral("Channel"));
 
 /// Compact string form of a channel index list, e.g. "0:31,40".
 QString channelListToSpec(const std::vector<int> &chans);
+
+/**
+ * SpikeGLX packs digital lines into 16-bit words with the lowest numbered line
+ * in the lowest order bit, so a line number is word * 16 + bit. This is the same
+ * numbering SpikeGLX uses for its own sync and trigger line settings.
+ */
+constexpr int digitalLinesPerWord = 16;
+
+/// Number of digital lines carried by a group of @p wordCount 16-bit words.
+inline int digitalLineCount(int wordCount)
+{
+    return wordCount * digitalLinesPerWord;
+}
+
+/// The sorted, duplicate-free set of words that the given lines live in.
+std::vector<int> digitalWordsForLines(const std::vector<int> &lines);
 
 /**
  * @brief Make a string acceptable as SpikeGLX run name.

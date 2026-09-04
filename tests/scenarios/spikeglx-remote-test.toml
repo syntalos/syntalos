@@ -6,6 +6,7 @@ timeout_sec = 120
 expected_exit_code = 0
 expected_datasets = [
     "imec0-ap",
+    "imec0-sy",
     { name = "spikeglx-remote", tsync = { min_entries = 5, monotonic_column = "master-time" } },
 ]
 validator_script = "zarr_writer_validator.py"

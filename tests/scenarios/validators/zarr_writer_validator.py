@@ -89,6 +89,24 @@ def validate_zarr_store(store_path: str) -> None:
     if np.any(np.diff(ts_arr.astype(np.int64)) < 0):
         raise RuntimeError("timestamps are not monotonically non-decreasing")
 
+    # Line-reading stores hold sparse [line_id, value] event rows instead of samples.
+    # An edge stream that only ever emitted its priming events (or nothing at all) is
+    # a silent failure, so require that some line actually changed level.
+    if data.ndim == 2 and data.shape[1] == 2 and data.dtype == np.dtype("uint32"):
+        if data_arr.shape[0] < 2:
+            raise RuntimeError(
+                f"Line-reading store '{store_path}' holds {data_arr.shape[0]} event(s); "
+                "expected the initial levels plus at least one transition"
+            )
+        for line in np.unique(data_arr[:, 0]):
+            values = data_arr[data_arr[:, 0] == line, 1]
+            if np.unique(values).size > 1:
+                break
+        else:
+            raise RuntimeError(
+                f"Line-reading store '{store_path}' has no line that ever changed level"
+            )
+
     n_channels = data.shape[1] if data.ndim == 2 else 1
     print(
         f"    OK: {n_samples} samples, {n_channels} channel(s), "

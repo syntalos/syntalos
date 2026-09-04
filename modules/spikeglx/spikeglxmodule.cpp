@@ -24,7 +24,9 @@
 #include <QElapsedTimer>
 #include <QThread>
 #include <QtConcurrentRun>
+#include <algorithm>
 #include <atomic>
+#include <bit>
 #include <cmath>
 
 #include "datactl/datatypes.h"
@@ -59,9 +61,13 @@ struct FetchStream {
     Sglx::StreamId sid;
     QString streamName;
     SglxUtils::ChanGroup group = SglxUtils::ChanGroup::ALL;
-    std::vector<int> relChans; /// channel indices relative to the group
-    std::vector<int> absChans; /// channel indices within the stream
+    bool digital = false;      /// SY/DW group: published as line events, not sample blocks
+    std::vector<int> relChans; /// word/channel indices relative to the group
+    std::vector<int> absChans; /// word/channel indices within the stream
+    std::vector<int> lines;    /// digital only: selected line numbers (word * 16 + bit)
+    /// exactly one of the two is set, depending on `digital`
     std::shared_ptr<DataStream<SignalBlockI16>> stream;
+    std::shared_ptr<DataStream<LineReading>> lineStream;
 
     // run state
     double sampleRate = 0;
@@ -72,9 +78,13 @@ struct FetchStream {
     std::unique_ptr<FreqCounterSynchronizer> syncer;
     std::vector<int16_t> buffer;
     SignalBlockI16 block;
+    std::vector<uint16_t> lineMask; /// per fetched word: the bits we publish
+    std::vector<uint16_t> linePrev; /// per fetched word: last seen level
+    bool linePrimed = false;
     uint64_t gapCount = 0;
     uint64_t droppedSamples = 0;
     uint64_t fetchedSamples = 0;
+    uint64_t emittedEvents = 0;
 };
 
 /// One stream whose sample counter is logged against the master clock.
@@ -193,7 +203,11 @@ public:
             currentIds.insert(fs.portId);
 
             const auto title = QStringLiteral("%1 %2").arg(fs.streamName, SglxUtils::chanGroupName(*group));
-            fs.stream = registerOutputPort<SignalBlockI16>(fs.portId, title);
+            fs.digital = SglxUtils::isDigitalGroup(*group);
+            if (fs.digital)
+                fs.lineStream = registerOutputPort<LineReading>(fs.portId, title);
+            else
+                fs.stream = registerOutputPort<SignalBlockI16>(fs.portId, title);
             newStreams.push_back(std::move(fs));
         }
 
@@ -665,7 +679,11 @@ public:
         }
 
         for (auto &fs : m_fetchStreams) {
-            if (m_fetchEnabled)
+            if (!m_fetchEnabled)
+                continue;
+            if (fs.digital)
+                fs.lineStream->start();
+            else
                 fs.stream->start();
         }
 
@@ -724,13 +742,32 @@ public:
                 break;
             }
         }
-        auto rel = SglxUtils::parseChannelSpec(chanSpec, count);
-        if (!rel) {
-            raiseError(QStringLiteral("Live-data entry '%1 %2': %3")
-                           .arg(fs.streamName, SglxUtils::chanGroupName(fs.group), rel.error()));
-            return false;
+        fs.lines.clear();
+        if (fs.digital) {
+            // For digital groups the spec selects lines, not the 16-bit words they are
+            // packed into: SpikeGLX numbers a line as word * 16 + bit, which is also the
+            // number its own sync and trigger settings use. We only fetch the words that
+            // actually contain a selected line.
+            auto sel = SglxUtils::parseChannelSpec(
+                chanSpec,
+                SglxUtils::digitalLineCount(count),
+                QStringLiteral("Line"));
+            if (!sel) {
+                raiseError(QStringLiteral("Live-data entry '%1 %2': %3")
+                               .arg(fs.streamName, SglxUtils::chanGroupName(fs.group), sel.error()));
+                return false;
+            }
+            fs.lines = std::move(*sel);
+            fs.relChans = SglxUtils::digitalWordsForLines(fs.lines);
+        } else {
+            auto rel = SglxUtils::parseChannelSpec(chanSpec, count);
+            if (!rel) {
+                raiseError(QStringLiteral("Live-data entry '%1 %2': %3")
+                               .arg(fs.streamName, SglxUtils::chanGroupName(fs.group), rel.error()));
+                return false;
+            }
+            fs.relChans = std::move(*rel);
         }
-        fs.relChans = std::move(*rel);
         fs.absChans.clear();
         fs.absChans.reserve(fs.relChans.size());
         for (const auto c : fs.relChans)
@@ -740,7 +777,7 @@ public:
 
         // scaling: check the first and last channel of the selection
         double scale = 1.0;
-        const bool digital = SglxUtils::isDigitalGroup(fs.group);
+        const bool digital = fs.digital;
         if (!digital) {
             auto first = m_client.i16ToVolts(fs.sid, fs.absChans.front());
             auto last = m_client.i16ToVolts(fs.sid, fs.absChans.back());
@@ -760,45 +797,85 @@ public:
                     fs.absChans.front());
         }
 
-        MetaArray names;
         const auto groupName = SglxUtils::chanGroupName(fs.group);
-        for (const auto c : fs.relChans) {
-            if (fs.group == SglxUtils::ChanGroup::ALL)
-                names.push_back(QStringLiteral("CH%1").arg(c).toStdString());
-            else
-                names.push_back(QStringLiteral("%1%2").arg(groupName).arg(c).toStdString());
-        }
         MetaArray absChans;
         for (const auto c : fs.absChans)
             absChans.push_back(static_cast<int64_t>(c));
 
-        fs.stream->setMetadataValue("sample_rate", fs.sampleRate);
-        fs.stream->setMetadataValue("time_unit", std::string{"index"});
-        fs.stream->setMetadataValue("data_unit", std::string{digital ? "raw" : "V"});
-        fs.stream->setMetadataValue("data_scale", scale);
-        fs.stream->setMetadataValue("data_offset", 0.0);
-        fs.stream->setMetadataValue("is_digital", digital);
-        fs.stream->setMetadataValue("signal_names", names);
-        fs.stream->setMetadataValue("spikeglx_stream", fs.streamName.toStdString());
-        fs.stream->setMetadataValue("spikeglx_js", static_cast<int64_t>(fs.sid.js));
-        fs.stream->setMetadataValue("spikeglx_ip", static_cast<int64_t>(fs.sid.ip));
-        fs.stream->setMetadataValue("spikeglx_group", groupName.toStdString());
-        fs.stream->setMetadataValue("spikeglx_channels", absChans);
-        if (!si->serial.isEmpty())
-            fs.stream->setMetadataValue("spikeglx_serial", si->serial.toStdString());
-        fs.stream->setSuggestedDataName(
-            QStringLiteral("%1-%2/%3").arg(datasetNameSuggestion(), fs.streamName, groupName.toLower()));
-
+        const auto suggestedName = QStringLiteral("%1-%2/%3")
+                                       .arg(datasetNameSuggestion(), fs.streamName, groupName.toLower());
         MetaStringMap portMeta;
         portMeta.insert("stream", fs.streamName.toStdString());
         portMeta.insert("group", groupName.toStdString());
         portMeta.insert("channels", absChans);
         portMeta.insert("sample_rate", fs.sampleRate);
-        portMeta.insert("data_unit", std::string{digital ? "raw" : "V"});
-        portMeta.insert("data_scale", scale);
+
+        if (digital) {
+            MetaArray lines;
+            for (const auto l : fs.lines)
+                lines.push_back(static_cast<int64_t>(l));
+
+            // No signal_names / data_scale / data_offset here: this is a sparse event
+            // stream, not an indexed channel set with an affine transform. The sample
+            // rate is still published, as it is the resolution of the edge times.
+            fs.lineStream->setMetadataValue("sample_rate", fs.sampleRate);
+            fs.lineStream->setMetadataValue("time_unit", std::string{"microseconds"});
+            fs.lineStream->setMetadataValue("data_unit", std::string{"ttl"});
+            fs.lineStream->setMetadataValue("is_digital", true);
+            fs.lineStream->setMetadataValue("spikeglx_stream", fs.streamName.toStdString());
+            fs.lineStream->setMetadataValue("spikeglx_js", static_cast<int64_t>(fs.sid.js));
+            fs.lineStream->setMetadataValue("spikeglx_ip", static_cast<int64_t>(fs.sid.ip));
+            fs.lineStream->setMetadataValue("spikeglx_group", groupName.toStdString());
+            fs.lineStream->setMetadataValue("spikeglx_channels", absChans);
+            fs.lineStream->setMetadataValue("spikeglx_lines", lines);
+            if (!si->serial.isEmpty())
+                fs.lineStream->setMetadataValue("spikeglx_serial", si->serial.toStdString());
+            fs.lineStream->setSuggestedDataName(suggestedName);
+
+            portMeta.insert("data_unit", std::string{"ttl"});
+            portMeta.insert("lines", lines);
+
+            // Bit masks for the lines we publish, indexed like the fetched words.
+            fs.lineMask.assign(fs.relChans.size(), 0);
+            for (const auto l : fs.lines) {
+                const auto word = l / SglxUtils::digitalLinesPerWord;
+                const auto it = std::find(fs.relChans.begin(), fs.relChans.end(), word);
+                fs.lineMask[std::distance(fs.relChans.begin(), it)] |= static_cast<uint16_t>(
+                    1u << (l % SglxUtils::digitalLinesPerWord));
+            }
+            fs.linePrev.assign(fs.relChans.size(), 0);
+        } else {
+            MetaArray names;
+            for (const auto c : fs.relChans) {
+                if (fs.group == SglxUtils::ChanGroup::ALL)
+                    names.push_back(QStringLiteral("CH%1").arg(c).toStdString());
+                else
+                    names.push_back(QStringLiteral("%1%2").arg(groupName).arg(c).toStdString());
+            }
+
+            fs.stream->setMetadataValue("sample_rate", fs.sampleRate);
+            fs.stream->setMetadataValue("time_unit", std::string{"index"});
+            fs.stream->setMetadataValue("data_unit", std::string{"V"});
+            fs.stream->setMetadataValue("data_scale", scale);
+            fs.stream->setMetadataValue("data_offset", 0.0);
+            fs.stream->setMetadataValue("is_digital", false);
+            fs.stream->setMetadataValue("signal_names", names);
+            fs.stream->setMetadataValue("spikeglx_stream", fs.streamName.toStdString());
+            fs.stream->setMetadataValue("spikeglx_js", static_cast<int64_t>(fs.sid.js));
+            fs.stream->setMetadataValue("spikeglx_ip", static_cast<int64_t>(fs.sid.ip));
+            fs.stream->setMetadataValue("spikeglx_group", groupName.toStdString());
+            fs.stream->setMetadataValue("spikeglx_channels", absChans);
+            if (!si->serial.isEmpty())
+                fs.stream->setMetadataValue("spikeglx_serial", si->serial.toStdString());
+            fs.stream->setSuggestedDataName(suggestedName);
+
+            portMeta.insert("data_unit", std::string{"V"});
+            portMeta.insert("data_scale", scale);
+
+            fs.block = SignalBlockI16(1, static_cast<uint>(fs.absChans.size()));
+        }
         m_portsMeta.insert(fs.portId.toStdString(), portMeta);
 
-        fs.block = SignalBlockI16(1, static_cast<uint>(fs.absChans.size()));
         return true;
     }
 
@@ -847,7 +924,47 @@ public:
     }
 
     /**
-     * Fetch everything new on one stream and publish it as signal blocks.
+     * Turn the digital words of one fetch into LineReading edge events.
+     *
+     * SpikeGLX packs digital lines into 16-bit words, lowest numbered line in the
+     * lowest order bit, so a line is `word * 16 + bit` - the very numbering its own
+     * sync and trigger settings use. An event is emitted whenever a selected line
+     * changes level, plus once per line on the first block of the run so the starting
+     * level is recorded.
+     */
+    void emitLineEdges(FetchStream &fs, int n, int nCh)
+    {
+        for (int s = 0; s < n; ++s) {
+            const auto tsUs = microseconds_t(
+                std::llround(static_cast<double>(fs.block.timestamps(s)) * 1e6 / fs.sampleRate));
+            const int16_t *row = fs.buffer.data() + static_cast<size_t>(s) * nCh;
+
+            for (int c = 0; c < nCh; ++c) {
+                // SpikeGLX carries the unsigned status/digital word in a signed slot
+                const auto cur = static_cast<uint16_t>(row[c]);
+                uint16_t changed = fs.linePrimed ? ((cur ^ fs.linePrev[c]) & fs.lineMask[c]) : fs.lineMask[c];
+                fs.linePrev[c] = cur;
+
+                const auto base = static_cast<uint16_t>(fs.relChans[c] * SglxUtils::digitalLinesPerWord);
+                while (changed != 0) {
+                    const auto bit = std::countr_zero(changed);
+                    changed &= static_cast<uint16_t>(changed - 1);
+
+                    LineReading r;
+                    r.lineId = base + bit;
+                    r.value = (cur >> bit) & 1;
+                    r.time = tsUs;
+                    fs.lineStream->push(r);
+                    fs.emittedEvents++;
+                }
+            }
+            fs.linePrimed = true;
+        }
+    }
+
+    /**
+     * Fetch everything new on one stream and publish it, as signal blocks for the
+     * analog groups and as line events for the digital ones.
      * Returns false on a fatal error (already reported).
      */
     bool pumpFetchStream(FetchStream &fs)
@@ -912,10 +1029,12 @@ public:
 
             const int n = res->nSamps;
             const int nCh = res->nChans;
-            fs.block.data.resize(n, nCh);
             fs.block.timestamps.resize(n);
-            // the SDK buffer is sample-major int16, exactly our row-major block layout
-            fs.block.data = Eigen::Map<const MatrixXi16>(fs.buffer.data(), n, nCh);
+            if (!fs.digital) {
+                fs.block.data.resize(n, nCh);
+                // the SDK buffer is sample-major int16, exactly our row-major block layout
+                fs.block.data = Eigen::Map<const MatrixXi16>(fs.buffer.data(), n, nCh);
+            }
             for (int s = 0; s < n; ++s) {
                 const int64_t idx = static_cast<int64_t>(res->headCt + s) - static_cast<int64_t>(fs.refSampleCount)
                                     + fs.startSampleOffset;
@@ -924,7 +1043,10 @@ public:
             if (fs.syncer)
                 fs.syncer->processTimestamps(recvTs, 0, 1, fs.block.timestamps);
 
-            fs.stream->push(fs.block);
+            if (fs.digital)
+                emitLineEdges(fs, n, nCh);
+            else
+                fs.stream->push(fs.block);
             fs.cursor = res->headCt + n;
             fs.fetchedSamples += n;
 
@@ -1007,6 +1129,9 @@ public:
                 }
                 fs.cursor = std::max<uint64_t>(fs.refSampleCount, 1);
                 fs.startSampleOffset = std::llround(static_cast<double>(t.count()) * fs.sampleRate / 1e6);
+                // the edge detector re-primes on the first block, so the starting
+                // level of every selected line is emitted once
+                fs.linePrimed = false;
                 fs.syncer = initCounterSynchronizer(fs.sampleRate);
                 if (fs.syncer) {
                     fs.syncer->setStrategies(
@@ -1140,7 +1265,16 @@ public:
             sm.insert("fetched_samples", static_cast<int64_t>(fs.fetchedSamples));
             sm.insert("gap_count", static_cast<int64_t>(fs.gapCount));
             sm.insert("dropped_samples", static_cast<int64_t>(fs.droppedSamples));
+            if (fs.digital)
+                sm.insert("emitted_events", static_cast<int64_t>(fs.emittedEvents));
             fetchStats.insert(fs.portId.toStdString(), sm);
+            if (fs.digital && fs.emittedEvents > 100000)
+                LOG_WARNING(
+                    m_log,
+                    "Live data port '{}' emitted {} line events; check that the selected lines are actually "
+                    "connected, a floating input generates events at the stream sample rate",
+                    fs.portId,
+                    fs.emittedEvents);
             if (fs.gapCount > 0)
                 LOG_WARNING(
                     m_log,

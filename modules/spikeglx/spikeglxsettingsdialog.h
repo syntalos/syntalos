@@ -25,6 +25,8 @@
 
 #include "fabric/moduleapi.h"
 
+class QComboBox;
+
 namespace Ui
 {
 class SpikeGLXSettingsDialog;
@@ -108,6 +110,7 @@ signals:
 
 private:
     void appendFetchRow(const FetchEntry &entry);
+    void updateChannelCellHint(QComboBox *groupCombo);
     QString modeDescription(RunControlMode mode) const;
     FetchEntry fetchEntryAt(int row) const;
 
