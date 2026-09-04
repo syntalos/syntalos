@@ -166,7 +166,7 @@ public:
         m_outStream->setMetadataValue("framerate", m_fps);
         m_outStream->setMetadataValue("has_color", !m_imgFormat.toUpper().startsWith("GRAY"));
         if (m_imgFormat.toUpper().startsWith("GRAY16"))
-            m_outStream->setMetadataValue("depth", CV_8U);
+            m_outStream->setMetadataValue("depth", CV_16U);
 
         // start the stream
         m_outStream->start();
@@ -314,18 +314,30 @@ public:
 
             if (g_strcmp0(format_str, "BGRx") == 0) {
                 frame.mat.create(m_resolution, CV_8UC(4));
-                memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height * 4);
             } else if (g_strcmp0(format_str, "GRAY8") == 0) {
                 frame.mat.create(m_resolution, CV_8UC(1));
-                memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height);
             } else if (g_strcmp0(format_str, "GRAY16_LE") == 0) {
                 frame.mat.create(m_resolution, CV_16UC(1));
-                memcpy(frame.mat.data, info.data, m_resolution.width * m_resolution.height);
             } else {
                 LOG_INFO(m_log, "{}: Received buffer with unsupported format: {}", m_device.str(), format_str);
                 gst_buffer_unmap(buffer, &info);
                 continue;
             }
+
+            // copy the image data, using the actual byte size of the matrix we created
+            const size_t frameBytes = frame.mat.total() * frame.mat.elemSize();
+            if (info.size < frameBytes) {
+                LOG_WARNING(
+                    m_log,
+                    "{}: Received {} buffer of {} bytes, but expected at least {} bytes. Frame dropped.",
+                    m_device.str(),
+                    format_str,
+                    info.size,
+                    frameBytes);
+                gst_buffer_unmap(buffer, &info);
+                continue;
+            }
+            memcpy(frame.mat.data, info.data, frameBytes);
 
             m_outStream->push(frame);
 
