@@ -227,6 +227,12 @@ private:
 
         self->m_mod->runThread(self->m_waitCond);
 
+        // A module thread that returns without ever signalling readiness (and without
+        // raising an error) would leave the engine waiting for it forever. The thread
+        // is gone at this point, so flag the module as failed to let the launch abort.
+        if (self->m_mod->state() == ModuleState::PREPARING)
+            Engine::flagThreadExitedBeforeReady(self->m_mod);
+
         if (self->m_threadBackend != BackendQThread)
             pthread_exit(nullptr);
         return nullptr;
@@ -2007,6 +2013,14 @@ bool Engine::validateModuleNames(const ModuleRunOrder &modOrder)
     return true;
 }
 
+void Engine::flagThreadExitedBeforeReady(AbstractModule *mod)
+{
+    LOG_WARNING(getEngineLog, "Thread of module '{}' exited before the module became ready.", mod->name());
+    mod->raiseError(QStringLiteral(
+        "The module's thread exited before the module signalled that it was ready to run. "
+        "This is a bug in the module: it must either wait for the start signal or report an error."));
+}
+
 bool Engine::waitForModulesReady(const ModuleRunOrder &modOrder)
 {
     // ensure all modules are in the READY state
@@ -2454,6 +2468,35 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
             initSuccessful = false;
 
         LOG_INFO(d->log, "Waited for modules to get ready for {} msec", timeDiffToNowMsec(lastPhaseTimepoint).count());
+
+        // Diagnostic: every non-dormant dedicated-thread module is expected to have parked on the
+        // start barrier by now, as reaching READY via the barrier's wait() implies being parked.
+        // Event threads and the stream exporter are not counted: they do not take part in the
+        // READY handshake and may legitimately still be on their way to the barrier (they pass
+        // through it if it was released already). Modules rolling their own threads may add
+        // waiters. Fewer waiters than expected means a module set itself READY without waiting
+        // for the start signal, so the engine can not synchronize its start.
+        if (initSuccessful) {
+            uint expectedWaiters = 0;
+            for (const auto &thread : dThreads) {
+                if (thread != nullptr)
+                    expectedWaiters++;
+            }
+            const auto parkedThreads = startWaitCondition->waitingCount();
+            if (parkedThreads < expectedWaiters)
+                LOG_WARNING(
+                    d->log,
+                    "Only {} of {} expected module threads are parked on the start barrier. "
+                    "Some module may not wait for the start signal and will start unsynchronized.",
+                    parkedThreads,
+                    expectedWaiters);
+            else
+                LOG_DEBUG(
+                    d->log,
+                    "{} threads parked on the start barrier ({} module threads expected).",
+                    parkedThreads,
+                    expectedWaiters);
+        }
     }
 
     // Meanwhile, threaded modules may have failed, so let's check again if we are still

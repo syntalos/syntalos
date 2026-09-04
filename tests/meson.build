@@ -23,6 +23,22 @@ test('sy-test-basic',
 )
 
 #
+# Start-barrier Wait Condition Test
+#
+test_waitcond_moc_src = ['test-waitcondition.cpp']
+test_waitcond_moc = qt.compile_moc(sources: test_waitcond_moc_src)
+test_waitcond_exe = executable('test-waitcondition',
+                               [test_waitcond_moc_src, test_waitcond_moc],
+                               dependencies: [syntalos_fabric_dep,
+                                              qt_test_dep]
+)
+test('sy-test-waitcondition',
+     test_waitcond_exe,
+     env: test_env,
+     is_parallel: true,
+)
+
+#
 # Basic Stream Performance Test
 #
 test_streamperf_moc_src = ['test-streamperf.cpp']

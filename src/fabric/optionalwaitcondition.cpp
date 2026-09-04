@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -28,10 +28,17 @@ using namespace Syntalos;
 class OptionalWaitCondition::OWCData
 {
 public:
-    OWCData() {}
+    OWCData()
+        : ready(false),
+          count(0)
+    {
+    }
 
-    std::atomic_bool ready;
-    uint count;
+    // Both fields are only ever modified while holding the mutex. The barrier
+    // state is read under the mutex as well; the waiter count is atomic so that
+    // it can be inspected for diagnostics without contending the lock.
+    bool ready;
+    std::atomic_uint count;
     QMutex mutex;
     QWaitCondition condition;
 
@@ -42,38 +49,62 @@ private:
 OptionalWaitCondition::OptionalWaitCondition()
     : d(new OptionalWaitCondition::OWCData())
 {
-    d->ready = false;
 }
 
 void OptionalWaitCondition::wait()
 {
+    QMutexLocker locker(&d->mutex);
     if (d->ready)
         return;
-    d->mutex.lock();
+
     d->count++;
-    d->condition.wait(&d->mutex);
-    d->mutex.unlock();
+    // loop guards against spurious wakeups
+    while (!d->ready)
+        d->condition.wait(&d->mutex);
 }
 
 void OptionalWaitCondition::wait(AbstractModule *mod)
 {
+    QMutexLocker locker(&d->mutex);
+    if (d->ready) {
+        // we are late to the party - the barrier was already released.
+        // Still flag the module as ready, this is mandatory.
+        mod->setStateReady();
+        return;
+    }
+
+    // Mark the module as ready *while holding the mutex*: wakeAll() needs the same
+    // mutex, so by the time the engine can release the barrier this thread is
+    // guaranteed to be parked in condition.wait() (which releases the mutex atomically)
+    // and will therefore receive the wakeup. This is what allows the engine to treat
+    // the READY state as "this thread will be woken by the next wakeAll()".
+    d->count++;
     mod->setStateReady();
-    wait();
+    while (!d->ready)
+        d->condition.wait(&d->mutex);
 }
 
 uint OptionalWaitCondition::waitingCount() const
 {
-    return d->count;
+    return d->count.load();
+}
+
+bool OptionalWaitCondition::isReleased() const
+{
+    QMutexLocker locker(&d->mutex);
+    return d->ready;
 }
 
 void OptionalWaitCondition::wakeAll()
 {
-    d->condition.wakeAll();
+    QMutexLocker locker(&d->mutex);
     d->ready = true;
+    d->condition.wakeAll();
 }
 
 void OptionalWaitCondition::reset()
 {
+    QMutexLocker locker(&d->mutex);
     d->ready = false;
     d->count = 0;
 }

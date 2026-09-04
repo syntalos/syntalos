@@ -30,6 +30,7 @@
 
 class NetworkController;
 class MLinkModule;
+class SyThread;
 
 namespace Syntalos
 {
@@ -38,6 +39,7 @@ class Engine : public QObject
 {
     Q_OBJECT
     friend class ModuleManager;
+    friend class ::SyThread;
 
 public:
     explicit Engine(QWidget *parentWidget = nullptr);
@@ -236,6 +238,8 @@ private:
         qint64 finishTimestamp,
         const QList<AbstractModule *> &activeModules);
     void setInactiveModulePortsSuspended(const Engine::ModuleRunOrder &modOrder, bool suspended);
+
+    static void flagThreadExitedBeforeReady(AbstractModule *mod);
 
     void allocatePriorityBudget(const ModuleRunOrder &modOrder, uint maxRtThreads, int defaultThreadNice);
     bool validateModuleNames(const ModuleRunOrder &modOrder);
