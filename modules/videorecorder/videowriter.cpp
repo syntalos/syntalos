@@ -1193,6 +1193,10 @@ void VideoWriter::initializeInternal()
     const bool rawGray16 = rawMatroska
                            && (d->encPixFormat == AV_PIX_FMT_GRAY16LE || d->encPixFormat == AV_PIX_FMT_GRAY16BE);
 
+    // Matroska has no native mapping for raw BGR24, so it has to be stored through the
+    // VFW compatibility mode. FFmpeg logs a spurious "codec rawvideo is not supported by
+    // this format" warning when it takes this path, but the frames are stored and read
+    // back bit-exactly.
     AVDictionary *formatOpts = nullptr;
     if (rawMatroska && d->encPixFormat == AV_PIX_FMT_BGR24)
         av_dict_set(&formatOpts, "allow_raw_vfw", "1", 0);

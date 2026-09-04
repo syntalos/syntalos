@@ -340,7 +340,7 @@ void RecorderSettingsDialog::on_exactColorsCheckBox_toggled(bool checked)
 void RecorderSettingsDialog::on_containerComboBox_currentIndexChanged(int index)
 {
     Q_UNUSED(index)
-    // whether raw RGB frames can be stored depends on the container
+    // whether colors can be stored exactly may depend on the container
     updateExactColorsUiState();
 }
 
@@ -378,16 +378,11 @@ QString RecorderSettingsDialog::exactColorsSummary() const
             "Lossy compression discards color information no matter how the frames are stored, "
             "so exact colors are only available for lossless recordings.");
 
-    if (!videoCodecCanStoreExactColors(m_codecProps.codec(), videoContainer())) {
-        if (m_codecProps.codec() == VideoCodec::Raw)
-            return QStringLiteral(
-                "The Matroska container can not store raw RGB frames. Select the AVI container "
-                "to keep colors exact, or use the FFV1 codec.");
+    if (!videoCodecCanStoreExactColors(m_codecProps.codec(), videoContainer()))
         return QStringLiteral(
                    "%1 can not store colors exactly, frames are converted to YUV 4:2:0. Use the FFV1 "
                    "codec for bit-exact color recordings.")
             .arg(QString::fromStdString(videoCodecToString(m_codecProps.codec())));
-    }
 
     if (m_codecProps.exactColors())
         return QStringLiteral(
