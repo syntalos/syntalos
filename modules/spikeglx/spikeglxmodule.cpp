@@ -101,6 +101,7 @@ private:
     SpikeGLXSettingsDialog *m_settingsDlg;
     Sglx::Client m_client;
     std::atomic_bool m_dialogBusy{false};
+    std::atomic_bool m_threadStarted{false};
     std::atomic_bool m_threadDone{true};
     bool m_runActive = false;
 
@@ -124,6 +125,7 @@ private:
     bool m_isEphemeralRun = false;
     QString m_experimentId;
     QString m_instanceId; /// ID of this Syntalos instance, sent to SpikeGLX so it knows who controlled it
+    QString m_moduleName; /// our name, snapshot for the run thread
     bool m_sglxRunStartedByUs = false;
 
 public:
@@ -423,10 +425,12 @@ public:
         m_isEphemeralRun = info.isEphemeral;
         m_experimentId = info.experimentId;
         m_instanceId = GlobalConfig().instanceId();
+        m_moduleName = name();
         m_streams.clear();
         m_syncStreams.clear();
         m_dataset.reset();
         m_sglxRunStartedByUs = false;
+        m_threadStarted = false;
         m_threadDone = true;
 
         if (m_dialogBusy) {
@@ -658,25 +662,6 @@ public:
             m_dataset->insertAttribute("spikeglx_params", pm);
         } else {
             LOG_WARNING(m_log, "Unable to fetch SpikeGLX parameters: {}", params.error());
-        }
-
-        // Push our identity into the metadata of the next SpikeGLX file-set, i.e. the one
-        // created when the gate opens. SpikeGLX attaches pending metadata when a file-set is
-        // opened, so this has to happen before SETRECORDENAB 1 - and doing it here keeps the
-        // round-trips out of the time-critical path between the start signal and the gate.
-        if (m_mode != RunControlMode::Monitor) {
-            std::map<std::string, std::string> kv;
-            kv["sy_collection_id"] = m_dataset->collectionId().toHex();
-            kv["sy_subject_id"] = m_subject.id.toStdString();
-            kv["sy_subject_group"] = m_subject.group.toStdString();
-            kv["sy_experiment_id"] = m_experimentId.toStdString();
-            kv["sy_run_name"] = m_runName.toStdString();
-            kv["sy_module_name"] = name().toStdString();
-            kv["sy_instance_id"] = m_instanceId.toStdString();
-            if (m_isEphemeralRun)
-                kv["sy_ephemeral_run"] = "true";
-            if (auto r = m_client.setMetadata(kv); !r)
-                LOG_WARNING(m_log, "Unable to set SpikeGLX metadata: {}", r.error());
         }
 
         for (auto &fs : m_fetchStreams) {
@@ -951,12 +936,29 @@ public:
 
     void runThread(OptionalWaitCondition *startWaitCondition) override
     {
+        m_threadStarted = true;
         auto markDone = qScopeGuard([this] {
             m_threadDone = true;
         });
 
         bool failed = false;
+        bool gateOpened = false;
+
+        // Announce ourselves to SpikeGLX before the start barrier: SpikeGLX attaches pending
+        // metadata when its next file-set is opened, so this has to happen before SETRECORDENAB 1,
+        // and doing it ahead of the barrier keeps the round-trip out of the time-critical path
+        // between the start signal and the gate.
+        bool metadataSet = pushRunMetadata();
+
         startWaitCondition->wait(this);
+
+        // The engine also wakes us up if the run was aborted before it ever began, so the
+        // Syntalos clock may never have been started. In that case we must not open the
+        // recording gate - but we still have to fall through to the epilogue below, which
+        // stops the SpikeGLX run that we may have started in prepare().
+        if (!m_running)
+            failed = true;
+
         const auto startTime = m_syTimer->startTime();
         const auto startWallUs = std::chrono::duration_cast<std::chrono::microseconds>(
                                      m_syTimer->startWallTime().time_since_epoch())
@@ -964,13 +966,14 @@ public:
         m_dataset->insertAttribute("run_start_wall_time_us", startWallUs);
 
         // Open the recording gate right away (identity and prep data has been sent in prepare())
-        if (m_mode != RunControlMode::Monitor) {
+        if (!failed && m_mode != RunControlMode::Monitor) {
             Sglx::Client::Result<void> r;
             const auto ts = FUNC_EXEC_TIMESTAMP(startTime, r = m_client.setRecordingEnable(true));
             if (!r) {
                 raiseError(QStringLiteral("Unable to enable recording in SpikeGLX: %1").arg(qstr(r.error())));
                 failed = true;
             } else {
+                gateOpened = true;
                 m_dataset->insertAttribute("record_start_master_time_us", static_cast<int64_t>(ts.count()));
                 LOG_INFO(m_log, "SpikeGLX recording enabled at {} µs", ts.count());
             }
@@ -1097,7 +1100,7 @@ public:
 
         // epilogue: this thread is the only user of the client during a run,
         // so all stop-time commands are issued here.
-        if (m_mode != RunControlMode::Monitor) {
+        if (gateOpened) {
             Sglx::Client::Result<void> r;
             const auto ts = FUNC_EXEC_TIMESTAMP(startTime, r = m_client.setRecordingEnable(false));
             if (r)
@@ -1105,6 +1108,11 @@ public:
             else
                 LOG_WARNING(m_log, "Unable to disable SpikeGLX recording: {}", r.error());
         }
+
+        // Our keys have served their purpose now, whether a file-set carried them or not.
+        // This has to happen before a possible STOPRUN, as SETMETADATA needs a run in progress.
+        if (metadataSet)
+            clearRunMetadata();
 
         collectRunInfo();
 
@@ -1159,6 +1167,97 @@ public:
             LOG_WARNING(m_log, "Unable to set placeholder run name in SpikeGLX: {}", r.error());
     }
 
+    /**
+     * @brief The Syntalos identity keys for the current run.
+     * @param blank set every key to an empty value instead of its real one
+     *
+     * SETMETADATA does not queue a key set for the next file-set, it *merges* what we send into
+     * a map that SpikeGLX keeps for the whole duration of its run and writes into the `.meta`
+     * files whenever a file-set is closed (see TrigBase::setMetaData()). Keys can never be
+     * removed again, and the map is not cleared between file-sets - so blanking the values is
+     * the only way to stop our identity from labelling a later, unrelated recording.
+     */
+    std::map<std::string, std::string> runMetadata(bool blank = false) const
+    {
+        const auto value = [blank](const QString &s) {
+            return blank ? std::string() : s.toStdString();
+        };
+
+        std::map<std::string, std::string> kv;
+        kv["sy_collection_id"] = blank ? std::string() : m_dataset->collectionId().toHex();
+        kv["sy_subject_id"] = value(m_subject.id);
+        kv["sy_subject_group"] = value(m_subject.group);
+        kv["sy_experiment_id"] = value(m_experimentId);
+        kv["sy_run_name"] = value(m_runName);
+        kv["sy_module_name"] = value(m_moduleName);
+        kv["sy_instance_id"] = value(m_instanceId);
+        if (m_isEphemeralRun)
+            kv["sy_ephemeral_run"] = blank ? std::string() : "true";
+        return kv;
+    }
+
+    /**
+     * @brief Identify this Syntalos run to SpikeGLX.
+     *
+     * The keys end up in the `.meta` files of the file-set that the recording gate creates.
+     *
+     * @return true if SpikeGLX now holds our identity, but no file-set of ours exists to carry it.
+     */
+    bool pushRunMetadata()
+    {
+        if (m_mode == RunControlMode::Monitor)
+            return false;
+
+        if (auto r = m_client.setMetadata(runMetadata()); !r) {
+            LOG_WARNING(m_log, "Unable to set SpikeGLX metadata: {}", r.error());
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * @brief Blank our identity again, so it can not label a later, unrelated file-set.
+     *
+     * SpikeGLX keeps our keys for the rest of its run and writes them into *every* file-set it
+     * closes, so leaving them behind would label whatever is recorded next - after an aborted
+     * run that never opened the gate just as much as after a successful one. Keys can not be
+     * deleted, so we overwrite them with empty values; an explicit marker key would be worse,
+     * as it could not be removed either and would then haunt the rest of the SpikeGLX run.
+     *
+     * This is the metadata half of leaving SpikeGLX in a neutral state, the run-name half being
+     * setPlaceholderRunName(). The two are mutually exclusive by design: SETMETADATA needs a run
+     * in progress, SETRUNNAME needs the opposite.
+     */
+    void clearRunMetadata()
+    {
+        // SpikeGLX takes its copy of the metadata when it closes a file-set, and the close is
+        // asynchronous: SETRECORDENAB 0 returns before it has happened. Blanking too early would
+        // strip the identity from our own .meta files, so wait for the files to be closed - at
+        // which point the copy is guaranteed to have been taken.
+        bool filesClosed = false;
+        QElapsedTimer timer;
+        timer.start();
+        while (timer.elapsed() < 2000) {
+            const auto saving = m_client.isSaving();
+            if (!saving) {
+                LOG_WARNING(m_log, "Unable to query the SpikeGLX saving state: {}", saving.error());
+                break;
+            }
+            if (!*saving) {
+                filesClosed = true;
+                break;
+            }
+            std::this_thread::sleep_for(milliseconds_t(20));
+        }
+        if (!filesClosed) {
+            LOG_WARNING(m_log, "SpikeGLX is still writing files, leaving our run metadata in place");
+            return;
+        }
+
+        if (auto r = m_client.setMetadata(runMetadata(true)); !r)
+            LOG_WARNING(m_log, "Unable to blank SpikeGLX metadata: {}", r.error());
+    }
+
     /** Record where SpikeGLX wrote its files. */
     void collectRunInfo()
     {
@@ -1201,15 +1300,31 @@ public:
         // The engine calls stop() before clearing m_running, so we do it
         // ourselves and wait for the run thread to finish its epilogue.
         m_running = false;
-        QElapsedTimer timer;
-        timer.start();
-        while (!m_threadDone) {
-            if (timer.elapsed() > 15000) {
-                LOG_CRITICAL(m_log, "SpikeGLX run thread did not finish in time");
-                break;
+        if (m_threadStarted) {
+            QElapsedTimer timer;
+            timer.start();
+            while (!m_threadDone) {
+                if (timer.elapsed() > 15000) {
+                    LOG_CRITICAL(m_log, "SpikeGLX run thread did not finish in time");
+                    break;
+                }
+                processUiEvents();
+                QThread::msleep(2);
             }
-            processUiEvents();
-            QThread::msleep(2);
+        } else if (m_runActive) {
+            // Our thread was never launched, because the run was aborted while modules were
+            // still preparing (the engine only starts the module threads once every module
+            // has prepared successfully, but calls stop() on all of them regardless).
+            // Nothing else talks to SpikeGLX in this case, so we issue the commands that the
+            // thread epilogue would have issued right here.
+            LOG_INFO(m_log, "Run was aborted before it started, stopping the SpikeGLX run again");
+            if (m_sglxRunStartedByUs) {
+                if (auto r = m_client.stopRun(); !r)
+                    LOG_WARNING(m_log, "Unable to stop SpikeGLX run: {}", r.error());
+                else
+                    setPlaceholderRunName();
+                m_sglxRunStartedByUs = false;
+            }
         }
 
         for (auto &ss : m_syncStreams) {
