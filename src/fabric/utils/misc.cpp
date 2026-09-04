@@ -166,7 +166,11 @@ QString appDataRootDir()
     if (isInFlatpakSandbox())
         return QDir(QStandardPaths::writableLocation(QStandardPaths::HomeLocation))
             .filePath(QStringLiteral(".var/app/org.syntalos.syntalos/data"));
-    return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+
+    // NOTE: We deliberately do not use AppDataLocation here, as that depends on the
+    // application name and helper binaries (e.g. the encode helper) must share this directory.
+    return QDir(QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation))
+        .filePath(QStringLiteral("Syntalos"));
 }
 
 QString tempDirRoot()

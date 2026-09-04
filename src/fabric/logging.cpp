@@ -294,7 +294,7 @@ private:
     QuillLogger *m_log;
 };
 
-static void setupLogFileSink(const QString &logDir)
+static void setupLogFileSink(const QString &logDir, const QString &logName)
 {
     QDir dir(logDir);
     if (!dir.mkpath(QStringLiteral("."))) {
@@ -303,7 +303,7 @@ static void setupLogFileSink(const QString &logDir)
         return;
     }
 
-    const auto fname = dir.absoluteFilePath(QStringLiteral("syntalos.log"));
+    const auto fname = dir.absoluteFilePath(logName + QStringLiteral(".log"));
     try {
         quill::RotatingFileSinkConfig cfg;
         // NOTE: Quill only scans for existing rotated files (and prunes them to the
@@ -339,7 +339,7 @@ static void setupLogFileSink(const QString &logDir)
     g_logFilePath = fname;
 }
 
-void initializeSyLogSystem(quill::LogLevel consoleLogLevel, const QString &logDir)
+void initializeSyLogSystem(quill::LogLevel consoleLogLevel, const QString &logDir, const QString &logName)
 {
     // trying to initialize the log system twice is a critical error
     if (g_consoleSink) {
@@ -362,7 +362,7 @@ void initializeSyLogSystem(quill::LogLevel consoleLogLevel, const QString &logDi
 
     // register the log file sink, if requested
     if (!logDir.isEmpty())
-        setupLogFileSink(logDir);
+        setupLogFileSink(logDir, logName);
 
     // configure defaults *before* any logger is created below: getLogger() stamps each new
     // logger with g_defaultLogLevel at creation time, so this must be set first or early

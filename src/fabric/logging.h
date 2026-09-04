@@ -66,10 +66,14 @@ void removeLogger(quill::Logger *logger);
  * Purely internal API.
  *
  * @param consoleLogLevel Minimum log level for all loggers (and thereby the console).
- * @param logDir If not empty, log output is also written to `<logDir>/syntalos.log`.
- *               Logs of previous sessions are kept as rotated files.
+ * @param logDir If not empty, log output is also written to `<logDir>/<logName>.log`.
+ *               Logs of previous sessions are kept as rotated files (`<logName>.1.log`, ...).
+ * @param logName Base name of the log file, without extension.
  */
-void initializeSyLogSystem(quill::LogLevel consoleLogLevel = quill::LogLevel::Info, const QString &logDir = QString());
+void initializeSyLogSystem(
+    quill::LogLevel consoleLogLevel = quill::LogLevel::Info,
+    const QString &logDir = QString(),
+    const QString &logName = QStringLiteral("syntalos"));
 
 /**
  * Absolute path to the log file of the current session, or an empty

@@ -21,8 +21,10 @@
 #include "encodewindow.h"
 
 #include <QApplication>
+#include <QDir>
 
 #include "logging.h"
+#include "utils/misc.h"
 #include "appstyle.h"
 
 int main(int argc, char *argv[])
@@ -32,8 +34,11 @@ int main(int argc, char *argv[])
     app.setOrganizationName("Syntalos");
     app.setApplicationVersion(PROJECT_VERSION);
 
-    // set up logging for encodehelper
-    initializeSyLogSystem();
+    // set up logging for encodehelper, using a separate log file in the Syntalos logs directory
+    initializeSyLogSystem(
+        quill::LogLevel::Info,
+        QDir(appDataRootDir()).filePath(QStringLiteral("logs")),
+        QStringLiteral("encodehelper"));
 
     EncodeWindow w;
 
