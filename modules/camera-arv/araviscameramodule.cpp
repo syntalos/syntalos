@@ -30,6 +30,7 @@
 #endif
 
 #include <atomic>
+#include <QScopeGuard>
 
 #include "datactl/frametype.h"
 #include "configwindow.h"
@@ -142,6 +143,13 @@ public:
 
     void runThread(OptionalWaitCondition *waitCondition) final
     {
+        // stop() spins until the worker thread has really left this function, so we must
+        // flag ourselves as stopped on every exit path
+        m_stopped = false;
+        const auto markStopped = qScopeGuard([this] {
+            m_stopped = true;
+        });
+
         g_autoptr(GMainLoop) loop = g_main_loop_new(nullptr, FALSE);
         const auto expectedFps = m_camera->getFPS();
 
@@ -290,7 +298,6 @@ public:
         if (!acqStartResult) {
             raiseError(acqStartResult.error());
             safeStopSynchronizer(clockSync);
-            m_stopped = true;
             return;
         }
 
@@ -350,7 +357,6 @@ public:
 
         m_camera->stopAcquisition();
         safeStopSynchronizer(clockSync);
-        m_stopped = true;
     }
 
     void stop() final
