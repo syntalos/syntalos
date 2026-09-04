@@ -107,7 +107,6 @@ private:
     // settings snapshot for the current run
     RunControlMode m_configuredMode = RunControlMode::Automatic;
     RunControlMode m_mode = RunControlMode::FullControl; /// effective mode of the current run
-    bool m_pushMetadata = true;
     int m_syncIntervalMs = 1000;
     bool m_fetchEnabled = false;
     int m_fetchIntervalMs = 50;
@@ -453,7 +452,6 @@ public:
         // settings snapshot
         m_configuredMode = m_settingsDlg->runControlMode();
         m_mode = m_configuredMode;
-        m_pushMetadata = m_settingsDlg->pushMetadata();
         m_syncIntervalMs = m_settingsDlg->syncIntervalMs();
         m_fetchEnabled = m_settingsDlg->fetchEnabled();
         m_fetchIntervalMs = m_settingsDlg->fetchIntervalMs();
@@ -653,22 +651,20 @@ public:
         }
 
         // store SpikeGLX's parameters, now that the run is started and all of them are available
-        if (m_settingsDlg->storeParams()) {
-            if (auto params = m_client.params()) {
-                MetaStringMap pm;
-                for (const auto &[k, v] : *params)
-                    pm.insert(k, MetaValue(v));
-                m_dataset->insertAttribute("spikeglx_params", pm);
-            } else {
-                LOG_WARNING(m_log, "Unable to fetch SpikeGLX parameters: {}", params.error());
-            }
+        if (auto params = m_client.params()) {
+            MetaStringMap pm;
+            for (const auto &[k, v] : *params)
+                pm.insert(k, MetaValue(v));
+            m_dataset->insertAttribute("spikeglx_params", pm);
+        } else {
+            LOG_WARNING(m_log, "Unable to fetch SpikeGLX parameters: {}", params.error());
         }
 
         // Push our identity into the metadata of the next SpikeGLX file-set, i.e. the one
         // created when the gate opens. SpikeGLX attaches pending metadata when a file-set is
         // opened, so this has to happen before SETRECORDENAB 1 - and doing it here keeps the
         // round-trips out of the time-critical path between the start signal and the gate.
-        if (m_mode != RunControlMode::Monitor && m_pushMetadata) {
+        if (m_mode != RunControlMode::Monitor) {
             std::map<std::string, std::string> kv;
             kv["sy_collection_id"] = m_dataset->collectionId().toHex();
             kv["sy_subject_id"] = m_subject.id.toStdString();
@@ -1235,8 +1231,6 @@ public:
         settings.insert(QStringLiteral("run_control"), qstr(runControlModeString(m_settingsDlg->runControlMode())));
         settings.insert(QStringLiteral("device_string"), m_settingsDlg->deviceString());
         settings.insert(QStringLiteral("run_name_extra"), m_settingsDlg->runNameExtra());
-        settings.insert(QStringLiteral("push_metadata"), m_settingsDlg->pushMetadata());
-        settings.insert(QStringLiteral("store_params"), m_settingsDlg->storeParams());
         settings.insert(QStringLiteral("sync_interval_ms"), m_settingsDlg->syncIntervalMs());
         settings.insert(QStringLiteral("sync_streams"), m_settingsDlg->syncStreams());
         settings.insert(QStringLiteral("fetch_enabled"), m_settingsDlg->fetchEnabled());
@@ -1276,8 +1270,6 @@ public:
 
         m_settingsDlg->setDeviceString(settings.value(QStringLiteral("device_string")).toString());
         m_settingsDlg->setRunNameExtra(settings.value(QStringLiteral("run_name_extra")).toString());
-        m_settingsDlg->setPushMetadata(settings.value(QStringLiteral("push_metadata"), true).toBool());
-        m_settingsDlg->setStoreParams(settings.value(QStringLiteral("store_params"), true).toBool());
         m_settingsDlg->setSyncIntervalMs(settings.value(QStringLiteral("sync_interval_ms"), 1000).toInt());
         m_settingsDlg->setSyncStreams(
             settings.value(QStringLiteral("sync_streams"), QStringList{QStringLiteral("imec0")}).toStringList());

@@ -91,8 +91,6 @@ SpikeGLXSettingsDialog::SpikeGLXSettingsDialog(ModuleInfo *modInfo, QWidget *par
                 "The optional extra name is appended to it, which is useful when one Syntalos instance "
                 "controls more than one SpikeGLX rig. Characters SpikeGLX does not permit are replaced.</html>"));
     });
-    connect(ui->pushMetadataCheckBox, &QCheckBox::toggled, this, &SpikeGLXSettingsDialog::settingsChanged);
-    connect(ui->storeParamsCheckBox, &QCheckBox::toggled, this, &SpikeGLXSettingsDialog::settingsChanged);
     connect(ui->syncIntervalSpinBox, &QSpinBox::valueChanged, this, &SpikeGLXSettingsDialog::settingsChanged);
     connect(ui->syncStreamsEdit, &QLineEdit::editingFinished, this, &SpikeGLXSettingsDialog::settingsChanged);
     connect(ui->fetchGroup, &QGroupBox::toggled, this, &SpikeGLXSettingsDialog::settingsChanged);
@@ -217,26 +215,6 @@ QString SpikeGLXSettingsDialog::runNameExtra() const
 void SpikeGLXSettingsDialog::setRunNameExtra(const QString &extra)
 {
     ui->runNameExtraEdit->setText(extra);
-}
-
-bool SpikeGLXSettingsDialog::pushMetadata() const
-{
-    return ui->pushMetadataCheckBox->isChecked();
-}
-
-void SpikeGLXSettingsDialog::setPushMetadata(bool enabled)
-{
-    ui->pushMetadataCheckBox->setChecked(enabled);
-}
-
-bool SpikeGLXSettingsDialog::storeParams() const
-{
-    return ui->storeParamsCheckBox->isChecked();
-}
-
-void SpikeGLXSettingsDialog::setStoreParams(bool enabled)
-{
-    ui->storeParamsCheckBox->setChecked(enabled);
 }
 
 int SpikeGLXSettingsDialog::syncIntervalMs() const

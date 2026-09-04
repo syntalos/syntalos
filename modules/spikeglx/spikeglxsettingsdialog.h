@@ -75,11 +75,6 @@ public:
     void setDeviceString(const QString &devString);
     QString runNameExtra() const;
     void setRunNameExtra(const QString &extra);
-    bool pushMetadata() const;
-    void setPushMetadata(bool enabled);
-    bool storeParams() const;
-    void setStoreParams(bool enabled);
-
     int syncIntervalMs() const;
     void setSyncIntervalMs(int msec);
     QStringList syncStreams() const;
