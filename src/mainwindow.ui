@@ -1422,11 +1422,19 @@
      <addaction name="actionSubjectsLoad"/>
      <addaction name="actionSubjectsSave"/>
     </widget>
+    <widget class="QMenu" name="menuOpenRecent">
+     <property name="title">
+      <string>Open &amp;Recent</string>
+     </property>
+     <property name="icon">
+      <iconset theme="document-open-recent"/>
+     </property>
+    </widget>
     <addaction name="actionProjectNew"/>
     <addaction name="actionProjectOpen"/>
+    <addaction name="menuOpenRecent"/>
     <addaction name="actionProjectSave"/>
     <addaction name="actionProjectSaveAs"/>
-    <addaction name="separator"/>
     <addaction name="separator"/>
     <addaction name="menuTest_Subjects"/>
     <addaction name="actionQuit"/>

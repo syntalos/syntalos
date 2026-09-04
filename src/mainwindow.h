@@ -128,6 +128,8 @@ private slots:
     void projectSaveAsActionTriggered();
     void projectSaveActionTriggered();
     void projectOpenActionTriggered();
+    void updateRecentProjectsMenu();
+    void openRecentProject(const QString &fileName);
 
     void on_actionProjectDetails_toggled(bool arg1);
     void globalConfigActionTriggered();
@@ -192,6 +194,7 @@ private:
 
     bool saveConfiguration(const QString &fileName);
     bool loadConfiguration(const QString &fileName);
+    void openProjectFile(const QString &fileName);
 
     NetworkControlConfig buildNetControlConfig() const;
     void applyNetControllerConfig();

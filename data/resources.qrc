@@ -14,6 +14,7 @@
         <file alias="show-all-windows">show-all-windows.svg</file>
         <file alias="show-all-config">show-all-config.svg</file>
         <file alias="project-settings">project-settings.svg</file>
+        <file alias="project-file">project-file-symbolic.svg</file>
         <file alias="usb-device">usb-device.svg</file>
         <file alias="chip-connect">chip-connect.svg</file>
         <file alias="terminal">terminal.svg</file>
@@ -30,6 +31,7 @@
         <file alias="show-all-windows">dark/show-all-windows.svg</file>
         <file alias="show-all-config">dark/show-all-config.svg</file>
         <file alias="project-settings">dark/project-settings.svg</file>
+        <file alias="project-file">dark/project-file-symbolic.svg</file>
         <file alias="usb-device">dark/usb-device.svg</file>
         <file alias="chip-connect">dark/chip-connect.svg</file>
         <file alias="net-run-controller">dark/net-run-controller.svg</file>

@@ -22,6 +22,7 @@
 
 #include <QDir>
 #include <QSettings>
+#include <QFileInfo>
 #include <QStandardPaths>
 #include <QCoreApplication>
 #include <QSysInfo>
@@ -290,6 +291,41 @@ QString GlobalConfig::lastProjectDir() const
 void GlobalConfig::setLastProjectDir(const QString &dir)
 {
     m_s->setValue("project/last_project_dir", dir);
+}
+
+static const int RECENT_PROJECTS_MAX = 10;
+
+QStringList GlobalConfig::recentProjects() const
+{
+    return m_s->value("project/recent_projects").toStringList();
+}
+
+void GlobalConfig::addRecentProject(const QString &fileName)
+{
+    const auto absPath = QFileInfo(fileName).absoluteFilePath();
+    if (absPath.isEmpty())
+        return;
+
+    // most recently used project goes first
+    auto recent = recentProjects();
+    recent.removeAll(absPath);
+    recent.prepend(absPath);
+    while (recent.size() > RECENT_PROJECTS_MAX)
+        recent.removeLast();
+
+    m_s->setValue("project/recent_projects", recent);
+}
+
+void GlobalConfig::removeRecentProject(const QString &fileName)
+{
+    auto recent = recentProjects();
+    if (recent.removeAll(QFileInfo(fileName).absoluteFilePath()) > 0)
+        m_s->setValue("project/recent_projects", recent);
+}
+
+void GlobalConfig::clearRecentProjects()
+{
+    m_s->remove("project/recent_projects");
 }
 
 QString GlobalConfig::lastSeenAppVersion() const

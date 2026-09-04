@@ -33,6 +33,7 @@
 #include <QHeaderView>
 #include <QInputDialog>
 #include <QLineEdit>
+#include <QMenu>
 #include <QMessageBox>
 #include <QProcess>
 #include <QPushButton>
@@ -312,6 +313,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->actionProjectSaveAs, &QAction::triggered, this, &MainWindow::projectSaveAsActionTriggered);
     connect(ui->actionProjectSave, &QAction::triggered, this, &MainWindow::projectSaveActionTriggered);
     connect(ui->actionProjectOpen, &QAction::triggered, this, &MainWindow::projectOpenActionTriggered);
+    connect(ui->menuOpenRecent, &QMenu::aboutToShow, this, &MainWindow::updateRecentProjectsMenu);
 
     // connect config and about dialog actions
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::aboutActionTriggered);
@@ -499,6 +501,7 @@ void MainWindow::setRunUiControlStates(bool engineRunning, bool stopPossible)
     // do not permit save/load while we are running
     ui->actionProjectNew->setEnabled(!engineRunning);
     ui->actionProjectOpen->setEnabled(!engineRunning);
+    ui->menuOpenRecent->menuAction()->setEnabled(!engineRunning);
     ui->actionProjectSave->setEnabled(!engineRunning);
     ui->actionProjectSaveAs->setEnabled(!engineRunning);
     ui->actionSubjectsLoad->setEnabled(!engineRunning);
@@ -1137,16 +1140,8 @@ void MainWindow::projectSaveActionTriggered()
     hideBusyIndicator();
 }
 
-void MainWindow::projectOpenActionTriggered()
+void MainWindow::openProjectFile(const QString &fileName)
 {
-    auto fileName = QFileDialog::getOpenFileName(
-        this,
-        QStringLiteral("Select Project Filename"),
-        m_gconf->lastProjectDir(),
-        QStringLiteral("Syntalos Project Files (*.syct)"));
-    if (fileName.isEmpty())
-        return;
-
     setStatusText("Loading settings...");
 
     if (!loadConfiguration(fileName)) {
@@ -1157,6 +1152,70 @@ void MainWindow::projectOpenActionTriggered()
         m_engine->removeAllModules();
     }
     m_gconf->setLastProjectDir(QFileInfo(fileName).absoluteDir().absolutePath());
+}
+
+void MainWindow::projectOpenActionTriggered()
+{
+    auto fileName = QFileDialog::getOpenFileName(
+        this,
+        QStringLiteral("Select Project Filename"),
+        m_gconf->lastProjectDir(),
+        QStringLiteral("Syntalos Project Files (*.syct)"));
+    if (fileName.isEmpty())
+        return;
+
+    openProjectFile(fileName);
+}
+
+void MainWindow::updateRecentProjectsMenu()
+{
+    ui->menuOpenRecent->clear();
+
+    const auto recent = m_gconf->recentProjects();
+    if (recent.isEmpty()) {
+        auto emptyAction = ui->menuOpenRecent->addAction(QStringLiteral("No recent projects"));
+        emptyAction->setEnabled(false);
+        return;
+    }
+
+    const auto projectIcon = iconFromResource(QStringLiteral("project-file"));
+    for (const auto &fileName : recent) {
+        const QFileInfo fi(fileName);
+
+        auto action = ui->menuOpenRecent->addAction(fi.completeBaseName());
+        if (fi.suffix() == QLatin1String("syct"))
+            action->setIcon(projectIcon);
+        action->setToolTip(fileName);
+        action->setStatusTip(fileName);
+        action->setData(fileName);
+        // grey out (but keep) entries whose file is currently unavailable
+        action->setEnabled(fi.exists());
+        connect(action, &QAction::triggered, this, [this, fileName]() {
+            openRecentProject(fileName);
+        });
+    }
+
+    ui->menuOpenRecent->addSeparator();
+    auto clearAction = ui->menuOpenRecent->addAction(
+        QIcon::fromTheme(QStringLiteral("edit-clear-list")),
+        QStringLiteral("Clear List"));
+    connect(clearAction, &QAction::triggered, this, [this]() {
+        m_gconf->clearRecentProjects();
+    });
+}
+
+void MainWindow::openRecentProject(const QString &fileName)
+{
+    if (!QFileInfo::exists(fileName)) {
+        QMessageBox::warning(
+            this,
+            QStringLiteral("Project not found"),
+            QStringLiteral("The project file '%1' does not exist anymore.").arg(fileName));
+        m_gconf->removeRecentProject(fileName);
+        return;
+    }
+
+    openProjectFile(fileName);
 }
 
 void MainWindow::on_actionProjectDetails_toggled(bool arg1)
@@ -1199,6 +1258,7 @@ void MainWindow::setCurrentProjectFile(const QString &fileName)
         m_currentProjectFname = fileName;
         QFileInfo fi(fileName);
         this->setWindowTitle(QStringLiteral("Syntalos – %2").arg(fi.completeBaseName()));
+        m_gconf->addRecentProject(fileName);
 
         m_engine->netController()->setProjectId(fi.baseName());
         LOG_INFO(m_log, "Current board settings file: {}", m_currentProjectFname);

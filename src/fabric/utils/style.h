@@ -39,11 +39,9 @@ void setDefaultStyle(bool preferBreeze = false);
 bool currentThemeIsDark();
 
 /**
- * Apply an icon to the selected widget from our internal resource,
- * selecting a dark variant if necessary.
+ * Get an icon from our internal resource, selecting a dark variant if necessary.
  */
-template<typename T>
-void setWidgetIconFromResource(const T &widget, const QString &name, bool isDark = currentThemeIsDark())
+inline QIcon iconFromResource(const QString &name, bool isDark = currentThemeIsDark())
 {
     QString path;
     bool pathValid = false;
@@ -53,5 +51,15 @@ void setWidgetIconFromResource(const T &widget, const QString &name, bool isDark
     }
     if (!pathValid)
         path = QStringLiteral(":/icons/") + name;
-    widget->setIcon(QIcon(path));
+    return QIcon(path);
+}
+
+/**
+ * Apply an icon to the selected widget from our internal resource,
+ * selecting a dark variant if necessary.
+ */
+template<typename T>
+void setWidgetIconFromResource(const T &widget, const QString &name, bool isDark = currentThemeIsDark())
+{
+    widget->setIcon(iconFromResource(name, isDark));
 }

@@ -109,6 +109,11 @@ public:
     QString lastProjectDir() const;
     void setLastProjectDir(const QString &dir);
 
+    QStringList recentProjects() const;
+    void addRecentProject(const QString &fileName);
+    void removeRecentProject(const QString &fileName);
+    void clearRecentProjects();
+
     QString lastSeenAppVersion() const;
     void setLastSeenAppVersion(const QString &version);
 
