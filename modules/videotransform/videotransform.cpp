@@ -485,16 +485,21 @@ void ScaleTransform::createSettingsUi(QWidget *parent)
     parent->setLayout(formLayout);
 }
 
-MetaSize ScaleTransform::resultSize()
+MetaSize ScaleTransform::scaledSize() const
 {
     const int width = std::max(2, static_cast<int>(std::round(m_originalSize.width * m_scaleFactor)));
     const int height = std::max(2, static_cast<int>(std::round(m_originalSize.height * m_scaleFactor)));
     return {width - width % 2, height - height % 2};
 }
 
+MetaSize ScaleTransform::resultSize()
+{
+    return scaledSize();
+}
+
 void ScaleTransform::process(cv::Mat &image)
 {
-    const auto size = resultSize();
+    const auto size = scaledSize();
     if (image.cols == size.width && image.rows == size.height)
         return;
 
@@ -517,8 +522,10 @@ void ScaleTransform::fromVariantHash(const QVariantHash &settings)
 
 bool ScaleTransform::needsIndependentCopy() const
 {
-    // Only need a copy if we're actually scaling (scale factor != 1.0)
-    return std::abs(m_scaleFactor - 1.0) >= 1e-6;
+    // process() only allocates a new image when it actually resizes. If the target size
+    // already matches the input, the frame is passed through untouched.
+    const auto size = scaledSize();
+    return size.width == m_originalSize.width && size.height == m_originalSize.height;
 }
 
 static int normalizeRotationDegrees(int degrees)

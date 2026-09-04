@@ -146,6 +146,8 @@ public:
     [[nodiscard]] bool needsIndependentCopy() const override;
 
 private:
+    [[nodiscard]] MetaSize scaledSize() const;
+
     double m_scaleFactor{1.0};
 };
 
