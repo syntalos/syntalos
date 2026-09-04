@@ -637,7 +637,15 @@ public:
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
         // set codec first, which may apply some default settings
-        CodecProperties codecProps(static_cast<VideoCodec>(settings.value("video_codec").toInt()));
+        auto codec = static_cast<VideoCodec>(settings.value("video_codec").toInt());
+        if (codec <= VideoCodec::Unknown || codec >= VideoCodec::Last || codec == VideoCodec::FFVHuff) {
+            LOG_WARNING(
+                m_log,
+                "Ignoring invalid video codec setting '{}', falling back to FFV1.",
+                settings.value("video_codec").toString());
+            codec = VideoCodec::FFV1;
+        }
+        CodecProperties codecProps(codec);
         codecProps.setMode(CodecProperties::stringToMode(settings.value("mode").toString()));
         codecProps.setLossless(settings.value("lossless").toBool());
         codecProps.setExactColors(settings.value("exact_colors", codecProps.isLossless()).toBool());

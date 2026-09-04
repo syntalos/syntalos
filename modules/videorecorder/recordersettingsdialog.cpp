@@ -136,14 +136,20 @@ void RecorderSettingsDialog::setCodecProps(CodecProperties props)
         }
     }
 
-    // set render node
+    // set render node, falling back to the first available one if the requested node
+    // does not exist on this machine (e.g. a project created on a different computer)
+    bool renderNodeFound = false;
     for (int i = 0; i < ui->renderNodeComboBox->count(); i++) {
         if (ui->renderNodeComboBox->itemData(i).value<QString>() == props.renderNode()) {
-            if (ui->renderNodeComboBox->currentIndex() == i)
-                break;
-            ui->renderNodeComboBox->setCurrentIndex(i);
+            renderNodeFound = true;
+            if (ui->renderNodeComboBox->currentIndex() != i)
+                ui->renderNodeComboBox->setCurrentIndex(i);
             break;
         }
+    }
+    if (!renderNodeFound && ui->renderNodeComboBox->count() > 0) {
+        ui->renderNodeComboBox->setCurrentIndex(0);
+        m_codecProps.setRenderNode(ui->renderNodeComboBox->currentData().value<QString>());
     }
 
     if (!m_codecProps.allowsAviContainer())
@@ -152,6 +158,8 @@ void RecorderSettingsDialog::setCodecProps(CodecProperties props)
 
     // change VAAPI option
     if (m_renderNodes.isEmpty()) {
+        // no hardware encoder available, so the loaded setting must not stay active either
+        m_codecProps.setUseVaapi(false);
         ui->vaapiCheckBox->setEnabled(false);
         ui->vaapiLabel->setEnabled(false);
         ui->renderNodeLabel->setEnabled(false);
@@ -182,9 +190,16 @@ void RecorderSettingsDialog::setCodecProps(CodecProperties props)
     ui->bitrateSpinBox->setValue(m_codecProps.bitrateKbps());
 
     // other properties
-    ui->losslessCheckBox->setChecked(m_codecProps.isLossless());
+    {
+        // The toggled-slots of these boxes write back into m_codecProps and follow each other
+        // (lossless implies exact colors by default), which would clobber the properties we
+        // were just given. So update the widgets silently and derive their state afterwards.
+        const QSignalBlocker losslessBlocker(ui->losslessCheckBox);
+        const QSignalBlocker exactColorsBlocker(ui->exactColorsCheckBox);
+        ui->losslessCheckBox->setChecked(m_codecProps.isLossless());
+        ui->exactColorsCheckBox->setChecked(m_codecProps.exactColors());
+    }
     updateLosslessUiState();
-    ui->exactColorsCheckBox->setChecked(m_codecProps.exactColors());
     updateExactColorsUiState();
 
     ui->brqWidget->setDisabled(ui->losslessCheckBox->isChecked());
@@ -205,8 +220,13 @@ void RecorderSettingsDialog::setCodecProps(CodecProperties props)
 
 void RecorderSettingsDialog::setVideoContainer(const VideoContainer &container)
 {
+    // the codec decides which containers are permitted, a loaded setting must not override that
+    auto effective = container;
+    if (effective == VideoContainer::AVI && !m_codecProps.allowsAviContainer())
+        effective = VideoContainer::Matroska;
+
     for (int i = 0; i < ui->containerComboBox->count(); i++) {
-        if (ui->containerComboBox->itemData(i).value<VideoContainer>() == container) {
+        if (ui->containerComboBox->itemData(i).value<VideoContainer>() == effective) {
             ui->containerComboBox->setCurrentIndex(i);
             break;
         }
@@ -255,7 +275,8 @@ bool RecorderSettingsDialog::deferredEncoding()
 
 void RecorderSettingsDialog::setDeferredEncoding(bool enabled)
 {
-    ui->encodeAfterRunCheckBox->setChecked(enabled);
+    // the checkbox is disabled if the codec does not permit deferred encoding
+    ui->encodeAfterRunCheckBox->setChecked(enabled && ui->encodeAfterRunCheckBox->isEnabled());
 }
 
 bool RecorderSettingsDialog::deferredEncodingInstantStart()
