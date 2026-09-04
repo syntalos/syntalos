@@ -1189,8 +1189,7 @@ void VideoWriter::initializeInternal()
     d->octx->metadata = metadataDict;
 
     // write format header, after this we are ready to encode frames
-    const bool rawMatroska =
-        d->container == VideoContainer::Matroska && d->codecProps.codec() == VideoCodec::Raw;
+    const bool rawMatroska = d->container == VideoContainer::Matroska && d->codecProps.codec() == VideoCodec::Raw;
     const bool rawGray16 = rawMatroska
                            && (d->encPixFormat == AV_PIX_FMT_GRAY16LE || d->encPixFormat == AV_PIX_FMT_GRAY16BE);
 
