@@ -370,7 +370,7 @@ void SpikeGLXSettingsDialog::updateChannelCellHint(QComboBox *groupCombo)
     if (group && SglxUtils::isDigitalGroup(*group))
         item->setToolTip(
             tr("Line numbers within the group, counted as word * 16 + bit "
-               "(the imec sync waveform is line 6). Empty selects all lines. "
+               "(the sync waveform of imec probes and OneBoxes is line 6). Empty selects all lines. "
                "Each selected line is published as a stream of level-change events."));
     else
         item->setToolTip(tr("Channel indices relative to the group, e.g. \"0:31,64\". Empty selects all channels."));

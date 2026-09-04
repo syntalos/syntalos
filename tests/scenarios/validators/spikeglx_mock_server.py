@@ -110,7 +110,8 @@ def gen_samples(stream, chans, start, n):
 
     Digital words are packed the way SpikeGLX packs them: the lowest numbered line
     sits in the lowest order bit. The SY word carries the 1 Hz sync square wave in
-    bit #6 (and a permanently set bit #0, the acquisition-start flag); the DW word
+    bit #6 and a permanently set bit #0 (on real probes the reserved, not yet
+    implemented neural-event flag; the other bits are error flags); the DW word
     drives all of its 12 lines (bits 0-11) with the same square wave.
     """
     rate = stream["rate"]

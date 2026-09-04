@@ -876,6 +876,12 @@ public:
         }
         m_portsMeta.insert(fs.portId.toStdString(), portMeta);
 
+        // the fetch streams outlive a run, so the statistics start fresh here
+        fs.gapCount = 0;
+        fs.droppedSamples = 0;
+        fs.fetchedSamples = 0;
+        fs.emittedEvents = 0;
+
         return true;
     }
 
@@ -930,7 +936,9 @@ public:
      * lowest order bit, so a line is `word * 16 + bit` - the very numbering its own
      * sync and trigger settings use. An event is emitted whenever a selected line
      * changes level, plus once per line on the first block of the run so the starting
-     * level is recorded.
+     * level is recorded. The same happens after a gap in the fetched data: edges inside
+     * the gap are lost, so the level of every line is emitted again at the first sample
+     * after it, which marks the discontinuity for consumers.
      */
     void emitLineEdges(FetchStream &fs, int n, int nCh)
     {
@@ -993,6 +1001,7 @@ public:
                     const auto newCursor = std::max<uint64_t>(*cnt, 1);
                     fs.droppedSamples += newCursor > fs.cursor ? newCursor - fs.cursor : 0;
                     fs.gapCount++;
+                    fs.linePrimed = false;
                     LOG_WARNING(
                         m_log,
                         "Live data of '{}' fell behind the SpikeGLX buffer, skipping {} samples",
@@ -1023,6 +1032,7 @@ public:
                     return false;
                 }
                 fs.gapCount++;
+                fs.linePrimed = false;
                 if (res->headCt > fs.cursor)
                     fs.droppedSamples += res->headCt - fs.cursor;
             }
@@ -1129,7 +1139,7 @@ public:
                 }
                 fs.cursor = std::max<uint64_t>(fs.refSampleCount, 1);
                 fs.startSampleOffset = std::llround(static_cast<double>(t.count()) * fs.sampleRate / 1e6);
-                // the edge detector re-primes on the first block, so the starting
+                // the edge detector primes on the first block, so the starting
                 // level of every selected line is emitted once
                 fs.linePrimed = false;
                 fs.syncer = initCounterSynchronizer(fs.sampleRate);
