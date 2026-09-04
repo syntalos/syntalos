@@ -31,6 +31,11 @@ public:
 private slots:
     void rawMatroskaRoundtrip_data();
     void rawMatroskaRoundtrip();
+    void ffvhuffMatroskaRoundtrip_data();
+    void ffvhuffMatroskaRoundtrip();
+
+private:
+    void matroskaRoundtrip(VideoCodec codec, AVCodecID expectedCodecId);
 };
 
 /**
@@ -64,22 +69,54 @@ void TestVideoRecorder::rawMatroskaRoundtrip_data()
     QTest::addColumn<int>("pixFormat");
     QTest::addColumn<uint>("codecTag");
     QTest::addColumn<bool>("bitExact");
+    QTest::addColumn<int>("threads");
 
     // Native V_UNCOMPRESSED mappings. A regression to the VFW fallback would store 16-bit
     // gray as RGB555, and the old workaround downgraded it to gray8.
     QTest::newRow("gray16") << CV_16U << false << true << static_cast<int>(AV_PIX_FMT_GRAY16LE)
-                            << avcodec_pix_fmt_to_codec_tag(AV_PIX_FMT_GRAY16LE) << true;
+                            << avcodec_pix_fmt_to_codec_tag(AV_PIX_FMT_GRAY16LE) << true << 0;
     QTest::newRow("gray8") << CV_8U << false << true << static_cast<int>(AV_PIX_FMT_GRAY8)
-                           << avcodec_pix_fmt_to_codec_tag(AV_PIX_FMT_GRAY8) << true;
+                           << avcodec_pix_fmt_to_codec_tag(AV_PIX_FMT_GRAY8) << true << 0;
 
     // Raw BGR24 has no native Matroska mapping and is stored via VFW mode, which carries
     // no FourCC. Without exact colors, the frames are converted to YUV 4:2:0 instead.
-    QTest::newRow("bgr24-exact") << CV_8U << true << true << static_cast<int>(AV_PIX_FMT_BGR24) << 0U << true;
+    QTest::newRow("bgr24-exact") << CV_8U << true << true << static_cast<int>(AV_PIX_FMT_BGR24) << 0U << true << 0;
     QTest::newRow("bgr24-yuv420p") << CV_8U << true << false << static_cast<int>(AV_PIX_FMT_YUV420P)
-                                   << avcodec_pix_fmt_to_codec_tag(AV_PIX_FMT_YUV420P) << false;
+                                   << avcodec_pix_fmt_to_codec_tag(AV_PIX_FMT_YUV420P) << false << 0;
 }
 
 void TestVideoRecorder::rawMatroskaRoundtrip()
+{
+    matroskaRoundtrip(VideoCodec::Raw, AV_CODEC_ID_RAWVIDEO);
+}
+
+void TestVideoRecorder::ffvhuffMatroskaRoundtrip_data()
+{
+    QTest::addColumn<int>("depth");
+    QTest::addColumn<bool>("color");
+    QTest::addColumn<bool>("exactColors");
+    QTest::addColumn<int>("pixFormat");
+    QTest::addColumn<uint>("codecTag");
+    QTest::addColumn<bool>("bitExact");
+    QTest::addColumn<int>("threads");
+
+    // FFVHuff is the intermediate codec for deferred encoding. It is stored via the VFW
+    // mapping in Matroska (tag "FFVH"), and the pixel format has to survive the round-trip.
+    // Multi-threaded rows exercise the delayed packet handling of frame threading.
+    const uint tag = MKTAG('F', 'F', 'V', 'H');
+    QTest::newRow("gray16") << CV_16U << false << true << static_cast<int>(AV_PIX_FMT_GRAY16LE) << tag << true << 4;
+    QTest::newRow("gray8") << CV_8U << false << true << static_cast<int>(AV_PIX_FMT_GRAY8) << tag << true << 1;
+    QTest::newRow("bgr24-exact") << CV_8U << true << true << static_cast<int>(AV_PIX_FMT_GBRP) << tag << true << 4;
+    QTest::newRow("bgr24-yuv420p") << CV_8U << true << false << static_cast<int>(AV_PIX_FMT_YUV420P) << tag << false
+                                   << 1;
+}
+
+void TestVideoRecorder::ffvhuffMatroskaRoundtrip()
+{
+    matroskaRoundtrip(VideoCodec::FFVHuff, AV_CODEC_ID_FFVHUFF);
+}
+
+void TestVideoRecorder::matroskaRoundtrip(VideoCodec codec, AVCodecID expectedCodecId)
 {
     QFETCH(int, depth);
     QFETCH(bool, color);
@@ -87,11 +124,13 @@ void TestVideoRecorder::rawMatroskaRoundtrip()
     QFETCH(int, pixFormat);
     QFETCH(uint, codecTag);
     QFETCH(bool, bitExact);
+    QFETCH(int, threads);
 
     // non-square, so swapped dimensions are noticed
     constexpr int width = 96;
     constexpr int height = 64;
-    constexpr int frameCount = 3;
+    // more frames than encoder threads, so frame threading actually delays packets
+    constexpr int frameCount = 8;
 
     const cv::Mat expected = makeTestFrame(width, height, depth, color);
 
@@ -102,8 +141,9 @@ void TestVideoRecorder::rawMatroskaRoundtrip()
 
     VideoWriter writer;
     writer.setContainer(VideoContainer::Matroska);
-    CodecProperties codecProps(VideoCodec::Raw);
+    CodecProperties codecProps(codec);
     codecProps.setExactColors(exactColors);
+    codecProps.setThreadCount(threads);
     writer.setCodecProps(codecProps);
     writer.initialize(fileBase, "test", "source", Uuid{}, "", width, height, 30.0, depth, color, false);
     QCOMPARE(writer.hasExactColors(), bitExact);
@@ -124,7 +164,7 @@ void TestVideoRecorder::rawMatroskaRoundtrip()
         }
     }
     QVERIFY(videoParams != nullptr);
-    QCOMPARE(videoParams->codec_id, AV_CODEC_ID_RAWVIDEO);
+    QCOMPARE(videoParams->codec_id, expectedCodecId);
     QCOMPARE(videoParams->codec_tag, codecTag);
     QCOMPARE(videoParams->format, pixFormat);
     QCOMPARE(videoParams->width, width);

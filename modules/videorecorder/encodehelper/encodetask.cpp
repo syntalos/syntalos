@@ -106,7 +106,7 @@ void EncodeTask::run()
     VideoReader vsrc;
     if (!vsrc.open(m_srcFname)) {
         m_item->setError(
-            QStringLiteral("Unable to open recorded raw video. Encoding failed. %1").arg(vsrc.lastError()));
+            QStringLiteral("Unable to open recorded intermediate video. Encoding failed. %1").arg(vsrc.lastError()));
         return;
     }
 
@@ -152,9 +152,9 @@ void EncodeTask::run()
     int progress = 0;
 
     // The tsync file holds exactly one entry per recorded frame, so it is the authoritative
-    // count of frames we should re-encode. libav's totalFrames() is only an estimate for raw
-    // Matroska (no nb_frames stored) and must never be used to validate completeness, as it is
-    // unreliable for short recordings and produces spurious failures.
+    // count of frames we should re-encode. libav's totalFrames() is only an estimate for the
+    // intermediate Matroska file (no nb_frames stored) and must never be used to validate
+    // completeness, as it is unreliable for short recordings and produces spurious failures.
     const ssize_t expectedFrames = m_writeTsync ? static_cast<ssize_t>(tsyncTimes.size()) : -1;
     const ssize_t hintFrames = vsrc.totalFrames(); // estimate; only used to drive the progress bar
     const ssize_t progressTotal = expectedFrames > 0 ? expectedFrames : (hintFrames > 0 ? hintFrames : 0);

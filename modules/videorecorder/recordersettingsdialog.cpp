@@ -469,8 +469,9 @@ void RecorderSettingsDialog::on_deferredEncodeWarnButton_clicked()
             "be used, "
             "or a slower codec is in use.<br/>"
             "Encoding can run in the background, or be run in batch after many experiments have completed.<br/>"
-            "However, during the recording the video data will be saved <b>uncompressed</b> and may exist on disk "
-            "twice while encoding is ongoing. "
+            "However, during the recording the video data is saved with a <b>fast lossless codec</b> that only "
+            "compresses it by roughly a factor of 1.5-2.5, so the intermediate file is much larger than the final "
+            "one and may exist on disk twice while encoding is ongoing. "
             "This effect is multiplied when more videos are encoded in parallel. Please ensure that you have <b>excess "
             "diskspace</b> available "
             "when using this option!"));

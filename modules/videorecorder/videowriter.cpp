@@ -65,6 +65,8 @@ VideoCodec stringToVideoCodec(const std::string &str)
         return VideoCodec::H264;
     if (str == "MPEG-4")
         return VideoCodec::MPEG4;
+    if (str == "FFVHuff")
+        return VideoCodec::FFVHuff;
 
     return VideoCodec::Unknown;
 }
@@ -86,6 +88,8 @@ std::string videoCodecToString(VideoCodec codec)
         return "HEVC";
     case VideoCodec::MPEG4:
         return "MPEG-4";
+    case VideoCodec::FFVHuff:
+        return "FFVHuff";
     default:
         return "Unknown";
     }
@@ -138,6 +142,8 @@ static AVCodecID vw_codec_id_for(VideoCodec codec)
         return AV_CODEC_ID_H264;
     case VideoCodec::HEVC:
         return AV_CODEC_ID_HEVC;
+    case VideoCodec::FFVHuff:
+        return AV_CODEC_ID_FFVHUFF;
     default:
         return AV_CODEC_ID_FFV1;
     }
@@ -298,6 +304,13 @@ CodecProperties::CodecProperties(VideoCodec codec)
         break;
 
     case VideoCodec::FFV1:
+        d->losslessMode = Always;
+        d->lossless = true;
+
+        break;
+
+    case VideoCodec::FFVHuff:
+        // very fast lossless codec, used as intermediate format for deferred encoding
         d->losslessMode = Always;
         d->lossless = true;
 
@@ -899,7 +912,8 @@ void VideoWriter::initializeInternal()
 
     // normalize the lossless setting first, so all rate-control decisions below
     // act on what we are actually going to do
-    if (d->codecProps.codec() == VideoCodec::FFV1 || d->codecProps.codec() == VideoCodec::Raw) {
+    if (d->codecProps.codec() == VideoCodec::FFV1 || d->codecProps.codec() == VideoCodec::FFVHuff
+        || d->codecProps.codec() == VideoCodec::Raw) {
         // these codecs are always lossless
         d->codecProps.setLossless(true);
     } else if (d->codecProps.isLossless() && d->codecProps.losslessMode() == CodecProperties::Never) {
@@ -962,7 +976,8 @@ void VideoWriter::initializeInternal()
             // uncompressed frames are always lossless
             break;
         case VideoCodec::FFV1:
-            // This codec is lossless by default
+        case VideoCodec::FFVHuff:
+            // These codecs are lossless by default
             break;
         case VideoCodec::AV1:
             // SVT-AV1 has no "lossless" AVOption, and its lowest CRF value is *not* lossless.
@@ -1033,9 +1048,14 @@ void VideoWriter::initializeInternal()
         // av_dict_set_int(&codecopts, "g", 1, 0);
     }
 
+    // NOTE: FFVHuff is intentionally left at its defaults. Its "context=1" option shrinks files
+    // by roughly another 10%, but makes the Huffman tables adaptive and thereby disables frame
+    // threading, which matters much more while we are recording.
+
     // Adjust pixel color formats for selected video codecs
     switch (d->codecProps.codec()) {
     case VideoCodec::FFV1:
+    case VideoCodec::FFVHuff:
         if (d->inputPixFormat == AV_PIX_FMT_GRAY8)
             d->encPixFormat = AV_PIX_FMT_GRAY8;
         if (d->inputPixFormat == AV_PIX_FMT_GRAY16LE)

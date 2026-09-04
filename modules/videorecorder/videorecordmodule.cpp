@@ -141,10 +141,13 @@ public:
         codecProps.setThreadCount((potentialNoaffinityCPUCount() >= 2) ? potentialNoaffinityCPUCount() : 2);
 
         if (m_settingsDialog->deferredEncoding()) {
-            // deferred encoding is enabled, so we actually have to save a raw video file
+            // Deferred encoding is enabled, so we store a fast lossless intermediate file now
+            // and run the (expensive) final codec later. FFVHuff is nearly as cheap to write as
+            // uncompressed video, but needs considerably less disk space.
             m_videoWriter->setContainer(VideoContainer::Matroska);
-            CodecProperties cprops(VideoCodec::Raw);
+            CodecProperties cprops(VideoCodec::FFVHuff);
             cprops.setExactColors(codecProps.isLossless() && codecProps.exactColors());
+            cprops.setThreadCount(codecProps.threadCount());
             codecProps = cprops;
         }
         m_videoWriter->setCodecProps(codecProps);
@@ -584,7 +587,7 @@ public:
                 finalizeOk = false;
                 raiseError(QStringLiteral(
                                "Failed to finalize the recorded video file: %1\n"
-                               "The raw video data has been left on disk for manual recovery, but deferred "
+                               "The intermediate video data has been left on disk for manual recovery, but deferred "
                                "encoding will be skipped to avoid processing a potentially corrupt file.")
                                .arg(QString::fromStdString(res.error())));
             }
