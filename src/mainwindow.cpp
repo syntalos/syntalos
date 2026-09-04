@@ -57,6 +57,7 @@
 #include "globalconfig.h"
 #include "globalconfigdialog.h"
 #include "intervalrundialog.h"
+#include "logviewdialog.h"
 #include "sysinfodialog.h"
 #include "timingsdialog.h"
 #include "whatsnewdialog.h"
@@ -295,6 +296,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // diagnostics panels
     m_timingsDialog = new TimingsDialog(this);
+    m_logViewDialog = new LogViewDialog(this);
 
     // configure actions
     ui->actionRun->setEnabled(false);
@@ -491,8 +493,7 @@ void MainWindow::setRunUiControlStates(bool engineRunning, bool stopPossible)
     ui->actionGlobalConfig->setEnabled(!engineRunning);
     ui->actionIntervalRunConfig->setEnabled(!engineRunning);
 
-    // these actions show dialogs that would block the UI processing loop
-    ui->actionModuleLoadInfo->setEnabled(!engineRunning);
+    // this action shows a dialog that would block the UI processing loop
     ui->actionUsbDevices->setEnabled(!engineRunning);
 
     // do not permit save/load while we are running
@@ -1640,6 +1641,16 @@ void MainWindow::on_actionTimings_triggered()
     m_timingsDialog->show();
 }
 
+void MainWindow::on_actionShowLog_triggered()
+{
+    m_logViewDialog->setModuleLoaderLogHtml(m_engine->library()->issueLogHtml());
+
+    // non-modal, so the log can be watched during a run
+    m_logViewDialog->show();
+    m_logViewDialog->raise();
+    m_logViewDialog->activateWindow();
+}
+
 void MainWindow::on_actionSystemInfo_triggered()
 {
     auto sysInfoDlg = new SysInfoDialog(m_engine->sysInfo(), this);
@@ -1715,47 +1726,6 @@ void MainWindow::on_actionUsbDevices_triggered()
 
     dlg.setWindowTitle(QStringLiteral("USB Device Tree"));
     dlg.resize(600, 400);
-    dlg.exec();
-}
-
-void MainWindow::on_actionModuleLoadInfo_triggered()
-{
-    QDialog dlg;
-    QHBoxLayout layout;
-    QTextEdit logBox;
-    layout.setContentsMargins(4, 4, 4, 4);
-    layout.addWidget(&logBox);
-    dlg.setLayout(&layout);
-    auto logText = m_engine->library()->issueLogHtml();
-    if (logText.isEmpty())
-        logText = QStringLiteral("No issues reported.");
-
-    // do some dumb opportunistic word wrapping (no points for cleverness given here)
-    QString tmpText;
-    for (const auto &tmpLine : logText.split("<br/>")) {
-        uint lineLength = 0;
-        for (int i = 0; i < tmpLine.length(); i++) {
-            lineLength++;
-            const auto c = tmpLine.at(i);
-            if (lineLength > 80) {
-                if (c == ' ') {
-                    tmpText.append(QStringLiteral("<br/>%1").arg(QStringLiteral("&nbsp;").repeated(8)));
-                    lineLength = 0;
-                }
-            }
-            tmpText.append(c);
-        }
-        tmpText.append("<br/>");
-    }
-    logText = tmpText;
-
-    // show module loader issue log
-    logBox.setWordWrapMode(QTextOption::NoWrap);
-    logBox.setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOn);
-    logBox.setReadOnly(true);
-    logBox.setText(QStringLiteral("<html>") + logText);
-    dlg.setWindowTitle(QStringLiteral("Module Loader Log"));
-    dlg.resize(620, 400);
     dlg.exec();
 }
 

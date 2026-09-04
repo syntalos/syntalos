@@ -96,6 +96,14 @@ QString syntalosVersion();
 bool isInFlatpakSandbox();
 
 /**
+ * @brief Get the root directory for Syntalos user data (modules, venv, cache, logs).
+ *
+ * This is safe to call before a GlobalConfig instance exists, it only requires
+ * the QCoreApplication name to be set.
+ */
+QString appDataRootDir();
+
+/**
  * @brief Get path to the OSes default temporary directory.
  * @return An absolute path to temp dir.
  */

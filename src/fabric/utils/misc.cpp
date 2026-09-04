@@ -161,6 +161,14 @@ bool hostUdevRuleExists(const QString &ruleFilename)
     return false;
 }
 
+QString appDataRootDir()
+{
+    if (isInFlatpakSandbox())
+        return QDir(QStandardPaths::writableLocation(QStandardPaths::HomeLocation))
+            .filePath(QStringLiteral(".var/app/org.syntalos.syntalos/data"));
+    return QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+}
+
 QString tempDirRoot()
 {
     return QDir::tempPath();

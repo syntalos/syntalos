@@ -21,6 +21,7 @@
 
 #include <quill/LogMacros.h>
 #include <quill/Logger.h>
+#include <QString>
 #include "logging-codecs.h"
 
 namespace Syntalos
@@ -63,8 +64,24 @@ void removeLogger(quill::Logger *logger);
 /**
  * Initialize Syntalos logging. Must only ever be called once, at program startup.
  * Purely internal API.
+ *
+ * @param consoleLogLevel Minimum log level for all loggers (and thereby the console).
+ * @param logDir If not empty, log output is also written to `<logDir>/syntalos.log`.
+ *               Logs of previous sessions are kept as rotated files.
  */
-void initializeSyLogSystem(quill::LogLevel consoleLogLevel = quill::LogLevel::Info);
+void initializeSyLogSystem(quill::LogLevel consoleLogLevel = quill::LogLevel::Info, const QString &logDir = QString());
+
+/**
+ * Absolute path to the log file of the current session, or an empty
+ * string if logging to a file is disabled.
+ */
+QString currentLogFilePath();
+
+/**
+ * Directory containing the current and rotated log files, or an
+ * empty string if logging to a file is disabled.
+ */
+QString currentLogDir();
 
 /**
  * Shut the logging system down and flush all pending messages.

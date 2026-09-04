@@ -40,6 +40,7 @@ namespace Syntalos
 class ModuleInfo;
 class AbstractModule;
 class TimingsDialog;
+class LogViewDialog;
 class GlobalConfig;
 class IntervalRunDialog;
 } // namespace Syntalos
@@ -154,7 +155,7 @@ private slots:
     void on_actionTimings_triggered();
     void on_actionSystemInfo_triggered();
     void on_actionUsbDevices_triggered();
-    void on_actionModuleLoadInfo_triggered();
+    void on_actionShowLog_triggered();
     void on_actionIntervalRunConfig_triggered();
     void on_actionOnlineDocs_triggered();
     void on_actionReportIssue_triggered();
@@ -218,6 +219,7 @@ private:
     ExperimenterListModel *m_experimenterList;
 
     TimingsDialog *m_timingsDialog;
+    LogViewDialog *m_logViewDialog;
     IntervalRunDialog *m_intervalRunDialog;
 };
 

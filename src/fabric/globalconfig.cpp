@@ -36,14 +36,10 @@ GlobalConfig::GlobalConfig(QObject *parent)
     : QObject(parent)
 {
     m_log = getLogger("gconf");
-    ;
     m_s = new QSettings("Syntalos", "Syntalos", this);
 
     m_userHome = QStandardPaths::writableLocation(QStandardPaths::HomeLocation);
-    if (isInFlatpakSandbox())
-        m_appDataRoot = QDir(m_userHome).filePath(".var/app/org.syntalos.syntalos/data");
-    else
-        m_appDataRoot = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    m_appDataRoot = appDataRootDir();
 
     if (m_userHome.isEmpty())
         LOG_CRITICAL(m_log, "Unable to determine user home directory!");
@@ -199,6 +195,11 @@ QString GlobalConfig::homeDevelDir() const
 QString GlobalConfig::userCacheDir() const
 {
     return QDir(m_appDataRoot).filePath("cache");
+}
+
+QString GlobalConfig::logsDir() const
+{
+    return QDir(m_appDataRoot).filePath("logs");
 }
 
 bool GlobalConfig::useVenvForPyScript() const

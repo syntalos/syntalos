@@ -23,11 +23,13 @@
 #include <quill/Backend.h>
 #include <quill/Frontend.h>
 #include <quill/sinks/ConsoleSink.h>
+#include <quill/sinks/RotatingFileSink.h>
 
 #include "logging.h"
 
 #include <iostream>
 #include <glib.h>
+#include <QDir>
 #include <iox2/log.hpp>
 #include <datactl/logging.h>
 
@@ -35,9 +37,21 @@ namespace Syntalos
 {
 
 static std::shared_ptr<quill::Sink> g_consoleSink = nullptr;
+static std::shared_ptr<quill::Sink> g_fileSink = nullptr;
+static std::vector<std::shared_ptr<quill::Sink>> g_sinks;
 static quill::LogLevel g_defaultLogLevel = quill::LogLevel::Info;
 
+static QString g_logDir;
+static QString g_logFilePath;
+
 static QtMessageHandler g_prevQtHandler = nullptr;
+
+static constexpr auto SY_LOG_PATTERN = "%(time) %(log_level_short_code) %(thread_name):%(logger): %(message)";
+
+// rotate the log file of the current session if it exceeds this size
+static constexpr size_t SY_LOG_MAX_FILE_SIZE = 32 * 1024 * 1024;
+// number of rotated log files to keep, in addition to the active one
+static constexpr uint32_t SY_LOG_MAX_BACKUP_FILES = 5;
 
 quill::Logger *getLogger(const std::string &name)
 {
@@ -45,10 +59,8 @@ quill::Logger *getLogger(const std::string &name)
     if (logger != nullptr)
         return logger;
 
-    quill::PatternFormatterOptions fmtOpt{
-        "%(time) %(log_level_short_code) %(thread_name):%(logger): %(message)",
-        "%H:%M:%S.%Qus"};
-    logger = quill::Frontend::create_or_get_logger(name, g_consoleSink, fmtOpt);
+    quill::PatternFormatterOptions fmtOpt{SY_LOG_PATTERN, "%H:%M:%S.%Qus"};
+    logger = quill::Frontend::create_or_get_logger(name, g_sinks, fmtOpt);
     logger->set_log_level(g_defaultLogLevel);
 
     return logger;
@@ -282,7 +294,52 @@ private:
     QuillLogger *m_log;
 };
 
-void initializeSyLogSystem(quill::LogLevel consoleLogLevel)
+static void setupLogFileSink(const QString &logDir)
+{
+    QDir dir(logDir);
+    if (!dir.mkpath(QStringLiteral("."))) {
+        std::cerr << "Unable to create log directory " << logDir.toStdString() << ", file logging is disabled."
+                  << std::endl;
+        return;
+    }
+
+    const auto fname = dir.absoluteFilePath(QStringLiteral("syntalos.log"));
+    try {
+        quill::RotatingFileSinkConfig cfg;
+        // NOTE: Quill only scans for existing rotated files (and prunes them to the
+        // backup limit) in append mode; with 'w' each startup rotation would silently
+        // overwrite the previous session's rotated file. Since the active file is
+        // rotated away before it is opened, we never actually append to old content.
+        cfg.set_open_mode('a');
+        cfg.set_fsync_enabled(false);
+        // file logs get the full date
+        cfg.set_override_pattern_formatter_options(
+            quill::PatternFormatterOptions{SY_LOG_PATTERN, "%y-%m-%d %H:%M:%S.%Qus"});
+
+        // Start a new file for every session, the previous session's file is rotated
+        cfg.set_rotation_on_creation(true);
+        cfg.set_rotation_naming_scheme(quill::RotatingFileSinkConfig::RotationNamingScheme::Index);
+        // also rotate if a single session's log gets too big
+        cfg.set_rotation_max_file_size(SY_LOG_MAX_FILE_SIZE);
+        // keep a bounded number of old files, dropping the oldest
+        cfg.set_max_backup_files(SY_LOG_MAX_BACKUP_FILES);
+        cfg.set_overwrite_rolled_files(true);
+        cfg.set_remove_old_files(false);
+
+        g_fileSink = quill::Frontend::create_or_get_sink<quill::RotatingFileSink>(fname.toStdString(), cfg);
+    } catch (const std::exception &e) {
+        std::cerr << "Unable to open log file " << fname.toStdString() << ": " << e.what()
+                  << ", file logging is disabled." << std::endl;
+        g_fileSink.reset();
+        return;
+    }
+
+    g_sinks.push_back(g_fileSink);
+    g_logDir = dir.absolutePath();
+    g_logFilePath = fname;
+}
+
+void initializeSyLogSystem(quill::LogLevel consoleLogLevel, const QString &logDir)
 {
     // trying to initialize the log system twice is a critical error
     if (g_consoleSink) {
@@ -301,6 +358,11 @@ void initializeSyLogSystem(quill::LogLevel consoleLogLevel)
 
     // register our console sink
     g_consoleSink = quill::Frontend::create_or_get_sink<quill::ConsoleSink>("sy-console");
+    g_sinks = {g_consoleSink};
+
+    // register the log file sink, if requested
+    if (!logDir.isEmpty())
+        setupLogFileSink(logDir);
 
     // configure defaults *before* any logger is created below: getLogger() stamps each new
     // logger with g_defaultLogLevel at creation time, so this must be set first or early
@@ -336,6 +398,18 @@ void shutdownSyLogSystem()
     // last in a program, after no more logging is possible (or never).
 
     quill::Backend::stop();
+    g_sinks.clear();
+    g_fileSink.reset();
+}
+
+QString currentLogFilePath()
+{
+    return g_logFilePath;
+}
+
+QString currentLogDir()
+{
+    return g_logDir;
 }
 
 } // namespace Syntalos

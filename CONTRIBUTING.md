@@ -187,6 +187,9 @@ LOG_DEBUG(m_log, "Frame {} received", frameCount);
 ```
 Do not use `qDebug()` / `qWarning()` / `qCritical()` in modules; those bypass the logging subsystem.
 For code outside a module class that still needs a logger, use `getLogger()` from `fabric/logging.h`.
+The log of the running session is also written to `<app-data>/logs/syntalos.log` (usually
+`~/.local/share/Syntalos/logs/`), with previous sessions kept as `syntalos.1.log`, `syntalos.2.log`, etc.
+It can be viewed from within the application via *Diagnostics → Logs*.
 
 Expose capabilities by returning `ModuleFeature` flags from `features()`:
 `SHOW_SETTINGS`, `SHOW_DISPLAY`, `REALTIME`, `CALL_UI_EVENTS`, `REQUEST_CPU_AFFINITY`, `PROHIBIT_CPU_AFFINITY`.

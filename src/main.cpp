@@ -27,6 +27,7 @@
 #include <KDBusService>
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QDir>
 #include <QMessageBox>
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
@@ -40,6 +41,7 @@
 #include "qmeta.h"
 #include "logging.h"
 #include "mainwindow.h"
+#include "utils/misc.h"
 
 #include <random>
 
@@ -146,7 +148,11 @@ int main(int argc, char *argv[])
 
     // at this point, we have all startup information and can launch the logging system
     // before anything tries to log using it.
-    initializeSyLogSystem(parser.isSet(optnVerbose) ? quill::LogLevel::Debug : quill::LogLevel::Info);
+    initializeSyLogSystem(
+        parser.isSet(optnVerbose) ? quill::LogLevel::Debug : quill::LogLevel::Info,
+        QDir(appDataRootDir()).filePath(QStringLiteral("logs")));
+    if (!currentLogFilePath().isEmpty())
+        LOG_DEBUG(logRoot, "Logging to file: {}", currentLogFilePath());
 
     // launch Syntalos with the provided options
     auto w = std::make_unique<MainWindow>();

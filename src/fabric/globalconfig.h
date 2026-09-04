@@ -83,6 +83,7 @@ public:
     QString virtualEnvDir() const;
     QString homeDevelDir() const;
     QString userCacheDir() const;
+    QString logsDir() const;
 
     bool useVenvForPyScript() const;
     void setUseVenvForPyScript(bool enabled);

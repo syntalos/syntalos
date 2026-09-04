@@ -1438,7 +1438,7 @@
     <addaction name="actionSystemInfo"/>
     <addaction name="actionUsbDevices"/>
     <addaction name="actionTimings"/>
-    <addaction name="actionModuleLoadInfo"/>
+    <addaction name="actionShowLog"/>
    </widget>
    <widget class="QMenu" name="menuTool">
     <property name="title">
@@ -1643,6 +1643,17 @@
     <string>Timings</string>
    </property>
   </action>
+  <action name="actionShowLog">
+   <property name="icon">
+    <iconset theme="text-x-log"/>
+   </property>
+   <property name="text">
+    <string>Logs</string>
+   </property>
+   <property name="toolTip">
+    <string>Display logs created by Syntalos</string>
+   </property>
+  </action>
   <action name="actionRunTemp">
    <property name="icon">
     <iconset>
@@ -1684,15 +1695,6 @@
    </property>
    <property name="toolTip">
     <string>Project Details</string>
-   </property>
-  </action>
-  <action name="actionModuleLoadInfo">
-   <property name="icon">
-    <iconset>
-     <normaloff>:/module/generic</normaloff>:/module/generic</iconset>
-   </property>
-   <property name="text">
-    <string>Module Loader</string>
    </property>
   </action>
   <action name="actionIntervalRunConfig">
