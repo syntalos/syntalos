@@ -84,6 +84,46 @@ private slots:
         tsyncFileRWForDTypes(TSyncFileDataType::UINT32, TSyncFileDataType::UINT64);
     }
 
+    void runTestWriteErrorReporting()
+    {
+        // /dev/full accepts opening for writing, but fails every write with ENOSPC
+        // (like a full disk would) - we expect this to be reported clearly.
+        if (!QFile::exists(QStringLiteral("/dev/full")))
+            QSKIP("/dev/full is not available on this system");
+
+        // the writer enforces a .tsync suffix, so we need a symlink to the device
+        const auto fullLink = QStringLiteral("/tmp/tstest-%1.tsync").arg(createRandomString(8));
+        QVERIFY(QFile::link(QStringLiteral("/dev/full"), fullLink));
+
+        auto tswriter = std::make_unique<TimeSyncFileWriter>();
+        tswriter->setFileName(fullLink.toStdString());
+        QVERIFY(!tswriter->hasError());
+        const auto ret = tswriter->open(
+            "UnittestDummyModule",
+            Uuid::fromHex("a12975f1-84b7-4350-8683-7a5fe9ed968f").value());
+        qDebug().noquote() << "Reported error:" << QString::fromStdString(tswriter->lastError());
+        QVERIFY(!ret);
+        QVERIFY(tswriter->hasError());
+        QVERIFY(QString::fromStdString(tswriter->lastError()).contains(QStringLiteral("Writing header failed")));
+        QVERIFY(!tswriter->close());
+        QFile::remove(fullLink);
+
+        // writing data to a good file must not report an error, and a failure while
+        // writing the data section must be reported by close()
+        auto tsFilename = QStringLiteral("/tmp/tstest-%1").arg(createRandomString(8)).toStdString();
+        tswriter = std::make_unique<TimeSyncFileWriter>();
+        tswriter->setFileName(tsFilename);
+        QVERIFY2(
+            tswriter->open("UnittestDummyModule", Uuid::fromHex("a12975f1-84b7-4350-8683-7a5fe9ed968f").value()),
+            tswriter->lastError().c_str());
+        QVERIFY(!tswriter->hasError());
+        for (int i = 0; i < 1000; ++i)
+            tswriter->writeTimes(microseconds_t(i * 1000), microseconds_t(i * 1000 + 5));
+        QVERIFY(!tswriter->hasError());
+        QVERIFY2(tswriter->close(), tswriter->lastError().c_str());
+        QFile::remove(QString::fromStdString(tsFilename + ".tsync"));
+    }
+
     void runBenchmark()
     {
         QBENCHMARK {

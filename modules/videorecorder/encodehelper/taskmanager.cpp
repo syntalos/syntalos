@@ -27,10 +27,14 @@
 #include <QDBusUnixFileDescriptor>
 #include <QDir>
 #include <QFileInfo>
+#include <QLocale>
 #include <QMessageBox>
+#include <QStorageInfo>
 #include <QThreadPool>
 #include <QTimer>
 #include <unistd.h>
+
+#include <algorithm>
 
 #include "encodetask.h"
 
@@ -118,7 +122,77 @@ bool TaskManager::enqueueVideo(
     return true;
 }
 
+QString TaskManager::checkDiskSpaceForPendingTasks() const
+{
+    // Each running task writes its encoded output next to the raw source file, and the source
+    // is only deleted once the task has completed. In the worst case (e.g. a lossless codec
+    // on noisy data) the output is about as large as the raw source, so while N tasks run
+    // in parallel, we may temporarily need the size of the N largest sources as free space.
+    const int parallelCount = std::max(m_threadPool->maxThreadCount(), 1);
+
+    // collect source sizes per filesystem (the queue may hold videos of multiple runs)
+    QHash<QString, QList<qint64>> sizesByFs;
+    QHash<QString, QStorageInfo> storageByFs;
+    for (const auto &item : m_queue->queueItems()) {
+        if (item->status() != QueueItem::WAITING)
+            continue;
+        const QFileInfo fi(item->fname());
+        if (!fi.exists())
+            continue;
+
+        const QStorageInfo storage(fi.absolutePath());
+        if (!storage.isValid() || !storage.isReady()) {
+            LOG_WARNING(m_log, "Unable to determine free disk space for '{}'", item->fname());
+            continue;
+        }
+        storageByFs.insert(storage.rootPath(), storage);
+        sizesByFs[storage.rootPath()].append(fi.size());
+    }
+
+    QStringList problems;
+    for (auto it = sizesByFs.constBegin(); it != sizesByFs.constEnd(); ++it) {
+        auto sizes = it.value();
+        std::sort(sizes.begin(), sizes.end(), std::greater<>());
+
+        qint64 required = 0;
+        for (int i = 0; i < std::min(static_cast<int>(sizes.size()), parallelCount); ++i)
+            required += sizes[i];
+
+        const auto &storage = storageByFs[it.key()];
+        const auto available = storage.bytesAvailable();
+        LOG_INFO(
+            m_log,
+            "Disk space on '{}': {} MB available, estimated {} MB needed for encoding",
+            it.key(),
+            available / 1000 / 1000,
+            required / 1000 / 1000);
+        if (available < required) {
+            const QLocale locale;
+            problems.append(
+                QStringLiteral(
+                    "The disk mounted at '%1' has only %2 free, but encoding the queued videos "
+                    "may need up to %3 of temporary space.")
+                    .arg(it.key(), locale.formattedDataSize(available), locale.formattedDataSize(required)));
+        }
+    }
+
+    return problems.join(QStringLiteral("\n"));
+}
+
 bool TaskManager::processVideos()
+{
+    const auto spaceProblem = checkDiskSpaceForPendingTasks();
+    if (!spaceProblem.isEmpty()) {
+        LOG_WARNING(m_log, "Not starting encoding queue due to low disk space: {}", spaceProblem);
+        emit lowDiskSpaceConfirmationNeeded(spaceProblem);
+        return true;
+    }
+
+    startEncoding();
+    return true;
+}
+
+void TaskManager::startEncoding()
 {
     QSet<QueueItem *> rmItems;
 
@@ -154,7 +228,6 @@ bool TaskManager::processVideos()
 
     m_checkTimer->start();
     emit encodingStarted();
-    return true;
 }
 
 void TaskManager::obtainSleepShutdownIdleInhibitor()

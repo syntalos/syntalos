@@ -20,6 +20,7 @@
 #pragma once
 
 #include <QMainWindow>
+#include <QPointer>
 
 #include "queuemodel.h"
 
@@ -31,6 +32,7 @@ class EncodeWindow;
 QT_END_NAMESPACE
 
 class QSvgWidget;
+class QMessageBox;
 
 class TaskManager;
 
@@ -49,6 +51,7 @@ private slots:
     void on_runButton_clicked();
     void on_parallelTasksCountSpinBox_valueChanged(int value);
     void on_tasksTable_activated(const QModelIndex &index);
+    void onLowDiskSpaceConfirmationNeeded(const QString &message);
 
 private:
     QByteArray loadBusyAnimation(const QString &name) const;
@@ -61,4 +64,5 @@ private:
     TaskManager *m_taskManager;
 
     QSvgWidget *m_busyIndicator;
+    QPointer<QMessageBox> m_diskSpaceDialog;
 };

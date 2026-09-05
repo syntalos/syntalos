@@ -52,11 +52,32 @@ public slots:
 
     bool processVideos();
 
+public:
+    /**
+     * @brief Start encoding all waiting videos without checking for free disk space.
+     */
+    void startEncoding();
+
+    /**
+     * @brief Estimate whether enough disk space is available to encode all waiting videos.
+     * @return An empty string if there is enough space, or a human-readable description of
+     *         the shortage otherwise.
+     */
+    QString checkDiskSpaceForPendingTasks() const;
+
 signals:
     void newTasksAvailable();
     void encodingStarted();
     void encodingFinished();
     void parallelCountChanged(int count);
+
+    /**
+     * @brief Emitted when encoding was requested, but the disk holding the videos is too full.
+     *
+     * The queue is not started in this case. The user should be asked whether they
+     * want to proceed anyway, in which case startEncoding() should be called.
+     */
+    void lowDiskSpaceConfirmationNeeded(const QString &message);
 
 private slots:
     void checkThreadPoolRunning();

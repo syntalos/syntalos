@@ -93,6 +93,15 @@ public:
 
     [[nodiscard]] std::string lastError() const;
 
+    /**
+     * @brief Check whether a write error has occurred since the file was opened.
+     *
+     * Write errors are sticky: once the underlying stream failed (e.g. because the
+     * disk is full), all subsequent writes are ignored and the file must be considered
+     * incomplete. The failure reason is available via lastError().
+     */
+    [[nodiscard]] bool hasError() const;
+
     void setTimeNames(const std::string &time1Name, const std::string &time2Name);
     void setTimeUnits(TSyncFileTimeUnit time1Unit, TSyncFileTimeUnit time2Unit);
     void setTimeDataTypes(TSyncFileDataType time1DType, TSyncFileDataType time2DType);
@@ -111,8 +120,14 @@ public:
         const Uuid &collectionId,
         const microseconds_t &tolerance,
         const MetaStringMap &userData = {});
-    void flush();
-    void close();
+    bool flush();
+
+    /**
+     * @brief Finish writing and close the file.
+     * @return false if any data could not be written to disk, in which case the
+     *         file is incomplete and lastError() describes the failure.
+     */
+    bool close();
 
     void writeTimes(const microseconds_t &deviceTime, const microseconds_t &masterTime);
     void writeTimes(const long long &timeIndex, const microseconds_t &masterTime);
@@ -126,6 +141,7 @@ private:
     int m_bIndex;
     XXH3_state_t *m_xxh3State;
     std::string m_lastError;
+    bool m_writeFailed;
     std::string m_fname;
     std::optional<std::chrono::system_clock::time_point> m_creationTimeOverride;
 
@@ -135,6 +151,7 @@ private:
     TSyncFileDataType m_time2DType;
 
     void writeBlockTerminator(bool check = true);
+    bool checkStreamState(const char *what);
     template<class T>
     void writeRawLE(T val);
     template<class T>

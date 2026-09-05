@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -77,6 +77,11 @@ EncodeWindow::EncodeWindow(QWidget *parent)
     connect(m_taskManager, &TaskManager::encodingStarted, [&]() {
         ui->runButton->setEnabled(false);
     });
+    connect(
+        m_taskManager,
+        &TaskManager::lowDiskSpaceConfirmationNeeded,
+        this,
+        &EncodeWindow::onLowDiskSpaceConfirmationNeeded);
     ui->runButton->setEnabled(m_taskManager->tasksAvailable());
 
     // busy indicator
@@ -131,6 +136,44 @@ QByteArray EncodeWindow::loadBusyAnimation(const QString &name) const
 void EncodeWindow::on_runButton_clicked()
 {
     m_taskManager->processVideos();
+}
+
+void EncodeWindow::onLowDiskSpaceConfirmationNeeded(const QString &message)
+{
+    // Encoding may have been requested remotely via D-Bus, so we must not block here (so, no modal dialog!)
+    const auto text = QStringLiteral(
+                          "%1\n\n"
+                          "If the disk runs out of space while encoding, the affected videos will fail to encode "
+                          "(their raw data is kept on disk in that case). You may want to free up some space "
+                          "first.\n\n"
+                          "Start encoding anyway?")
+                          .arg(message);
+
+    if (m_diskSpaceDialog) {
+        m_diskSpaceDialog->setText(text);
+        m_diskSpaceDialog->raise();
+        m_diskSpaceDialog->activateWindow();
+        return;
+    }
+
+    m_diskSpaceDialog = new QMessageBox(
+        QMessageBox::Warning,
+        QStringLiteral("Disk is almost full - Continue anyway?"),
+        text,
+        QMessageBox::Yes | QMessageBox::No,
+        this);
+    m_diskSpaceDialog->setDefaultButton(QMessageBox::No);
+    m_diskSpaceDialog->setAttribute(Qt::WA_DeleteOnClose);
+    connect(m_diskSpaceDialog, &QMessageBox::finished, this, [this](int result) {
+        if (result == QMessageBox::Yes)
+            m_taskManager->startEncoding();
+    });
+
+    // make sure the user actually notices the question
+    show();
+    raise();
+    activateWindow();
+    m_diskSpaceDialog->open();
 }
 
 void EncodeWindow::on_parallelTasksCountSpinBox_valueChanged(int value)

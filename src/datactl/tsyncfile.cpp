@@ -20,10 +20,12 @@
 #include "tsyncfile.h"
 
 #include <bit>
+#include <cerrno>
 #include <cstring>
 #include <format>
 #include <fstream>
 #include <sstream>
+#include <system_error>
 
 #include "loginternal.h"
 
@@ -100,6 +102,7 @@ TimeSyncFileWriter::TimeSyncFileWriter()
     m_time2DType = TSyncFileDataType::UINT32;
     m_tsMode = TSyncFileMode::CONTINUOUS;
     m_blockSize = 2800;
+    m_writeFailed = false;
 }
 
 TimeSyncFileWriter::~TimeSyncFileWriter()
@@ -111,6 +114,38 @@ TimeSyncFileWriter::~TimeSyncFileWriter()
 std::string TimeSyncFileWriter::lastError() const
 {
     return m_lastError;
+}
+
+bool TimeSyncFileWriter::hasError() const
+{
+    return m_writeFailed;
+}
+
+/**
+ * Check the state of the output stream after a write operation and record
+ * an error including the OS failure reason (e.g. "No space left on device")
+ * if the stream has failed. Only the first failure is recorded, all following
+ * checks just report the sticky error state.
+ */
+bool TimeSyncFileWriter::checkStreamState(const char *what)
+{
+    if (m_file.good()) [[likely]]
+        return true;
+    if (m_writeFailed)
+        return false;
+
+    const auto err = errno;
+    m_writeFailed = true;
+    if (err != 0)
+        m_lastError = std::format(
+            "{} failed for '{}': {}",
+            what,
+            m_fname,
+            std::error_code(err, std::generic_category()).message());
+    else
+        m_lastError = std::format("{} failed for '{}': Unknown I/O error.", what, m_fname);
+    SY_LOG_CRITICAL(logTSyncFile, "{}", m_lastError);
+    return false;
 }
 
 void TimeSyncFileWriter::setTimeNames(const std::string &time1Name, const std::string &time2Name)
@@ -205,9 +240,16 @@ bool TimeSyncFileWriter::open(const std::string &modName, const Uuid &collection
     if (m_file.is_open())
         m_file.close();
 
+    m_writeFailed = false;
+    m_lastError.clear();
+    errno = 0;
     m_file.open(m_fname, std::ios::binary | std::ios::out | std::ios::trunc);
     if (!m_file) {
-        m_lastError = std::format("Unable to open file '{}' for writing.", m_fname);
+        const auto err = errno;
+        m_lastError = std::format(
+            "Unable to open file '{}' for writing: {}",
+            m_fname,
+            err != 0 ? std::error_code(err, std::generic_category()).message() : std::string("Unknown error"));
         return false;
     }
 
@@ -253,9 +295,12 @@ bool TimeSyncFileWriter::open(const std::string &modName, const Uuid &collection
     csWriteValue<uint16_t>(static_cast<uint16_t>(m_time2DType));
 
     m_file.flush();
+    if (!checkStreamState("Writing header"))
+        return false;
     const auto headerBytes = static_cast<int>(m_file.tellp());
     if (headerBytes <= 0) {
-        m_lastError = "Could not determine amount of bytes written for tsync file header.";
+        m_writeFailed = true;
+        m_lastError = std::format("Could not determine amount of bytes written for header of '{}'.", m_fname);
         return false;
     }
     const int padding = (headerBytes * -1) & (8 - 1); // 8-byte align header
@@ -265,7 +310,7 @@ bool TimeSyncFileWriter::open(const std::string &modName, const Uuid &collection
     // write end of header and header CRC-32
     writeBlockTerminator(false);
     m_file.flush();
-    return true;
+    return checkStreamState("Writing header");
 }
 
 bool TimeSyncFileWriter::open(
@@ -279,21 +324,26 @@ bool TimeSyncFileWriter::open(
     return open(modName, collectionId, udata);
 }
 
-void TimeSyncFileWriter::flush()
+bool TimeSyncFileWriter::flush()
 {
-    if (m_file.is_open())
-        m_file.flush();
+    if (!m_file.is_open())
+        return !m_writeFailed;
+    m_file.flush();
+    return checkStreamState("Writing data");
 }
 
-void TimeSyncFileWriter::close()
+bool TimeSyncFileWriter::close()
 {
     if (m_file.is_open()) {
         // terminate the last open block, if we have one
         writeBlockTerminator();
         // finish writing file to disk
         m_file.flush();
+        checkStreamState("Writing data");
         m_file.close();
+        checkStreamState("Closing file");
     }
+    return !m_writeFailed;
 }
 
 void TimeSyncFileWriter::writeTimes(const microseconds_t &deviceTime, const microseconds_t &masterTime)
@@ -389,6 +439,10 @@ void TimeSyncFileWriter::writeTimeEntry(const T1 &time1, const T2 &time2)
     m_bIndex++;
     if (m_bIndex >= m_blockSize)
         writeBlockTerminator();
+
+    // the stream buffers data internally, so most write failures will only
+    // surface here once a buffer was flushed to disk (or on close())
+    checkStreamState("Writing data");
 }
 
 // ============================================================

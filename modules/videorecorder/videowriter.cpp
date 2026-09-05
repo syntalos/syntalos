@@ -1321,9 +1321,14 @@ std::expected<void, std::string> VideoWriter::finalizeInternal(bool writeTrailer
         }
     }
 
-    // ensure timestamps file is closed
-    if (d->saveTimestamps)
-        d->tsfWriter.close();
+    // ensure timestamps file is closed and all its data has been written
+    if (d->saveTimestamps) {
+        if (!d->tsfWriter.close()) {
+            LOG_CRITICAL(d->log, "Unable to finalize timesync file: {}", d->tsfWriter.lastError());
+            if (!finalizeError)
+                finalizeError = std::format("Unable to finalize timesync file: {}", d->tsfWriter.lastError());
+        }
+    }
 
     // free all FFmpeg resources
     if (d->encFrame != nullptr) {
@@ -1623,7 +1628,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
     bool success = false;
 
     if (!prepareFrame(frame)) {
-        std::cerr << "Unable to prepare frame. N: " << d->framesN + 1 << "(" << d->lastError << ")" << std::endl;
+        LOG_ERROR(d->log, "Unable to prepare frame. N: {} ({})", d->framesN + 1, d->lastError);
         return false;
     }
 
@@ -1647,7 +1652,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
                 return true;
             if (ret < 0) {
                 d->lastError = std::format("Unable to receive packet from encoder: {}", averrorToString(ret));
-                std::cerr << d->lastError << std::endl;
+                LOG_ERROR(d->log, "{}", d->lastError);
                 return false;
             }
 
@@ -1659,7 +1664,7 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
             ret = av_write_frame(d->octx, pkt);
             if (ret < 0) {
                 d->lastError = std::format("Unable to write frame packet to output: {}", averrorToString(ret));
-                std::cerr << d->lastError << std::endl;
+                LOG_ERROR(d->log, "{}", d->lastError);
                 return false;
             }
 
@@ -1677,21 +1682,21 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
         hwFrame = av_frame_alloc();
         if (hwFrame == nullptr) {
             d->lastError = QStringLiteral("Unable to allocate VAAPI video frame.").toStdString();
-            std::cerr << d->lastError << std::endl;
+            LOG_ERROR(d->log, "{}", d->lastError);
             goto out;
         }
 
         ret = av_hwframe_get_buffer(d->hwFrameCtx, hwFrame, 0);
         if (ret < 0) {
             d->lastError = std::format("Failed to retrieve VAAPI frame buffer: {}", averrorToString(ret));
-            std::cerr << d->lastError << std::endl;
+            LOG_ERROR(d->log, "{}", d->lastError);
             goto out;
         }
 
         ret = av_hwframe_transfer_data(hwFrame, d->encFrame, 0);
         if (ret < 0) {
             d->lastError = std::format("Failed to upload data to the GPU: {}", averrorToString(ret));
-            std::cerr << d->lastError << std::endl;
+            LOG_ERROR(d->log, "{}", d->lastError);
             goto out;
         }
         hwFrame->pts = d->encFrame->pts;
@@ -1712,14 +1717,14 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
                 d->lastError = std::format(
                     "Encoder refused frame {}, but did not emit a packet to make room for it.",
                     d->framesN + 1);
-                std::cerr << d->lastError << std::endl;
+                LOG_ERROR(d->log, "{}", d->lastError);
                 goto out;
             }
             continue;
         }
         if (ret < 0) {
             d->lastError = std::format("Unable to send frame {} to encoder: {}.", d->framesN + 1, averrorToString(ret));
-            std::cerr << d->lastError << std::endl;
+            LOG_ERROR(d->log, "{}", d->lastError);
             goto out;
         }
         break;
@@ -1740,6 +1745,11 @@ bool VideoWriter::encodeFrame(const cv::Mat &frame, const std::chrono::microseco
         // framePts - 1 is used because the counter has already advanced to the next index
         // at this point, so we need to go back by one
         d->tsfWriter.writeTimes(d->framePts - 1, tsUsec);
+        if (d->tsfWriter.hasError()) {
+            d->lastError = std::format("Unable to write timestamp: {}", d->tsfWriter.lastError());
+            LOG_ERROR(d->log, "{}", d->lastError);
+            goto out;
+        }
     }
 
     if (d->fileSliceIntervalMin != 0) {
