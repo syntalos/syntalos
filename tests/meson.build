@@ -59,6 +59,21 @@ test('sy-test-streamperf',
     is_parallel: false,
 )
 
+#
+# Stream Lifecycle Test
+#
+test_stream_lifecycle_moc_src = ['test-stream-lifecycle.cpp']
+test_stream_lifecycle_moc = qt.compile_moc(sources: test_stream_lifecycle_moc_src)
+test_stream_lifecycle_exe = executable('test-stream-lifecycle',
+    [test_stream_lifecycle_moc_src, test_stream_lifecycle_moc],
+    dependencies: [syntalos_fabric_dep, opencv_dep, qt_test_dep]
+)
+test('sy-test-stream-lifecycle',
+    test_stream_lifecycle_exe,
+    env: test_env,
+    is_parallel: true,
+)
+
 
 #
 # Basic Timer/HRClock Test

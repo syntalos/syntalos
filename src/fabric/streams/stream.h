@@ -209,6 +209,7 @@ public:
           m_notifyPending(false),
           m_active(true),
           m_suspended(false),
+          m_dormant(false),
           m_throttle(0),
           m_skippedElements(0),
           m_log(getLogger("subscription"))
@@ -323,7 +324,7 @@ public:
 
     bool isSuspended() const
     {
-        return m_suspended;
+        return m_suspended || m_dormant;
     }
 
     /**
@@ -378,10 +379,7 @@ public:
     {
         // suspend receiving new data
         m_suspended = true;
-
-        // drop currently pending data
-        while (m_queue.pop()) {
-        }
+        clearPendingQueuePreservingSuspension();
     }
 
     /**
@@ -397,10 +395,7 @@ public:
      */
     void clearPending() override
     {
-        m_suspended = true;
-        while (m_queue.pop()) {
-        }
-        m_suspended = false;
+        clearPendingQueuePreservingSuspension();
     }
 
     size_t approxPendingCount() const override
@@ -451,11 +446,8 @@ public:
         // clear current queue contents quickly in case we throttle down the subscription
         // (this prevents clients from skipping elements too much if they are overeager
         // when adjusting the throttle value)
-        if (newThrottle > m_throttle) {
-            // suspending and immediately resuming efficiently clears the current buffer
-            suspend();
-            resume();
-        }
+        if (newThrottle > m_throttle)
+            clearPendingQueuePreservingSuspension();
 
         // apply
         m_throttle = newThrottle;
@@ -468,6 +460,16 @@ public:
     }
 
 private:
+    void clearPendingQueuePreservingSuspension()
+    {
+        // Lifecycle operations are serialized by the engine. Concurrent suspend()/resume()
+        // could be overwritten by the restore below, but is unlikely in normal runs.
+        const bool wasSuspended = m_suspended.exchange(true);
+        while (m_queue.pop()) {
+        }
+        m_suspended = wasSuspended;
+    }
+
     DataStream<T> *m_stream;
     BlockingReaderWriterQueue<std::optional<T>> m_queue;
     int m_eventfd;
@@ -475,6 +477,7 @@ private:
     std::atomic_bool m_notifyPending;
     std::atomic_bool m_active;
     std::atomic_bool m_suspended;
+    std::atomic_bool m_dormant;
     std::atomic_uint m_throttle;
     std::atomic_uint m_skippedElements;
 
@@ -491,13 +494,20 @@ private:
         m_metadata = metadata;
     }
 
+    void setDormant(bool dormant)
+    {
+        m_dormant = dormant;
+        if (dormant)
+            clearPendingQueuePreservingSuspension();
+    }
+
     // Common implementation for both lvalue and rvalue push paths.
     // U is deduced as either `const T &` (copy) or `T` (move) via std::forward.
     template<typename U>
     void pushImpl(U &&data)
     {
-        // don't accept any new data if we are suspended
-        if (m_suspended)
+        // don't accept any new data if we are suspended or the stream is dormant
+        if (m_suspended || m_dormant)
             return;
 
         // check if we can throttle the enqueueing speed of data
@@ -568,7 +578,6 @@ private:
 
     void reset()
     {
-        m_suspended = false;
         m_active = true;
         m_throttle = 0;
         m_notifyPending = false;
@@ -664,11 +673,7 @@ public:
         sub->setMetadata(m_metadata);
         m_subs.push_back(sub);
 
-        // suspend if we are dormant
-        if (m_explicitDormant)
-            sub->suspend();
-        else
-            sub->resume();
+        sub->setDormant(m_explicitDormant);
 
         return sub;
     }
@@ -733,7 +738,7 @@ public:
 
             // if this stream is dormant, then we suspend all subscribers
             for (auto &sub : m_subs)
-                sub->suspend();
+                sub->setDormant(true);
             return;
         }
 
@@ -830,13 +835,8 @@ public:
     {
         m_explicitDormant = dormant;
 
-        // if this stream is dormant, then we suspend all subscribers
-        for (auto &sub : m_subs) {
-            if (dormant)
-                sub->suspend();
-            else
-                sub->resume();
-        }
+        for (auto &sub : m_subs)
+            sub->setDormant(dormant);
     }
 
     [[nodiscard]] bool hasSubscribers() const override
