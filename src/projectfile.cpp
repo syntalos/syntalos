@@ -64,11 +64,21 @@ static bool saveProjectConfigInternal(
 
     QDir confBaseDir(QStringLiteral("%1/..").arg(file->fileName()));
 
+    // Ensure all mtimes are the same for deterministic serialization. Store the creation timestamp explicitly,
+    // at second-precision.
+    const auto timeCreated = QDateTime::fromSecsSinceEpoch(QDateTime::currentSecsSinceEpoch());
+    const auto writeEntry = [&](const QString &name, const QByteArray &data) {
+        return tar.writeFile(name, data, 0100644, QString(), QString(), timeCreated, timeCreated, timeCreated);
+    };
+    const auto writeDirEntry = [&](const QString &name) {
+        return tar.writeDir(name, QString(), QString(), 040755, timeCreated, timeCreated, timeCreated);
+    };
+
     // save basic settings
     QVariantHash settings;
     settings.insert("version_format", CONFIG_FILE_FORMAT_VERSION);
     settings.insert("version_app", QCoreApplication::applicationVersion());
-    settings.insert("time_created", QDateTime::currentDateTime());
+    settings.insert("time_created", timeCreated);
 
     settings.insert("export_base_dir", engine->exportBaseDir());
     settings.insert("experiment_id", engine->experimentId().isEmpty() ? ps.experimentId : engine->experimentId());
@@ -104,23 +114,23 @@ static bool saveProjectConfigInternal(
     }
 
     // basic configuration
-    tar.writeFile("main.toml", qVariantHashToTomlData(settings));
+    writeEntry("main.toml", qVariantHashToTomlData(settings));
 
     // save list of subjects
-    tar.writeFile("subjects.toml", qVariantHashToTomlData(subjectList->toVariantHash()));
+    writeEntry("subjects.toml", qVariantHashToTomlData(subjectList->toVariantHash()));
 
     // save list of experimenters
-    tar.writeFile("experimenters.toml", qVariantHashToTomlData(experimenterList->toVariantHash()));
+    writeEntry("experimenters.toml", qVariantHashToTomlData(experimenterList->toVariantHash()));
 
     // save graph settings
     graphView->saveState();
-    tar.writeFile("graph.toml", qVariantHashToTomlData(graphView->settings()));
+    writeEntry("graph.toml", qVariantHashToTomlData(graphView->settings()));
 
     // save module settings
     int modIndex = 0;
     for (auto &mod : engine->presentModules()) {
         const auto dirEntryId = QStringLiteral("%1-%2").arg(modIndex, 3, 10, QChar('0')).arg(mod->id());
-        if (!tar.writeDir(dirEntryId))
+        if (!writeDirEntry(dirEntryId))
             return false;
 
         QVariantHash modSettings;
@@ -129,11 +139,11 @@ static bool saveProjectConfigInternal(
 
         mod->serializeSettings(confBaseDir.absolutePath(), modSettings, modExtraData);
         if (!modSettings.isEmpty())
-            tar.writeFile(
+            writeEntry(
                 QStringLiteral("%1/%2.toml").arg(dirEntryId).arg(mod->id()),
                 qVariantHashToTomlData(modSettings));
         if (!modExtraData.isEmpty())
-            tar.writeFile(QStringLiteral("%1/%2.dat").arg(dirEntryId).arg(mod->id()), modExtraData);
+            writeEntry(QStringLiteral("%1/%2.dat").arg(dirEntryId).arg(mod->id()), modExtraData);
 
         QVariantHash modInfo;
         modInfo.insert("id", mod->id());
@@ -153,7 +163,7 @@ static bool saveProjectConfigInternal(
         }
 
         modInfo.insert("subscriptions", modSubs);
-        tar.writeFile(QStringLiteral("%1/info.toml").arg(dirEntryId), qVariantHashToTomlData(modInfo));
+        writeEntry(QStringLiteral("%1/info.toml").arg(dirEntryId), qVariantHashToTomlData(modInfo));
 
         modIndex++;
     }
