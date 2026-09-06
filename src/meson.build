@@ -52,6 +52,8 @@ syntalos_src = [
     'projectmetrics.cpp',
     'qmeta.h',
     'qmeta.cpp',
+    'runnoticeswidget.h',
+    'runnoticeswidget.cpp',
     'sysinfodialog.h',
     'sysinfodialog.cpp',
     'timingsdialog.h',

@@ -1480,7 +1480,7 @@ void Engine::onDiskspaceMonitorEvent()
     if (spaceLow) {
         QString message;
         if (rateKnown)
-            message = QStringLiteral("Disk space will last only %1 at the current write rate (%2/s).\n%3 remaining.")
+            message = QStringLiteral("Disk space will last only %1 at the current write rate (%2/s). %3 remaining.")
                           .arg(
                               formatApproxDuration(secondsLeft),
                               formatByteSize(qRound64(mon.diskTrend.consumptionRate())),
@@ -1492,7 +1492,7 @@ void Engine::onDiskspaceMonitorEvent()
     } else if (mon.diskSpaceWarningEmitted) {
         QString message = QStringLiteral("%1 of disk space remaining").arg(formatByteSize(available));
         if (rateKnown)
-            message += QStringLiteral("\n(%1 at the current write rate)").arg(formatApproxDuration(secondsLeft));
+            message += QStringLiteral(" (%1 at the current write rate)").arg(formatApproxDuration(secondsLeft));
         message += QStringLiteral(".");
         Q_EMIT resourceWarningUpdate(StorageSpace, true, message);
         mon.diskSpaceWarningEmitted = false;
@@ -1544,7 +1544,7 @@ void Engine::onMemoryMonitorEvent()
         details += QStringLiteral(", exhausted in about %1 at the current rate").arg(formatApproxDuration(secondsLeft));
     details += QStringLiteral(".");
     if (memInfo.swapTotalKiB > 0)
-        details += QStringLiteral("\nSwap: %1 of %2 in use.")
+        details += QStringLiteral(" Swap: %1 of %2 in use.")
                        .arg(
                            formatByteSize((memInfo.swapTotalKiB - memInfo.swapFreeKiB) * 1024LL),
                            formatByteSize(memInfo.swapTotalKiB * 1024LL));
@@ -1567,7 +1567,7 @@ void Engine::onMemoryMonitorEvent()
         QString message;
         if (stalling)
             message = QStringLiteral(
-                          "The system is under memory pressure:\nTasks stall waiting for memory %1% of the "
+                          "The system is under memory pressure: tasks stall waiting for memory %1% of the "
                           "time. ")
                           .arg(pressure.someAvg10, 0, 'f', 0);
         else

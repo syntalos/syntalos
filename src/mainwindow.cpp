@@ -59,6 +59,7 @@
 #include "globalconfigdialog.h"
 #include "intervalrundialog.h"
 #include "logviewdialog.h"
+#include "runnoticeswidget.h"
 #include "sysinfodialog.h"
 #include "timingsdialog.h"
 #include "whatsnewdialog.h"
@@ -66,6 +67,13 @@
 #include "executils.h"
 #include "projectfile.h"
 #include "utils/tomlutils.h"
+
+// keys of the notices shown in the run info panel
+static const auto NOTICE_KEY_RUN = QStringLiteral("run");
+static const auto NOTICE_KEY_DISK = QStringLiteral("disk-space");
+static const auto NOTICE_KEY_MEMORY = QStringLiteral("memory");
+static const auto NOTICE_KEY_CPU = QStringLiteral("cpu-cores");
+static const auto NOTICE_KEY_STREAMS = QStringLiteral("stream-buffers");
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent),
@@ -124,14 +132,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->exportDirLabel->setText(QStringLiteral("???"));
 
     // prepare warning labels
-    ui->runWarningIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("emblem-warning")).pixmap(16, 16));
-    ui->runWarnWidget->setVisible(false);
-    ui->cpuWarningIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("emblem-information")).pixmap(16, 16));
-    ui->cpuWarnWidget->setVisible(false);
-    ui->diskSpaceWarningIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("emblem-important")).pixmap(16, 16));
-    ui->diskSpaceWarnWidget->setVisible(false);
-    ui->memoryWarningIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("emblem-important")).pixmap(16, 16));
-    ui->memoryWarnWidget->setVisible(false);
+    ui->runNoticesWidget->clearAll();
     ui->warnNotifyLayout->setAlignment(Qt::AlignLeft | Qt::AlignBottom);
 
     ui->panelRunInfo->setEnabled(false);
@@ -534,7 +535,7 @@ void MainWindow::setExperimenterSelectVisible(bool visible)
 void MainWindow::runActionTriggered(const Uuid &recordIdOverride)
 {
     setRunPossible(false);
-    ui->runWarnWidget->setVisible(false);
+    ui->runNoticesWidget->clearNotice(NOTICE_KEY_RUN);
 
     // stop is only possible when we are actually running
     setRunUiControlStates(true, false);
@@ -547,7 +548,6 @@ void MainWindow::runActionTriggered(const Uuid &recordIdOverride)
     if (m_isIntervalRun) {
         LOG_INFO(m_log, "Running experiment multiple times in intervals");
         updateIntervalRunMessage();
-        ui->runWarnWidget->setVisible(true);
 
         // set a hint as to how many runs we expect to do (this mainly affects number formatting)
         m_engine->setRunCountExpectedMax(m_intervalRunDialog->runsN());
@@ -597,7 +597,9 @@ void MainWindow::runActionTriggered(const Uuid &recordIdOverride)
                 showBusyIndicatorWaiting();
                 LOG_INFO(m_log, "Delaying next run for {} min", m_intervalRunDialog->delayMin());
                 auto continueTime = QTime::currentTime().addSecs(std::round(60 * m_intervalRunDialog->delayMin()));
-                ui->runWarningLabel->setText(
+                ui->runNoticesWidget->setNotice(
+                    NOTICE_KEY_RUN,
+                    RunNoticesWidget::Severity::Info,
                     QStringLiteral("Running for %1 min every %2 min. Now waiting %3 min. Next run: %4/%5")
                         .arg(m_intervalRunDialog->runDurationMin(), 0, 'f', 2)
                         .arg(m_intervalRunDialog->runDurationMin() + m_intervalRunDialog->delayMin(), 0, 'f', 2)
@@ -618,7 +620,7 @@ void MainWindow::runActionTriggered(const Uuid &recordIdOverride)
             updateIntervalRunMessage();
         }
 
-        ui->runWarnWidget->setVisible(false);
+        ui->runNoticesWidget->clearNotice(NOTICE_KEY_RUN);
         LOG_INFO(m_log, "Finished interval run session");
     } else {
         m_engine->run(recordIdOverride);
@@ -641,9 +643,10 @@ void MainWindow::temporaryRunActionTriggered()
     setRunUiControlStates(true, false);
 
     ui->exportDirLabel->setText(QStringLiteral("???"));
-    ui->runWarningIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("emblem-warning")).pixmap(16, 16));
-    ui->runWarningLabel->setText(QStringLiteral("No data of this run will be saved permanently!"));
-    ui->runWarnWidget->setVisible(true);
+    ui->runNoticesWidget->setNotice(
+        NOTICE_KEY_RUN,
+        RunNoticesWidget::Severity::Warning,
+        QStringLiteral("No data of this run will be saved permanently!"));
 
     m_engine->resetSuccessRunsCounter();
     m_isIntervalRun = false;
@@ -652,7 +655,7 @@ void MainWindow::temporaryRunActionTriggered()
     // we are stopped now, ephemeral run has finished
     setRunUiControlStates(false, false);
     ui->actionRunTemp->setEnabled(true);
-    ui->runWarnWidget->setVisible(false);
+    ui->runNoticesWidget->clearNotice(NOTICE_KEY_RUN);
     updateExportDirDisplay();
     setRunPossible(true);
 }
@@ -1307,8 +1310,9 @@ void MainWindow::updateExportDirDisplay()
 
 void MainWindow::updateIntervalRunMessage()
 {
-    ui->runWarningIconLabel->setPixmap(QIcon::fromTheme(QStringLiteral("emblem-information")).pixmap(16, 16));
-    ui->runWarningLabel->setText(
+    ui->runNoticesWidget->setNotice(
+        NOTICE_KEY_RUN,
+        RunNoticesWidget::Severity::Info,
         QStringLiteral("Running for %1 min every %2 min. Current run: %3/%4.")
             .arg(m_intervalRunDialog->runDurationMin(), 0, 'f', 2)
             .arg(m_intervalRunDialog->runDurationMin() + m_intervalRunDialog->delayMin(), 0, 'f', 2)
@@ -1515,9 +1519,10 @@ void MainWindow::onEnginePreRunPrepare()
     showBusyIndicatorProcessing();
     m_timingsDialog->clear();
 
-    ui->diskSpaceWarnWidget->setVisible(false);
-    ui->memoryWarnWidget->setVisible(false);
-    ui->cpuWarnWidget->setVisible(false);
+    ui->runNoticesWidget->clearNotice(NOTICE_KEY_DISK);
+    ui->runNoticesWidget->clearNotice(NOTICE_KEY_MEMORY);
+    ui->runNoticesWidget->clearNotice(NOTICE_KEY_CPU);
+    ui->runNoticesWidget->clearNotice(NOTICE_KEY_STREAMS);
     ui->actionNetRunController->setEnabled(false);
     ui->actionNetRunListener->setEnabled(false);
 
@@ -1550,9 +1555,10 @@ void MainWindow::onEngineStopped()
     setRunPossible(true);
     setRunUiControlStates(false, false);
 
-    ui->diskSpaceWarnWidget->setVisible(false);
-    ui->memoryWarnWidget->setVisible(false);
-    ui->cpuWarnWidget->setVisible(false);
+    ui->runNoticesWidget->clearNotice(NOTICE_KEY_DISK);
+    ui->runNoticesWidget->clearNotice(NOTICE_KEY_MEMORY);
+    ui->runNoticesWidget->clearNotice(NOTICE_KEY_CPU);
+    ui->runNoticesWidget->clearNotice(NOTICE_KEY_STREAMS);
     ui->actionNetRunController->setEnabled(true);
     ui->actionNetRunListener->setEnabled(true);
 
@@ -1562,24 +1568,28 @@ void MainWindow::onEngineStopped()
 
 void MainWindow::onEngineResourceWarningUpdate(Engine::SystemResource kind, bool resolved, const QString &message)
 {
+    QString key;
+    auto severity = RunNoticesWidget::Severity::Warning;
     switch (kind) {
     case Engine::StorageSpace:
-        ui->diskSpaceWarningLabel->setText(message);
-        ui->diskSpaceWarnWidget->setVisible(!resolved);
+        key = NOTICE_KEY_DISK;
         break;
     case Engine::Memory:
-        ui->memoryWarningLabel->setText(message);
-        ui->memoryWarnWidget->setVisible(!resolved);
+        key = NOTICE_KEY_MEMORY;
         break;
     case Engine::CpuCores:
-        ui->cpuWarningLabel->setText(message);
-        ui->cpuWarnWidget->setVisible(!resolved);
+        key = NOTICE_KEY_CPU;
+        severity = RunNoticesWidget::Severity::Info;
         break;
     case Engine::StreamBuffers:
-        ui->memoryWarningLabel->setText(message);
-        ui->memoryWarnWidget->setVisible(!resolved);
+        key = NOTICE_KEY_STREAMS;
         break;
     }
+
+    if (resolved)
+        ui->runNoticesWidget->resolveNotice(key, message);
+    else
+        ui->runNoticesWidget->setNotice(key, severity, message);
 }
 
 void MainWindow::onEngineConnectionHeatChanged(VarStreamInputPort *iport, ConnectionHeatLevel hlevel)
