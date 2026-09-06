@@ -1,3 +1,86 @@
+Version 3.2.0
+-------------
+Released: 2026-09-06
+
+### Features:
+ * spikeglx: Add new module to interface with a SpikeGLX instance on the network
+ * spikeglx: Publish digital channel groups as line events
+ * camera-arv: Build this module with -O3
+ * videorecorder: When deferred-encoding, store the intermediate as FFVHuff
+ * videorecorder: Preserver FFV1 16 bits pixel format in recordings
+ * datactl: Add SignalBlockI16 signed 16-bit signal block type
+ * projectfile: Ensure deterministic module load order & robust section IDs
+ * Make project files fully deterministic
+ * Pass the full RunInfo struct to module prepare() and expose it over MLink
+ * Write a persistent logfile and add a viewing diagnostic tool for logs
+ * videorecorder: Write a logfile for the encodehelper as well
+ * Add quick-open option for recent projects
+ * Measure project disk space consumption and warn early if we might run out of space
+ * Refine memory pressure readings by looking at PSI, refactor resource monitoring
+ * engine: Monitor resources slowly, unless there is an issue, then look more often
+ * ui: Add new widget to show more complex run notes in a better layout
+ * python: Add set_status_message function
+
+### Bugfixes:
+ * open-ephys-acq: Capture start offset slightly closer to the board run command
+ * open-ephys-acq: Never unload the liboni library once it was loaded
+ * open-ephys-acq: Apply our driver-pinning earlier
+ * plot-timeseries: Ensure graphs of edge-triggered sources remain always visible
+ * canvas: Survive recreation of the OpenGL context
+ * camera-arv: Recycle the decoder's output buffer between frames
+ * camera-arv: Copy Mono8/Mono16 frames instead of unpacking them
+ * camera-arv: Never index a partially described enumeration
+ * camera-arv: Actually mark the module as running while its worker thread is up
+ * camera-arv: Increase frame queue size for slow FPS
+ * camera-arv: Prevent crashing due to empty QArvEnumeration
+ * camera-tis: Fix corrupted and mislabeled 16-bit grayscale frames
+ * videorecorder: Make lossless encoding fully lossless for color images
+ * videorecorder: Add an option to record colors exactly
+ * videorecorder: Keep the lossless checkbox in sync with the codec
+ * videorecorder: Refuse odd frame dimensions, and stop producing them
+ * videorecorder: Drop stale Matroska hint, document raw VFW log warning
+ * videorecorder: Fix frame buffer leak on file slice rollover
+ * videorecorder: Do not let a quality of zero be silently discarded
+ * videorecorder: Harden settings dialog against inconsistent loaded state
+ * videorecorder: Fix VP9 lossless encoding
+ * videorecorder: Prevent GUI from overriding the loaded lossless setting
+ * videorecorder: Fix AV1 VAAPI
+ * videorecorder: Preserve exact-color encode metadata
+ * videorecorder: Preserve exact colors for deferred encoding
+ * videorecorder: Preserve raw gray16 in Matroska
+ * videorecorder: Warn about signed gray16 input
+ * videorecorder: Convert gray16 to native byte order
+ * videorecorder: Test raw gray16 Matroska round-trip
+ * videotransform: Keep even crop regions in bounds
+ * videotransform: Keep scaled frame dimensions even
+ * Guard against full disks when writing tsync files deferred video encoding
+ * imgui: Survive recreation of the OpenGL context
+ * imgui: Give the renderer and its window wrapper a single owner
+ * mlink: Fail nicer when publishing a sample fails
+ * mlink: Ensure the master will never abort if an iox send fails
+ * Guard against IOX node creation failures
+ * rtkit: Don't use the XDG portal if we don't have to
+ * Work around a KTextEditor crash with frameworks == 6.28
+ * Fix build with GCC 16
+ * engine: Fix lost-wakeup race on the run start barrier
+ * fabric: Keep subscription suspension consumer-owned when a stream (re)starts
+ * fabric: Stop DataStream from writing the suspension flag of its subscriptions
+ * engine: Warn if an inactive module's input queue still holds data at run end
+ * mlink: Skip output forwarder when every destination module is dormant
+
+### Miscellaneous:
+ * camera-arv: Move decoder tests into faster unit test
+ * videorecorder: Cover all raw Matroska pixel formats in the round-trip test
+ * datactl: Add a helper for recycling image buffers safely
+ * datactl: Make signal-block consumers type-agnostic
+ * logging: Enable IOX debug logging if we are in verbose mode
+ * logging: Improve GLib log handler & cache root logger
+ * fabric: Namespace misc util functions
+ * tests: Make inactive-subscriptions scenario cover Python -> disabled module
+
+### Contributors:
+ Matthias Klumpp, Victor Negîrneac
+
 Version 3.1.1
 -------------
 Released: 2026-06-12
