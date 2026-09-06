@@ -1857,6 +1857,24 @@ void Engine::setInactiveModulePortsSuspended(const Engine::ModuleRunOrder &modOr
             if (!iport->hasSubscription())
                 continue;
             auto sub = iport->subscriptionVar();
+            const bool modInactive = !mod->modifiers().testFlag(ModuleModifier::ENABLED)
+                                     || mod->state() == ModuleState::DORMANT;
+
+            // At run end, the queue of an inactive module must be empty: it was cleared when the
+            // run started, and a suspended subscription does not accept new data. Anything left
+            // in there means a producer bypassed the suspension and the data was piling up.
+            // (a single element is the end-of-stream marker the producer emplaces on stop, which is fine)
+            if (!suspended && modInactive) {
+                const auto pendingCount = sub->approxPendingCount();
+                if (pendingCount > 1)
+                    LOG_WARNING(
+                        d->log,
+                        "Input queue of inactive module '{}' port `{}` still held {} element(s) at run end - "
+                        "data was pushed to a suspended subscription",
+                        mod->name(),
+                        iport->id(),
+                        pendingCount);
+            }
 
             // make sure that the input port is active, to ensure *only* inactive modules have
             // their inputs suspended (this sets all modules to a known state)
@@ -1868,7 +1886,7 @@ void Engine::setInactiveModulePortsSuspended(const Engine::ModuleRunOrder &modOr
                 continue;
 
             // suspend inputs on dormant or disabled modules
-            if (!mod->modifiers().testFlag(ModuleModifier::ENABLED) || mod->state() == ModuleState::DORMANT)
+            if (modInactive)
                 sub->suspend();
         }
     }
