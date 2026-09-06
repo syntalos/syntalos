@@ -5,12 +5,13 @@ run_duration_sec = 3
 expected_exit_code = 0
 expected_datasets = []
 expected_stdout_contains = [
-    "engine: Module start order: Video Transformer ⇢ Table ⇢ Devel: DataSource ⇢ Video Recorder ⇢ Python Module Example",
-    "engine: Module 'Canvas' is explicitly disabled. It was marked dormant and will not be started.",
+    "engine: Module start order: Video Transformer ⇢ Table ⇢ Devel: DataSource ⇢ Video Recorder ⇢ PyMod - One Disabled Target ⇢ PyMod - All Targets Disabled ⇢ Canvas 2",
+    "engine: Module 'Canvas 1' is explicitly disabled. It was marked dormant and will not be started.",
+    "engine: Module 'Canvas 3' is explicitly disabled. It was marked dormant and will not be started.",
     "engine: Module 'Video Transformer' is marked dormant, it will not be started.",
     "engine: Module 'Table' is marked dormant, it will not be started.",
     "engine: Module 'Video Recorder' is marked dormant, it will not be started.",
-    "All destinations on frames-out are dormant, skipping forwarder registration.",
+    "mod.example-py-1: All destinations on frames-out are dormant, skipping forwarder registration.",
 ]
 expected_stdout_not_contains = [
     "Input queue of inactive module",
