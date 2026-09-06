@@ -124,11 +124,18 @@ bool TaskManager::enqueueVideo(
 
 QString TaskManager::checkDiskSpaceForPendingTasks() const
 {
-    // Each running task writes its encoded output next to the raw source file, and the source
-    // is only deleted once the task has completed. In the worst case (e.g. a lossless codec
-    // on noisy data) the output is about as large as the raw source, so while N tasks run
-    // in parallel, we may temporarily need the size of the N largest sources as free space.
+    // Each running task writes its encoded output next to the source file, and the source
+    // is only deleted once the task has completed. So while N tasks run in parallel, we may
+    // temporarily need the size of the N largest encoded outputs as free space.
+    // The source is already losslessly compressed (FFVHuff), so a stronger lossless target codec
+    // may end up about as large as the source in the worst case (noisy data), while lossy
+    // codecs produce only a fraction of it. The lossy factor is deliberately generous,
+    // so even unusually high bitrate settings are covered.
     const int parallelCount = std::max(m_threadPool->maxThreadCount(), 1);
+    const auto estimateOutputSize = [](qint64 sourceSize, const CodecProperties &cprops) -> qint64 {
+        const double factor = cprops.isLossless() ? 0.9 : 0.5;
+        return static_cast<qint64>(sourceSize * factor);
+    };
 
     // collect source sizes per filesystem (the queue may hold videos of multiple runs)
     struct FsSpace {
@@ -150,7 +157,7 @@ QString TaskManager::checkDiskSpaceForPendingTasks() const
         }
         auto &fsSpace = spaceByFs[disk.deviceId];
         fsSpace.disk = disk;
-        fsSpace.sizes.append(fi.size());
+        fsSpace.sizes.append(estimateOutputSize(fi.size(), item->codecProps()));
     }
 
     QStringList problems;
