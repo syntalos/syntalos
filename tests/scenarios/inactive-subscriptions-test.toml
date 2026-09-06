@@ -1,12 +1,17 @@
 [test]
 name = "Dormant Modules & Inactive Subscriptions Test"
 project_file = "projects/inactive-subscriptions.syct"
-run_duration_sec = 2
+run_duration_sec = 3
 expected_exit_code = 0
 expected_datasets = []
 expected_stdout_contains = [
-    "engine: Module start order: Video Transformer ⇢ Table ⇢ Canvas ⇢ Video Recorder",
+    "engine: Module start order: Video Transformer ⇢ Table ⇢ Devel: DataSource ⇢ Video Recorder ⇢ Python Module Example",
+    "engine: Module 'Canvas' is explicitly disabled. It was marked dormant and will not be started.",
     "engine: Module 'Video Transformer' is marked dormant, it will not be started.",
     "engine: Module 'Table' is marked dormant, it will not be started.",
     "engine: Module 'Video Recorder' is marked dormant, it will not be started.",
+    "All destinations on frames-out are dormant, skipping forwarder registration.",
+]
+expected_stdout_not_contains = [
+    "Input queue of inactive module",
 ]

@@ -408,6 +408,7 @@ def run_test(syntalos_bin, manifest_path):
     expected_datasets = test_config.get("expected_datasets", [])
     expected_output = test_config.get("expected_output_files", [])
     expected_stdout_contains = test_config.get("expected_stdout_contains", [])
+    expected_stdout_not_contains = test_config.get("expected_stdout_not_contains", [])
     expected_stderr_contains = test_config.get("expected_stderr_contains", [])
     validator_script = test_config.get("validator_script")
     use_dynamic_net_ports = test_config.get("use_dynamic_net_ports", False)
@@ -590,6 +591,13 @@ def run_test(syntalos_bin, manifest_path):
                 for text in expected_stdout_contains:
                     if text not in stdout_data:
                         print(f"  [!] Expected text not found in STDOUT: '{text}'", file=sys.stderr)
+                        print_stdout_stderr(stdout_data)
+                        return False
+
+            if expected_stdout_not_contains:
+                for text in expected_stdout_not_contains:
+                    if text in stdout_data:
+                        print(f"  [!] Forbidden text found in STDOUT: '{text}'", file=sys.stderr)
                         print_stdout_stderr(stdout_data)
                         return False
 
