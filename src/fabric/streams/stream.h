@@ -380,8 +380,7 @@ public:
         m_suspended = true;
 
         // drop currently pending data
-        while (m_queue.pop()) {
-        }
+        drainQueue();
     }
 
     /**
@@ -397,10 +396,11 @@ public:
      */
     void clearPending() override
     {
-        m_suspended = true;
-        while (m_queue.pop()) {
-        }
-        m_suspended = false;
+        // block the producer while we drain, but leave the subscription in the
+        // suspension state it was in before (this must not implicitly resume)
+        const bool wasSuspended = m_suspended.exchange(true);
+        drainQueue();
+        m_suspended = wasSuspended;
     }
 
     size_t approxPendingCount() const override
@@ -451,11 +451,8 @@ public:
         // clear current queue contents quickly in case we throttle down the subscription
         // (this prevents clients from skipping elements too much if they are overeager
         // when adjusting the throttle value)
-        if (newThrottle > m_throttle) {
-            // suspending and immediately resuming efficiently clears the current buffer
-            suspend();
-            resume();
-        }
+        if (newThrottle > m_throttle)
+            clearPending();
 
         // apply
         m_throttle = newThrottle;
@@ -568,13 +565,20 @@ private:
 
     void reset()
     {
-        m_suspended = false;
+        // NOTE: m_suspended is deliberately left untouched here. Suspension is owned by the
+        // consumer (the subscribing module, or the engine acting on its behalf), and a producer
+        // (re)starting its stream must not override that decision.
         m_active = true;
         m_throttle = 0;
         m_notifyPending = false;
         m_lastItemTime = currentTimePoint();
+        drainQueue(); // ensure the queue is empty
+    }
+
+    void drainQueue()
+    {
         while (m_queue.pop()) {
-        } // ensure the queue is empty
+        }
     }
 };
 
