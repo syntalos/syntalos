@@ -35,8 +35,9 @@
 #include <QProcessEnvironment>
 
 namespace fs = std::filesystem;
-using namespace Syntalos;
 
+namespace Syntalos
+{
 QString createRandomString(int len)
 {
     const auto possibleChars = QStringLiteral("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789");
@@ -277,3 +278,5 @@ QString formatApproxDuration(double seconds)
         return QStringLiteral("about %1 hours").arg(seconds / 3600.0, 0, 'f', 1);
     return QStringLiteral("about %1 days").arg(seconds / (24 * 3600.0), 0, 'f', 1);
 }
+
+} // namespace Syntalos

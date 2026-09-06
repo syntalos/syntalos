@@ -25,6 +25,8 @@
 
 #include "utils/misc.h"
 
+using namespace Syntalos;
+
 const QString aboutDlgCopyInfo = QStringLiteral(
     "<html>"
     "© 2016-2026 Matthias Klumpp"

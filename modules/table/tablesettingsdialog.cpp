@@ -20,11 +20,9 @@
 #include "tablesettingsdialog.h"
 #include "ui_tablesettingsdialog.h"
 
-#include <QMessageBox>
-#include <QThread>
-#include <QVariant>
-
 #include "utils/misc.h"
+
+using namespace Syntalos;
 
 TableSettingsDialog::TableSettingsDialog(QWidget *parent)
     : QDialog(parent),

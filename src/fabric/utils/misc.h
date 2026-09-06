@@ -53,8 +53,6 @@ inline QString qstr(const std::string &s)
     return QString::fromUtf8(s.data(), static_cast<qsizetype>(s.size()));
 }
 
-} // namespace Syntalos
-
 /**
  * @brief Create a random alphanumeric string with the given length.
  */
@@ -161,3 +159,5 @@ QString formatByteSize(qint64 bytes);
  * Format a duration in seconds as a rough, human-readable time span.
  */
 QString formatApproxDuration(double seconds);
+
+} // namespace Syntalos

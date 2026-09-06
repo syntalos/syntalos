@@ -107,7 +107,7 @@ WhatsNewDialog::WhatsNewDialog(const QString &previousVersion, const QString &cu
 
     // Released versions have no VCS suffix, so a difference between the plain and the full version string
     // means we are running a development build.
-    const QString fullVersion = syntalosVersionFull();
+    const QString fullVersion = Syntalos::syntalosVersionFull();
     const bool isDevBuild = fullVersion != currentVersion;
     QString subtitle = QStringLiteral("Updated from v%1 ➜ v%2").arg(previousVersion, currentVersion);
     if (isDevBuild)
