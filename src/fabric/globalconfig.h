@@ -93,6 +93,7 @@ public:
 
     int minFreeDiskSpaceGB() const;
     void setMinFreeDiskSpaceGB(int gigabytes);
+    qint64 minFreeDiskSpaceBytes() const;
 
     int diskSpaceWarnMinutes() const;
     void setDiskSpaceWarnMinutes(int minutes);

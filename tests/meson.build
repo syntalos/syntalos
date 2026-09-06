@@ -110,6 +110,22 @@ test('sy-test-projectmetrics',
 )
 
 #
+# Resource Info Test
+#
+test_resourceinfo_moc_src = ['test-resourceinfo.cpp']
+test_resourceinfo_moc = qt.compile_moc(sources: test_resourceinfo_moc_src)
+test_resourceinfo_exe = executable('test-resourceinfo',
+    [test_resourceinfo_moc_src, test_resourceinfo_moc],
+    dependencies: [syntalos_fabric_dep,
+                   qt_test_dep]
+)
+test('sy-test-resourceinfo',
+    test_resourceinfo_exe,
+    env: test_env,
+    is_parallel: true,
+)
+
+#
 # MetaValue tests
 #
 test_metavalue_moc_src = ['test-metavalue.cpp']

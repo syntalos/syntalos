@@ -46,7 +46,6 @@
 #include <QElapsedTimer>
 #include <QMessageBox>
 #include <QStandardPaths>
-#include <QStorageInfo>
 #include <QTemporaryDir>
 #include <QThread>
 #include <QTimer>
@@ -54,7 +53,6 @@
 #include <algorithm>
 #include <memory>
 #include <functional>
-#include <filesystem>
 #include <libusb.h>
 #include <pthread.h>
 
@@ -72,10 +70,9 @@
 #include "datactl/edlstorage.h"
 #include "datactl/priv/cpuaffinity.h"
 #include "datactl/priv/rtkit.h"
-#include "utils/diskinfo.h"
 #include "utils/misc.h"
 #include "utils/tomlutils.h"
-#include "utils/meminfo.h"
+#include "utils/resourceinfo.h"
 
 static_assert(
     std::is_same<std::thread::native_handle_type, pthread_t>::value,
@@ -245,9 +242,21 @@ private:
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wpadded"
 
+// only trust the disk rate estimate once the disk is actually being written to at a relevant pace
+static constexpr double DISK_MIN_RELEVANT_RATE_BPS = 100.0 * 1000.0; // 100 kB/s
+static constexpr double MEM_MIN_RELEVANT_RATE_BPS = 1024.0 * 1024.0; // 1 MiB/s
+static constexpr int MEM_CHECK_INTERVAL_MSEC = 5 * 1000;
+static constexpr int MEM_CHECK_INTERVAL_FAST_MSEC = 1000;
+
 class EngineResourceMonitorData
 {
 public:
+    EngineResourceMonitorData()
+        : diskTrend(DISK_MIN_RELEVANT_RATE_BPS),
+          memTrend(MEM_MIN_RELEVANT_RATE_BPS)
+    {
+    }
+
     struct SubscriptionBufferWatchData {
         VariantStreamSubscription *sub;
         VarStreamInputPort *port;
@@ -262,14 +271,13 @@ public:
 
     bool diskSpaceWarningEmitted;
     bool memoryWarningEmitted;
+    bool memFastPolling;
     bool subBufferWarningEmitted;
-    double prevMemAvailablePercent;
     bool emergencyOOMStop;
 
-    // disk write rate estimation
-    qint64 prevDiskAvailable;
-    QElapsedTimer diskRateTimer;
-    double diskWriteRateBps; // smoothed, negative if unknown
+    // how fast are disk space and memory being used up?
+    ResourceTrend diskTrend;
+    ResourceTrend memTrend;
 
     QTimer diskSpaceCheckTimer;
     QTimer memCheckTimer;
@@ -1243,15 +1251,15 @@ bool Engine::run(const Uuid &recordIdOverride)
     LOG_INFO(d->log, "Initializing new persistent recording run");
 
     // test for available disk space and readyness of device
-    QStorageInfo storageInfo(d->exportBaseDir);
-    if (storageInfo.isValid() && storageInfo.isReady()) {
-        const qint64 available = storageInfo.bytesAvailable();
+    const auto disk = diskSpaceInfo(d->exportBaseDir);
+    if (disk.valid) {
+        const qint64 available = disk.bytesAvailable;
         LOG_INFO(d->log, "{} MB available in data export location", available / 1000 / 1000);
 
         // We have no idea how long the run will take, so this is a rough guess at best: We require
         // at least the configured minimum, or - if we have seen this project run before - enough
         // space for the largest of its recent runs plus some headroom.
-        const qint64 minFreeBytes = static_cast<qint64>(d->gconf->minFreeDiskSpaceGB()) * 1000LL * 1000LL * 1000LL;
+        const qint64 minFreeBytes = d->gconf->minFreeDiskSpaceBytes();
         qint64 requiredBytes = minFreeBytes;
         const qint64 historyMaxBytes = d->projectMetrics->maxRunBytes();
         const double historyRateBps = d->projectMetrics->lastRunWriteRateBps();
@@ -1444,37 +1452,23 @@ QHash<AbstractModule *, std::vector<uint>> Engine::setupCoreAffinityConfig(
 
 void Engine::onDiskspaceMonitorEvent()
 {
-    std::filesystem::space_info ssi;
-    try {
-        ssi = std::filesystem::space(d->monitoring->exportDirPath.toStdString());
-    } catch (const std::filesystem::filesystem_error &e) {
-        LOG_WARNING(d->log, "Could not determine remaining free disk space: {}", e.what());
+    const auto disk = diskSpaceInfo(d->monitoring->exportDirPath);
+    if (!disk.valid) {
+        LOG_WARNING(d->log, "Could not determine remaining free disk space for '{}'", d->monitoring->exportDirPath);
         return;
     }
-    const auto available = static_cast<qint64>(ssi.available);
+    const auto available = disk.bytesAvailable;
 
     // Estimate how fast the disk is filling up. We look at the change in free space rather than
     // at what our own modules write, so anything else using the disk (like a still-running
     // deferred video encoder) is accounted for as well.
     auto &mon = *d->monitoring;
-    if (mon.prevDiskAvailable >= 0) {
-        const double elapsedSec = mon.diskRateTimer.restart() / 1000.0;
-        if (elapsedSec > 1.0) {
-            const double rate = std::max(0.0, static_cast<double>(mon.prevDiskAvailable - available) / elapsedSec);
-            mon.diskWriteRateBps = (mon.diskWriteRateBps < 0) ? rate : (0.5 * mon.diskWriteRateBps + 0.5 * rate);
-        }
-    } else {
-        mon.diskRateTimer.start();
-    }
-    mon.prevDiskAvailable = available;
+    mon.diskTrend.addSample(available);
 
-    const qint64 minFreeBytes = static_cast<qint64>(d->gconf->minFreeDiskSpaceGB()) * 1000LL * 1000LL * 1000LL;
+    const qint64 minFreeBytes = d->gconf->minFreeDiskSpaceBytes();
     const double warnSeconds = d->gconf->diskSpaceWarnMinutes() * 60.0;
-
-    // only trust the rate estimate once the disk is actually being written to at a relevant pace
-    constexpr double minRelevantRateBps = 100.0 * 1000.0; // 100 kB/s
-    const bool rateKnown = mon.diskWriteRateBps >= minRelevantRateBps;
-    const double secondsLeft = rateKnown ? available / mon.diskWriteRateBps : -1;
+    const bool rateKnown = mon.diskTrend.hasRate();
+    const double secondsLeft = mon.diskTrend.secondsUntilDepleted();
 
     const bool spaceLow = (available < minFreeBytes) || (rateKnown && secondsLeft < warnSeconds);
     if (spaceLow) {
@@ -1483,7 +1477,7 @@ void Engine::onDiskspaceMonitorEvent()
             message = QStringLiteral("Disk space will last only %1 at the current write rate (%2/s).\n%3 remaining.")
                           .arg(
                               formatApproxDuration(secondsLeft),
-                              formatByteSize(qRound64(mon.diskWriteRateBps)),
+                              formatByteSize(qRound64(mon.diskTrend.consumptionRate())),
                               formatByteSize(available));
         else
             message = QStringLiteral("Disk space is very low. Only %1 remaining.").arg(formatByteSize(available));
@@ -1501,38 +1495,85 @@ void Engine::onDiskspaceMonitorEvent()
 
 void Engine::onMemoryMonitorEvent()
 {
+    auto &mon = *d->monitoring;
     const auto memInfo = readMemInfo();
+    const auto pressure = readMemPressure();
+    if (memInfo.memTotalKiB <= 0)
+        return;
 
-    if (memInfo.memAvailablePercent < d->monitoring->prevMemAvailablePercent && memInfo.memAvailablePercent < 1.6
-        && d->monitoring->emergencyOOMStop) {
-        LOG_WARNING(d->log, "Less than 2% of system memory available and shrinking, commencing emergency stop.");
-        onModuleError(QStringLiteral(
-            "Emergency stop: We are low on system memory, and it is continuing to shrink rapidly.\n"
-            "To prevent Syntalos from being killed by the system and loosing data, this run has been stopped.\n"
-            "Please check your module setup to ensure modules are able to process incoming data fast enough.\n"
-            "Slow connections are currently highlighted in red. Depending on the setup complexity, upgrading the "
-            "system may also be a viable solution"));
+    const qint64 totalBytes = memInfo.memTotalKiB * 1024LL;
+    const qint64 availableBytes = memInfo.memAvailableKiB * 1024LL;
+    mon.memTrend.addSample(availableBytes);
+
+    // Thresholds relative to the total memory do not scale well between small and very large
+    // machines, so we combine them with absolute limits.
+    constexpr qint64 MiB = 1024LL * 1024LL;
+    const qint64 warnBytes = std::max(totalBytes / 20, 1024 * MiB);    // 5%
+    const qint64 criticalBytes = std::max(totalBytes / 50, 512 * MiB); // 2%
+    const qint64 floorBytes = std::max(totalBytes / 100, 256 * MiB);   // 1%
+
+    // Project the consumption trend: if we will run out of memory within the next few seconds,
+    // emergency-stop now to save the data we have.
+    constexpr double emergencySeconds = 15.0;
+    const double secondsLeft = mon.memTrend.secondsUntilDepleted();
+    const bool trendCritical = mon.memTrend.hasRate() && secondsLeft >= 0 && secondsLeft < emergencySeconds;
+
+    // sustained stalls on memory mean the system is thrashing, regardless of what MemAvailable says
+    const bool stalling = pressure.available && (pressure.someAvg10 >= 20.0 || pressure.fullAvg10 >= 10.0);
+
+    const bool memoryLow = availableBytes < warnBytes;
+    const bool memoryCritical = availableBytes < floorBytes || (availableBytes < criticalBytes && trendCritical);
+
+    QString details = QStringLiteral("%1 (%2%) of system memory remaining")
+                          .arg(formatByteSize(availableBytes))
+                          .arg(memInfo.memAvailablePercent, 0, 'f', 1);
+    if (mon.memTrend.hasRate() && secondsLeft > 0)
+        details += QStringLiteral(", exhausted in about %1 at the current rate").arg(formatApproxDuration(secondsLeft));
+    details += QStringLiteral(".");
+    if (memInfo.swapTotalKiB > 0)
+        details += QStringLiteral("\nSwap: %1 of %2 in use.")
+                       .arg(
+                           formatByteSize((memInfo.swapTotalKiB - memInfo.swapFreeKiB) * 1024LL),
+                           formatByteSize(memInfo.swapTotalKiB * 1024LL));
+
+    if (memoryCritical && mon.emergencyOOMStop) {
+        LOG_WARNING(
+            d->log,
+            "Only {} MiB of system memory available and shrinking rapidly,\ncommencing emergency stop.",
+            memInfo.memAvailableMiB);
+        onModuleError(
+            QStringLiteral(
+                "Emergency stop: We are low on system memory, and it is continuing to shrink rapidly.\n"
+                "To prevent Syntalos from being killed by the system and losing data, this run has been stopped.\n"
+                "Please check your module setup to ensure modules are able to process incoming data fast enough.\n"
+                "Slow connections are currently highlighted in red. Depending on the setup complexity, upgrading the "
+                "system may also be a viable solution.\n\n")
+            + details);
         d->runFailedReason = QStringLiteral("engine: Emergency stop due to low system memory.");
-    } else if (memInfo.memAvailablePercent < 5) {
-        // when we have less than 5% memory remaining, there usually still is (slower) swap space available,
-        // this is why 5% is relatively low.
-        // TODO: Be more clever here in future and check available swap space in advance for this warning?
-        Q_EMIT resourceWarningUpdate(
-            Memory,
-            false,
-            QStringLiteral("System memory is low. Only %1% remaining.").arg(memInfo.memAvailablePercent, 0, 'f', 1));
-        d->monitoring->memoryWarningEmitted = true;
-    } else {
-        if (d->monitoring->memoryWarningEmitted) {
-            Q_EMIT resourceWarningUpdate(
-                Memory,
-                true,
-                QStringLiteral("%1% of system memory remaining.").arg(memInfo.memAvailablePercent, 0, 'f', 1));
-            d->monitoring->memoryWarningEmitted = true;
-        }
+    } else if (memoryLow || stalling) {
+        QString message;
+        if (stalling)
+            message = QStringLiteral(
+                          "The system is under memory pressure:\nTasks stall waiting for memory %1% of the "
+                          "time. ")
+                          .arg(pressure.someAvg10, 0, 'f', 0);
+        else
+            message = QStringLiteral("System memory is low. ");
+        Q_EMIT resourceWarningUpdate(Memory, false, message + details);
+        mon.memoryWarningEmitted = true;
+    } else if (mon.memoryWarningEmitted) {
+        Q_EMIT resourceWarningUpdate(Memory, true, details);
+        mon.memoryWarningEmitted = false;
     }
 
-    d->monitoring->prevMemAvailablePercent = memInfo.memAvailablePercent;
+    // Reading the memory statistics is cheap, so poll faster while things look concerning
+    // to give the emergency stop a chance to react in time.
+    const bool concerning = memoryLow || stalling
+                            || (mon.memTrend.hasRate() && secondsLeft >= 0 && secondsLeft < 120.0);
+    if (concerning != mon.memFastPolling) {
+        mon.memFastPolling = concerning;
+        mon.memCheckTimer.setInterval(concerning ? MEM_CHECK_INTERVAL_FAST_MSEC : MEM_CHECK_INTERVAL_MSEC);
+    }
 }
 
 size_t Engine::guessStreamItemSizeBytes(VariantStreamSubscription *sub)
@@ -1651,16 +1692,16 @@ void Engine::startResourceMonitoring(QList<AbstractModule *> activeModules, cons
     // watcher for disk space
     d->monitoring->exportDirPath = exportDirPath;
     d->monitoring->diskSpaceWarningEmitted = false;
-    d->monitoring->prevDiskAvailable = -1;
-    d->monitoring->diskWriteRateBps = -1;
+    d->monitoring->diskTrend.reset();
     d->monitoring->diskSpaceCheckTimer.setInterval(30 * MS_PER_S); // check every 30sec
     connect(&d->monitoring->diskSpaceCheckTimer, &QTimer::timeout, this, &Engine::onDiskspaceMonitorEvent);
 
     // watcher for remaining system memory
-    d->monitoring->prevMemAvailablePercent = 100;
+    d->monitoring->memTrend.reset();
     d->monitoring->emergencyOOMStop = d->gconf->emergencyOOMStop();
     d->monitoring->memoryWarningEmitted = false;
-    d->monitoring->memCheckTimer.setInterval(5 * MS_PER_S); // check every 5sec
+    d->monitoring->memFastPolling = false;
+    d->monitoring->memCheckTimer.setInterval(MEM_CHECK_INTERVAL_MSEC);
     connect(&d->monitoring->memCheckTimer, &QTimer::timeout, this, &Engine::onMemoryMonitorEvent);
 
     // watcher for subscription buffer

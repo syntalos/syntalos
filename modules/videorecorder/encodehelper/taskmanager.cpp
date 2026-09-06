@@ -27,9 +27,7 @@
 #include <QDBusUnixFileDescriptor>
 #include <QDir>
 #include <QFileInfo>
-#include <QLocale>
 #include <QMessageBox>
-#include <QStorageInfo>
 #include <QThreadPool>
 #include <QTimer>
 #include <unistd.h>
@@ -37,6 +35,8 @@
 #include <algorithm>
 
 #include "encodetask.h"
+#include "utils/misc.h"
+#include "utils/resourceinfo.h"
 
 TaskManager::TaskManager(QueueModel *queue, QObject *parent)
     : QDBusAbstractAdaptor(parent),
@@ -131,8 +131,11 @@ QString TaskManager::checkDiskSpaceForPendingTasks() const
     const int parallelCount = std::max(m_threadPool->maxThreadCount(), 1);
 
     // collect source sizes per filesystem (the queue may hold videos of multiple runs)
-    QHash<QString, QList<qint64>> sizesByFs;
-    QHash<QString, QStorageInfo> storageByFs;
+    struct FsSpace {
+        Syntalos::DiskSpaceInfo disk;
+        QList<qint64> sizes;
+    };
+    QHash<quint64, FsSpace> spaceByFs;
     for (const auto &item : m_queue->queueItems()) {
         if (item->status() != QueueItem::WAITING)
             continue;
@@ -140,39 +143,40 @@ QString TaskManager::checkDiskSpaceForPendingTasks() const
         if (!fi.exists())
             continue;
 
-        const QStorageInfo storage(fi.absolutePath());
-        if (!storage.isValid() || !storage.isReady()) {
+        const auto disk = Syntalos::diskSpaceInfo(fi.absolutePath());
+        if (!disk.valid) {
             LOG_WARNING(m_log, "Unable to determine free disk space for '{}'", item->fname());
             continue;
         }
-        storageByFs.insert(storage.rootPath(), storage);
-        sizesByFs[storage.rootPath()].append(fi.size());
+        auto &fsSpace = spaceByFs[disk.deviceId];
+        fsSpace.disk = disk;
+        fsSpace.sizes.append(fi.size());
     }
 
     QStringList problems;
-    for (auto it = sizesByFs.constBegin(); it != sizesByFs.constEnd(); ++it) {
-        auto sizes = it.value();
+    for (auto &fsSpace : spaceByFs) {
+        auto &sizes = fsSpace.sizes;
         std::sort(sizes.begin(), sizes.end(), std::greater<>());
 
         qint64 required = 0;
         for (int i = 0; i < std::min(static_cast<int>(sizes.size()), parallelCount); ++i)
             required += sizes[i];
 
-        const auto &storage = storageByFs[it.key()];
-        const auto available = storage.bytesAvailable();
+        const auto available = fsSpace.disk.bytesAvailable;
         LOG_INFO(
             m_log,
             "Disk space on '{}': {} MB available, estimated {} MB needed for encoding",
-            it.key(),
+            fsSpace.disk.mountPoint,
             available / 1000 / 1000,
             required / 1000 / 1000);
         if (available < required) {
-            const QLocale locale;
-            problems.append(
-                QStringLiteral(
-                    "The disk mounted at '%1' has only %2 free, but encoding the queued videos "
-                    "may need up to %3 of temporary space.")
-                    .arg(it.key(), locale.formattedDataSize(available), locale.formattedDataSize(required)));
+            problems.append(QStringLiteral(
+                                "The disk mounted at '%1' has only %2 free, but encoding the queued videos "
+                                "may need up to %3 of temporary space.")
+                                .arg(
+                                    fsSpace.disk.mountPoint,
+                                    Syntalos::formatByteSize(available),
+                                    Syntalos::formatByteSize(required)));
         }
     }
 

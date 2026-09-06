@@ -235,6 +235,11 @@ void GlobalConfig::setMinFreeDiskSpaceGB(int gigabytes)
     m_s->setValue("engine/min_free_disk_space_gb", std::max(gigabytes, 1));
 }
 
+qint64 GlobalConfig::minFreeDiskSpaceBytes() const
+{
+    return static_cast<qint64>(minFreeDiskSpaceGB()) * 1000LL * 1000LL * 1000LL;
+}
+
 int GlobalConfig::diskSpaceWarnMinutes() const
 {
     return std::max(m_s->value("engine/disk_space_warn_minutes", 15).toInt(), 1);
