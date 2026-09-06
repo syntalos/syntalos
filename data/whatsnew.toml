@@ -1,6 +1,47 @@
 # What's-New entries shown after a Syntalos upgrade.
 
 [[entry]]
+version = "3.2.0"
+title = "Welcome to Syntalos 3.2!"
+body = """
+<p>Syntalos 3.2 focuses on recording accuracy, better diagnostics and
+protecting long runs from surprises. All existing projects continue to
+work, but if you record color video, please read the <em>Heads-up</em>
+section below.</p>
+
+<h3>What's new</h3>
+<ul>
+  <li>New <em>SpikeGLX</em> module to control a SpikeGLX instance on the network.</li>
+  <li>Video recording is now genuinely accurate: color frames can be stored
+      with exact pixel values, 16-bit grayscale is preserved, and AV1/VA-API
+      encoding was fixed.</li>
+  <li>Deferred encoding is faster and uses far less scratch space, as the
+      intermediate is now stored as FFVHuff instead of raw data.</li>
+  <li>Syntalos now estimates how much disk space your experiment will need
+      and warns you early – before a run fills up the drive.</li>
+  <li>A persistent log file is written for every session, viewable from
+      <em>Diagnostics → Logs</em>, which makes reporting problems much easier.</li>
+  <li>Quality-of-life improvements: Quick-open for recent projects, a nicer
+      layout for warnings at runtime, and more reliable memory-pressure detection.</li>
+  <li>... and many more changes and fixes!</li>
+</ul>
+
+<h3>Heads-up</h3>
+<p>Even a <em>lossless</em> color recording was never an exact copy of the
+camera frames: video codecs keep only a quarter of the color samples, so
+values could be off by up to 27 per channel. The new <em>exact colors</em>
+option in <em>Video Recorder</em> stores every pixel unchanged, at roughly
+twice the file size. Grayscale recordings were never affected.</p>
+<p>Video recording now rejects frames with an odd width or height before a
+run starts, as most codecs can not encode them and previously failed deep
+inside the encoder mid-run. If you crop or scale video, please check that
+the resulting dimensions are still sensible.</p>
+<p>Support for the SDK behind the <code>camera-tis</code> module has been
+discontinued by The Imaging Source. The module is disabled by default for
+builds from source, and will not be available on all platforms going forward.</p>
+"""
+
+[[entry]]
 version = "3.1.0"
 title = "Welcome to Syntalos 3.1!"
 body = """
