@@ -245,8 +245,13 @@ private:
 // only trust the disk rate estimate once the disk is actually being written to at a relevant pace
 static constexpr double DISK_MIN_RELEVANT_RATE_BPS = 100.0 * 1000.0; // 100 kB/s
 static constexpr double MEM_MIN_RELEVANT_RATE_BPS = 1024.0 * 1024.0; // 1 MiB/s
-static constexpr int MEM_CHECK_INTERVAL_MSEC = 5 * 1000;
+
+// Resource checks are cheap, but we still want to stay out of the way while everything is fine:
+// poll sparingly by default, and switch to a fast cadence only once we see resource pressure.
+static constexpr int MEM_CHECK_INTERVAL_MSEC = 10 * 1000;
 static constexpr int MEM_CHECK_INTERVAL_FAST_MSEC = 1000;
+static constexpr int DISK_CHECK_INTERVAL_MSEC = 60 * 1000;
+static constexpr int DISK_CHECK_INTERVAL_FAST_MSEC = 10 * 1000;
 
 class EngineResourceMonitorData
 {
@@ -270,6 +275,7 @@ public:
     QString exportDirPath;
 
     bool diskSpaceWarningEmitted;
+    bool diskFastPolling;
     bool memoryWarningEmitted;
     bool memFastPolling;
     bool subBufferWarningEmitted;
@@ -1491,6 +1497,13 @@ void Engine::onDiskspaceMonitorEvent()
         Q_EMIT resourceWarningUpdate(StorageSpace, true, message);
         mon.diskSpaceWarningEmitted = false;
     }
+
+    // poll faster once the disk is getting full, so the estimate keeps up with what is happening
+    const bool concerning = spaceLow || (rateKnown && secondsLeft < 2 * warnSeconds);
+    if (concerning != mon.diskFastPolling) {
+        mon.diskFastPolling = concerning;
+        mon.diskSpaceCheckTimer.setInterval(concerning ? DISK_CHECK_INTERVAL_FAST_MSEC : DISK_CHECK_INTERVAL_MSEC);
+    }
 }
 
 void Engine::onMemoryMonitorEvent()
@@ -1566,8 +1579,7 @@ void Engine::onMemoryMonitorEvent()
         mon.memoryWarningEmitted = false;
     }
 
-    // Reading the memory statistics is cheap, so poll faster while things look concerning
-    // to give the emergency stop a chance to react in time.
+    // poll faster while things look concerning, to give the emergency stop a chance to react in time
     const bool concerning = memoryLow || stalling
                             || (mon.memTrend.hasRate() && secondsLeft >= 0 && secondsLeft < 120.0);
     if (concerning != mon.memFastPolling) {
@@ -1693,7 +1705,8 @@ void Engine::startResourceMonitoring(QList<AbstractModule *> activeModules, cons
     d->monitoring->exportDirPath = exportDirPath;
     d->monitoring->diskSpaceWarningEmitted = false;
     d->monitoring->diskTrend.reset();
-    d->monitoring->diskSpaceCheckTimer.setInterval(30 * MS_PER_S); // check every 30sec
+    d->monitoring->diskFastPolling = false;
+    d->monitoring->diskSpaceCheckTimer.setInterval(DISK_CHECK_INTERVAL_MSEC);
     connect(&d->monitoring->diskSpaceCheckTimer, &QTimer::timeout, this, &Engine::onDiskspaceMonitorEvent);
 
     // watcher for remaining system memory
