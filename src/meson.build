@@ -48,6 +48,8 @@ syntalos_src = [
     'moduleselectdialog.cpp',
     'projectfile.h',
     'projectfile.cpp',
+    'projectmetrics.h',
+    'projectmetrics.cpp',
     'qmeta.h',
     'qmeta.cpp',
     'sysinfodialog.h',

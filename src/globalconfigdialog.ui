@@ -9,7 +9,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>783</width>
+    <width>780</width>
     <height>536</height>
    </rect>
   </property>
@@ -156,6 +156,52 @@
              </item>
              <item row="0" column="1">
               <widget class="QCheckBox" name="cbEmergencyOOMStop"/>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="minFreeDiskSpaceLabel">
+               <property name="toolTip">
+                <string>Warn before a run if less than this amount of disk space is available, and while a run is in progress if the free space drops below it.</string>
+               </property>
+               <property name="text">
+                <string>Minimum free disk space</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QSpinBox" name="sbMinFreeDiskSpace">
+               <property name="suffix">
+                <string> GB</string>
+               </property>
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>100000</number>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QLabel" name="diskSpaceWarnMinutesLabel">
+               <property name="toolTip">
+                <string>While a run is in progress, warn if the remaining disk space is estimated to last less than this many minutes at the current write rate.</string>
+               </property>
+               <property name="text">
+                <string>Warn if disk space lasts less than</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1">
+              <widget class="QSpinBox" name="sbDiskSpaceWarnMinutes">
+               <property name="suffix">
+                <string> min</string>
+               </property>
+               <property name="minimum">
+                <number>1</number>
+               </property>
+               <property name="maximum">
+                <number>1440</number>
+               </property>
+              </widget>
              </item>
             </layout>
            </widget>

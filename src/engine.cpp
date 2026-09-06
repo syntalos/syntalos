@@ -43,6 +43,7 @@
 #include <QDBusReply>
 #include <QDBusUnixFileDescriptor>
 #include <QDateTime>
+#include <QElapsedTimer>
 #include <QMessageBox>
 #include <QStandardPaths>
 #include <QStorageInfo>
@@ -62,6 +63,7 @@
 #include "globalconfig.h"
 #include "moduleeventthread.h"
 #include "networkcontroller.h"
+#include "projectmetrics.h"
 #include "modulelibrary.h"
 #include "mlinkmodule.h"
 #include "sysinfo.h"
@@ -70,6 +72,7 @@
 #include "datactl/edlstorage.h"
 #include "datactl/priv/cpuaffinity.h"
 #include "datactl/priv/rtkit.h"
+#include "utils/diskinfo.h"
 #include "utils/misc.h"
 #include "utils/tomlutils.h"
 #include "utils/meminfo.h"
@@ -263,6 +266,11 @@ public:
     double prevMemAvailablePercent;
     bool emergencyOOMStop;
 
+    // disk write rate estimation
+    qint64 prevDiskAvailable;
+    QElapsedTimer diskRateTimer;
+    double diskWriteRateBps; // smoothed, negative if unknown
+
     QTimer diskSpaceCheckTimer;
     QTimer memCheckTimer;
     QTimer subBufferCheckTimer;
@@ -285,6 +293,7 @@ public:
     bool initialized;
     SysInfo *sysInfo;
     GlobalConfig *gconf;
+    std::unique_ptr<ProjectMetrics> projectMetrics;
     QWidget *parentWidget;
     QList<AbstractModule *> presentModules;
     ModuleLibrary *modLibrary;
@@ -345,6 +354,7 @@ Engine::Engine(QWidget *parentWidget)
     d->log = getLogger("engine");
 
     d->gconf = new GlobalConfig(this);
+    d->projectMetrics = std::make_unique<ProjectMetrics>();
     d->saveInternal = false;
     d->sysInfo = SysInfo::get();
     d->exportDirIsValid = false;
@@ -477,6 +487,11 @@ ModuleLibrary *Engine::library() const
 SysInfo *Engine::sysInfo() const
 {
     return d->sysInfo;
+}
+
+void Engine::setProjectFileName(const QString &fname)
+{
+    d->projectMetrics->setProjectFile(fname);
 }
 
 QString Engine::exportBaseDir() const
@@ -1230,18 +1245,44 @@ bool Engine::run(const Uuid &recordIdOverride)
     // test for available disk space and readyness of device
     QStorageInfo storageInfo(d->exportBaseDir);
     if (storageInfo.isValid() && storageInfo.isReady()) {
-        auto mbAvailable = storageInfo.bytesAvailable() / 1000 / 1000;
-        LOG_INFO(d->log, "{} MB available in data export location", mbAvailable);
-        // TODO: Make the warning level configurable in global settings
-        if (mbAvailable < 8000) {
+        const qint64 available = storageInfo.bytesAvailable();
+        LOG_INFO(d->log, "{} MB available in data export location", available / 1000 / 1000);
+
+        // We have no idea how long the run will take, so this is a rough guess at best: We require
+        // at least the configured minimum, or - if we have seen this project run before - enough
+        // space for the largest of its recent runs plus some headroom.
+        const qint64 minFreeBytes = static_cast<qint64>(d->gconf->minFreeDiskSpaceGB()) * 1000LL * 1000LL * 1000LL;
+        qint64 requiredBytes = minFreeBytes;
+        const qint64 historyMaxBytes = d->projectMetrics->maxRunBytes();
+        const double historyRateBps = d->projectMetrics->lastRunWriteRateBps();
+        if (historyMaxBytes > 0)
+            requiredBytes = std::max(requiredBytes, static_cast<qint64>(historyMaxBytes * 1.5));
+
+        if (available < requiredBytes) {
+            QString details;
+            if (historyMaxBytes > 0) {
+                details = QStringLiteral("The largest recent run of this project produced %1 of data")
+                              .arg(formatByteSize(historyMaxBytes));
+                if (historyRateBps > 0)
+                    details += QStringLiteral(
+                                   ", and at the write rate of the previous run (%1/s) the free space would last %2")
+                                   .arg(
+                                       formatByteSize(qRound64(historyRateBps)),
+                                       formatApproxDuration(available / historyRateBps));
+                details += QStringLiteral(".");
+            } else {
+                details = QStringLiteral("This is less than the configured minimum of %1.")
+                              .arg(formatByteSize(minFreeBytes));
+            }
+
             auto reply = QMessageBox::question(
                 d->parentWidget,
                 QStringLiteral("Disk is almost full - Continue anyway?"),
                 QStringLiteral(
-                    "The disk '%1' is located on has low amounts of space available (< 8 GB). "
+                    "The disk '%1' is located on has only %2 of space available. %3\n\n"
                     "If this run generates more data than we have space for, it will fail (possibly "
                     "corrupting data). Continue anyway?")
-                    .arg(d->exportBaseDir),
+                    .arg(d->exportBaseDir, formatByteSize(available), details),
                 QMessageBox::Yes | QMessageBox::No);
             if (reply == QMessageBox::No)
                 return false;
@@ -1410,23 +1451,51 @@ void Engine::onDiskspaceMonitorEvent()
         LOG_WARNING(d->log, "Could not determine remaining free disk space: {}", e.what());
         return;
     }
+    const auto available = static_cast<qint64>(ssi.available);
 
-    const double mibAvailable = ssi.available / 1024.0 / 1024.0;
-    if (mibAvailable < 8192) {
-        Q_EMIT resourceWarningUpdate(
-            StorageSpace,
-            false,
-            QStringLiteral("Disk space is very low. Less than %1 GiB remaining.")
-                .arg(mibAvailable / 1024.0, 0, 'f', 1));
-        d->monitoring->diskSpaceWarningEmitted = true;
-    } else {
-        if (d->monitoring->diskSpaceWarningEmitted) {
-            Q_EMIT resourceWarningUpdate(
-                StorageSpace,
-                true,
-                QStringLiteral("%1 GiB of disk space remaining.").arg(mibAvailable / 1024.0, 0, 'f', 1));
-            d->monitoring->diskSpaceWarningEmitted = false;
+    // Estimate how fast the disk is filling up. We look at the change in free space rather than
+    // at what our own modules write, so anything else using the disk (like a still-running
+    // deferred video encoder) is accounted for as well.
+    auto &mon = *d->monitoring;
+    if (mon.prevDiskAvailable >= 0) {
+        const double elapsedSec = mon.diskRateTimer.restart() / 1000.0;
+        if (elapsedSec > 1.0) {
+            const double rate = std::max(0.0, static_cast<double>(mon.prevDiskAvailable - available) / elapsedSec);
+            mon.diskWriteRateBps = (mon.diskWriteRateBps < 0) ? rate : (0.5 * mon.diskWriteRateBps + 0.5 * rate);
         }
+    } else {
+        mon.diskRateTimer.start();
+    }
+    mon.prevDiskAvailable = available;
+
+    const qint64 minFreeBytes = static_cast<qint64>(d->gconf->minFreeDiskSpaceGB()) * 1000LL * 1000LL * 1000LL;
+    const double warnSeconds = d->gconf->diskSpaceWarnMinutes() * 60.0;
+
+    // only trust the rate estimate once the disk is actually being written to at a relevant pace
+    constexpr double minRelevantRateBps = 100.0 * 1000.0; // 100 kB/s
+    const bool rateKnown = mon.diskWriteRateBps >= minRelevantRateBps;
+    const double secondsLeft = rateKnown ? available / mon.diskWriteRateBps : -1;
+
+    const bool spaceLow = (available < minFreeBytes) || (rateKnown && secondsLeft < warnSeconds);
+    if (spaceLow) {
+        QString message;
+        if (rateKnown)
+            message = QStringLiteral("Disk space will last only %1 at the current write rate (%2/s).\n%3 remaining.")
+                          .arg(
+                              formatApproxDuration(secondsLeft),
+                              formatByteSize(qRound64(mon.diskWriteRateBps)),
+                              formatByteSize(available));
+        else
+            message = QStringLiteral("Disk space is very low. Only %1 remaining.").arg(formatByteSize(available));
+        Q_EMIT resourceWarningUpdate(StorageSpace, false, message);
+        mon.diskSpaceWarningEmitted = true;
+    } else if (mon.diskSpaceWarningEmitted) {
+        QString message = QStringLiteral("%1 of disk space remaining").arg(formatByteSize(available));
+        if (rateKnown)
+            message += QStringLiteral("\n(%1 at the current write rate)").arg(formatApproxDuration(secondsLeft));
+        message += QStringLiteral(".");
+        Q_EMIT resourceWarningUpdate(StorageSpace, true, message);
+        mon.diskSpaceWarningEmitted = false;
     }
 }
 
@@ -1582,7 +1651,9 @@ void Engine::startResourceMonitoring(QList<AbstractModule *> activeModules, cons
     // watcher for disk space
     d->monitoring->exportDirPath = exportDirPath;
     d->monitoring->diskSpaceWarningEmitted = false;
-    d->monitoring->diskSpaceCheckTimer.setInterval(60 * MS_PER_S); // check every 60sec
+    d->monitoring->prevDiskAvailable = -1;
+    d->monitoring->diskWriteRateBps = -1;
+    d->monitoring->diskSpaceCheckTimer.setInterval(30 * MS_PER_S); // check every 30sec
     connect(&d->monitoring->diskSpaceCheckTimer, &QTimer::timeout, this, &Engine::onDiskspaceMonitorEvent);
 
     // watcher for remaining system memory
@@ -2876,6 +2947,22 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
         // we made it: keep the export directory around (the failed-run guard
         // installed at the top of this function would otherwise wipe it).
         failedRunDirCleanup.dismiss();
+
+        // remember how much data this run produced, so we can make a better guess about
+        // disk space requirements the next time this project is run
+        if (!d->runIsEphemeral && !d->projectMetrics->projectFile().isEmpty()) {
+            ProjectRunMetrics metrics;
+            metrics.finished = QDateTime::currentDateTime();
+            metrics.bytesWritten = directoryTotalSize(exportDirPath);
+            metrics.durationSec = finishTimestamp / 1000.0;
+            metrics.success = !d->failed;
+            d->projectMetrics->recordRun(metrics);
+            LOG_INFO(
+                d->log,
+                "Run produced {} MB of data in {} sec",
+                metrics.bytesWritten / 1000 / 1000,
+                metrics.durationSec);
+        }
     }
 
     // ensure main thread CPU affinity is cleared

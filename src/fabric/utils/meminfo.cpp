@@ -51,6 +51,8 @@
 
 #include "fabric/logging.h"
 
+namespace Syntalos
+{
 /* Parse the contents of /proc/meminfo (in buf), return value of "name"
  * (example: MemTotal)
  * Returns -errno if the entry cannot be found. */
@@ -145,3 +147,5 @@ MemInfo readMemInfo()
 
     return m;
 }
+
+} // namespace Syntalos

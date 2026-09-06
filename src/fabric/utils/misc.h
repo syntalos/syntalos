@@ -151,3 +151,13 @@ QByteArray blake3HashForData(const QByteArray &data);
  * @brief Calculate the BLAKE3 hash for the given file.
  */
 auto blake3HashForFile(const QString &filename) -> std::expected<QByteArray, QString>;
+
+/**
+ * Format a byte count for display to humans.
+ */
+QString formatByteSize(qint64 bytes);
+
+/**
+ * Format a duration in seconds as a rough, human-readable time span.
+ */
+QString formatApproxDuration(double seconds);

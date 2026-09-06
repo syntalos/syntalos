@@ -1,8 +1,5 @@
 /*
- * Copyright (C) 2014 Jakob Unterwurzacher
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
- *
- * SPDX-License-Identifier: MIT or LGPL-3.0-or-later
+ * Copyright (C) 2024-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -22,15 +19,14 @@
 
 #pragma once
 
+#include <QString>
+
 namespace Syntalos
 {
 
-typedef struct {
-    long long memTotalKiB;
-    long long memAvailableMiB;
-    double memAvailablePercent;
-} MemInfo;
-
-MemInfo readMemInfo();
+/**
+ * Determine the total size of all regular files below the given directory.
+ */
+qint64 directoryTotalSize(const QString &path);
 
 } // namespace Syntalos

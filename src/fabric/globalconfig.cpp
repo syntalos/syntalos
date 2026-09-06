@@ -20,6 +20,8 @@
 #include "config.h"
 #include "globalconfig.h"
 
+#include <algorithm>
+
 #include <QDir>
 #include <QSettings>
 #include <QFileInfo>
@@ -221,6 +223,26 @@ bool GlobalConfig::emergencyOOMStop() const
 void GlobalConfig::setEmergencyOOMStop(bool enabled)
 {
     m_s->setValue("engine/emergency_oom_stop", enabled);
+}
+
+int GlobalConfig::minFreeDiskSpaceGB() const
+{
+    return std::max(m_s->value("engine/min_free_disk_space_gb", 8).toInt(), 1);
+}
+
+void GlobalConfig::setMinFreeDiskSpaceGB(int gigabytes)
+{
+    m_s->setValue("engine/min_free_disk_space_gb", std::max(gigabytes, 1));
+}
+
+int GlobalConfig::diskSpaceWarnMinutes() const
+{
+    return std::max(m_s->value("engine/disk_space_warn_minutes", 15).toInt(), 1);
+}
+
+void GlobalConfig::setDiskSpaceWarnMinutes(int minutes)
+{
+    m_s->setValue("engine/disk_space_warn_minutes", std::max(minutes, 1));
 }
 
 bool GlobalConfig::netControlEnabled() const

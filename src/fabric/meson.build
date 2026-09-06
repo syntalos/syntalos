@@ -47,6 +47,8 @@ syntalos_fabric_src = [
     'streams/subscriptionnotifier.h',
     'streams/subscriptionnotifier.cpp',
 
+    'utils/diskinfo.h',
+    'utils/diskinfo.cpp',
     'utils/meminfo.h',
     'utils/meminfo.cpp',
     'utils/misc.h',

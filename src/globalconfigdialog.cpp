@@ -54,6 +54,8 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent)
         ui->colorModeComboBox->setCurrentIndex(static_cast<int>(m_gc->appColorMode()));
     }
     ui->cbEmergencyOOMStop->setChecked(m_gc->emergencyOOMStop());
+    ui->sbMinFreeDiskSpace->setValue(m_gc->minFreeDiskSpaceGB());
+    ui->sbDiskSpaceWarnMinutes->setValue(m_gc->diskSpaceWarnMinutes());
     ui->cbNetEnabled->setChecked(m_gc->netControlEnabled());
     ui->sbNetControlPort->setValue(m_gc->netControlPort());
     ui->sbNetFeedbackPort->setValue(m_gc->netFeedbackPort());
@@ -106,6 +108,18 @@ void GlobalConfigDialog::on_cbEmergencyOOMStop_toggled(bool checked)
 {
     if (m_acceptChanges)
         m_gc->setEmergencyOOMStop(checked);
+}
+
+void GlobalConfigDialog::on_sbMinFreeDiskSpace_valueChanged(int value)
+{
+    if (m_acceptChanges)
+        m_gc->setMinFreeDiskSpaceGB(value);
+}
+
+void GlobalConfigDialog::on_sbDiskSpaceWarnMinutes_valueChanged(int value)
+{
+    if (m_acceptChanges)
+        m_gc->setDiskSpaceWarnMinutes(value);
 }
 
 void GlobalConfigDialog::on_cbNetEnabled_toggled(bool checked)

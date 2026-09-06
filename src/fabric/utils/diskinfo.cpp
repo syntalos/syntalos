@@ -1,8 +1,5 @@
 /*
- * Copyright (C) 2014 Jakob Unterwurzacher
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
- *
- * SPDX-License-Identifier: MIT or LGPL-3.0-or-later
+ * Copyright (C) 2024-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -20,17 +17,31 @@
  * along with this software.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#pragma once
+#include "diskinfo.h"
+
+#include <filesystem>
+
+#include "fabric/logging.h"
+
+namespace fs = std::filesystem;
 
 namespace Syntalos
 {
 
-typedef struct {
-    long long memTotalKiB;
-    long long memAvailableMiB;
-    double memAvailablePercent;
-} MemInfo;
-
-MemInfo readMemInfo();
+qint64 directoryTotalSize(const QString &path)
+{
+    qint64 total = 0;
+    std::error_code ec;
+    for (auto it =
+             fs::recursive_directory_iterator(path.toStdString(), fs::directory_options::skip_permission_denied, ec);
+         it != fs::recursive_directory_iterator();
+         it.increment(ec)) {
+        if (ec)
+            break;
+        if (it->is_regular_file(ec) && !it->is_symlink(ec))
+            total += static_cast<qint64>(it->file_size(ec));
+    }
+    return total;
+}
 
 } // namespace Syntalos

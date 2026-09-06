@@ -91,6 +91,12 @@ public:
     bool emergencyOOMStop() const;
     void setEmergencyOOMStop(bool enabled);
 
+    int minFreeDiskSpaceGB() const;
+    void setMinFreeDiskSpaceGB(int gigabytes);
+
+    int diskSpaceWarnMinutes() const;
+    void setDiskSpaceWarnMinutes(int minutes);
+
     bool netControlEnabled() const;
     void setNetControlEnabled(bool enabled);
 

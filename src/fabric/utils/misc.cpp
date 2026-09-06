@@ -261,3 +261,19 @@ auto blake3HashForFile(const QString &filename) -> std::expected<QByteArray, QSt
 
     return QByteArray(reinterpret_cast<const char *>(out), BLAKE3_OUT_LEN);
 }
+
+QString formatByteSize(qint64 bytes)
+{
+    return QLocale().formattedDataSize(bytes, 1, QLocale::DataSizeSIFormat);
+}
+
+QString formatApproxDuration(double seconds)
+{
+    if (seconds < 60)
+        return QStringLiteral("less than a minute");
+    if (seconds < 90 * 60)
+        return QStringLiteral("about %1 minutes").arg(qRound(seconds / 60.0));
+    if (seconds < 48 * 3600)
+        return QStringLiteral("about %1 hours").arg(seconds / 3600.0, 0, 'f', 1);
+    return QStringLiteral("about %1 days").arg(seconds / (24 * 3600.0), 0, 'f', 1);
+}

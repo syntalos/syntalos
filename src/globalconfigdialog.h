@@ -40,6 +40,8 @@ public:
 private slots:
     void on_colorModeComboBox_currentIndexChanged(int index);
     void on_cbEmergencyOOMStop_toggled(bool checked);
+    void on_sbMinFreeDiskSpace_valueChanged(int value);
+    void on_sbDiskSpaceWarnMinutes_valueChanged(int value);
     void on_cbNetEnabled_toggled(bool checked);
     void on_sbNetControlPort_valueChanged(int arg1);
     void on_sbNetFeedbackPort_valueChanged(int arg1);

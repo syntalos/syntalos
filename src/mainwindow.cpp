@@ -1254,8 +1254,10 @@ void MainWindow::setCurrentProjectFile(const QString &fileName)
 
         m_engine->netController()->setProjectId(QStringLiteral("new-project"));
         m_currentProjectFname = fileName;
+        m_engine->setProjectFileName(QString());
     } else {
         m_currentProjectFname = fileName;
+        m_engine->setProjectFileName(fileName);
         QFileInfo fi(fileName);
         this->setWindowTitle(QStringLiteral("Syntalos – %2").arg(fi.completeBaseName()));
         m_gconf->addRecentProject(fileName);

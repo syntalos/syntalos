@@ -92,6 +92,24 @@ test('sy-test-edlstorage',
 )
 
 #
+# Project Metrics Test
+#
+test_projectmetrics_moc_src = ['test-projectmetrics.cpp']
+test_projectmetrics_moc = qt.compile_moc(sources: test_projectmetrics_moc_src)
+test_projectmetrics_exe = executable('test-projectmetrics',
+    [test_projectmetrics_moc_src, test_projectmetrics_moc,
+     '../src/projectmetrics.cpp'],
+    include_directories: [include_directories('../src')],
+    dependencies: [syntalos_fabric_dep,
+                   qt_test_dep]
+)
+test('sy-test-projectmetrics',
+    test_projectmetrics_exe,
+    env: test_env,
+    is_parallel: true,
+)
+
+#
 # MetaValue tests
 #
 test_metavalue_moc_src = ['test-metavalue.cpp']

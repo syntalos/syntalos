@@ -58,6 +58,14 @@ public:
     ModuleLibrary *library() const;
     SysInfo *sysInfo() const;
 
+    /**
+     * @brief Set the file name of the currently loaded project.
+     *
+     * This is used to remember metrics (such as the amount of data produced)
+     * of previous runs of the same project. Pass an empty string for unsaved projects.
+     */
+    void setProjectFileName(const QString &fname);
+
     QString exportBaseDir() const;
     void setExportBaseDir(const QString &dataDir);
     bool exportDirIsTempDir() const;
