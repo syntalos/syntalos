@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -668,12 +668,6 @@ public:
         sub->setMetadata(m_metadata);
         m_subs.push_back(sub);
 
-        // suspend if we are dormant
-        if (m_explicitDormant)
-            sub->suspend();
-        else
-            sub->resume();
-
         return sub;
     }
 
@@ -734,10 +728,6 @@ public:
                 "inactive: {}",
                 streamDebugId());
             m_active = false;
-
-            // if this stream is dormant, then we suspend all subscribers
-            for (auto &sub : m_subs)
-                sub->suspend();
             return;
         }
 
@@ -832,15 +822,11 @@ public:
 
     void setDormant(bool dormant) override
     {
+        // NOTE: This intentionally does not touch the subscriptions. A dormant stream never
+        // pushes data, so there is nothing to suspend on the consumer side, and the suspension
+        // flag of a subscription belongs to its consumer (during a run) or the engine (between
+        // runs), never to the stream.
         m_explicitDormant = dormant;
-
-        // if this stream is dormant, then we suspend all subscribers
-        for (auto &sub : m_subs) {
-            if (dormant)
-                sub->suspend();
-            else
-                sub->resume();
-        }
     }
 
     [[nodiscard]] bool hasSubscribers() const override
