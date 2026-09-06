@@ -1301,6 +1301,20 @@ bool MLinkModule::registerOutPortForwarders()
             continue;
         }
 
+        // If every connected input port belongs to a module that will not run (disabled, or marked
+        // dormant by the engine before PREPARE), nobody will ever consume the forwarded data - skip
+        // the forwarder so we don't receive frames from the worker just to drop them again.
+        const bool allDormant = !subPorts.isEmpty()
+                                && std::all_of(subPorts.cbegin(), subPorts.cend(), [](const VarStreamInputPort *ip) {
+                                       const auto *owner = ip->owner();
+                                       return owner->state() == ModuleState::DORMANT
+                                              || !owner->modifiers().testFlag(ModuleModifier::ENABLED);
+                                   });
+        if (allDormant) {
+            LOG_INFO(m_log, "All destinations on {} are dormant, skipping forwarder registration.", oport->id());
+            continue;
+        }
+
         Private::OutPortSub ps;
         const auto topology = makeIpcServiceTopology(1, oport->streamVar()->subscriberCount());
         try {
