@@ -201,9 +201,17 @@ static bool vw_pixfmt_conversion_is_lossless(AVPixelFormat from, AVPixelFormat t
     if (fromRgb != toRgb)
         return false;
 
-    // we must neither subsample any plane nor lose bit depth or components
-    return toDesc->log2_chroma_w == fromDesc->log2_chroma_w && toDesc->log2_chroma_h == fromDesc->log2_chroma_h
-           && toDesc->comp[0].depth >= fromDesc->comp[0].depth && toDesc->nb_components >= fromDesc->nb_components;
+    // we must not lose bit depth or components
+    if (toDesc->comp[0].depth < fromDesc->comp[0].depth || toDesc->nb_components < fromDesc->nb_components)
+        return false;
+
+    // A grayscale source has no chroma to subsample: its single plane becomes the luma
+    // plane and the (constant) chroma planes of the target are simply filled in.
+    // Otherwise, the target must not subsample any plane the source has.
+    const bool fromHasChroma = !fromRgb && fromDesc->nb_components > 1;
+    if (!fromHasChroma)
+        return true;
+    return toDesc->log2_chroma_w == fromDesc->log2_chroma_w && toDesc->log2_chroma_h == fromDesc->log2_chroma_h;
 }
 
 /**

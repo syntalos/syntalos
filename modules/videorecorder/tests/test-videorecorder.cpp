@@ -33,6 +33,8 @@ private slots:
     void rawMatroskaRoundtrip();
     void ffvhuffMatroskaRoundtrip_data();
     void ffvhuffMatroskaRoundtrip();
+    void losslessGrayExactColors_data();
+    void losslessGrayExactColors();
 
 private:
     void matroskaRoundtrip(VideoCodec codec, AVCodecID expectedCodecId);
@@ -197,6 +199,55 @@ void TestVideoRecorder::matroskaRoundtrip(VideoCodec codec, AVCodecID expectedCo
         }
     }
     QVERIFY(!reader.readFrame().has_value());
+}
+
+void TestVideoRecorder::losslessGrayExactColors_data()
+{
+    QTest::addColumn<int>("codec");
+    QTest::addColumn<int>("depth");
+    QTest::addColumn<bool>("exact");
+
+    // Lossless encoders without a native grayscale format store gray frames as YUV 4:2:0.
+    // That is still bit-exact for 8-bit luma (the chroma planes are just filled in), but
+    // 16-bit data has to be truncated.
+    QTest::newRow("h264-gray8") << static_cast<int>(VideoCodec::H264) << CV_8U << true;
+    QTest::newRow("h264-gray16") << static_cast<int>(VideoCodec::H264) << CV_16U << false;
+    QTest::newRow("ffv1-gray8") << static_cast<int>(VideoCodec::FFV1) << CV_8U << true;
+    QTest::newRow("ffv1-gray16") << static_cast<int>(VideoCodec::FFV1) << CV_16U << true;
+}
+
+void TestVideoRecorder::losslessGrayExactColors()
+{
+    QFETCH(int, codec);
+    QFETCH(int, depth);
+    QFETCH(bool, exact);
+
+    if (codec == static_cast<int>(VideoCodec::H264) && avcodec_find_encoder_by_name("libx264") == nullptr)
+        QSKIP("libx264 encoder is not available");
+
+    QTemporaryDir tempDir;
+    QVERIFY(tempDir.isValid());
+
+    VideoWriter writer;
+    writer.setContainer(VideoContainer::Matroska);
+    CodecProperties codecProps(static_cast<VideoCodec>(codec));
+    codecProps.setLossless(true);
+    codecProps.setExactColors(true);
+    writer.setCodecProps(codecProps);
+    writer.initialize(
+        tempDir.filePath(QStringLiteral("gray")),
+        "test",
+        "source",
+        Uuid{},
+        "",
+        96,
+        64,
+        30.0,
+        depth,
+        false,
+        false);
+    QCOMPARE(writer.hasExactColors(), exact);
+    QVERIFY(writer.finalize().has_value());
 }
 
 QTEST_GUILESS_MAIN(TestVideoRecorder)
