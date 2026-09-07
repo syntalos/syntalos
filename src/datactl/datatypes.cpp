@@ -133,7 +133,13 @@ SignalBlockI32::SignalBlockI32(struct SignalBlockF32 &&src)
     // float(INT32_MAX) rounds up to 2^31 (out of range), so the safe upper
     // bound is the largest float that still fits, 2^31 - 128.
     constexpr float maxF = 2147483520.0f; // largest float <= INT32_MAX
-    data = src.data.array().isNaN().select(0.0f, src.data.array()).max(INT32_MIN).min(maxF).cast<int32_t>().matrix();
+    data = src.data.array()
+               .isNaN()
+               .select(0.0f, src.data.array())
+               .max(static_cast<float>(INT32_MIN))
+               .min(maxF)
+               .cast<int32_t>()
+               .matrix();
 }
 
 SignalBlockF32::SignalBlockF32(struct SignalBlockU16 &&src)
