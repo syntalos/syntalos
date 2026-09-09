@@ -19,6 +19,7 @@ apt-get update -qq
 . /etc/os-release
 if [ "$ID" = "debian" ] && [ "$VERSION_CODENAME" = "forky" ]; then
     eatmydata apt-get install -yq --no-install-recommends \
+        nlohmann-json3-dev \
         liblua5.3-dev \
         gobject-introspection \
         libgirepository1.0-dev \
