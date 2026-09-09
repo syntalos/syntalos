@@ -411,7 +411,9 @@ enum class LineModeFlag : uint32_t {
     NONE = 0,
     IS_INPUT = 1u << 0,  /// Line is an input
     IS_OUTPUT = 1u << 1, /// Line is an output
-    PULL_UP = 1u << 2    /// Input pull-up enabled (inputs only)
+    PULL_UP = 1u << 2,   /// Input pull-up enabled (inputs only)
+    PULL_DOWN = 1u << 3, /// Input pull-down enabled (inputs only)
+    ANALOG = 1u << 4     /// Line carries an analog value (ADC input / DAC or PWM output) instead of a digital level
 };
 
 using LineModeFlags = Flags<LineModeFlag>;

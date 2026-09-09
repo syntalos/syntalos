@@ -744,6 +744,8 @@ struct PyHwOutputLine {
     {
         LineCommand cmd(LineCommandKind::SET_MODE, _lineId);
         cmd.flags = LineModeFlag::IS_OUTPUT;
+        if (_analog)
+            cmd.flags |= LineModeFlag::ANALOG;
         _port._submit_typed_or_throw(cmd);
         return cmd;
     }
@@ -799,10 +801,12 @@ struct PyHwOutputLine {
  * consuming module's input port and are matched by line_id.
  */
 struct PyHwInputLine {
-    PyHwInputLine(OutputPort port, int lineId, bool pullup)
+    PyHwInputLine(OutputPort port, int lineId, bool pullup, bool pulldown, bool analog)
         : _port(std::move(port)),
           _lineId(static_cast<uint16_t>(lineId)),
-          _pullup(pullup)
+          _pullup(pullup),
+          _pulldown(pulldown),
+          _analog(analog)
     {
     }
 
@@ -812,6 +816,10 @@ struct PyHwInputLine {
         cmd.flags = LineModeFlag::IS_INPUT;
         if (_pullup)
             cmd.flags |= LineModeFlag::PULL_UP;
+        if (_pulldown)
+            cmd.flags |= LineModeFlag::PULL_DOWN;
+        if (_analog)
+            cmd.flags |= LineModeFlag::ANALOG;
         _port._submit_typed_or_throw(cmd);
         return cmd;
     }
@@ -819,6 +827,8 @@ struct PyHwInputLine {
     OutputPort _port;
     uint16_t _lineId;
     bool _pullup;
+    bool _pulldown;
+    bool _analog;
 };
 
 static uint64_t time_since_start_msec()
@@ -1082,7 +1092,12 @@ PYBIND11_MODULE(syntalos_mlink, m)
         .value("NONE", LineModeFlag::NONE)
         .value("IS_INPUT", LineModeFlag::IS_INPUT, "Line is an input.")
         .value("IS_OUTPUT", LineModeFlag::IS_OUTPUT, "Line is an output.")
-        .value("PULL_UP", LineModeFlag::PULL_UP, "Input pull-up resistor enabled (inputs only).");
+        .value("PULL_UP", LineModeFlag::PULL_UP, "Input pull-up resistor enabled (inputs only).")
+        .value("PULL_DOWN", LineModeFlag::PULL_DOWN, "Input pull-down resistor enabled (inputs only).")
+        .value(
+            "ANALOG",
+            LineModeFlag::ANALOG,
+            "Line carries an analog value (ADC input, or DAC/PWM output) instead of a digital level.");
 
     py::class_<LineCommand>(m, "LineCommand", "Command issued to a hardware signal line.")
         .def(py::init<>())
@@ -1254,7 +1269,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "\n"
             ":param port: The :class:`OutputPort` carrying :class:`LineCommand` messages.\n"
             ":param line_id: Hardware line / channel / pin number.\n"
-            ":param analog: ``True`` if this is an analog DAC output, ``False`` for digital (default).")
+            ":param analog: ``True`` if this is an analog (DAC or PWM) output, ``False`` for digital (default).")
         .def_readonly("line_id", &PyHwOutputLine::_lineId, "The hardware line ID this handle refers to.")
         .def(
             "send_mode",
@@ -1318,15 +1333,19 @@ PYBIND11_MODULE(syntalos_mlink, m)
         "downstream device; subsequent readings arrive as :class:`LineReading` messages\n"
         "on the consuming module's input port, matched by ``line_id``.")
         .def(
-            py::init<OutputPort, int, bool>(),
+            py::init<OutputPort, int, bool, bool, bool>(),
             py::arg("port"),
             py::arg("line_id"),
             py::arg("pullup") = false,
+            py::arg("pulldown") = false,
+            py::arg("analog") = false,
             "Construct an input-line handle.\n"
             "\n"
             ":param port: The :class:`OutputPort` carrying :class:`LineCommand` messages.\n"
             ":param line_id: Hardware line / channel / pin number.\n"
-            ":param pullup: ``True`` to enable the input pull-up resistor (default: ``False``).")
+            ":param pullup: ``True`` to enable the input pull-up resistor (default: ``False``).\n"
+            ":param pulldown: ``True`` to enable the input pull-down resistor (default: ``False``).\n"
+            ":param analog: ``True`` to configure an analog (ADC) input instead of a digital one.")
         .def_readonly("line_id", &PyHwInputLine::_lineId, "The hardware line ID this handle refers to.")
         .def(
             "send_mode",
