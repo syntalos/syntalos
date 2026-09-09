@@ -19,10 +19,16 @@
 
 #pragma once
 
-#include "miniscope.h"
+#include <miniscope/miniscope.h>
 #include <QWidget>
 
 class QSlider;
+
+#if __has_include(<miniscope.h>)
+using namespace MScope;
+#else
+using namespace Miniscope;
+#endif
 
 /**
  * @brief A simple widget to control Miniscope properties
@@ -31,7 +37,7 @@ class MSControlWidget : public QWidget
 {
     Q_OBJECT
 public:
-    explicit MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidget *parent = nullptr);
+    explicit MSControlWidget(const ControlDefinition &ctlDef, QWidget *parent = nullptr);
 
     QString controlId() const;
 
@@ -39,7 +45,7 @@ public:
     void setValue(double value);
 
 signals:
-    void valueChanged(const QString ctlId, double value);
+    void valueChanged(const QString &ctlId, double value);
 
 private slots:
     void recvSliderValueChange(int value);
