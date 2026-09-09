@@ -1630,6 +1630,9 @@ void SyntalosLink::removeInputPort(const std::shared_ptr<InputPortInfo> &iport)
     iport->d->ioxSub.reset();
     iport->d->connected = false;
     d->waitSetDirty = true;
+
+    // forget the port, so a port with the same ID can be registered again later
+    std::erase(d->inPortInfo, iport);
 }
 
 void SyntalosLink::removeOutputPort(const std::shared_ptr<OutputPortInfo> &oport)
@@ -1645,6 +1648,9 @@ void SyntalosLink::removeOutputPort(const std::shared_ptr<OutputPortInfo> &oport
     oport->d->ioxGuard.reset();
     oport->d->ioxPub.reset();
     d->waitSetDirty = true;
+
+    // forget the port, so a port with the same ID can be registered again later
+    std::erase(d->outPortInfo, oport);
 }
 
 void SyntalosLink::resetPorts()
@@ -1652,9 +1658,12 @@ void SyntalosLink::resetPorts()
     // Tear down every IPC publisher and subscriber.
     // WaitSet guards must be dropped before the publishers/subscribers they
     // guard are destroyed (iceoryx2 contract: guard must not outlive the WaitSet).
-    for (auto &op : d->outPortInfo)
+    // iterate over copies, as removing a port erases it from the list
+    const auto outPorts = d->outPortInfo;
+    for (const auto &op : outPorts)
         removeOutputPort(op);
-    for (auto &ip : d->inPortInfo)
+    const auto inPorts = d->inPortInfo;
+    for (const auto &ip : inPorts)
         removeInputPort(ip);
 
     d->outPortInfo.clear();
