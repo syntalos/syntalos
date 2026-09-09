@@ -21,14 +21,18 @@
 
 #include <QTimer>
 #include <QFile>
-#include <miniscope.h>
+#include <miniscope/miniscope.h>
 
 #include "miniscopesettingsdialog.h"
 #include "datactl/frametype.h"
 
 SYNTALOS_MODULE(MiniscopeModule)
 
+#if __has_include(<miniscope.h>)
 using namespace MScope;
+#else
+using namespace Miniscope;
+#endif
 
 class MiniscopeModule : public AbstractModule
 {

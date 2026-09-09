@@ -22,11 +22,15 @@
 
 #include <QMessageBox>
 #include <QVariant>
-#include <miniscope.h>
+#include <miniscope/miniscope.h>
 
 #include "mscontrolwidget.h"
 
+#if __has_include(<miniscope.h>)
 using namespace MScope;
+#else
+using namespace Miniscope;
+#endif
 
 MiniscopeSettingsDialog::MiniscopeSettingsDialog(MScope::Miniscope *mscope, QWidget *parent)
     : QDialog(parent),
