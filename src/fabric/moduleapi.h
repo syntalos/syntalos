@@ -848,6 +848,9 @@ protected:
     void raiseError(const char *message);
 
     void setStatusMessage(const QString &message);
+    void setStatusMessage(const std::string &message);
+    void setStatusMessage(const char *message);
+
     bool makeDirectory(const QString &dir);
     void appProcessEvents();
 

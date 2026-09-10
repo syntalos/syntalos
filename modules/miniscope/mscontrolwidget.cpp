@@ -26,6 +26,10 @@
 #include <QSpinBox>
 #include <QVBoxLayout>
 
+#include "utils/misc.h"
+
+using namespace Syntalos;
+
 MSControlWidget::MSControlWidget(const Miniscope::ControlDefinition &ctlDef, QWidget *parent)
     : QWidget(parent)
 {
@@ -36,7 +40,7 @@ MSControlWidget::MSControlWidget(const Miniscope::ControlDefinition &ctlDef, QWi
     layout->setSpacing(2);
 
     auto lblTitle = new QLabel(this);
-    lblTitle->setText(QString::fromStdString(ctlDef.name));
+    lblTitle->setText(qstr(ctlDef.name));
     layout->addWidget(lblTitle);
 
     if (ctlDef.kind == Miniscope::ControlKind::Selector) {
@@ -53,7 +57,7 @@ MSControlWidget::MSControlWidget(const Miniscope::ControlDefinition &ctlDef, QWi
         selLayout->addWidget(m_slider, 0, 0, 1, valuesCount);
 
         for (size_t i = 0; i < valuesCount; ++i) {
-            const auto lbl = new QLabel(QStringLiteral("<html><i>%1</i>").arg(ctlDef.labels[i]), sc);
+            const auto lbl = new QLabel(QStringLiteral("<html><i>%1</i>").arg(qstr(ctlDef.labels[i])), sc);
             if (i == 0)
                 lbl->setAlignment(Qt::AlignLeft);
             else if (i == valuesCount - 1)
@@ -115,5 +119,5 @@ void MSControlWidget::setValue(double value)
 
 void MSControlWidget::recvSliderValueChange(int value)
 {
-    Q_EMIT valueChanged(QString::fromStdString(m_controlId), value);
+    Q_EMIT valueChanged(qstr(m_controlId), value);
 }

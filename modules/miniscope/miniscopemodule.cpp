@@ -25,6 +25,7 @@
 
 #include "miniscopesettingsdialog.h"
 #include "datactl/frametype.h"
+#include "utils/misc.h"
 
 SYNTALOS_MODULE(MiniscopeModule)
 
@@ -90,7 +91,7 @@ public:
 
         // show status messages
         m_miniscope->setOnStatusMessage([&](const std::string &msg, void *) {
-            setStatusMessage(QString::fromStdString(msg));
+            setStatusMessage(msg);
         });
     }
 
@@ -306,7 +307,7 @@ public:
             timestamp = 0;
 
         QTextStream tsout(self->m_valChangeLogFile);
-        tsout << timestamp << ";" << QString::fromStdString(id) << ";" << dispValue << ";" << devValue << ";"
+        tsout << timestamp << ";" << qstr(id) << ";" << dispValue << ";" << devValue << ";"
               << "\n";
     }
 
@@ -345,7 +346,7 @@ public:
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
     {
         settings.insert("scope_cam_id", m_miniscope->scopeCamId());
-        settings.insert("device_type", QString::fromStdString(m_miniscope->deviceType()));
+        settings.insert("device_type", qstr(m_miniscope->deviceType()));
         settings.insert("orientation_indicator", m_miniscope->isBNOIndicatorVisible());
     }
 

@@ -1425,6 +1425,16 @@ void AbstractModule::setStatusMessage(const QString &message)
     Q_EMIT statusMessage(message);
 }
 
+void AbstractModule::setStatusMessage(const std::string &message)
+{
+    setStatusMessage(QString::fromStdString(message));
+}
+
+void AbstractModule::setStatusMessage(const char *message)
+{
+    setStatusMessage(QString::fromUtf8(message));
+}
+
 void AbstractModule::setTimer(std::shared_ptr<SyncTimer> timer)
 {
     m_syTimer = timer;

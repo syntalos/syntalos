@@ -114,7 +114,7 @@ public:
 
         // open writer
         if (!m_tsWriter.open(name().toStdString(), dstore->collectionId(), userData)) {
-            raiseError(QStringLiteral("Unable to open timesync file %1").arg(qstr(m_tsWriter.fileName())));
+            raiseError(std::format("Unable to open timesync file {}", m_tsWriter.fileName()));
             return false;
         }
 
@@ -139,8 +139,7 @@ public:
         r = clock_gettime(CLOCK_MONOTONIC, &ts);
         if (G_UNLIKELY(r != 0)) {
             m_running = false;
-            raiseError(QStringLiteral("Unable to obtain initial monotonic clock time: %1")
-                           .arg(QString::fromStdString(std::strerror(errno))));
+            raiseError(std::format("Unable to obtain initial monotonic clock time: {}", std::strerror(errno)));
             return;
         }
         ts = timespecAdd(ts, m_interval);
@@ -153,22 +152,20 @@ public:
                 r = clock_gettime(CLOCK_MONOTONIC, &ts);
                 if (G_UNLIKELY(r != 0)) {
                     m_running = false;
-                    raiseError(QStringLiteral("Unable to obtain monotonic clock time: %1")
-                                   .arg(QString::fromStdString(std::strerror(errno))));
+                    raiseError(std::format("Unable to obtain monotonic clock time: {}", std::strerror(errno)));
                     break;
                 }
                 continue;
             }
             if (G_UNLIKELY(r != 0)) {
                 m_running = false;
-                raiseError(QStringLiteral("Unable to nanosleep: %1").arg(QString::fromStdString(std::strerror(errno))));
+                raiseError(std::format("Unable to nanosleep: {}", std::strerror(errno)));
                 break;
             }
             r = clock_gettime(CLOCK_MONOTONIC, &ts);
             if (G_UNLIKELY(r != 0)) {
                 m_running = false;
-                raiseError(QStringLiteral("Unable to obtain monotonic clock time: %1")
-                               .arg(QString::fromStdString(std::strerror(errno))));
+                raiseError(std::format("Unable to obtain monotonic clock time: {}", std::strerror(errno)));
                 break;
             }
 

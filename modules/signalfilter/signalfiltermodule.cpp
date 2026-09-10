@@ -480,7 +480,7 @@ private:
         if (!m_pipeline.isBuiltFor(nCols)) {
             std::string err;
             if (!m_pipeline.build(nCols, maskFor(nCols), &err)) {
-                raiseError(QStringLiteral("Failed to construct filter: %1").arg(QString::fromStdString(err)));
+                raiseError(std::format("Failed to construct filter: {}", err));
                 return;
             }
         }

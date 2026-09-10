@@ -165,7 +165,7 @@ public:
             auto sample = safeReceive(*subStatusMsg);
             if (!sample.has_value())
                 break;
-            self->setStatusMessage(QString::fromUtf8(sample->payload().text.unchecked_access().c_str()));
+            self->setStatusMessage(sample->payload().text.unchecked_access().c_str());
         }
     }
 
@@ -286,8 +286,10 @@ public:
         auto maybeReq = client.loan_uninit();
         if (!maybeReq.has_value()) {
             self->raiseError(
-                QStringLiteral("Failed to loan shared memory for request on channel '%1': %2")
-                    .arg(qstr(channel), QString::fromUtf8(iox2::bb::into<const char *>(maybeReq.error()))));
+                std::format(
+                    "Failed to loan shared memory for request on channel '{}': {}",
+                    channel,
+                    iox2::bb::into<const char *>(maybeReq.error())));
             return std::nullopt;
         }
         auto pendingReq = std::move(maybeReq).value();
@@ -295,8 +297,11 @@ public:
         fillReqFn(pendingReq.payload_mut());
         auto sendRes = iox2::send(iox2::assume_init(std::move(pendingReq)));
         if (!sendRes.has_value()) {
-            self->raiseError(QStringLiteral("Failed to send request on channel '%1': %2")
-                                 .arg(qstr(channel), qstr(iox2::bb::into<const char *>(sendRes.error()))));
+            self->raiseError(
+                std::format(
+                    "Failed to send request on channel '{}': {}",
+                    channel,
+                    iox2::bb::into<const char *>(sendRes.error())));
             return std::nullopt;
         }
         auto pending = std::move(sendRes).value();
@@ -309,8 +314,11 @@ public:
 
             auto maybeResponse = pending.receive();
             if (!maybeResponse.has_value()) {
-                self->raiseError(QStringLiteral("Failed to receive response on channel '%1': %2")
-                                     .arg(qstr(channel), qstr(iox2::bb::into<const char *>(maybeResponse.error()))));
+                self->raiseError(
+                    std::format(
+                        "Failed to receive response on channel '{}': {}",
+                        channel,
+                        iox2::bb::into<const char *>(maybeResponse.error())));
                 return std::nullopt;
             }
             auto response = std::move(maybeResponse).value();
@@ -327,7 +335,7 @@ public:
 
             if (timer.elapsed() > timeoutSec * 1000) {
                 if (flags.testFlag(IpcCallFlag::TimeoutIsError))
-                    self->raiseError(QStringLiteral("Timeout while waiting for response on: %1").arg(qstr(channel)));
+                    self->raiseError(std::format("Timeout while waiting for response on: {}", channel));
                 return std::nullopt;
             }
 
@@ -380,16 +388,22 @@ public:
         const auto bytes = reqEntity.toBytes();
         auto maybeSlice = client.loan_slice_uninit(static_cast<uint64_t>(bytes.size()));
         if (!maybeSlice.has_value()) {
-            self->raiseError(QStringLiteral("Failed to loan shared memory for request on '%1': %2")
-                                 .arg(qstr(channel), iox2::bb::into<const char *>(maybeSlice.error())));
+            self->raiseError(
+                std::format(
+                    "Failed to loan shared memory for request on '{}': {}",
+                    channel,
+                    iox2::bb::into<const char *>(maybeSlice.error())));
             return false;
         }
         auto rawSlice = std::move(maybeSlice).value();
         std::memmove(rawSlice.payload_mut().data(), bytes.data(), bytes.size());
         auto sendRes = iox2::send(iox2::assume_init(std::move(rawSlice)));
         if (!sendRes.has_value()) {
-            self->raiseError(QStringLiteral("Failed to send request on '%1': %2")
-                                 .arg(qstr(channel), qstr(iox2::bb::into<const char *>(sendRes.error()))));
+            self->raiseError(
+                std::format(
+                    "Failed to send request on '{}': {}",
+                    channel,
+                    iox2::bb::into<const char *>(sendRes.error())));
             return false;
         }
         auto pending = std::move(sendRes).value();
@@ -406,8 +420,11 @@ public:
             }
             auto maybeResponse = pending.receive();
             if (!maybeResponse.has_value()) {
-                self->raiseError(QStringLiteral("Failed to receive response on '%1': %2")
-                                     .arg(qstr(channel), qstr(iox2::bb::into<const char *>(maybeResponse.error()))));
+                self->raiseError(
+                    std::format(
+                        "Failed to receive response on '{}': {}",
+                        channel,
+                        iox2::bb::into<const char *>(maybeResponse.error())));
                 return false;
             }
             auto response = std::move(maybeResponse).value();
@@ -424,7 +441,7 @@ public:
 
             if (timer.elapsed() > timeoutSec * 1000) {
                 if (flags.testFlag(IpcCallFlag::TimeoutIsError))
-                    self->raiseError(QStringLiteral("Timeout while waiting for response on: %1").arg(qstr(channel)));
+                    self->raiseError(std::format("Timeout while waiting for response on: {}", channel));
                 return false;
             }
 
@@ -450,16 +467,22 @@ public:
         const auto bytes = reqEntity.toBytes();
         auto maybeSlice = client.loan_slice_uninit(static_cast<uint64_t>(bytes.size()));
         if (!maybeSlice.has_value()) {
-            self->raiseError(QStringLiteral("Failed to loan shared memory for request on '%1': %2")
-                                 .arg(qstr(channel), iox2::bb::into<const char *>(maybeSlice.error())));
+            self->raiseError(
+                std::format(
+                    "Failed to loan shared memory for request on '{}': {}",
+                    channel,
+                    iox2::bb::into<const char *>(maybeSlice.error())));
             return std::nullopt;
         }
         auto rawSlice = std::move(maybeSlice).value();
         std::memmove(rawSlice.payload_mut().data(), bytes.data(), bytes.size());
         auto sendRes = iox2::send(iox2::assume_init(std::move(rawSlice)));
         if (!sendRes.has_value()) {
-            self->raiseError(QStringLiteral("Failed to send request on '%1': %2")
-                                 .arg(qstr(channel), qstr(iox2::bb::into<const char *>(sendRes.error()))));
+            self->raiseError(
+                std::format(
+                    "Failed to send request on '{}': {}",
+                    channel,
+                    iox2::bb::into<const char *>(sendRes.error())));
             return std::nullopt;
         }
         auto pending = std::move(sendRes).value();
@@ -477,8 +500,11 @@ public:
 
             auto maybeResponse = pending.receive();
             if (!maybeResponse.has_value()) {
-                self->raiseError(QStringLiteral("Failed to receive response on '%1': %2")
-                                     .arg(qstr(channel), qstr(iox2::bb::into<const char *>(maybeResponse.error()))));
+                self->raiseError(
+                    std::format(
+                        "Failed to receive response on '{}': {}",
+                        channel,
+                        iox2::bb::into<const char *>(maybeResponse.error())));
                 return std::nullopt;
             }
             auto response = std::move(maybeResponse).value();
@@ -497,7 +523,7 @@ public:
 
             if (timer.elapsed() > timeoutSec * 1000) {
                 if (flags.testFlag(IpcCallFlag::TimeoutIsError))
-                    self->raiseError(QStringLiteral("Timeout while waiting for response on: %1").arg(qstr(channel)));
+                    self->raiseError(std::format("Timeout while waiting for response on: {}", channel));
                 return std::nullopt;
             }
 
@@ -1073,7 +1099,7 @@ bool MLinkModule::runProcess()
     try {
         resetConnection();
     } catch (const std::exception &e) {
-        raiseError(QStringLiteral("Failed to set up module IPC connection: %1").arg(e.what()));
+        raiseError(std::format("Failed to set up module IPC connection: {}", e.what()));
         return false;
     }
 

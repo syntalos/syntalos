@@ -25,7 +25,9 @@
 #include <miniscope/miniscope.h>
 
 #include "mscontrolwidget.h"
+#include "utils/misc.h"
 
+using namespace Syntalos;
 using namespace Miniscope;
 
 MiniscopeSettingsDialog::MiniscopeSettingsDialog(Miniscope::Miniscope *mscope, QWidget *parent)
@@ -46,7 +48,7 @@ MiniscopeSettingsDialog::MiniscopeSettingsDialog(Miniscope::Miniscope *mscope, Q
 
     // register available Miniscope types
     for (const auto &s : m_mscope->availableDeviceTypes())
-        ui->deviceTypeCB->addItem(QString::fromStdString(s));
+        ui->deviceTypeCB->addItem(qstr(s));
 
     // register available view modes
     ui->viewModeCB->addItem(QStringLiteral("Raw Data"), QVariant::fromValue(DisplayMode::RawFrames));
@@ -69,7 +71,7 @@ void MiniscopeSettingsDialog::readCurrentValues()
     ui->sbCamId->setValue(m_mscope->scopeCamId());
     updateCurrentDeviceName();
     ui->accAlphaSpinBox->setValue(m_mscope->bgAccumulateAlpha());
-    setDeviceType(QString::fromStdString(m_mscope->deviceType()));
+    setDeviceType(qstr(m_mscope->deviceType()));
 
     for (const auto &w : m_controls)
         w->setValue(m_mscope->controlValue(w->controlId()));
@@ -138,10 +140,7 @@ void MiniscopeSettingsDialog::on_deviceTypeCB_currentIndexChanged(int index)
 
     // load new controls
     if (const auto res = m_mscope->loadDeviceConfig(ui->deviceTypeCB->currentText().toStdString()); !res) {
-        QMessageBox::critical(
-            this,
-            "Error",
-            QString("Unable to load device configuration: %1").arg(QString::fromStdString(res.error())));
+        QMessageBox::critical(this, "Error", QString("Unable to load device configuration: %1").arg(qstr(res.error())));
         return;
     }
 
@@ -166,7 +165,7 @@ void MiniscopeSettingsDialog::on_sbCamId_valueChanged(int arg1)
     auto vdevName = videoDeviceNameFromId(arg1);
     if (vdevName.empty())
         vdevName = "unknown or invalid";
-    ui->camInfoLabel->setText(QStringLiteral("➞ %1").arg(QString::fromStdString(vdevName)));
+    ui->camInfoLabel->setText(QStringLiteral("➞ %1").arg(qstr(vdevName)));
 }
 
 void MiniscopeSettingsDialog::on_cbExtRecTrigger_toggled(bool checked)

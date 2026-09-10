@@ -386,7 +386,7 @@ public:
                         useColor,
                         m_settingsDialog->saveTimestamps());
                 } catch (const std::runtime_error &e) {
-                    raiseError(QStringLiteral("Unable to initialize recording: %1").arg(e.what()));
+                    raiseError(std::format("Unable to initialize recording: {}", e.what()));
                     m_recordingFinished = true;
                     return;
                 }
@@ -430,8 +430,8 @@ public:
                 if (!m_videoWriter->startNewSection(QStringLiteral("%1%2").arg(
                         QString::fromStdString(vidSavePathBase),
                         QString::fromStdString(currentSecSuffix)))) {
-                    raiseError(QStringLiteral("Unable to initialize recording of a new section: %1")
-                                   .arg(QString::fromStdString(m_videoWriter->lastError())));
+                    raiseError(
+                        std::format("Unable to initialize recording of a new section: {}", m_videoWriter->lastError()));
                     m_running = false;
                     m_recordingFinished = true;
                     break;
@@ -443,7 +443,7 @@ public:
                 if (m_videoWriter->lastError().empty())
                     raiseError(QStringLiteral("Unable to encode frame"));
                 else
-                    raiseError(QString::fromStdString(m_videoWriter->lastError()));
+                    raiseError(m_videoWriter->lastError());
                 m_running = false;
                 m_recordingFinished = true;
                 break;
@@ -533,10 +533,11 @@ public:
         // actual data- and aux file parts.
         const auto dsSaveRes = m_vidDataset->save();
         if (!dsSaveRes) {
-            raiseError(QStringLiteral(
-                           "Unable to save video dataset prior to deferred encoding, so no encoding jobs "
-                           "were scheduled. Videos of this run will remain unencoded. Message: %1")
-                           .arg(QString::fromStdString(dsSaveRes.error())));
+            raiseError(
+                std::format(
+                    "Unable to save video dataset prior to deferred encoding, so no encoding jobs "
+                    "were scheduled. Videos of this run will remain unencoded. Message: {}",
+                    dsSaveRes.error()));
             return;
         }
 
@@ -585,11 +586,12 @@ public:
             const auto res = m_videoWriter->finalize();
             if (!res) {
                 finalizeOk = false;
-                raiseError(QStringLiteral(
-                               "Failed to finalize the recorded video file: %1\n"
-                               "The intermediate video data has been left on disk for manual recovery, but deferred "
-                               "encoding will be skipped to avoid processing a potentially corrupt file.")
-                               .arg(QString::fromStdString(res.error())));
+                raiseError(
+                    std::format(
+                        "Failed to finalize the recorded video file: {}\n"
+                        "The intermediate video data has been left on disk for manual recovery, but deferred "
+                        "encoding will be skipped to avoid processing a potentially corrupt file.",
+                        res.error()));
             }
         }
 

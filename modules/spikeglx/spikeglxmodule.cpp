@@ -490,7 +490,7 @@ public:
                 port,
                 std::chrono::milliseconds(m_settingsDlg->connectTimeoutMs()));
             !r) {
-            raiseError(QStringLiteral("Unable to connect to SpikeGLX: %1").arg(qstr(r.error())));
+            raiseError(std::format("Unable to connect to SpikeGLX: {}", r.error()));
             return false;
         }
         LOG_INFO(m_log, "Connected to {} on {}:{}", m_client.version(), host, port);
@@ -645,7 +645,7 @@ public:
             if (!si->serial.isEmpty())
                 userData.insert("serial", si->serial.toStdString());
             if (!ss.writer->open(name().toStdString(), m_dataset->collectionId(), userData)) {
-                raiseError(QStringLiteral("Unable to open time-sync file: %1").arg(qstr(ss.writer->lastError())));
+                raiseError(std::format("Unable to open time-sync file: {}", ss.writer->lastError()));
                 return false;
             }
             m_syncStreams.push_back(std::move(ss));
@@ -1102,7 +1102,7 @@ public:
             Sglx::Client::Result<void> r;
             const auto ts = FUNC_EXEC_TIMESTAMP(startTime, r = m_client.setRecordingEnable(true));
             if (!r) {
-                raiseError(QStringLiteral("Unable to enable recording in SpikeGLX: %1").arg(qstr(r.error())));
+                raiseError(std::format("Unable to enable recording in SpikeGLX: {}", r.error()));
                 failed = true;
             } else {
                 gateOpened = true;
