@@ -157,15 +157,15 @@ public:
         // (we do something ugly here and keep a working connection in the background,
         // as reconnecting a DAQ box that has already been connected once frequently fails)
         if (!m_miniscope->isConnected()) {
-            if (!m_miniscope->connect()) {
-                raiseError(m_miniscope->lastError());
+            if (const auto res = m_miniscope->connect(); !res) {
+                raiseError(res.error());
                 return false;
             }
         }
 
         // we already start capturing video here, and only start emitting frames later
-        if (!m_miniscope->run()) {
-            raiseError(m_miniscope->lastError());
+        if (const auto res = m_miniscope->run(); !res) {
+            raiseError(res.error());
             return false;
         }
 
@@ -313,8 +313,8 @@ public:
     void checkMSStatus()
     {
         if (!m_miniscope->isRunning()) {
-            if (!m_miniscope->lastError().empty()) {
-                raiseError(m_miniscope->lastError());
+            if (const auto error = m_miniscope->lastError()) {
+                raiseError(error.value());
                 m_evTimer->stop();
                 return;
             }

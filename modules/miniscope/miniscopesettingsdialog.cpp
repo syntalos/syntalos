@@ -137,11 +137,11 @@ void MiniscopeSettingsDialog::on_deviceTypeCB_currentIndexChanged(int index)
     m_controls.clear();
 
     // load new controls
-    if (!m_mscope->loadDeviceConfig(ui->deviceTypeCB->currentText().toStdString())) {
+    if (const auto res = m_mscope->loadDeviceConfig(ui->deviceTypeCB->currentText().toStdString()); !res) {
         QMessageBox::critical(
             this,
             "Error",
-            QString("Unable to load device configuration: %1").arg(m_mscope->lastError()));
+            QString("Unable to load device configuration: %1").arg(QString::fromStdString(res.error())));
         return;
     }
 
