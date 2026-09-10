@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -28,11 +28,7 @@
 
 SYNTALOS_MODULE(MiniscopeModule)
 
-#if __has_include(<miniscope.h>)
-using namespace MScope;
-#else
 using namespace Miniscope;
-#endif
 
 class MiniscopeModule : public AbstractModule
 {
@@ -51,7 +47,7 @@ private:
     bool m_acceptFrames;
     uint64_t m_recFrameCount;
 
-    MScope::Miniscope *m_miniscope;
+    Miniscope::Miniscope *m_miniscope;
     QFile *m_valChangeLogFile;
     MiniscopeSettingsDialog *m_settingsDialog;
 
@@ -76,7 +72,7 @@ public:
 
         m_valChangeLogFile = new QFile();
 
-        m_miniscope = new Miniscope();
+        m_miniscope = new Miniscope::Miniscope();
         m_settingsDialog = new MiniscopeSettingsDialog(m_miniscope);
         m_settingsDialog->setWindowIcon(modInfo->icon());
         addSettingsWindow(m_settingsDialog);
@@ -93,8 +89,8 @@ public:
         connect(m_evTimer, &QTimer::timeout, this, &MiniscopeModule::checkMSStatus);
 
         // show status messages
-        m_miniscope->setOnStatusMessage([&](const QString &msg, void *) {
-            setStatusMessage(msg);
+        m_miniscope->setOnStatusMessage([&](const std::string &msg, void *) {
+            setStatusMessage(QString::fromStdString(msg));
         });
     }
 
@@ -299,7 +295,7 @@ public:
         self->m_dispOut->push(Frame(mat, msecToUsec(time)));
     }
 
-    static void on_controlValueChanged(const QString &id, double dispValue, double devValue, void *udata)
+    static void on_controlValueChanged(const std::string &id, double dispValue, double devValue, void *udata)
     {
         const auto self = static_cast<MiniscopeModule *>(udata);
         if (!self->m_valChangeLogFile->isOpen())
@@ -310,14 +306,14 @@ public:
             timestamp = 0;
 
         QTextStream tsout(self->m_valChangeLogFile);
-        tsout << timestamp << ";" << id << ";" << dispValue << ";" << devValue << ";"
+        tsout << timestamp << ";" << QString::fromStdString(id) << ";" << dispValue << ";" << devValue << ";"
               << "\n";
     }
 
     void checkMSStatus()
     {
         if (!m_miniscope->isRunning()) {
-            if (!m_miniscope->lastError().isEmpty()) {
+            if (!m_miniscope->lastError().empty()) {
                 raiseError(m_miniscope->lastError());
                 m_evTimer->stop();
                 return;
@@ -349,7 +345,7 @@ public:
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
     {
         settings.insert("scope_cam_id", m_miniscope->scopeCamId());
-        settings.insert("device_type", m_miniscope->deviceType());
+        settings.insert("device_type", QString::fromStdString(m_miniscope->deviceType()));
         settings.insert("orientation_indicator", m_miniscope->isBNOIndicatorVisible());
     }
 

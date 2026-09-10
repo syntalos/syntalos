@@ -1369,6 +1369,16 @@ void AbstractModule::raiseError(const QString &message)
     Q_EMIT error(message);
 }
 
+void AbstractModule::raiseError(const std::string &message)
+{
+    raiseError(QString::fromStdString(message));
+}
+
+void AbstractModule::raiseError(const char *message)
+{
+    raiseError(QString::fromUtf8(message));
+}
+
 void AbstractModule::setSimpleStorageNames(bool enabled)
 {
     d->simpleStorageNames = enabled;

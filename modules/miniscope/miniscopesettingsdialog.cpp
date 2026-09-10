@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -26,13 +26,9 @@
 
 #include "mscontrolwidget.h"
 
-#if __has_include(<miniscope.h>)
-using namespace MScope;
-#else
 using namespace Miniscope;
-#endif
 
-MiniscopeSettingsDialog::MiniscopeSettingsDialog(MScope::Miniscope *mscope, QWidget *parent)
+MiniscopeSettingsDialog::MiniscopeSettingsDialog(Miniscope::Miniscope *mscope, QWidget *parent)
     : QDialog(parent),
       ui(new Ui::MiniscopeSettingsDialog),
       m_initDone(false),
@@ -49,7 +45,8 @@ MiniscopeSettingsDialog::MiniscopeSettingsDialog(MScope::Miniscope *mscope, QWid
     m_controlsLayout->addStretch();
 
     // register available Miniscope types
-    ui->deviceTypeCB->addItems(m_mscope->availableDeviceTypes());
+    for (const auto &s : m_mscope->availableDeviceTypes())
+        ui->deviceTypeCB->addItem(QString::fromStdString(s));
 
     // register available view modes
     ui->viewModeCB->addItem(QStringLiteral("Raw Data"), QVariant::fromValue(DisplayMode::RawFrames));
@@ -72,7 +69,7 @@ void MiniscopeSettingsDialog::readCurrentValues()
     ui->sbCamId->setValue(m_mscope->scopeCamId());
     updateCurrentDeviceName();
     ui->accAlphaSpinBox->setValue(m_mscope->bgAccumulateAlpha());
-    setDeviceType(m_mscope->deviceType());
+    setDeviceType(QString::fromStdString(m_mscope->deviceType()));
 
     for (const auto &w : m_controls)
         w->setValue(m_mscope->controlValue(w->controlId()));
@@ -140,7 +137,7 @@ void MiniscopeSettingsDialog::on_deviceTypeCB_currentIndexChanged(int index)
     m_controls.clear();
 
     // load new controls
-    if (!m_mscope->loadDeviceConfig(ui->deviceTypeCB->currentText())) {
+    if (!m_mscope->loadDeviceConfig(ui->deviceTypeCB->currentText().toStdString())) {
         QMessageBox::critical(
             this,
             "Error",
@@ -155,7 +152,7 @@ void MiniscopeSettingsDialog::on_deviceTypeCB_currentIndexChanged(int index)
         const auto w = new MSControlWidget(ctl, ui->gbDeviceCtls);
         m_controlsLayout->insertWidget(0, w);
         connect(w, &MSControlWidget::valueChanged, [&](const QString &id, double value) {
-            m_mscope->setControlValue(id, value);
+            m_mscope->setControlValue(id.toStdString(), value);
         });
         m_controls.append(w);
     }
@@ -167,9 +164,9 @@ void MiniscopeSettingsDialog::on_sbCamId_valueChanged(int arg1)
         m_mscope->disconnect();
     m_mscope->setScopeCamId(arg1);
     auto vdevName = videoDeviceNameFromId(arg1);
-    if (vdevName.isEmpty())
-        vdevName = QStringLiteral("unknown or invalid");
-    ui->camInfoLabel->setText(QStringLiteral("➞ %1").arg(vdevName));
+    if (vdevName.empty())
+        vdevName = "unknown or invalid";
+    ui->camInfoLabel->setText(QStringLiteral("➞ %1").arg(QString::fromStdString(vdevName)));
 }
 
 void MiniscopeSettingsDialog::on_cbExtRecTrigger_toggled(bool checked)

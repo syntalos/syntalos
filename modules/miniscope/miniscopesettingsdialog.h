@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -22,7 +22,7 @@
 #include <QDialog>
 #include <QList>
 
-namespace MScope
+namespace Miniscope
 {
 class Miniscope;
 }
@@ -38,7 +38,7 @@ class MiniscopeSettingsDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit MiniscopeSettingsDialog(MScope::Miniscope *mscope, QWidget *parent = nullptr);
+    explicit MiniscopeSettingsDialog(Miniscope::Miniscope *mscope, QWidget *parent = nullptr);
     ~MiniscopeSettingsDialog();
 
     void readCurrentValues();
@@ -68,7 +68,7 @@ private:
     Ui::MiniscopeSettingsDialog *ui;
     bool m_initDone;
     QString m_recName;
-    MScope::Miniscope *m_mscope;
+    Miniscope::Miniscope *m_mscope;
 
     QList<MSControlWidget *> m_controls;
     QVBoxLayout *m_controlsLayout;

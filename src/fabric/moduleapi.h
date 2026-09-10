@@ -844,6 +844,8 @@ Q_SIGNALS:
 
 protected:
     void raiseError(const QString &message);
+    void raiseError(const std::string &message);
+    void raiseError(const char *message);
 
     void setStatusMessage(const QString &message);
     bool makeDirectory(const QString &dir);

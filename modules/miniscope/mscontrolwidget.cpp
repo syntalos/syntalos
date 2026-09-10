@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -26,7 +26,7 @@
 #include <QSpinBox>
 #include <QVBoxLayout>
 
-MSControlWidget::MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidget *parent)
+MSControlWidget::MSControlWidget(const Miniscope::ControlDefinition &ctlDef, QWidget *parent)
     : QWidget(parent)
 {
     m_controlId = ctlDef.id;
@@ -36,13 +36,13 @@ MSControlWidget::MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidge
     layout->setSpacing(2);
 
     auto lblTitle = new QLabel(this);
-    lblTitle->setText(ctlDef.name);
+    lblTitle->setText(QString::fromStdString(ctlDef.name));
     layout->addWidget(lblTitle);
 
-    if (ctlDef.kind == MScope::ControlKind::Selector) {
+    if (ctlDef.kind == Miniscope::ControlKind::Selector) {
         const auto sc = new QWidget(this);
         const auto selLayout = new QGridLayout(sc);
-        const auto valuesCount = ctlDef.labels.length();
+        const auto valuesCount = ctlDef.labels.size();
         m_slider = new QSlider(Qt::Horizontal, sc);
         selLayout->setContentsMargins(0, 0, 0, 0);
         selLayout->setSpacing(2);
@@ -52,7 +52,7 @@ MSControlWidget::MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidge
         m_slider->setValue(ctlDef.valueStart);
         selLayout->addWidget(m_slider, 0, 0, 1, valuesCount);
 
-        for (int i = 0; i < valuesCount; ++i) {
+        for (size_t i = 0; i < valuesCount; ++i) {
             const auto lbl = new QLabel(QStringLiteral("<html><i>%1</i>").arg(ctlDef.labels[i]), sc);
             if (i == 0)
                 lbl->setAlignment(Qt::AlignLeft);
@@ -98,7 +98,7 @@ MSControlWidget::MSControlWidget(const MScope::ControlDefinition &ctlDef, QWidge
     setLayout(layout);
 }
 
-QString MSControlWidget::controlId() const
+std::string MSControlWidget::controlId() const
 {
     return m_controlId;
 }
@@ -115,5 +115,5 @@ void MSControlWidget::setValue(double value)
 
 void MSControlWidget::recvSliderValueChange(int value)
 {
-    Q_EMIT valueChanged(m_controlId, value);
+    Q_EMIT valueChanged(QString::fromStdString(m_controlId), value);
 }

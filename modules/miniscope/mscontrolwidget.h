@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -24,12 +24,6 @@
 
 class QSlider;
 
-#if __has_include(<miniscope.h>)
-using namespace MScope;
-#else
-using namespace Miniscope;
-#endif
-
 /**
  * @brief A simple widget to control Miniscope properties
  */
@@ -37,9 +31,9 @@ class MSControlWidget : public QWidget
 {
     Q_OBJECT
 public:
-    explicit MSControlWidget(const ControlDefinition &ctlDef, QWidget *parent = nullptr);
+    explicit MSControlWidget(const Miniscope::ControlDefinition &ctlDef, QWidget *parent = nullptr);
 
-    QString controlId() const;
+    std::string controlId() const;
 
     double value() const;
     void setValue(double value);
@@ -51,6 +45,6 @@ private slots:
     void recvSliderValueChange(int value);
 
 private:
-    QString m_controlId;
+    std::string m_controlId;
     QSlider *m_slider;
 };
