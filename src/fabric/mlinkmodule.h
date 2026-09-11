@@ -66,6 +66,9 @@ public:
     void setModuleBinaryArgs(const QStringList &args);
     void setModuleBinaryWorkDir(const QString &wdir);
 
+    QString moduleDir() const;
+    void setModuleDir(const QString &dir);
+
     QProcessEnvironment moduleBinaryEnv() const;
     void setModuleBinaryEnv(const QProcessEnvironment &env);
 

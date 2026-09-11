@@ -163,6 +163,7 @@ public:
         }
 
         setModuleBinaryWorkDir(m_pyModDir);
+        setModuleDir(m_pyModDir);
         setOutputCaptured(true);
 
         // run!

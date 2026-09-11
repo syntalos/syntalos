@@ -152,6 +152,7 @@ public:
     {
         auto mod = new ExternalModule(parent);
         mod->setModuleBinary(m_binaryPath);
+        mod->setModuleDir(rootDir());
         mod->setFeatures(m_features);
         return mod;
     }

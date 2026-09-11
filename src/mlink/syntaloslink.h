@@ -415,15 +415,32 @@ std::unique_ptr<SyntalosLink> initSyntalosModuleLink(const ModuleInitOptions &op
 /**
  * @brief Get the persistent cache directory for a module.
  *
- * Resolves to `<Syntalos data root>/cache/modules/<id>`. The directory is
+ * Resolves to `<Syntalos data root>/cache/modules/<module-type-id>`. The directory is
  * shared between all instances of the module and is intended for data that
  * can be regenerated or re-downloaded.
  *
- * @param id The module type ID (as in its module.toml)
+ * The module type ID is provided by Syntalos when it launches the module, so this
+ * function will fail for modules that were not launched by Syntalos.
+ *
  * @param create If true, the directory is created if it does not exist yet.
- * @return The absolute path, or an error message if @p id is invalid or the
- *         directory could not be created.
+ * @return The absolute path, or an error message if the module type ID is missing
+ *         or invalid, or the directory could not be created.
  */
-auto moduleCacheDir(const std::string &id, bool create = true) -> std::expected<fs::path, std::string>;
+auto moduleCacheDir(bool create = true) -> std::expected<fs::path, std::string>;
+
+/**
+ * @brief Get the directory the module is installed in / run from.
+ *
+ * This is the directory containing the module's module.toml, and can be used to
+ * locate data files that are shipped with the module. Depending on how Syntalos
+ * was run, it may be located in the build tree, a system location or a Flatpak bundle.
+ *
+ * The location is provided by Syntalos when it launches the module. If it is not set,
+ * the directory containing the running executable is used instead.
+ *
+ * @return The absolute, canonical path, or an error message if the directory could
+ *         not be determined or does not exist.
+ */
+auto moduleDataDir() -> std::expected<fs::path, std::string>;
 
 } // namespace Syntalos

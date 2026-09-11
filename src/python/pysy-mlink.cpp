@@ -1363,6 +1363,41 @@ PYBIND11_MODULE(syntalos_mlink, m)
      **/
 
     m.def(
+        "module_data_dir",
+        []() {
+            auto res = moduleDataDir();
+            if (!res)
+                throw SyntalosPyError(res.error());
+            return res.value();
+        },
+        "Return the directory the module is installed in / run from.\n"
+        "\n"
+        "This is the directory containing the module's ``module.toml``, and can be used to\n"
+        "locate data files that are shipped with the module.\n"
+        "\n"
+        ":return: The absolute path of the module directory.\n"
+        ":rtype: pathlib.Path");
+
+    m.def(
+        "module_cache_dir",
+        [](bool create) {
+            auto res = moduleCacheDir(create);
+            if (!res)
+                throw SyntalosPyError(res.error());
+            return res.value();
+        },
+        py::arg("create") = true,
+        "Return the persistent cache directory for this module.\n"
+        "\n"
+        "The directory is shared between all instances of the module and is intended for\n"
+        "data that can be regenerated or re-downloaded. This only works if the module\n"
+        "was launched by Syntalos.\n"
+        "\n"
+        ":param create: Create the directory if it does not exist yet.\n"
+        ":return: The absolute path of the cache directory.\n"
+        ":rtype: pathlib.Path");
+
+    m.def(
         "println",
         println,
         py::arg("text"),

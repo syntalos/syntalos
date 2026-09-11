@@ -37,9 +37,16 @@ private slots:
         qunsetenv("FLATPAK_ID");
     }
 
+    void cleanup()
+    {
+        qunsetenv("SYNTALOS_MODULE_TYPE_ID");
+        qunsetenv("SYNTALOS_MODULE_DIR");
+    }
+
     void moduleCacheDirResolve()
     {
-        const auto res = moduleCacheDir("my-module", false);
+        qputenv("SYNTALOS_MODULE_TYPE_ID", "my-module");
+        const auto res = moduleCacheDir(false);
         QVERIFY2(res.has_value(), res.error_or("").c_str());
         QCOMPARE(
             QString::fromStdString(res->string()),
@@ -49,7 +56,8 @@ private slots:
 
     void moduleCacheDirCreate()
     {
-        const auto res = moduleCacheDir("devel.datasource");
+        qputenv("SYNTALOS_MODULE_TYPE_ID", "devel.datasource");
+        const auto res = moduleCacheDir();
         QVERIFY2(res.has_value(), res.error_or("").c_str());
         QCOMPARE(
             QString::fromStdString(res->string()),
@@ -57,26 +65,70 @@ private slots:
         QVERIFY(QDir(QString::fromStdString(res->string())).exists());
     }
 
+    void moduleCacheDirNoTypeId()
+    {
+        qunsetenv("SYNTALOS_MODULE_TYPE_ID");
+        QVERIFY(!moduleCacheDir(false).has_value());
+    }
+
     void moduleCacheDirInvalidId()
     {
-        QVERIFY(!moduleCacheDir("").has_value());
-        QVERIFY(!moduleCacheDir(".").has_value());
-        QVERIFY(!moduleCacheDir("..").has_value());
-        QVERIFY(!moduleCacheDir("../escape").has_value());
-        QVERIFY(!moduleCacheDir("a/b").has_value());
+        for (const auto id : {"", ".", "..", "../escape", "a/b", "a\\b"}) {
+            qputenv("SYNTALOS_MODULE_TYPE_ID", id);
+            QVERIFY2(!moduleCacheDir().has_value(), id);
+        }
         QVERIFY(!QDir(m_tmpDir.filePath(QStringLiteral("xdg-data/Syntalos/cache/escape"))).exists());
     }
 
     void moduleCacheDirFlatpak()
     {
+        qputenv("SYNTALOS_MODULE_TYPE_ID", "my-module");
         qputenv("container", "flatpak");
-        const auto res = moduleCacheDir("my-module", false);
+        const auto res = moduleCacheDir(false);
         qunsetenv("container");
 
         QVERIFY2(res.has_value(), res.error_or("").c_str());
         QCOMPARE(
             QString::fromStdString(res->string()),
             m_tmpDir.filePath(QStringLiteral(".var/app/org.syntalos.syntalos/data/cache/modules/my-module")));
+    }
+
+    void moduleDataDirFromEnv()
+    {
+        const auto modDir = m_tmpDir.filePath(QStringLiteral("modules/my-module"));
+        QVERIFY(QDir().mkpath(modDir));
+
+        // non-canonical paths are resolved
+        qputenv("SYNTALOS_MODULE_DIR", m_tmpDir.filePath(QStringLiteral("modules/../modules/my-module")).toUtf8());
+        const auto res = moduleDataDir();
+        qunsetenv("SYNTALOS_MODULE_DIR");
+
+        QVERIFY2(res.has_value(), res.error_or("").c_str());
+        QCOMPARE(QString::fromStdString(res->string()), QFileInfo(modDir).canonicalFilePath());
+    }
+
+    void moduleDataDirExeFallback()
+    {
+        qunsetenv("SYNTALOS_MODULE_DIR");
+        const auto res = moduleDataDir();
+        QVERIFY2(res.has_value(), res.error_or("").c_str());
+        QCOMPARE(
+            QString::fromStdString(res->string()),
+            QFileInfo(QCoreApplication::applicationDirPath()).canonicalFilePath());
+    }
+
+    void moduleDataDirInvalid()
+    {
+        qputenv("SYNTALOS_MODULE_DIR", m_tmpDir.filePath(QStringLiteral("does-not-exist")).toUtf8());
+        QVERIFY(!moduleDataDir().has_value());
+
+        QFile file(m_tmpDir.filePath(QStringLiteral("regular-file")));
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.close();
+        qputenv("SYNTALOS_MODULE_DIR", file.fileName().toUtf8());
+        QVERIFY(!moduleDataDir().has_value());
+
+        qunsetenv("SYNTALOS_MODULE_DIR");
     }
 
 private:

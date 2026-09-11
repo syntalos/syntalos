@@ -1787,9 +1787,13 @@ static fs::path appDataRootDir()
     return fs::path(g_get_user_data_dir()) / "Syntalos";
 }
 
-auto moduleCacheDir(const std::string &id, bool create) -> std::expected<fs::path, std::string>
+auto moduleCacheDir(bool create) -> std::expected<fs::path, std::string>
 {
-    if (id.empty() || id == "." || id == ".." || id.find_first_of("/\\") != std::string::npos)
+    const auto id = getenvSafe("SYNTALOS_MODULE_TYPE_ID");
+    if (id.empty())
+        return std::unexpected(
+            "Unable to determine module cache directory: No module type ID set. Was this module launched by Syntalos?");
+    if (id == "." || id == ".." || id.find_first_of("/\\") != std::string::npos)
         return std::unexpected(std::format("Invalid module ID '{}' requested for cache directory.", id));
 
     const auto dir = appDataRootDir() / "cache" / "modules" / id;
@@ -1802,6 +1806,28 @@ auto moduleCacheDir(const std::string &id, bool create) -> std::expected<fs::pat
     }
 
     return dir;
+}
+
+auto moduleDataDir() -> std::expected<fs::path, std::string>
+{
+    std::error_code ec;
+    fs::path dir = getenvSafe("SYNTALOS_MODULE_DIR");
+    if (dir.empty()) {
+        // not launched by Syntalos, assume the module data lives next to the executable
+        const auto exePath = fs::read_symlink("/proc/self/exe", ec);
+        if (ec)
+            return std::unexpected(std::format("Unable to determine module executable location: {}", ec.message()));
+        dir = exePath.parent_path();
+    }
+
+    auto canonicalDir = fs::canonical(dir, ec);
+    if (ec)
+        return std::unexpected(
+            std::format("Module data directory '{}' is not accessible: {}", dir.string(), ec.message()));
+    if (!fs::is_directory(canonicalDir, ec))
+        return std::unexpected(std::format("Module data location '{}' is not a directory.", canonicalDir.string()));
+
+    return canonicalDir;
 }
 
 } // namespace Syntalos

@@ -69,6 +69,7 @@ public:
     QProcess *proc = nullptr;
     ModuleWorkerMode workerMode;
     bool outputCaptured = false;
+    QString moduleDir;
     QString pyVenvDir;
     QString scriptWDir;
     QString scriptContent;
@@ -885,6 +886,16 @@ void MLinkModule::setModuleBinaryWorkDir(const QString &wdir)
     d->proc->setWorkingDirectory(wdir);
 }
 
+QString MLinkModule::moduleDir() const
+{
+    return d->moduleDir;
+}
+
+void MLinkModule::setModuleDir(const QString &dir)
+{
+    d->moduleDir = dir;
+}
+
 QProcessEnvironment MLinkModule::moduleBinaryEnv() const
 {
     const auto env = d->proc->processEnvironment();
@@ -1111,6 +1122,9 @@ bool MLinkModule::runProcess()
     auto penv = moduleBinaryEnv();
     penv.insert("SYNTALOS_VERSION", syntalosVersionFull());
     penv.insert("SYNTALOS_MODULE_ID", d->clientId.c_str());
+    penv.insert("SYNTALOS_MODULE_TYPE_ID", id());
+    if (!d->moduleDir.isEmpty())
+        penv.insert("SYNTALOS_MODULE_DIR", d->moduleDir);
     if (!d->pyVenvDir.isEmpty()) {
         penv.remove("PYTHONHOME");
         penv.insert("VIRTUAL_ENV", d->pyVenvDir);
