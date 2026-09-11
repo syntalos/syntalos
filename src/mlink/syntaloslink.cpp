@@ -1769,4 +1769,39 @@ std::unique_ptr<SecondaryClockSynchronizer> SyntalosLink::initClockSynchronizer(
     return sync;
 }
 
+static bool isInFlatpakSandbox()
+{
+    if (getenvSafe("container") == "flatpak")
+        return true;
+
+    // Older Flatpak versions do not set "container", check FLATPAK_ID as well
+    return getenvSafe("FLATPAK_ID").rfind("org.syntalos", 0) == 0;
+}
+
+static fs::path appDataRootDir()
+{
+    // This mirrors appDataRootDir() from the Syntalos fabric library, which
+    // is not available to out-of-process modules.
+    if (isInFlatpakSandbox())
+        return fs::path(g_get_home_dir()) / ".var/app/org.syntalos.syntalos/data";
+    return fs::path(g_get_user_data_dir()) / "Syntalos";
+}
+
+auto moduleCacheDir(const std::string &id, bool create) -> std::expected<fs::path, std::string>
+{
+    if (id.empty() || id == "." || id == ".." || id.find_first_of("/\\") != std::string::npos)
+        return std::unexpected(std::format("Invalid module ID '{}' requested for cache directory.", id));
+
+    const auto dir = appDataRootDir() / "cache" / "modules" / id;
+    if (create) {
+        std::error_code ec;
+        fs::create_directories(dir, ec);
+        if (ec)
+            return std::unexpected(
+                std::format("Unable to create module cache directory '{}': {}", dir.string(), ec.message()));
+    }
+
+    return dir;
+}
+
 } // namespace Syntalos

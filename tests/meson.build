@@ -77,6 +77,24 @@ test('sy-test-timer',
 )
 
 #
+# MLink Library Test
+#
+test_mlink_moc_src = ['test-mlink.cpp']
+test_mlink_moc = qt.compile_moc(sources: test_mlink_moc_src)
+test_mlink_exe = executable('test-mlink',
+    [test_mlink_moc_src, test_mlink_moc],
+    dependencies: [syntalos_mlink_dep,
+                   opencv_dep,
+                   qt_core_dep,
+                   qt_test_dep]
+)
+test('sy-test-mlink',
+    test_mlink_exe,
+    env: test_env,
+    is_parallel: true,
+)
+
+#
 # Experiment Directory Layout Test
 #
 test_edlstorage_moc_src = ['test-edlstorage.cpp']

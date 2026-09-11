@@ -412,4 +412,18 @@ struct ModuleInitOptions {
 
 std::unique_ptr<SyntalosLink> initSyntalosModuleLink(const ModuleInitOptions &optn = {});
 
+/**
+ * @brief Get the persistent cache directory for a module.
+ *
+ * Resolves to `<Syntalos data root>/cache/modules/<id>`. The directory is
+ * shared between all instances of the module and is intended for data that
+ * can be regenerated or re-downloaded.
+ *
+ * @param id The module type ID (as in its module.toml)
+ * @param create If true, the directory is created if it does not exist yet.
+ * @return The absolute path, or an error message if @p id is invalid or the
+ *         directory could not be created.
+ */
+auto moduleCacheDir(const std::string &id, bool create = true) -> std::expected<fs::path, std::string>;
+
 } // namespace Syntalos
