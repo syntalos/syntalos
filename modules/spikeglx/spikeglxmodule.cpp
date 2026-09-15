@@ -803,7 +803,7 @@ public:
             absChans.push_back(static_cast<int64_t>(c));
 
         const auto suggestedName = QStringLiteral("%1-%2/%3")
-                                       .arg(datasetNameSuggestion(), fs.streamName, groupName.toLower());
+                                       .arg(datasetNameSuggestion(), fs.portId, groupName.toLower());
         MetaStringMap portMeta;
         portMeta.insert("stream", fs.streamName.toStdString());
         portMeta.insert("group", groupName.toStdString());
