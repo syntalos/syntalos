@@ -41,6 +41,18 @@ public:
         int graphId;
     };
 
+    /**
+     * How the time axis behaves while a run is in progress.
+     * Scrolling: the newest sample sits at the right edge and data flows leftwards.
+     * Sweep: the axis is fixed to [0, historyLength] and a cursor moves across it,
+     *        overwriting the previous sweep (oscilloscope-style, like Intan RHX).
+     * When stopped, the plot always shows an absolute, pannable time axis.
+     */
+    enum class TimeAxisMode {
+        Scrolling,
+        Sweep
+    };
+
     explicit PlotCanvas(QWidget *parent = nullptr);
     ~PlotCanvas() override;
 
@@ -50,6 +62,9 @@ public:
 
     float historyLength() const;
     void setHistoryLength(float seconds);
+
+    TimeAxisMode timeAxisMode() const;
+    void setTimeAxisMode(TimeAxisMode mode);
 
     // Port lifecycle
     void registerPort(

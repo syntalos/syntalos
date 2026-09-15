@@ -351,6 +351,9 @@ public:
         settings.insert("update_frequency", m_plotWindow->updateFrequency());
         settings.insert("buffer_size", m_plotWindow->bufferSize());
         settings.insert("history_length", m_plotWindow->canvas()->historyLength());
+        settings.insert(
+            "time_axis_mode",
+            m_plotWindow->canvas()->timeAxisMode() == PlotCanvas::TimeAxisMode::Sweep ? "sweep" : "scrolling");
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
@@ -381,6 +384,10 @@ public:
         m_plotWindow->setBufferSize(settings.value("buffer_size", 512).toInt());
         m_plotWindow->canvas()->setHistoryLength(
             settings.value("history_length", m_plotWindow->canvas()->historyLength()).toFloat());
+        // Sweep is the default, also for projects saved before this setting existed.
+        m_plotWindow->canvas()->setTimeAxisMode(
+            settings.value("time_axis_mode", "sweep").toString() == "scrolling" ? PlotCanvas::TimeAxisMode::Scrolling
+                                                                                : PlotCanvas::TimeAxisMode::Sweep);
 
         m_plotWindow->refreshChannelTable();
         return true;

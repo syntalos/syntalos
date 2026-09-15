@@ -243,6 +243,17 @@ public:
     size_t bufferSize = 2080000;
     float historyLen = 2.0f;
 
+    TimeAxisMode timeAxisMode = TimeAxisMode::Sweep;
+    // Absolute time (s) at which the sweep phase is zero. Sweep k covers
+    // [sweepOrigin + k*historyLen, sweepOrigin + (k+1)*historyLen).
+    double sweepOrigin = 0.0;
+    // Set when the sweep should restart at the current time on the next frame
+    // (history length changed, or sweep mode was just switched on).
+    bool sweepRestartPending = false;
+    // True while the linked X axis holds sweep-phase limits rather than absolute
+    // time, so the transition back to an absolute view can reset the window once.
+    bool sweepViewActive = false;
+
     std::unordered_map<std::string, PortData> ports;
     std::vector<ChannelData> channels;
 
@@ -262,6 +273,11 @@ public:
         std::string yLabel;
         size_t visFrom = 0;    // logical ring index where visible window starts
         std::vector<float> ts; // timestamps[visFrom .. end)
+
+        // Sweep frames only: ts[0..wrapIdx) belong to the previous sweep and
+        // ts[wrapIdx..) to the current one. Both halves are already converted to
+        // sweep phase (seconds since their own sweep started). 0 otherwise.
+        size_t wrapIdx = 0;
     };
 
     struct ChannelSnap {
@@ -272,6 +288,7 @@ public:
         bool digital = false;
         size_t tsOffset = 0; // offset into portSnaps[portId].ts for this channel
         size_t visLen = 0;
+        size_t wrapIdx = 0; // sweep frames: local split index (see PortSnap::wrapIdx)
         std::vector<float> samples;
 
         // Digital-only: self-contained timestamps (including the synthetic right-edge
@@ -349,7 +366,24 @@ void PlotCanvas::setHistoryLength(float seconds)
         seconds = 0.25f;
     if (seconds > 15.0f)
         seconds = 15.0f;
+    if (seconds != d->historyLen && d->isRunning)
+        d->sweepRestartPending = true;
     d->historyLen = seconds;
+}
+
+PlotCanvas::TimeAxisMode PlotCanvas::timeAxisMode() const
+{
+    return d->timeAxisMode;
+}
+
+void PlotCanvas::setTimeAxisMode(TimeAxisMode mode)
+{
+    if (mode == d->timeAxisMode)
+        return;
+    d->timeAxisMode = mode;
+    // Switching into sweep mode mid-run starts a fresh sweep at the cursor's left edge.
+    if (mode == TimeAxisMode::Sweep && d->isRunning)
+        d->sweepRestartPending = true;
 }
 
 void PlotCanvas::setBufferSize(size_t size)
@@ -369,6 +403,12 @@ void PlotCanvas::setBufferSize(size_t size)
 void PlotCanvas::setRunning(bool running)
 {
     d->isRunning = running;
+    if (running) {
+        // Run timestamps are relative to the run start, so a zero origin makes the
+        // first sweep begin together with the run.
+        d->sweepOrigin = 0.0;
+        d->sweepRestartPending = false;
+    }
     if (d->updateTimer) {
         // ImGui is immediate-mode and needs a steady frame stream for
         // interaction (zoom, hover, drag). While running, we redraw at the
@@ -552,6 +592,8 @@ void PlotCanvas::clearRuntimeData()
         kv.second.timestamps.clear();
     for (auto &c : d->channels)
         c.samples.clear();
+    d->sweepOrigin = 0.0;
+    d->sweepRestartPending = false;
 }
 
 int PlotCanvas::ensureChannel(const std::string &portId, int colIdx, const std::string &signalName)
@@ -1039,10 +1081,22 @@ void PlotCanvas::paintGL()
     ImGui::Begin("PlotCanvasMain", nullptr, winFlags);
 
     ImGui::BeginDisabled(!d->isRunning);
-    ImGui::SliderFloat("History Length", &d->historyLen, 0.25, 15, "%.1f s");
+    if (ImGui::SliderFloat("History Length", &d->historyLen, 0.25, 15, "%.1f s"))
+        d->sweepRestartPending = true;
     ImGui::EndDisabled();
+    ImGui::SameLine();
+    bool sweepChecked = d->timeAxisMode == TimeAxisMode::Sweep;
+    if (ImGui::Checkbox("Sweep", &sweepChecked))
+        setTimeAxisMode(sweepChecked ? TimeAxisMode::Sweep : TimeAxisMode::Scrolling);
+    ImGui::SetItemTooltip("Keep the time axis fixed and move a cursor across it\ninstead of scrolling the data.");
 
     bool layoutDirty = false;
+
+    // Sweep-frame parameters (valid only when sweepFrame is true); the x-axis is
+    // then fixed to [0, sweepLen] and all snapshot timestamps are in sweep phase.
+    bool sweepFrame = false;
+    double sweepLen = 0.0;
+    double sweepCursor = 0.0;
 
     // Snapshot phase (mutex held only for the memcpy pass)
     {
@@ -1057,14 +1111,59 @@ void PlotCanvas::paintGL()
                 haveTime = true;
             }
         }
-        if (d->isRunning && haveTime) {
-            d->xLinkMax = tNow;
-            d->xLinkMin = tNow - d->historyLen;
-        } else if (!haveTime) {
+
+        // Absolute time of the current sweep's start, and of the previous sweep's start.
+        double sweepBase = 0.0;
+        double prevBase = 0.0;
+        float tMin;
+
+        sweepFrame = d->isRunning && haveTime && d->timeAxisMode == TimeAxisMode::Sweep;
+        if (sweepFrame) {
+            if (d->sweepRestartPending) {
+                d->sweepOrigin = tNow;
+                d->sweepRestartPending = false;
+            }
+            sweepLen = d->historyLen;
+            const double elapsed = std::max(0.0, (double)tNow - d->sweepOrigin);
+            const double k = std::floor(elapsed / sweepLen);
+            sweepBase = d->sweepOrigin + k * sweepLen;
+            prevBase = sweepBase - sweepLen;
+            sweepCursor = tNow - sweepBase;
+
+            // Ahead of the cursor we leave a small blank gap, then show the remainder
+            // of the previous sweep. The previous sweep only exists once one full
+            // sweep has elapsed since the origin.
+            const double gap = 0.02 * sweepLen;
+            const bool prevVisible = (k >= 1.0) && (sweepCursor + gap < sweepLen);
+            tMin = prevVisible ? (float)(prevBase + sweepCursor + gap) : (float)sweepBase;
+
             d->xLinkMin = 0.0;
-            d->xLinkMax = d->historyLen;
+            d->xLinkMax = sweepLen;
+            d->sweepViewActive = true;
+        } else {
+            if ((d->isRunning || d->sweepViewActive) && haveTime) {
+                // Live scrolling, or the first absolute frame after a sweep view:
+                // the sweep limits [0, len] mean nothing on an absolute axis.
+                d->xLinkMax = tNow;
+                d->xLinkMin = tNow - d->historyLen;
+            } else if (!haveTime) {
+                d->xLinkMin = 0.0;
+                d->xLinkMax = d->historyLen;
+            }
+            d->sweepViewActive = false;
+            tMin = (float)d->xLinkMin;
         }
-        const auto tMin = (float)d->xLinkMin;
+        // Right edge of the live window in absolute time (used to extend held values).
+        const float tRight = sweepFrame ? tNow : (float)d->xLinkMax;
+
+        // Convert absolute timestamps in [0, n) to sweep phase in place: entries before
+        // wrapIdx belong to the previous sweep, the rest to the current one.
+        const auto toSweepPhase = [&](float *ts, size_t n, size_t wrapIdx) {
+            for (size_t i = 0; i < wrapIdx; ++i)
+                ts[i] = (float)((double)ts[i] - prevBase);
+            for (size_t i = wrapIdx; i < n; ++i)
+                ts[i] = (float)((double)ts[i] - sweepBase);
+        };
 
         // Per-port: copy the visible timestamp window into portSnaps.
         d->portSnaps.clear();
@@ -1079,6 +1178,10 @@ void PlotCanvas::paintGL()
             ps.ts.resize(visLen);
             if (visLen > 0)
                 pd.timestamps.copyRange(ps.visFrom, visLen, ps.ts.data());
+            if (sweepFrame) {
+                ps.wrapIdx = pd.timestamps.lowerBoundLogical((float)sweepBase, ps.visFrom) - ps.visFrom;
+                toSweepPhase(ps.ts.data(), visLen, ps.wrapIdx);
+            }
             d->portSnaps.emplace(portId, std::move(ps));
         }
 
@@ -1123,10 +1226,22 @@ void PlotCanvas::paintGL()
                 pd.timestamps.copyRange(tsStart + startSamp, cnt, cs.tsOwn.data());
                 cs.samples.resize(cnt);
                 c.samples.copyRange(startSamp, cnt, cs.samples.data());
-                // Extend the held value to the window's right edge.
-                if ((float)d->xLinkMax > cs.tsOwn.back()) {
-                    cs.tsOwn.push_back((float)d->xLinkMax);
+                // Extend the held value to the window's right edge (the cursor in sweep mode).
+                if (tRight > cs.tsOwn.back()) {
+                    cs.tsOwn.push_back(tRight);
                     cs.samples.push_back(cs.samples.back());
+                }
+                if (sweepFrame) {
+                    // TODO: carry the held level across the wrap (seed the current sweep
+                    // at phase 0 and extend the previous sweep to the right edge).
+                    cs.wrapIdx = std::lower_bound(cs.tsOwn.begin(), cs.tsOwn.end(), (float)sweepBase)
+                                 - cs.tsOwn.begin();
+                    toSweepPhase(cs.tsOwn.data(), cs.tsOwn.size(), cs.wrapIdx);
+                    // The leading sample predates the window; it exists only to carry the
+                    // held value, so pin it to the previous sweep's left edge instead of
+                    // letting it draw a line through the current sweep's area.
+                    if (cs.wrapIdx > 0)
+                        cs.tsOwn[0] = std::max(cs.tsOwn[0], (float)((double)tMin - prevBase));
                 }
                 cs.visLen = cs.samples.size();
                 d->channelSnaps.push_back(std::move(cs));
@@ -1156,6 +1271,8 @@ void PlotCanvas::paintGL()
             cs.digital = c.digital;
             cs.tsOffset = adjVisFrom - ps.visFrom;
             cs.visLen = tsTotal - adjVisFrom;
+            if (sweepFrame && ps.wrapIdx > cs.tsOffset)
+                cs.wrapIdx = std::min(ps.wrapIdx - cs.tsOffset, cs.visLen);
             const size_t sampFrom = adjVisFrom - tsStart;
             cs.samples.resize(cs.visLen);
             c.samples.copyRange(sampFrom, cs.visLen, cs.samples.data());
@@ -1279,7 +1396,8 @@ void PlotCanvas::paintGL()
 
         if (ImPlot::BeginPlot(plotId.c_str(), ImVec2(-1, h), plotFlags)) {
             const ImPlotAxisFlags yFlags = gs.yAuto ? ImPlotAxisFlags_AutoFit : ImPlotAxisFlags_None;
-            ImPlot::SetupAxes(isBottom ? "time [s]" : nullptr, yLabel.c_str(), xFlags, yFlags);
+            const char *xLabel = sweepFrame ? "sweep time [s]" : "time [s]";
+            ImPlot::SetupAxes(isBottom ? xLabel : nullptr, yLabel.c_str(), xFlags, yFlags);
             ImPlot::SetupAxisLinks(ImAxis_X1, &d->xLinkMin, &d->xLinkMax);
             ImPlot::SetupAxisLinks(ImAxis_Y1, &gs.yMin, &gs.yMax);
             if (!xMajors.empty())
@@ -1311,29 +1429,48 @@ void PlotCanvas::paintGL()
                 }
                 const float *sampPtr = cs.samples.data();
 
-                // Min/max envelope decimation: reduce to at most 2 x pixelWidth
-                // points so rendering cost is proportional to display pixels.
-                // Digital channels are skipped - their step edges must not be lost.
-                if (!cs.digital) {
-                    const int pixW = (int)std::max(d->lastFrameWidth, 64.0f);
-                    if (n > pixW * 4) {
-                        decimateMinMax(tsPtr, sampPtr, n, d->decTs, d->decSamples, pixW * 2);
-                        tsPtr = d->decTs.data();
-                        sampPtr = d->decSamples.data();
-                        n = (int)d->decTs.size();
-                    }
-                }
-
                 const auto label = std::format("{}##c{}", cs.signalName, cs.channelIdx);
                 const ImVec4 col = colorForChannel(cs.portId, cs.signalName, cs.colIdx);
                 ImPlotSpec spec;
                 spec.LineColor = col;
                 spec.FillColor = col;
                 spec.FillAlpha = 0.5f;
-                if (cs.digital)
-                    ImPlot::PlotDigital(label.c_str(), tsPtr, sampPtr, n, spec);
-                else
-                    ImPlot::PlotLine(label.c_str(), tsPtr, sampPtr, n, spec);
+
+                // Min/max envelope decimation: reduce to at most 2 x pixelWidth
+                // points so rendering cost is proportional to display pixels.
+                // Digital channels are skipped - their step edges must not be lost.
+                const int pixW = (int)std::max(d->lastFrameWidth, 64.0f);
+                const bool decimate = !cs.digital && (n > pixW * 4);
+                const int nTotal = n;
+
+                // Plot one contiguous run of samples. In sweep frames a channel is drawn as
+                // two runs (previous sweep, current sweep) that share the same label: ImPlot
+                // registers the item once per frame, so they get one legend entry and one
+                // color while the line is broken at the wrap.
+                const auto plotRun = [&](const float *ts, const float *s, int cnt) {
+                    if (cnt <= 0)
+                        return;
+                    if (decimate) {
+                        // Share the pixel budget between runs in proportion to their length.
+                        const size_t nBins = std::max<size_t>(1, (size_t)pixW * 2 * cnt / nTotal);
+                        decimateMinMax(ts, s, cnt, d->decTs, d->decSamples, nBins);
+                        ts = d->decTs.data();
+                        s = d->decSamples.data();
+                        cnt = (int)d->decTs.size();
+                    }
+                    if (cs.digital)
+                        ImPlot::PlotDigital(label.c_str(), ts, s, cnt, spec);
+                    else
+                        ImPlot::PlotLine(label.c_str(), ts, s, cnt, spec);
+                };
+
+                const int wrap = (int)std::min<size_t>(cs.wrapIdx, (size_t)n);
+                if (sweepFrame && wrap > 0) {
+                    plotRun(tsPtr, sampPtr, wrap);
+                    plotRun(tsPtr + wrap, sampPtr + wrap, n - wrap);
+                } else {
+                    plotRun(tsPtr, sampPtr, n);
+                }
 
                 if (ImPlot::BeginDragDropSourceItem(label.c_str())) {
                     int payload = cs.channelIdx;
@@ -1341,6 +1478,13 @@ void PlotCanvas::paintGL()
                     ImGui::Text("%s", cs.signalName.c_str());
                     ImPlot::EndDragDropSource();
                 }
+            }
+
+            if (sweepFrame) {
+                // "##" hides the cursor from the legend.
+                ImPlotSpec cursorSpec;
+                cursorSpec.LineColor = ImVec4(0.92f, 0.92f, 0.92f, 0.75f);
+                ImPlot::PlotInfLines("##cursor", &sweepCursor, 1, cursorSpec);
             }
 
             if (ImPlot::BeginDragDropTargetPlot()) {
