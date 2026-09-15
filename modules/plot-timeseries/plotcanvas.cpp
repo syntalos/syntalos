@@ -1232,16 +1232,30 @@ void PlotCanvas::paintGL()
                     cs.samples.push_back(cs.samples.back());
                 }
                 if (sweepFrame) {
-                    // TODO: carry the held level across the wrap (seed the current sweep
-                    // at phase 0 and extend the previous sweep to the right edge).
                     cs.wrapIdx = std::lower_bound(cs.tsOwn.begin(), cs.tsOwn.end(), (float)sweepBase)
                                  - cs.tsOwn.begin();
                     toSweepPhase(cs.tsOwn.data(), cs.tsOwn.size(), cs.wrapIdx);
-                    // The leading sample predates the window; it exists only to carry the
-                    // held value, so pin it to the previous sweep's left edge instead of
-                    // letting it draw a line through the current sweep's area.
-                    if (cs.wrapIdx > 0)
+                    if (cs.wrapIdx > 0) {
+                        // The leading sample predates the window; it exists only to carry the
+                        // held value, so pin it to the previous sweep's left edge instead of
+                        // letting it draw a line through the current sweep's area.
                         cs.tsOwn[0] = std::max(cs.tsOwn[0], (float)((double)tMin - prevBase));
+
+                        // Carry the level that was active at the wrap across it: extend the
+                        // previous sweep to the right edge and seed the current sweep at phase
+                        // zero, so a line that stayed quiet over the wrap keeps rendering flat
+                        // on both sides of it. Both synthetic points go in at the split.
+                        const float held = cs.samples[cs.wrapIdx - 1];
+                        size_t ins = cs.wrapIdx;
+                        if (cs.tsOwn[ins - 1] < (float)sweepLen) {
+                            cs.tsOwn.insert(cs.tsOwn.begin() + ins, (float)sweepLen);
+                            cs.samples.insert(cs.samples.begin() + ins, held);
+                            ++ins;
+                        }
+                        cs.tsOwn.insert(cs.tsOwn.begin() + ins, 0.0f);
+                        cs.samples.insert(cs.samples.begin() + ins, held);
+                        cs.wrapIdx = ins;
+                    }
                 }
                 cs.visLen = cs.samples.size();
                 d->channelSnaps.push_back(std::move(cs));
