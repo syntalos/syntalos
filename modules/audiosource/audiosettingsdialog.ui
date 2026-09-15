@@ -103,6 +103,19 @@
          <widget class="QComboBox" name="deviceComboBox"/>
         </item>
         <item row="2" column="0">
+         <widget class="QLabel" name="sourceLabel">
+          <property name="text">
+           <string>Source</string>
+          </property>
+          <property name="buddy">
+           <cstring>sourceComboBox</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="2" column="1">
+         <widget class="QComboBox" name="sourceComboBox"/>
+        </item>
+        <item row="3" column="0">
          <widget class="QLabel" name="waveLabel">
           <property name="text">
            <string>Wave Type</string>
@@ -112,17 +125,17 @@
           </property>
          </widget>
         </item>
-        <item row="2" column="1">
+        <item row="3" column="1">
          <widget class="QComboBox" name="waveComboBox"/>
         </item>
-        <item row="3" column="0">
+        <item row="4" column="0">
          <widget class="QLabel" name="frequencyLabel">
           <property name="text">
            <string>Frequency</string>
           </property>
          </widget>
         </item>
-        <item row="3" column="1">
+        <item row="4" column="1">
          <widget class="QDoubleSpinBox" name="freqSpinBox">
           <property name="suffix">
            <string> Hz</string>
@@ -135,14 +148,62 @@
           </property>
          </widget>
         </item>
-        <item row="4" column="0">
+        <item row="5" column="0">
+         <widget class="QLabel" name="fileLabel">
+          <property name="text">
+           <string>Audio File</string>
+          </property>
+          <property name="buddy">
+           <cstring>fileLineEdit</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="1">
+         <layout class="QHBoxLayout" name="fileLayout">
+          <property name="spacing">
+           <number>4</number>
+          </property>
+          <item>
+           <widget class="QLineEdit" name="fileLineEdit">
+            <property name="placeholderText">
+             <string>No file selected</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QToolButton" name="fileSelectButton">
+            <property name="toolTip">
+             <string>Select an audio file to play</string>
+            </property>
+            <property name="text">
+             <string>...</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item row="6" column="0">
+         <widget class="QLabel" name="loopLabel">
+          <property name="text">
+           <string>Loop playback</string>
+          </property>
+         </widget>
+        </item>
+        <item row="6" column="1">
+         <widget class="QCheckBox" name="loopCheckBox">
+          <property name="toolTip">
+           <string>Restart the file from the beginning when it ends, instead of stopping.</string>
+          </property>
+         </widget>
+        </item>
+        <item row="7" column="0">
          <widget class="QLabel" name="volumeLabel">
           <property name="text">
            <string>Volume</string>
           </property>
          </widget>
         </item>
-        <item row="4" column="1">
+        <item row="7" column="1">
          <widget class="QSlider" name="volumeSlider">
           <property name="maximum">
            <number>100</number>
@@ -165,7 +226,13 @@
  <tabstops>
   <tabstop>immediatePlayCheckBox</tabstop>
   <tabstop>deviceComboBox</tabstop>
+  <tabstop>sourceComboBox</tabstop>
   <tabstop>waveComboBox</tabstop>
+  <tabstop>freqSpinBox</tabstop>
+  <tabstop>fileLineEdit</tabstop>
+  <tabstop>fileSelectButton</tabstop>
+  <tabstop>loopCheckBox</tabstop>
+  <tabstop>volumeSlider</tabstop>
  </tabstops>
  <resources/>
  <connections/>

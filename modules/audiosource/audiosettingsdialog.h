@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2020-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -27,6 +27,11 @@ namespace Ui
 class AudioSettingsDialog;
 }
 
+enum class AudioSourceKind {
+    TEST_SIGNAL = 0,
+    AUDIO_FILE = 1,
+};
+
 class AudioSettingsDialog : public QDialog
 {
     Q_OBJECT
@@ -34,6 +39,15 @@ class AudioSettingsDialog : public QDialog
 public:
     explicit AudioSettingsDialog(QWidget *parent = nullptr);
     ~AudioSettingsDialog();
+
+    AudioSourceKind sourceKind() const;
+    void setSourceKind(AudioSourceKind kind);
+
+    QString audioFilePath() const;
+    void setAudioFilePath(const QString &path);
+
+    bool loopPlayback() const;
+    void setLoopPlayback(bool value);
 
     bool startImmediately() const;
     void setStartImmediately(bool value);
@@ -52,5 +66,7 @@ public:
     void setVolume(double value);
 
 private:
+    void updateSourceWidgets();
+
     Ui::AudioSettingsDialog *ui;
 };

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2020-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -21,6 +21,7 @@
 #include "QtSvg/qsvgrenderer.h"
 
 #include <QDir>
+#include <QFileInfo>
 #include <QMessageBox>
 #include <QPainter>
 #include <QSvgRenderer>
@@ -36,6 +37,7 @@
 SYNTALOS_MODULE(AudioSourceModule)
 
 static gboolean audiosrc_pipeline_watch_func(GstBus *bus, GstMessage *message, gpointer udata);
+static void audiosrc_decodebin_pad_added(GstElement *decodebin, GstPad *pad, gpointer udata);
 
 class AudioSourceModule : public AbstractModule
 {
@@ -55,6 +57,9 @@ private:
     GstBus *m_bus;
     guint m_busWatchId;
 
+    bool m_fileMode;
+    bool m_loopFile;
+
 public:
     explicit AudioSourceModule(ModuleInfo *modInfo, QObject *parent = nullptr)
         : AbstractModule(parent),
@@ -64,7 +69,9 @@ public:
           m_audioSink(nullptr),
           m_pipeline(nullptr),
           m_bus(nullptr),
-          m_busWatchId(0)
+          m_busWatchId(0),
+          m_fileMode(false),
+          m_loopFile(false)
     {
         m_ctlPort = registerInputPort<ControlCommand>(QStringLiteral("control-in"), QStringLiteral("Control"));
 
@@ -100,13 +107,17 @@ public:
         return ModuleFeature::SHOW_SETTINGS;
     }
 
-    GstElement *createSinkFromConfiguredDevice()
+    /**
+     * Check whether the configured output device currently exists, and
+     * return its stable ID if it does (or an empty string otherwise).
+     */
+    QString findConfiguredDeviceId()
     {
         const QString wantedId = m_settingsDialog->deviceId();
         if (wantedId.isEmpty())
-            return nullptr;
+            return QString();
 
-        GstElement *sink = nullptr;
+        bool found = false;
         GstDeviceMonitor *monitor = gst_device_monitor_new();
         GstCaps *caps = gst_caps_new_empty_simple("audio/x-raw");
         gst_device_monitor_add_filter(monitor, "Audio/Sink", caps);
@@ -116,7 +127,7 @@ public:
             GList *devices = gst_device_monitor_get_devices(monitor);
             for (GList *it = devices; it != nullptr; it = it->next) {
                 g_autoptr(GstDevice) dev = GST_DEVICE(it->data);
-                if (sink != nullptr)
+                if (found)
                     continue;
 
                 QString id;
@@ -135,15 +146,44 @@ public:
                     id = displayName != nullptr ? QString::fromUtf8(displayName) : QString();
                 }
                 if (id == wantedId)
-                    sink = gst_device_create_element(dev, "output");
+                    found = true;
             }
             g_list_free(devices);
             gst_device_monitor_stop(monitor);
         }
         gst_object_unref(monitor);
 
-        if (sink == nullptr)
+        if (!found) {
             LOG_WARNING(m_log, "Configured audio output device '{}' not found, using default.", wantedId);
+            return QString();
+        }
+        return wantedId;
+    }
+
+    /**
+     * Create the audio output sink.
+     *
+     * We deliberately prefer pulsesink (which talks to PipeWire via pipewire-pulse) over
+     * pipewiresink: the latter waits for its buffer pool while holding the PipeWire loop
+     * lock in its param-changed callback, which can deadlock pipeline teardown and stall
+     * the whole PipeWire graph (observed with PipeWire 1.6.8). PulseAudio sink names are
+     * identical to PipeWire node names, so the configured device ID works for both.
+     */
+    GstElement *createAudioSink()
+    {
+        const QString deviceId = findConfiguredDeviceId();
+
+        GstElement *sink = gst_element_factory_make("pulsesink", "output");
+        if (sink != nullptr) {
+            if (!deviceId.isEmpty())
+                g_object_set(sink, "device", qPrintable(deviceId), NULL);
+            return sink;
+        }
+
+        LOG_INFO(m_log, "PulseAudio sink not available, falling back to the PipeWire sink.");
+        sink = gst_element_factory_make("pipewiresink", "output");
+        if (sink != nullptr && !deviceId.isEmpty())
+            g_object_set(sink, "target-object", qPrintable(deviceId), NULL);
         return sink;
     }
 
@@ -153,15 +193,15 @@ public:
             LOG_CRITICAL(m_log, "Tried to re-setup pipeline that already existed!");
             return true;
         }
-        m_pipeline = gst_pipeline_new("sy_audiogen");
-        m_audioSource = gst_element_factory_make("audiotestsrc", "source");
+        m_fileMode = m_settingsDialog->sourceKind() == AudioSourceKind::AUDIO_FILE;
+        m_loopFile = m_fileMode && m_settingsDialog->loopPlayback();
+        if (m_fileMode && !checkAudioFile())
+            return false;
 
-        m_audioSink = createSinkFromConfiguredDevice();
-        if (m_audioSink == nullptr)
-            m_audioSink = gst_element_factory_make("pipewiresink", "output");
-        if (m_audioSink == nullptr)
-            m_audioSink = gst_element_factory_make("pulsesink", "output");
+        m_pipeline = gst_pipeline_new("sy_audiogen");
+        m_audioSink = createAudioSink();
         if (m_audioSink == nullptr) {
+            g_clear_pointer(&m_pipeline, gst_object_unref);
             raiseError(
                 QStringLiteral("Failed to create an audio output sink (no PipeWire/PulseAudio sink available)."));
             return false;
@@ -170,13 +210,126 @@ public:
         if (g_object_class_find_property(G_OBJECT_GET_CLASS(m_audioSink), "client-name") != nullptr)
             g_object_set(m_audioSink, "client-name", qPrintable(QStringLiteral("Syntalos: %1").arg(name())), NULL);
 
-        gst_bin_add_many(GST_BIN(m_pipeline), m_audioSource, m_audioSink, NULL);
-        gst_element_link(m_audioSource, m_audioSink);
+        if (m_fileMode) {
+            if (!setupFilePipelineElements())
+                return false;
+        } else {
+            m_audioSource = gst_element_factory_make("audiotestsrc", "source");
+            gst_bin_add_many(GST_BIN(m_pipeline), m_audioSource, m_audioSink, NULL);
+            gst_element_link(m_audioSource, m_audioSink);
+        }
 
         m_bus = gst_pipeline_get_bus(GST_PIPELINE(m_pipeline));
         m_busWatchId = gst_bus_add_watch(m_bus, audiosrc_pipeline_watch_func, this);
 
         return true;
+    }
+
+    bool checkAudioFile()
+    {
+        const QString filePath = m_settingsDialog->audioFilePath();
+        if (filePath.isEmpty()) {
+            raiseError(QStringLiteral("No audio file selected to play. Please choose a file in the module settings."));
+            return false;
+        }
+        const QFileInfo fi(filePath);
+        if (!fi.isFile() || !fi.isReadable()) {
+            raiseError(QStringLiteral("The selected audio file '%1' does not exist or is not readable.").arg(filePath));
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Build filesrc ! decodebin ! audioconvert ! audioresample ! volume ! sink
+     * The sink must already have been created and m_pipeline must exist.
+     * On failure, all elements are owned by the pipeline and will be cleaned up with it.
+     */
+    bool setupFilePipelineElements()
+    {
+        GstElement *fileSrc = gst_element_factory_make("filesrc", "source");
+        GstElement *decoder = gst_element_factory_make("decodebin", "decoder");
+        GstElement *convert = gst_element_factory_make("audioconvert", "convert");
+        GstElement *resample = gst_element_factory_make("audioresample", "resample");
+        m_audioSource = gst_element_factory_make("volume", "volume");
+
+        // the pipeline takes ownership of the elements; missing ones are skipped by gst_bin_add
+        for (GstElement *e : {fileSrc, decoder, convert, resample, m_audioSource, m_audioSink}) {
+            if (e != nullptr)
+                gst_bin_add(GST_BIN(m_pipeline), e);
+        }
+        if (fileSrc == nullptr || decoder == nullptr || convert == nullptr || resample == nullptr
+            || m_audioSource == nullptr) {
+            raiseError(QStringLiteral(
+                "Failed to create GStreamer elements for audio file playback. "
+                "Please check that the GStreamer base plugins are installed."));
+            return false;
+        }
+
+        const QFileInfo fi(m_settingsDialog->audioFilePath());
+        g_object_set(fileSrc, "location", qPrintable(fi.absoluteFilePath()), NULL);
+
+        if (!gst_element_link(fileSrc, decoder)
+            || !gst_element_link_many(convert, resample, m_audioSource, m_audioSink, NULL)) {
+            raiseError(QStringLiteral("Failed to link GStreamer elements for audio file playback."));
+            return false;
+        }
+        // decodebin only exposes its source pad once the stream type is known
+        g_signal_connect(decoder, "pad-added", G_CALLBACK(audiosrc_decodebin_pad_added), convert);
+
+        return true;
+    }
+
+    /**
+     * Seek back to the start of the file. When looping is enabled, a segment seek is
+     * performed, so we get a SEGMENT_DONE message instead of EOS and can continue
+     * playback without a gap.
+     */
+    bool seekToStart(bool flush)
+    {
+        if (m_pipeline == nullptr || !m_fileMode)
+            return false;
+
+        auto flags = static_cast<GstSeekFlags>(m_loopFile ? GST_SEEK_FLAG_SEGMENT : GST_SEEK_FLAG_NONE);
+        if (flush)
+            flags = static_cast<GstSeekFlags>(flags | GST_SEEK_FLAG_FLUSH);
+        return gst_element_seek(
+            m_pipeline,
+            1.0,
+            GST_FORMAT_TIME,
+            flags,
+            GST_SEEK_TYPE_SET,
+            0,
+            GST_SEEK_TYPE_NONE,
+            GST_CLOCK_TIME_NONE);
+    }
+
+    void onSegmentDone()
+    {
+        if (!m_fileMode)
+            return;
+        if (m_loopFile) {
+            // continue playing from the start without flushing, for gapless looping
+            LOG_DEBUG(m_log, "Audio file segment finished, looping.");
+            seekToStart(false);
+        }
+    }
+
+    void onEndOfStream()
+    {
+        if (!m_fileMode)
+            return;
+        if (m_loopFile) {
+            // should not happen with segment seeks, but handle gracefully
+            seekToStart(true);
+            return;
+        }
+
+        // sample was played once: stop and rewind, so the next START plays it again
+        LOG_DEBUG(m_log, "Reached end of audio file, stopping and rewinding.");
+        gst_element_set_state(m_pipeline, GST_STATE_PAUSED);
+        seekToStart(true);
+        m_prevCommand = ControlCommandKind::STOP;
     }
 
     void deletePipeline()
@@ -213,10 +366,16 @@ public:
 
     void setPlayStateFromCommand(ControlCommandKind kind)
     {
+        if (m_pipeline == nullptr)
+            return;
         if (kind == ControlCommandKind::START) {
             gst_element_set_state(m_pipeline, GST_STATE_PLAYING);
-        } else if (kind == ControlCommandKind::STOP || kind == ControlCommandKind::PAUSE) {
+        } else if (kind == ControlCommandKind::PAUSE) {
             gst_element_set_state(m_pipeline, GST_STATE_PAUSED);
+        } else if (kind == ControlCommandKind::STOP) {
+            gst_element_set_state(m_pipeline, GST_STATE_PAUSED);
+            // in file mode, STOP rewinds the sample, while PAUSE keeps its position
+            seekToStart(true);
         }
     }
 
@@ -235,15 +394,47 @@ public:
 
         if (!resetPipeline())
             return false;
-        g_object_set(m_audioSource, "wave", m_settingsDialog->waveKind(), NULL);
-        g_object_set(m_audioSource, "freq", m_settingsDialog->frequency(), NULL);
-        g_object_set(m_audioSource, "volume", m_settingsDialog->volume(), NULL);
-        LOG_INFO(
-            m_log,
-            "Playing wave {} @ {} Hz, volume: {}",
-            m_settingsDialog->waveKindName().toStdString(),
-            m_settingsDialog->frequency(),
-            m_settingsDialog->volume());
+
+        if (m_fileMode) {
+            g_object_set(m_audioSource, "volume", m_settingsDialog->volume(), NULL);
+
+            // preroll the pipeline now, so we can seek and start playback quickly later
+            gst_element_set_state(m_pipeline, GST_STATE_PAUSED);
+            const auto ret = gst_element_get_state(m_pipeline, nullptr, nullptr, 10 * GST_SECOND);
+            if (ret == GST_STATE_CHANGE_FAILURE) {
+                // fetch the detailed error from the bus, the bus watch will not run before we return
+                QString details;
+                g_autoptr(GstMessage) msg = gst_bus_pop_filtered(m_bus, GST_MESSAGE_ERROR);
+                if (msg != nullptr) {
+                    g_autoptr(GError) err = NULL;
+                    gst_message_parse_error(msg, &err, NULL);
+                    if (err != nullptr)
+                        details = QStringLiteral(" %1").arg(QString::fromUtf8(err->message));
+                }
+                failPipeline(QStringLiteral("Failed to prepare audio file '%1' for playback.%2")
+                                 .arg(m_settingsDialog->audioFilePath(), details));
+                return false;
+            }
+            if (!seekToStart(true))
+                LOG_WARNING(m_log, "Unable to seek in audio file, looping may not work as expected.");
+
+            LOG_INFO(
+                m_log,
+                "Playing file {} (loop: {}), volume: {}",
+                m_settingsDialog->audioFilePath().toStdString(),
+                m_loopFile,
+                m_settingsDialog->volume());
+        } else {
+            g_object_set(m_audioSource, "wave", m_settingsDialog->waveKind(), NULL);
+            g_object_set(m_audioSource, "freq", m_settingsDialog->frequency(), NULL);
+            g_object_set(m_audioSource, "volume", m_settingsDialog->volume(), NULL);
+            LOG_INFO(
+                m_log,
+                "Playing wave {} @ {} Hz, volume: {}",
+                m_settingsDialog->waveKindName().toStdString(),
+                m_settingsDialog->frequency(),
+                m_settingsDialog->volume());
+        }
 
         return true;
     }
@@ -265,7 +456,8 @@ public:
         // this will terminate the thread
         m_running = false;
 
-        gst_element_set_state(m_pipeline, GST_STATE_PAUSED);
+        if (m_pipeline != nullptr)
+            gst_element_set_state(m_pipeline, GST_STATE_PAUSED);
     }
 
     static gboolean onResetTimerTimeout(gpointer udata)
@@ -295,6 +487,9 @@ public:
         settings.insert("play_immediately", m_settingsDialog->startImmediately());
 
         settings.insert("device_id", m_settingsDialog->deviceId());
+        settings.insert("source_kind", static_cast<int>(m_settingsDialog->sourceKind()));
+        settings.insert("audio_file", m_settingsDialog->audioFilePath());
+        settings.insert("loop", m_settingsDialog->loopPlayback());
         settings.insert("wave_type", m_settingsDialog->waveKind());
         settings.insert("frequency", m_settingsDialog->frequency());
         settings.insert("volume", m_settingsDialog->volume());
@@ -304,6 +499,11 @@ public:
     {
         m_settingsDialog->setStartImmediately(settings.value("play_immediately", false).toBool());
         m_settingsDialog->setDeviceId(settings.value("device_id").toString());
+        m_settingsDialog->setSourceKind(
+            static_cast<AudioSourceKind>(
+                settings.value("source_kind", static_cast<int>(AudioSourceKind::TEST_SIGNAL)).toInt()));
+        m_settingsDialog->setAudioFilePath(settings.value("audio_file").toString());
+        m_settingsDialog->setLoopPlayback(settings.value("loop", false).toBool());
         m_settingsDialog->setWaveKind(settings.value("wave_type", 0).toInt());
         m_settingsDialog->setFrequency(settings.value("frequency", 100.0).toDouble());
         m_settingsDialog->setVolume(settings.value("volume", 0.8).toDouble());
@@ -316,7 +516,8 @@ static gboolean audiosrc_pipeline_watch_func(GstBus *bus, GstMessage *message, g
 {
     auto self = static_cast<AudioSourceModule *>(udata);
 
-    if (GST_MESSAGE_TYPE(message) == GST_MESSAGE_ERROR) {
+    switch (GST_MESSAGE_TYPE(message)) {
+    case GST_MESSAGE_ERROR: {
         g_autoptr(GError) err = NULL;
 
         gst_message_parse_error(message, &err, NULL);
@@ -324,8 +525,38 @@ static gboolean audiosrc_pipeline_watch_func(GstBus *bus, GstMessage *message, g
 
         return FALSE;
     }
+    case GST_MESSAGE_SEGMENT_DONE:
+        self->onSegmentDone();
+        break;
+    case GST_MESSAGE_EOS:
+        self->onEndOfStream();
+        break;
+    default:
+        break;
+    }
 
     return TRUE;
+}
+
+static void audiosrc_decodebin_pad_added(GstElement *, GstPad *pad, gpointer udata)
+{
+    auto convert = GST_ELEMENT(udata);
+
+    // only link audio pads, ignore anything else the file may contain
+    g_autoptr(GstCaps) caps = gst_pad_get_current_caps(pad);
+    if (caps == nullptr)
+        caps = gst_pad_query_caps(pad, nullptr);
+    if (caps != nullptr && gst_caps_get_size(caps) > 0) {
+        const gchar *name = gst_structure_get_name(gst_caps_get_structure(caps, 0));
+        if (name == nullptr || !g_str_has_prefix(name, "audio/"))
+            return;
+    }
+
+    g_autoptr(GstPad) sinkPad = gst_element_get_static_pad(convert, "sink");
+    if (gst_pad_is_linked(sinkPad))
+        return;
+    if (gst_pad_link(pad, sinkPad) != GST_PAD_LINK_OK)
+        GST_ERROR_OBJECT(convert, "Failed to link decoded audio pad to audio converter.");
 }
 
 QString AudioSourceModuleInfo::id() const

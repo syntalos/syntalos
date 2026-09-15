@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2020-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -20,6 +20,8 @@
 #include "audiosettingsdialog.h"
 #include "ui_audiosettingsdialog.h"
 
+#include <QFileDialog>
+#include <QFileInfo>
 #include <QVariant>
 
 #pragma GCC diagnostic push
@@ -67,6 +69,27 @@ AudioSettingsDialog::AudioSettingsDialog(QWidget *parent)
     for (int i = 0; i < (int)(sizeof(WAVE_NAMES) / sizeof(WAVE_NAMES[0])); ++i)
         ui->waveComboBox->addItem(QString::fromUtf8(WAVE_NAMES[i]), i);
 
+    ui->sourceComboBox->addItem(QStringLiteral("Test Signal"), static_cast<int>(AudioSourceKind::TEST_SIGNAL));
+    ui->sourceComboBox->addItem(QStringLiteral("Audio File"), static_cast<int>(AudioSourceKind::AUDIO_FILE));
+    connect(ui->sourceComboBox, &QComboBox::currentIndexChanged, this, [this](int) {
+        updateSourceWidgets();
+    });
+
+    ui->fileSelectButton->setIcon(QIcon::fromTheme(QStringLiteral("folder-open")));
+    connect(ui->fileSelectButton, &QToolButton::clicked, this, [this]() {
+        const QString current = audioFilePath();
+        const QString startDir = current.isEmpty() ? QString() : QFileInfo(current).absolutePath();
+        const QString fileName = QFileDialog::getOpenFileName(
+            this,
+            QStringLiteral("Select Audio File"),
+            startDir,
+            QStringLiteral(
+                "Audio Files (*.wav *.flac *.ogg *.oga *.opus *.mp3 *.aiff *.aif *.m4a *.wma);;All Files (*)"));
+        if (fileName.isEmpty())
+            return;
+        setAudioFilePath(fileName);
+    });
+
     // Populate output device list
     ui->deviceComboBox->addItem(QStringLiteral("System Default"), QString());
 
@@ -90,11 +113,61 @@ AudioSettingsDialog::AudioSettingsDialog(QWidget *parent)
         gst_device_monitor_stop(monitor);
     }
     gst_object_unref(monitor);
+
+    updateSourceWidgets();
 }
 
 AudioSettingsDialog::~AudioSettingsDialog()
 {
     delete ui;
+}
+
+void AudioSettingsDialog::updateSourceWidgets()
+{
+    const bool isFile = sourceKind() == AudioSourceKind::AUDIO_FILE;
+
+    ui->waveLabel->setVisible(!isFile);
+    ui->waveComboBox->setVisible(!isFile);
+    ui->frequencyLabel->setVisible(!isFile);
+    ui->freqSpinBox->setVisible(!isFile);
+
+    ui->fileLabel->setVisible(isFile);
+    ui->fileLineEdit->setVisible(isFile);
+    ui->fileSelectButton->setVisible(isFile);
+    ui->loopLabel->setVisible(isFile);
+    ui->loopCheckBox->setVisible(isFile);
+}
+
+AudioSourceKind AudioSettingsDialog::sourceKind() const
+{
+    return static_cast<AudioSourceKind>(ui->sourceComboBox->currentData().toInt());
+}
+
+void AudioSettingsDialog::setSourceKind(AudioSourceKind kind)
+{
+    const int idx = ui->sourceComboBox->findData(static_cast<int>(kind));
+    ui->sourceComboBox->setCurrentIndex(idx >= 0 ? idx : 0);
+    updateSourceWidgets();
+}
+
+QString AudioSettingsDialog::audioFilePath() const
+{
+    return ui->fileLineEdit->text().trimmed();
+}
+
+void AudioSettingsDialog::setAudioFilePath(const QString &path)
+{
+    ui->fileLineEdit->setText(path);
+}
+
+bool AudioSettingsDialog::loopPlayback() const
+{
+    return ui->loopCheckBox->isChecked();
+}
+
+void AudioSettingsDialog::setLoopPlayback(bool value)
+{
+    ui->loopCheckBox->setChecked(value);
 }
 
 bool AudioSettingsDialog::startImmediately() const
