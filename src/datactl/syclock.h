@@ -170,6 +170,14 @@ public:
     }
 
     /**
+     * @brief Whether the timer has been started, i.e. whether the master clock is running.
+     */
+    [[nodiscard]] bool isStarted() const noexcept
+    {
+        return m_started;
+    }
+
+    /**
      * @brief Wall-clock time at which the timer was started (system_clock).
      *
      * Captured atomically alongside the master clock in start() / startAt(),
