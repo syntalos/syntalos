@@ -68,6 +68,8 @@ public:
     QuillLogger *log = nullptr;
     QProcess *proc = nullptr;
     ModuleWorkerMode workerMode;
+    std::optional<ThreadUsageStats> lastWorkerUsage;
+    std::optional<ProcessSchedInfo> lastWorkerSchedInfo;
     bool outputCaptured = false;
     QString moduleDir;
     QString pyVenvDir;
@@ -1199,6 +1201,23 @@ bool MLinkModule::isProcessRunning() const
     return d->proc->state() == QProcess::Running;
 }
 
+qint64 MLinkModule::workerProcessId() const
+{
+    if (d->proc == nullptr || d->proc->state() != QProcess::Running)
+        return 0;
+    return d->proc->processId();
+}
+
+std::optional<ThreadUsageStats> MLinkModule::lastWorkerUsage() const
+{
+    return d->lastWorkerUsage;
+}
+
+std::optional<ProcessSchedInfo> MLinkModule::lastWorkerSchedInfo() const
+{
+    return d->lastWorkerSchedInfo;
+}
+
 bool MLinkModule::loadCurrentScript(bool resetPorts)
 {
     if (d->scriptContent.isEmpty())
@@ -1400,6 +1419,10 @@ void MLinkModule::shutdownOutputPorts()
 
 bool MLinkModule::prepare(const RunInfo &info)
 {
+    // usage data from a previous run must not leak into the statistics of this one
+    d->lastWorkerUsage.reset();
+    d->lastWorkerSchedInfo.reset();
+
     // ensure we are reading any messages from the module process
     d->ctlEventTimer->start();
 
@@ -1633,8 +1656,14 @@ void MLinkModule::runThread(OptionalWaitCondition *startWaitCondition)
 
 void MLinkModule::stop()
 {
-    if (isProcessRunning())
+    if (isProcessRunning()) {
+        // remember what the worker consumed during this run and which priority it ran at,
+        // for the run statistics (transient workers exit on their own after the stop request)
+        d->lastWorkerUsage = readProcessUsage(d->proc->processId());
+        d->lastWorkerSchedInfo = readProcessSchedInfo(d->proc->processId());
+
         d->callClientSimple<StopRequest>(this, STOP_CALL_ID, [](auto &) {}, 15);
+    }
 
     // stop the module thread first
     AbstractModule::stop();

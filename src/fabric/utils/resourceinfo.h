@@ -21,6 +21,8 @@
 
 #include <QString>
 #include <QElapsedTimer>
+#include <QtGlobal>
+#include <optional>
 
 namespace Syntalos
 {
@@ -77,8 +79,68 @@ DiskSpaceInfo diskSpaceInfo(const QString &path);
  */
 qint64 directoryTotalSize(const QString &path);
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpadded"
 /**
- * @brief Estimate how fast a finite resource is being used up.
+ * @brief Resource usage of a single OS thread (or a whole process)
+ */
+struct ThreadUsageStats {
+    int64_t tid = 0;
+    double userTimeSec = 0.0;
+    double systemTimeSec = 0.0;
+    uint64_t voluntaryCtxSwitches = 0;
+    uint64_t involuntaryCtxSwitches = 0;
+    uint64_t minorPageFaults = 0;
+    uint64_t majorPageFaults = 0;
+    int64_t peakRssKiB = -1; /// peak resident set size of the whole process over its lifetime, if known
+
+    double cpuTimeSec() const
+    {
+        return userTimeSec + systemTimeSec;
+    }
+
+    /**
+     * @brief Usage difference between this snapshot and an earlier @p baseline.
+     */
+    [[nodiscard]] ThreadUsageStats diff(const ThreadUsageStats &baseline) const;
+};
+
+/**
+ * @brief Capture the resource usage of the calling thread.
+ * @return Nothing if the kernel refused to provide the data.
+ */
+std::optional<ThreadUsageStats> captureCurrentThreadUsage();
+
+/**
+ * @brief Capture the resource usage of the whole current process.
+ * @return Nothing if the kernel refused to provide the data.
+ */
+std::optional<ThreadUsageStats> captureProcessUsage();
+
+/**
+ * @brief Read the accumulated resource usage of another process (and its descendants) from procfs.
+ * @return Nothing if the process does not exist (anymore).
+ */
+std::optional<ThreadUsageStats> readProcessUsage(qint64 pid);
+
+/**
+ * @brief Strongest scheduling priority found among all threads of a process.
+ */
+struct ProcessSchedInfo {
+    bool realtime = false; /// at least one thread runs with a realtime policy (SCHED_FIFO / SCHED_RR)
+    int minNiceness = 0;   /// lowest nice value of any thread
+};
+
+/**
+ * @brief Read the scheduling priority of another process (and its descendants) from procfs.
+ * @return Nothing if the process does not exist (anymore).
+ */
+std::optional<ProcessSchedInfo> readProcessSchedInfo(qint64 pid);
+
+#pragma GCC diagnostic pop
+
+/**
+ * @brief Estimate how fast a resource is being used up.
  *
  * Periodic samples of the remaining amount of a resource (free disk space,
  * available memory, ...) are fed in, and the consumption rate is tracked as an

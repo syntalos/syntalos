@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -20,8 +20,11 @@
 #include "sysinfo.h"
 #include "config.h"
 
+#include <algorithm>
 #include <Eigen/Core>
+#include <QDir>
 #include <QFile>
+#include <QMap>
 #include <QOffscreenSurface>
 #include <QOpenGLContext>
 #include <QOpenGLFunctions>
@@ -383,6 +386,162 @@ SysInfoCheckResult SysInfo::checkClocksource()
     if (d->currentClocksource == QStringLiteral("acpi_pm"))
         return SysInfoCheckResult::ISSUE;
     return SysInfoCheckResult::SUSPICIOUS;
+}
+
+/**
+ * Collect the values of a per-CPU cpufreq attribute over all cores,
+ * together with the number of cores that use each value.
+ */
+static QMap<QString, int> readCpuFreqAttribute(const QString &attrName)
+{
+    const QDir cpuDir(QStringLiteral("/sys/devices/system/cpu"));
+    const auto cpuEntries = cpuDir.entryList(QStringList() << QStringLiteral("cpu[0-9]*"), QDir::Dirs);
+
+    QMap<QString, int> valueCounts;
+    for (const auto &cpu : cpuEntries) {
+        QFile f(cpuDir.filePath(QStringLiteral("%1/cpufreq/%2").arg(cpu, attrName)));
+        if (!f.open(QIODevice::ReadOnly))
+            continue; // offline core, or no frequency scaling at all
+        const auto value = QString::fromLatin1(f.readAll()).simplified();
+        if (!value.isEmpty())
+            valueCounts[value]++;
+    }
+
+    return valueCounts;
+}
+
+/**
+ * A single value if all cores agree, otherwise every value with the number of cores that use it.
+ */
+static QString summarizeCpuFreqValues(const QMap<QString, int> &valueCounts)
+{
+    if (valueCounts.isEmpty())
+        return {};
+    if (valueCounts.size() == 1)
+        return valueCounts.firstKey();
+
+    QStringList parts;
+    for (auto it = valueCounts.constBegin(); it != valueCounts.constEnd(); ++it)
+        parts << QStringLiteral("%1 ×%2").arg(it.key()).arg(it.value());
+    return parts.join(QStringLiteral(", "));
+}
+
+QString SysInfo::cpuGovernor() const
+{
+    return summarizeCpuFreqValues(readCpuFreqAttribute(QStringLiteral("scaling_governor")));
+}
+
+QString SysInfo::cpuScalingDriver() const
+{
+    return summarizeCpuFreqValues(readCpuFreqAttribute(QStringLiteral("scaling_driver")));
+}
+
+QString SysInfo::cpuEnergyPerfPreference() const
+{
+    return summarizeCpuFreqValues(readCpuFreqAttribute(QStringLiteral("energy_performance_preference")));
+}
+
+std::optional<bool> SysInfo::cpuBoostEnabled() const
+{
+    // generic cpufreq switch (acpi-cpufreq, amd-pstate, ...)
+    auto value = readSysFsValue(QStringLiteral("/sys/devices/system/cpu/cpufreq/boost"));
+    if (!value.isEmpty())
+        return value != QStringLiteral("0");
+
+    // intel_pstate has its own, inverted switch
+    value = readSysFsValue(QStringLiteral("/sys/devices/system/cpu/intel_pstate/no_turbo"));
+    if (!value.isEmpty())
+        return value == QStringLiteral("0");
+
+    return std::nullopt;
+}
+
+QString SysInfo::cpuGovernorInfo() const
+{
+    const auto governor = cpuGovernor();
+    if (governor.isEmpty())
+        return QStringLiteral("unknown (no frequency scaling information)");
+
+    QStringList details;
+    const auto driver = cpuScalingDriver();
+    if (!driver.isEmpty())
+        details << driver;
+    const auto epp = cpuEnergyPerfPreference();
+    if (!epp.isEmpty())
+        details << epp;
+    const auto boost = cpuBoostEnabled();
+    if (boost.has_value())
+        details << (boost.value() ? QStringLiteral("boost on") : QStringLiteral("boost off"));
+
+    if (details.isEmpty())
+        return governor;
+    return QStringLiteral("%1 (%2)").arg(governor, details.join(QStringLiteral(", ")));
+}
+
+SysInfoCheckResult SysInfo::checkCpuGovernor() const
+{
+    const auto governors = readCpuFreqAttribute(QStringLiteral("scaling_governor"));
+    if (governors.isEmpty())
+        return SysInfoCheckResult::UNKNOWN;
+    const auto eppValues = readCpuFreqAttribute(QStringLiteral("energy_performance_preference"));
+
+    // With an energy-performance preference, the hardware selects the frequency on its own and
+    // "powersave" just means "dynamic" rather than "lowest frequency". Preference value then decides
+    // how eagerly the CPU clocks up.
+    const bool hwManaged = !eppValues.isEmpty();
+
+    auto result = SysInfoCheckResult::OK;
+
+    // modules can end up on any core, so the worst setting of any core is what counts
+    for (auto it = governors.constBegin(); it != governors.constEnd(); ++it) {
+        const auto &governor = it.key();
+        if (governor == QStringLiteral("performance"))
+            continue;
+
+        if (governor == QStringLiteral("powersave")) {
+            // some drivers pin the cores to their lowest frequency with this one
+            if (!hwManaged)
+                result = std::max(result, SysInfoCheckResult::ISSUE);
+            continue;
+        }
+
+        // ramps up in small steps over many sampling periods (too slow for our bursty acquisition work!)
+        if (governor == QStringLiteral("conservative")) {
+            result = std::max(result, SysInfoCheckResult::ISSUE);
+            continue;
+        }
+
+        // ondemand & schedutil follow the load with a delay, userspace depends on the
+        // frequency that was pinned, and anything else we do not know
+        result = std::max(result, SysInfoCheckResult::SUSPICIOUS);
+    }
+
+    for (auto it = eppValues.constBegin(); it != eppValues.constEnd(); ++it) {
+        const auto &epp = it.key();
+
+        // NOTE: "balance_performance" is the default on most systems. We accept it for now
+        // TODO: Measure whether it makes a relevant latency/jitter difference compared to "performance"!
+        if (epp == QStringLiteral("performance") || epp == QStringLiteral("balance_performance"))
+            continue;
+
+        if (epp == QStringLiteral("balance_power") || epp == QStringLiteral("power")) {
+            result = std::max(result, SysInfoCheckResult::ISSUE);
+            continue;
+        }
+
+        // "default" (firmware decides) or a value we do not know
+        result = std::max(result, SysInfoCheckResult::SUSPICIOUS);
+    }
+
+    // cores that disagree with each other are unusual, even if each setting is fine on its own
+    if (governors.size() > 1 || eppValues.size() > 1)
+        result = std::max(result, SysInfoCheckResult::SUSPICIOUS);
+
+    // no boost lowers peak performance, but is sometimes disabled on purpose for thermal stability
+    if (!cpuBoostEnabled().value_or(true))
+        result = std::max(result, SysInfoCheckResult::SUSPICIOUS);
+
+    return result;
 }
 
 bool SysInfo::tscIsConstant() const

@@ -496,6 +496,21 @@ VariantDataStream *Syntalos::newStreamForType(int typeId)
     return result;
 }
 
+QString Syntalos::driverKindToString(ModuleDriverKind kind)
+{
+    switch (kind) {
+    case ModuleDriverKind::NONE:
+        return QStringLiteral("main-thread");
+    case ModuleDriverKind::THREAD_DEDICATED:
+        return QStringLiteral("thread-dedicated");
+    case ModuleDriverKind::EVENTS_DEDICATED:
+        return QStringLiteral("events-dedicated");
+    case ModuleDriverKind::EVENTS_SHARED:
+        return QStringLiteral("events-shared");
+    }
+    return QStringLiteral("unknown");
+}
+
 QString Syntalos::toString(ModuleCategory category)
 {
     switch (category) {

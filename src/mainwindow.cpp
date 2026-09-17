@@ -1403,6 +1403,11 @@ void MainWindow::setExportDirOverride(const QString &dir)
     m_exportDirOverride = dir;
 }
 
+void MainWindow::setRunStatisticsOutputFile(const QString &path)
+{
+    m_engine->setRunStatisticsOutputFile(path);
+}
+
 NetworkControlConfig MainWindow::buildNetControlConfig() const
 {
     NetworkControlConfig cfg;
@@ -1545,6 +1550,9 @@ void MainWindow::onEngineRunStarted()
 
 void MainWindow::onEngineStopped()
 {
+    // make the statistics of the run that just ended available in the log dialog
+    m_logViewDialog->setRunStatistics(m_engine->lastRunStatistics());
+
     // do nothing if we are still in interval mode and will launch again
     if (m_isIntervalRun)
         return;

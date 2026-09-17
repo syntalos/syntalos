@@ -506,6 +506,25 @@
          </widget>
         </item>
         <item row="4" column="0">
+         <widget class="QLabel" name="cpuGovernorLabel">
+          <property name="font">
+           <font>
+            <bold>true</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string>CPU Governor</string>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="1">
+         <widget class="QLabel" name="valCpuGovernor">
+          <property name="text">
+           <string>???</string>
+          </property>
+         </widget>
+        </item>
+        <item row="5" column="0">
          <widget class="QLabel" name="currentClocksourceLabel">
           <property name="font">
            <font>
@@ -517,21 +536,21 @@
           </property>
          </widget>
         </item>
-        <item row="4" column="1">
+        <item row="5" column="1">
          <widget class="QLabel" name="valClocksourceCurrent">
           <property name="text">
            <string>???</string>
           </property>
          </widget>
         </item>
-        <item row="6" column="1">
+        <item row="7" column="1">
          <widget class="QLabel" name="valConstantTSC">
           <property name="text">
            <string>???</string>
           </property>
          </widget>
         </item>
-        <item row="8" column="0">
+        <item row="9" column="0">
          <widget class="QLabel" name="avxSupportLabel">
           <property name="font">
            <font>
@@ -543,7 +562,7 @@
           </property>
          </widget>
         </item>
-        <item row="9" column="0">
+        <item row="10" column="0">
          <widget class="QLabel" name="openGLLabel">
           <property name="font">
            <font>
@@ -555,14 +574,14 @@
           </property>
          </widget>
         </item>
-        <item row="9" column="1">
+        <item row="10" column="1">
          <widget class="QLabel" name="valOpenGL">
           <property name="text">
            <string>???</string>
           </property>
          </widget>
         </item>
-        <item row="6" column="0">
+        <item row="7" column="0">
          <widget class="QLabel" name="constantTSCLabel">
           <property name="font">
            <font>
@@ -574,7 +593,7 @@
           </property>
          </widget>
         </item>
-        <item row="5" column="0">
+        <item row="6" column="0">
          <widget class="QLabel" name="availableClocksourcesLabel">
           <property name="font">
            <font>
@@ -586,14 +605,14 @@
           </property>
          </widget>
         </item>
-        <item row="5" column="1">
+        <item row="6" column="1">
          <widget class="QLabel" name="valClocksourceAvailable">
           <property name="text">
            <string>???</string>
           </property>
          </widget>
         </item>
-        <item row="10" column="0">
+        <item row="11" column="0">
          <widget class="QLabel" name="syHWSupportLabel">
           <property name="font">
            <font>
@@ -605,14 +624,14 @@
           </property>
          </widget>
         </item>
-        <item row="10" column="1">
+        <item row="11" column="1">
          <widget class="QLabel" name="valSyHWSupport">
           <property name="text">
            <string>???</string>
           </property>
          </widget>
         </item>
-        <item row="8" column="1">
+        <item row="9" column="1">
          <widget class="QWidget" name="widget_8" native="true">
           <layout class="QHBoxLayout" name="horizontalLayout_5">
            <property name="spacing">

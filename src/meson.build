@@ -50,6 +50,8 @@ syntalos_src = [
     'projectfile.cpp',
     'projectmetrics.h',
     'projectmetrics.cpp',
+    'runstatistics.h',
+    'runstatistics.cpp',
     'qmeta.h',
     'qmeta.cpp',
     'runnoticeswidget.h',

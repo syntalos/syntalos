@@ -66,6 +66,11 @@ public:
     bool threadActive;
     std::thread thread;
     std::atomic<GMainLoop *> activeLoop;
+
+    bool realtimeRequested{false};
+    int niceness{0};
+    bool priorityApplied{false};
+    std::optional<ThreadUsageStats> usage;
 };
 #pragma GCC diagnostic pop
 
@@ -228,10 +233,12 @@ void ModuleEventThread::moduleEventThreadFunc(
     // Elevate this shared event thread as a whole, if the engine approved it. Realtime
     // takes precedence over niceness.
     if (realtime) {
-        if (setCurrentThreadRealtime(rtPriority))
+        if (setCurrentThreadRealtime(rtPriority)) {
+            d->priorityApplied = true;
             LOG_INFO(d->log, "Event thread '{}' set to realtime mode.", d->threadName);
+        }
     } else if (niceness != 0) {
-        setCurrentThreadNiceness(niceness);
+        d->priorityApplied = setCurrentThreadNiceness(niceness);
     }
 
     g_autoptr(GMainContext) context = g_main_context_new();
@@ -335,6 +342,9 @@ out:
         g_source_destroy(pl->source);
         g_source_unref(pl->source);
     }
+
+    // record what this thread consumed, for the run statistics (read after join)
+    d->usage = captureCurrentThreadUsage();
 }
 
 void ModuleEventThread::run(
@@ -349,6 +359,10 @@ void ModuleEventThread::run(
 
     d->running = true;
     d->threadActive = true;
+    d->realtimeRequested = realtime;
+    d->niceness = niceness;
+    d->priorityApplied = false;
+    d->usage.reset();
     d->thread = std::thread(
         &ModuleEventThread::moduleEventThreadFunc,
         this,
@@ -378,4 +392,24 @@ void ModuleEventThread::shutdownThread()
 QuillLogger *ModuleEventThread::logger() const
 {
     return d->log;
+}
+
+bool ModuleEventThread::realtimeRequested() const
+{
+    return d->realtimeRequested;
+}
+
+int ModuleEventThread::niceness() const
+{
+    return d->niceness;
+}
+
+bool ModuleEventThread::priorityApplied() const
+{
+    return d->priorityApplied;
+}
+
+std::optional<ThreadUsageStats> ModuleEventThread::threadUsage() const
+{
+    return d->usage;
 }

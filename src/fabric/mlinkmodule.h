@@ -25,6 +25,7 @@
 
 #include "moduleapi.h"
 #include "streamexporter.h"
+#include "utils/resourceinfo.h"
 
 namespace Syntalos
 {
@@ -91,6 +92,29 @@ public:
     void terminateProcess();
     bool runProcess();
     bool isProcessRunning() const;
+
+    /**
+     * @brief Process ID of the running worker process, or 0 if there is none.
+     */
+    qint64 workerProcessId() const;
+
+    /**
+     * @brief Resource usage of the worker process, captured when the last run was stopped.
+     *
+     * Taken right before the worker was told to stop, so the usage of transient
+     * workers (which exit afterwards) is still available after a run has ended.
+     * @return The usage, with the process ID in its tid field, or nothing if no run
+     *         with a live worker was stopped yet.
+     */
+    std::optional<ThreadUsageStats> lastWorkerUsage() const;
+
+    /**
+     * @brief Scheduling priority of the worker process, captured together with lastWorkerUsage().
+     *
+     * The worker applies its priority elevation by itself, so this is how we learn
+     * whether that actually worked.
+     */
+    std::optional<ProcessSchedInfo> lastWorkerSchedInfo() const;
 
     bool loadCurrentScript(bool resetPorts = false);
     bool sendPortInformation();

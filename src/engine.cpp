@@ -62,6 +62,7 @@
 #include "moduleeventthread.h"
 #include "networkcontroller.h"
 #include "projectmetrics.h"
+#include "runstatistics.h"
 #include "modulelibrary.h"
 #include "mlinkmodule.h"
 #include "sysinfo.h"
@@ -170,6 +171,34 @@ public:
         m_joined = true;
     }
 
+    bool joined() const
+    {
+        return m_joined;
+    }
+
+    const ThreadDetails &details() const
+    {
+        return m_td;
+    }
+
+    /**
+     * @brief True if the priority elevation requested for the thread (realtime or niceness) took effect.
+     */
+    bool priorityApplied() const
+    {
+        return m_priorityApplied;
+    }
+
+    /**
+     * @brief Resource usage of this thread, recorded by the thread itself right before it exited.
+     *
+     * Only set after the thread was joined.
+     */
+    const std::optional<ThreadUsageStats> &threadUsage() const
+    {
+        return m_usage;
+    }
+
     bool joinTimeout(uint seconds)
     {
         if (m_threadBackend == BackendQThread) {
@@ -204,6 +233,9 @@ private:
     AbstractModule *m_mod;
     OptionalWaitCondition *m_waitCond;
 
+    bool m_priorityApplied{false};
+    std::optional<ThreadUsageStats> m_usage;
+
     /**
      * @brief Main entry point for engine-managed module threads.
      */
@@ -219,10 +251,12 @@ private:
         // Apply exactly one priority elevation for this thread: realtime takes
         // precedence over niceness.
         if (self->m_td.realtime) {
-            if (setCurrentThreadRealtime(self->m_td.allowedRTPriority))
+            if (setCurrentThreadRealtime(self->m_td.allowedRTPriority)) {
+                self->m_priorityApplied = true;
                 LOG_INFO(getEngineLog, "Module thread for '{}' set to realtime mode.", self->m_mod->name());
+            }
         } else if (self->m_td.niceness != 0) {
-            setCurrentThreadNiceness(self->m_td.niceness);
+            self->m_priorityApplied = setCurrentThreadNiceness(self->m_td.niceness);
         }
 
         self->m_mod->runThread(self->m_waitCond);
@@ -232,6 +266,9 @@ private:
         // is gone at this point, so flag the module as failed to let the launch abort.
         if (self->m_mod->state() == ModuleState::PREPARING)
             Engine::flagThreadExitedBeforeReady(self->m_mod);
+
+        // record what this thread consumed, for the run statistics (read after join)
+        self->m_usage = captureCurrentThreadUsage();
 
         if (self->m_threadBackend != BackendQThread)
             pthread_exit(nullptr);
@@ -253,6 +290,12 @@ static constexpr int MEM_CHECK_INTERVAL_FAST_MSEC = 1000;
 static constexpr int DISK_CHECK_INTERVAL_MSEC = 60 * 1000;
 static constexpr int DISK_CHECK_INTERVAL_FAST_MSEC = 10 * 1000;
 
+// Subscription queue lengths are sampled often (only a couple of atomic loads per connection)
+// to track the peak backlog for the run statistics, but the heat level with its trend logic is
+// only evaluated every few samples so that its growth thresholds keep their meaning.
+static constexpr int SUBBUF_PEAK_SAMPLE_INTERVAL_MSEC = 1000;
+static constexpr uint SUBBUF_HEAT_EVAL_EVERY_N_SAMPLES = 5;
+
 class EngineResourceMonitorData
 {
 public:
@@ -269,6 +312,10 @@ public:
 
         size_t estBytesPerItem;  // O(1) per-item memory estimate
         size_t prevPendingCount; // previous tick's queue length
+
+        // run statistics
+        size_t peakPendingCount;     // largest queue length observed during the run
+        ConnectionHeatLevel maxHeat; // highest heat level reached during the run
     };
 
     std::vector<SubscriptionBufferWatchData> monitoredSubscriptions;
@@ -280,6 +327,7 @@ public:
     bool memFastPolling;
     bool subBufferWarningEmitted;
     bool emergencyOOMStop;
+    uint subBufferTick; // buffer monitor ticks since the run started
 
     // how fast are disk space and memory being used up?
     ResourceTrend diskTrend;
@@ -355,11 +403,44 @@ public:
     int runCount;
     int runCountPadding;
 
+    std::shared_ptr<RunStatistics> lastRunStats;
+    QString runStatsOutputFile;
+
     libusb_context *usbCtx;
     libusb_hotplug_callback_handle usbHotplugCBHandle;
     QTimer *usbEventsTimer;
 };
 #pragma GCC diagnostic pop
+
+/**
+ * @brief Resource usage snapshot taken right before a run starts.
+ */
+struct Engine::RunStatsBaseline {
+    QDateTime wallTime;
+    symaster_timepoint monotonicTime; // for the length of the window the usage deltas cover
+    std::optional<ThreadUsageStats> process;
+    std::optional<ThreadUsageStats> mainThread;
+    QHash<AbstractModule *, ThreadUsageStats> workers; // out-of-process module workers (pid in tid field)
+};
+
+/**
+ * @brief Everything collectRunStatistics() needs from the run that just ended.
+ */
+struct Engine::RunStatsCollectInput {
+    const ModuleRunOrder &modOrder;
+    const QList<AbstractModule *> &threadedModules;
+    const std::vector<std::unique_ptr<SyThread>> &dThreads;
+    const QHash<QString, std::shared_ptr<ModuleEventThread>> &evThreads;
+    const QHash<QString, QList<AbstractModule *>> &eventModules;
+    const QHash<VarStreamInputPort *, size_t> &pendingAtStop;
+    const RunStatsBaseline &baseline;
+    Uuid runId;
+    QString exportDirPath;
+    QDateTime attemptStarted; // when we began preparing the run
+    long long finishTimestampMsec;
+    std::optional<qint64> bytesWritten;
+    int cpuCoreCount;
+};
 
 Engine::Engine(QWidget *parentWidget)
     : QObject(parentWidget),
@@ -1609,6 +1690,14 @@ size_t Engine::guessStreamItemSizeBytes(VariantStreamSubscription *sub)
 
 void Engine::onBufferMonitorEvent()
 {
+    // cheap peak tracking on every tick
+    for (auto &msd : d->monitoring->monitoredSubscriptions)
+        msd.peakPendingCount = std::max(msd.peakPendingCount, msd.sub->approxPendingCount());
+
+    // the (more involved) heat evaluation only runs every few ticks
+    if (++d->monitoring->subBufferTick % SUBBUF_HEAT_EVAL_EVERY_N_SAMPLES != 0)
+        return;
+
     bool issueFound = false;
     bool subBufferWarningEmitted = d->monitoring->subBufferWarningEmitted;
 
@@ -1660,6 +1749,7 @@ void Engine::onBufferMonitorEvent()
                 heat = static_cast<ConnectionHeatLevel>(static_cast<int>(heat) + 1);
         }
         msd.prevPendingCount = approxPending;
+        msd.maxHeat = std::max(msd.maxHeat, heat);
 
         // 4. emit only on level change
         if (heat != msd.heat) {
@@ -1729,6 +1819,8 @@ void Engine::startResourceMonitoring(QList<AbstractModule *> activeModules, cons
             data.heat = ConnectionHeatLevel::NONE;
             data.estBytesPerItem = 0; // once, when needed
             data.prevPendingCount = 0;
+            data.peakPendingCount = 0;
+            data.maxHeat = ConnectionHeatLevel::NONE;
             d->monitoring->monitoredSubscriptions.push_back(data);
 
             // reset all connection heat levels
@@ -1737,7 +1829,8 @@ void Engine::startResourceMonitoring(QList<AbstractModule *> activeModules, cons
     }
 
     d->monitoring->subBufferWarningEmitted = false;
-    d->monitoring->subBufferCheckTimer.setInterval(5 * MS_PER_S); // check every 5sec
+    d->monitoring->subBufferTick = 0;
+    d->monitoring->subBufferCheckTimer.setInterval(SUBBUF_PEAK_SAMPLE_INTERVAL_MSEC);
     connect(&d->monitoring->subBufferCheckTimer, &QTimer::timeout, this, &Engine::onBufferMonitorEvent);
 
     // start resource watchers
@@ -2212,6 +2305,18 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
         d->netCtl->resetListenerRunState();
     });
 
+    // Empty the statistics file, so nobody mistakes the statistics of an earlier run for
+    // ours if this run fails before it has anything to report.
+    if (!d->runStatsOutputFile.isEmpty() && QFile::exists(d->runStatsOutputFile)) {
+        QFile statsFile(d->runStatsOutputFile);
+        if (!statsFile.open(QIODevice::WriteOnly | QIODevice::Truncate))
+            LOG_WARNING(
+                d->log,
+                "Unable to empty run statistics file {}: {}",
+                d->runStatsOutputFile,
+                statsFile.errorString());
+    }
+
     QDir edlDir(exportDirPath);
     if (edlDir.exists()) {
         QMessageBox::critical(
@@ -2311,6 +2416,7 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
 
     // create a new master timer for synchronization
     d->timer.reset(new SyncTimer);
+    const auto runAttemptStarted = QDateTime::currentDateTime();
 
     auto lastPhaseTimepoint = currentTimePoint();
     // assume success until a module actually fails
@@ -2341,6 +2447,9 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
     // the dedicated threads our modules run in, references owned by the vector
     std::vector<std::unique_ptr<SyThread>> dThreads;
     QList<AbstractModule *> threadedModules;
+
+    // resource usage snapshot, to create deltas later
+    RunStatsBaseline statsBaseline;
 
     // special event threads and their assigned modules, with a specific identifier string as hash key
     QHash<QString, QList<AbstractModule *>> eventModules;
@@ -2667,6 +2776,9 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
             stopResourceMonitoring();
         });
 
+        // snapshot resource usage now, so the run statistics only cover the acquisition phase
+        statsBaseline = captureRunStatsBaseline(modOrder.start);
+
         // signal that all modules are prepared and we are about to start the timer;
         // in listener mode, NetworkController uses this to send the prepare ACK to
         // the controller ("I am ready to start on your command")
@@ -2796,7 +2908,10 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
         }
     }
 
-    auto finishTimestamp = static_cast<long long>(d->timer->timeSinceStartMsec().count());
+    // if the run failed before the master timer was even started (e.g. during module
+    // preparation), no data was acquired and the run has no length
+    const auto finishTimestamp = d->timer->isStarted() ? static_cast<long long>(d->timer->timeSinceStartMsec().count())
+                                                       : 0LL;
     emitStatusMessage(QStringLiteral("Run stopped, finalizing..."));
 
     // clear any thread affinity of the main process, so anything the stop() actions
@@ -2989,11 +3104,15 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
     // All threads have joined and nothing should be using the SPSC queues in parallel
     // anymore. So, let's clear them out to save memory while IDLE, just in case many
     // elements are still stuck in the queues.
+    // We remember what was left in them first, for the run statistics.
+    QHash<VarStreamInputPort *, size_t> pendingAtStop;
     for (auto &mod : modOrder.stop) {
         for (const auto &iport : mod->inPorts()) {
             if (!iport->hasSubscription())
                 continue;
-            iport->subscriptionVar()->clearPending();
+            auto sub = iport->subscriptionVar();
+            pendingAtStop.insert(iport.get(), sub->approxPendingCount());
+            sub->clearPending();
         }
     }
 
@@ -3010,6 +3129,7 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
             tsw->close();
     }
 
+    std::optional<qint64> bytesWritten;
     if (initSuccessful) {
         finalizeExperimentMetadata(storageCollection, finishTimestamp, modOrder.start);
         LOG_INFO(
@@ -3034,8 +3154,28 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
                 "Run produced {} MB of data in {} sec",
                 metrics.bytesWritten / 1000 / 1000,
                 metrics.durationSec);
+            bytesWritten = metrics.bytesWritten;
         }
     }
+
+    // assemble the statistics of this run, now that all module threads are gone
+    // and all data has been written
+    collectRunStatistics(
+        RunStatsCollectInput{
+            .modOrder = modOrder,
+            .threadedModules = threadedModules,
+            .dThreads = dThreads,
+            .evThreads = evThreads,
+            .eventModules = eventModules,
+            .pendingAtStop = pendingAtStop,
+            .baseline = statsBaseline,
+            .runId = storageCollection->collectionId(),
+            .exportDirPath = exportDirPath,
+            .attemptStarted = runAttemptStarted,
+            .finishTimestampMsec = finishTimestamp,
+            .bytesWritten = bytesWritten,
+            .cpuCoreCount = cpuCoreCount,
+        });
 
     // ensure main thread CPU affinity is cleared
     thread_clear_affinity(pthread_self());
@@ -3081,6 +3221,248 @@ void Engine::stop()
 {
     d->running = false;
     d->stopRequested = true;
+}
+
+std::shared_ptr<const RunStatistics> Engine::lastRunStatistics() const
+{
+    return d->lastRunStats;
+}
+
+void Engine::setRunStatisticsOutputFile(const QString &path)
+{
+    d->runStatsOutputFile = path;
+}
+
+QString Engine::runStatisticsOutputFile() const
+{
+    return d->runStatsOutputFile;
+}
+
+Engine::RunStatsBaseline Engine::captureRunStatsBaseline(const QList<AbstractModule *> &activeModules) const
+{
+    RunStatsBaseline b;
+    b.wallTime = QDateTime::currentDateTime();
+    b.monotonicTime = currentTimePoint();
+    b.process = captureProcessUsage();
+    b.mainThread = captureCurrentThreadUsage();
+
+    for (auto mod : activeModules) {
+        auto mlinkMod = qobject_cast<MLinkModule *>(mod);
+        if (mlinkMod == nullptr)
+            continue;
+        const auto pid = mlinkMod->workerProcessId();
+        if (pid <= 0)
+            continue;
+        if (const auto usage = readProcessUsage(pid))
+            b.workers.insert(mod, *usage);
+    }
+
+    return b;
+}
+
+void Engine::collectRunStatistics(const RunStatsCollectInput &in)
+{
+    auto stats = std::make_shared<RunStatistics>();
+
+    // the baseline is only taken once preparation succeeded (otherwise usage deltas don't mean anything)
+    const bool haveBaseline = in.baseline.process.has_value();
+    if (d->timer->isStarted())
+        stats->started = QDateTime::fromStdTimePoint(
+                             std::chrono::time_point_cast<std::chrono::milliseconds>(d->timer->startWallTime()))
+                             .toLocalTime();
+    else
+        stats->started = in.attemptStarted;
+    stats->runId = QString::fromStdString(in.runId.toHex());
+    stats->experimentId = d->experimentIdFinal;
+    stats->exportDir = in.exportDirPath;
+    stats->ephemeral = d->runIsEphemeral;
+    stats->failed = d->failed;
+    stats->failReason = d->runFailedReason;
+    stats->durationSec = static_cast<double>(in.finishTimestampMsec) / 1000.0;
+    if (haveBaseline)
+        stats->usageWindowSec = static_cast<double>(timeDiffToNowMsec(in.baseline.monotonicTime).count()) / 1000.0;
+    stats->cpuCoreCount = in.cpuCoreCount;
+    stats->priorityBudget = d->gconf->defaultRtKitThreadsMax();
+    if (in.bytesWritten.has_value())
+        stats->bytesWritten = in.bytesWritten.value();
+    else
+        stats->bytesWritten = directoryTotalSize(in.exportDirPath);
+
+    // process-level usage
+    if (const auto now = captureProcessUsage()) {
+        stats->peakRssKiB = now->peakRssKiB;
+        if (haveBaseline)
+            stats->process = now->diff(*in.baseline.process);
+    }
+    if (const auto now = captureCurrentThreadUsage(); now && in.baseline.mainThread)
+        stats->mainThread = now->diff(*in.baseline.mainThread);
+
+    // per-module error messages, as far as we know them
+    QHash<AbstractModule *, QString> modErrors;
+    for (const auto &err : d->pendingErrors) {
+        if (err.first != nullptr)
+            modErrors.insert(err.first, err.second);
+    }
+
+    // a raised priority is either realtime scheduling or a negative nice value
+    const auto elevationRequested = [](bool realtime, int niceness) {
+        return realtime || niceness < 0;
+    };
+
+    // event threads and which module ran on which
+    QHash<AbstractModule *, QString> modEventThreadKey;
+    for (auto it = in.eventModules.constBegin(); it != in.eventModules.constEnd(); ++it) {
+        EventThreadRunStats ets;
+        ets.key = it.key();
+        for (auto mod : it.value()) {
+            ets.moduleNames << mod->name();
+            modEventThreadKey.insert(mod, it.key());
+        }
+        const auto evThread = in.evThreads.value(it.key());
+        if (evThread) {
+            ets.realtimeRequested = evThread->realtimeRequested();
+            ets.niceness = evThread->niceness();
+            ets.priorityApplied = evThread->priorityApplied();
+            ets.thread = evThread->threadUsage();
+            stats->threadsTotal++;
+            if (ets.priorityApplied && elevationRequested(ets.realtimeRequested, ets.niceness))
+                stats->threadsElevated++;
+        }
+        stats->eventThreads.append(ets);
+    }
+
+    // modules
+    for (auto mod : in.modOrder.start) {
+        ModuleRunStats ms;
+        ms.id = mod->id();
+        ms.name = mod->name();
+        ms.driver = mod->driver();
+        ms.finalState = mod->state();
+        ms.eventThreadKey = modEventThreadKey.value(mod);
+        ms.errorMessage = modErrors.value(mod);
+        ms.realtimeRequested = mod->isRealtimeApproved();
+        ms.niceness = mod->defaultThreadNiceness();
+        const bool priorityRequested = ms.realtimeRequested || ms.niceness != 0;
+
+        auto mlinkMod = qobject_cast<MLinkModule *>(mod);
+
+        // modules on an event thread share the fate of that thread
+        if (const auto evThread = in.evThreads.value(ms.eventThreadKey); evThread && priorityRequested)
+            ms.priorityApplied = evThread->priorityApplied();
+
+        const auto tIdx = in.threadedModules.indexOf(mod);
+        if (tIdx >= 0 && static_cast<size_t>(tIdx) < in.dThreads.size() && in.dThreads[tIdx] != nullptr) {
+            const auto &thread = in.dThreads[tIdx];
+            ms.cpuAffinity = thread->details().cpuAffinity;
+            if (thread->joined())
+                ms.thread = thread->threadUsage();
+            stats->threadsTotal++;
+
+            // the in-process thread of an out-of-process module only relays data and is never elevated
+            if (mlinkMod == nullptr && priorityRequested) {
+                ms.priorityApplied = thread->priorityApplied();
+                if (thread->priorityApplied() && elevationRequested(ms.realtimeRequested, ms.niceness))
+                    stats->threadsElevated++;
+            }
+        }
+
+        if (mlinkMod != nullptr) {
+            ms.outOfProcess = true;
+
+            // The worker elevates itself, so we look at how it was actually scheduled. If we could
+            // not find that out, we assume the request worked, as it still used up priority budget.
+            auto schedInfo = mlinkMod->lastWorkerSchedInfo();
+            if (!schedInfo && mlinkMod->workerProcessId() > 0)
+                schedInfo = readProcessSchedInfo(mlinkMod->workerProcessId());
+            if (schedInfo && priorityRequested)
+                ms.priorityApplied = ms.realtimeRequested ? schedInfo->realtime : schedInfo->minNiceness <= ms.niceness;
+            if (elevationRequested(ms.realtimeRequested, ms.niceness) && ms.priorityApplied.value_or(true))
+                stats->threadsElevated++;
+
+            // the module recorded its worker's usage when it was stopped (transient workers
+            // are gone by now); fall back to a live read if that did not happen for some reason
+            auto usage = mlinkMod->lastWorkerUsage();
+            if (!usage && mlinkMod->workerProcessId() > 0)
+                usage = readProcessUsage(mlinkMod->workerProcessId());
+            if (usage) {
+                ms.workerPid = usage->tid;
+                const auto baseline = in.baseline.workers.constFind(mod);
+                if (baseline != in.baseline.workers.constEnd() && baseline->tid == usage->tid)
+                    ms.worker = usage->diff(*baseline);
+                else if (haveBaseline)
+                    ms.worker = usage; // worker was (re)started during the run, all its usage belongs to it
+                // without any baseline the run never started, and the totals would be meaningless
+            }
+        }
+
+        stats->modules.append(ms);
+    }
+
+    // connections
+    QHash<VariantStreamSubscription *, const EngineResourceMonitorData::SubscriptionBufferWatchData *> monitored;
+    for (const auto &msd : d->monitoring->monitoredSubscriptions)
+        monitored.insert(msd.sub, &msd);
+    for (auto mod : in.modOrder.start) {
+        const auto mlinkMod = qobject_cast<MLinkModule *>(mod);
+        for (const auto &iport : mod->inPorts()) {
+            if (!iport->hasSubscription())
+                continue;
+            const auto sub = iport->subscriptionVar();
+            const auto outPort = iport->outPort();
+
+            ConnectionRunStats cs;
+            cs.dstModule = mod->name();
+            cs.dstPort = iport->id();
+            cs.dataType = iport->dataTypeName();
+            if (outPort != nullptr) {
+                cs.srcModule = outPort->owner() != nullptr ? outPort->owner()->name() : QString();
+                cs.srcPort = outPort->id();
+            }
+            // data between two out-of-process modules flows worker-to-worker,
+            // the in-process subscription is drained and suspended and never sees it
+            cs.directIpc = mlinkMod != nullptr && outPort != nullptr
+                           && qobject_cast<MLinkModule *>(outPort->owner()) != nullptr;
+            cs.itemsReceived = sub->receivedCount();
+            // the end-of-stream marker the producer emplaces on stop is not lost data
+            const auto pending = in.pendingAtStop.value(iport.get(), 0);
+            cs.pendingAtStop = pending > 0 ? pending - 1 : 0;
+            const auto msd = monitored.value(sub.get(), nullptr);
+            if (msd != nullptr) {
+                cs.peakPending = std::max<size_t>(msd->peakPendingCount, cs.pendingAtStop);
+                cs.maxHeat = msd->maxHeat;
+            } else {
+                cs.peakPending = cs.pendingAtStop;
+            }
+            stats->connections.append(cs);
+        }
+    }
+
+    // system context
+    stats->system.insert(QStringLiteral("CPU"), d->sysInfo->cpu0ModelName());
+    stats->system.insert(
+        QStringLiteral("CPU cores"),
+        QStringLiteral("%1 logical, %2 physical").arg(d->sysInfo->cpuCount()).arg(d->sysInfo->cpuPhysicalCoreCount()));
+    stats->system.insert(QStringLiteral("CPU governor"), d->sysInfo->cpuGovernorInfo());
+    stats->system.insert(QStringLiteral("Clocksource"), d->sysInfo->currentClocksource());
+    stats->system.insert(QStringLiteral("Kernel"), d->sysInfo->kernelInfo());
+    stats->system.insert(QStringLiteral("OS"), d->sysInfo->prettyOSName());
+    stats->system.insert(
+        QStringLiteral("Sandbox"),
+        d->sysInfo->inFlatpakSandbox() ? QStringLiteral("Flatpak") : QStringLiteral("none"));
+    stats->system.insert(
+        QStringLiteral("RtKit max. RT priority"),
+        QString::number(d->sysInfo->rtkitMaxRealtimePriority()));
+    stats->system.insert(QStringLiteral("Syntalos"), d->sysInfo->syntalosVersion());
+
+    d->lastRunStats = stats;
+
+    if (!d->runStatsOutputFile.isEmpty()) {
+        QString errorMsg;
+        if (stats->saveJson(d->runStatsOutputFile, &errorMsg))
+            LOG_INFO(d->log, "Run statistics written to {}", d->runStatsOutputFile);
+        else
+            LOG_ERROR(d->log, "Unable to write run statistics to {}: {}", d->runStatsOutputFile, errorMsg);
+    }
 }
 
 void Engine::onModuleError(const QString &message)

@@ -109,6 +109,13 @@ vendor/       Vendored dependencies
 
 **Engine** (`src/engine.h/cpp`) - Central orchestrator. Manages the module graph lifecycle
 (`prepare` → `start` → run → `stop`), resource monitoring, and experiment metadata writing.
+At the end of every run it assembles `RunStatistics` (`src/runstatistics.h`): per-connection item
+counts and peak backlog, per-thread CPU time and context switches, priority elevation results, and
+system context. They are displayed in *Diagnostics → Logs → Last Run Statistics* and can be written
+as JSON with `syntalos --stats-out <file>`. We only enable instrumentation that does not slow down
+a run by default.
+NOTE: Context switches are measured on the main module thread, which leaves any additional
+threads that a module may spawn unaccounted for.
 
 **Fabric** (`src/fabric/`) - Defines the module API (`moduleapi.h`), typed data streams
 (`streams/`), port connections, and the `AbstractModule` base class. All in-process modules inherit

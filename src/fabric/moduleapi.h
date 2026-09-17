@@ -89,6 +89,8 @@ enum class ModuleDriverKind {
     EVENTS_SHARED     /// Module shares a thread(pool) with arbitrary other modules, actions are triggered by events
 };
 
+QString driverKindToString(ModuleDriverKind kind);
+
 /**
  * @brief The UsbHotplugEventKind enum
  */

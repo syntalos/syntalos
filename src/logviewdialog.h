@@ -23,6 +23,7 @@
 #include <QDialog>
 #include <QFile>
 #include <QTextCharFormat>
+#include <memory>
 
 class QTimer;
 
@@ -33,6 +34,7 @@ class LogViewDialog;
 
 namespace Syntalos
 {
+struct RunStatistics;
 
 /**
  * @brief Tail-style viewer for the current application log data.
@@ -51,6 +53,12 @@ public:
      */
     void setModuleLoaderLogHtml(const QString &html);
 
+    /**
+     * @brief Display the statistics of the most recent run.
+     * @param stats The statistics, or null if no run was performed yet.
+     */
+    void setRunStatistics(std::shared_ptr<const RunStatistics> stats);
+
 protected:
     void showEvent(QShowEvent *event) override;
     void hideEvent(QHideEvent *event) override;
@@ -59,6 +67,7 @@ protected:
 private slots:
     void on_btnOpenFolder_clicked();
     void on_btnCopy_clicked();
+    void on_btnCopyRunStatsJson_clicked();
 
 private:
     void updateFormats();
@@ -71,6 +80,7 @@ private:
 
     Ui::LogViewDialog *ui;
     QTimer *m_pollTimer;
+    std::shared_ptr<const RunStatistics> m_runStats;
     QFile m_file;
     qint64 m_pos{0};
     quint64 m_inode{0};

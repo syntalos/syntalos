@@ -35,6 +35,7 @@
 #include <sys/stat.h>
 
 #include "logging.h"
+#include "runstatistics.h"
 #include "utils/style.h"
 
 using namespace Syntalos;
@@ -70,6 +71,7 @@ LogViewDialog::LogViewDialog(QWidget *parent)
 
     connect(ui->btnClose, &QPushButton::clicked, this, &QDialog::close);
 
+    setRunStatistics(nullptr);
     updateFormats();
 }
 
@@ -85,6 +87,30 @@ void LogViewDialog::setModuleLoaderLogHtml(const QString &html)
         ui->modLoaderView->setHtml(QStringLiteral("<i>No issues reported.</i>"));
     else
         ui->modLoaderView->setHtml(html);
+}
+
+void LogViewDialog::setRunStatistics(std::shared_ptr<const RunStatistics> stats)
+{
+    m_runStats = std::move(stats);
+    ui->btnCopyRunStatsJson->setEnabled(m_runStats != nullptr);
+    if (!m_runStats) {
+        ui->runStatsView->setHtml(QStringLiteral("<i>No run has been performed yet.</i>"));
+        ui->lblRunStatsInfo->setText(QStringLiteral("No run has been performed yet."));
+        return;
+    }
+
+    ui->runStatsView->setHtml(m_runStats->toHtml());
+    ui->lblRunStatsInfo->setText(
+        QStringLiteral("Run of %1, %2")
+            .arg(m_runStats->started.toString(QStringLiteral("yyyy-MM-dd hh:mm:ss")))
+            .arg(m_runStats->failed ? QStringLiteral("failed") : QStringLiteral("successful")));
+}
+
+void LogViewDialog::on_btnCopyRunStatsJson_clicked()
+{
+    if (!m_runStats)
+        return;
+    QGuiApplication::clipboard()->setText(QString::fromUtf8(m_runStats->toJsonData()));
 }
 
 void LogViewDialog::showEvent(QShowEvent *event)

@@ -34,6 +34,7 @@ class SyThread;
 
 namespace Syntalos
 {
+struct RunStatistics;
 
 class Engine : public QObject
 {
@@ -142,6 +143,20 @@ public:
     AbstractModule *moduleByName(const QString &name) const;
 
     QString lastRunExportDir() const;
+
+    /**
+     * @brief Statistics collected during the most recent run.
+     * @return The statistics, or null if no run has been performed yet.
+     */
+    std::shared_ptr<const RunStatistics> lastRunStatistics() const;
+
+    /**
+     * @brief Write statistics of every completed run as JSON to the given file.
+     * @param path The file to (over)write, or an empty string to disable.
+     */
+    void setRunStatisticsOutputFile(const QString &path);
+    QString runStatisticsOutputFile() const;
+
     QString readRunComment(const QString &runExportDir = nullptr) const;
     /**
      * @brief Set comment for the next or a last experiment run
@@ -246,6 +261,11 @@ private:
         qint64 finishTimestamp,
         const QList<AbstractModule *> &activeModules);
     void setInactiveModulePortsSuspended(const Engine::ModuleRunOrder &modOrder, bool suspended);
+
+    struct RunStatsBaseline;
+    struct RunStatsCollectInput;
+    RunStatsBaseline captureRunStatsBaseline(const QList<AbstractModule *> &activeModules) const;
+    void collectRunStatistics(const RunStatsCollectInput &in);
 
     static void flagThreadExitedBeforeReady(AbstractModule *mod);
 

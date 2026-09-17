@@ -109,6 +109,11 @@ public:
      */
     void setExportDirOverride(const QString &dir);
 
+    /**
+     * If non-empty, statistics of every completed run are written as JSON to this file.
+     */
+    void setRunStatisticsOutputFile(const QString &path);
+
 private slots:
     void runActionTriggered();
     void runActionTriggered(const Uuid &recordIdOverride);

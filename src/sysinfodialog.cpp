@@ -65,6 +65,8 @@ SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent)
     ui->valCPU0ModelName->setText(sysInfo->cpu0ModelName());
     ui->valLogicalCores->setText(QString::number(sysInfo->cpuCount()));
     ui->valPhysicalCores->setText(QString::number(sysInfo->cpuPhysicalCoreCount()));
+    ui->valCpuGovernor->setText(sysInfo->cpuGovernorInfo());
+    setLabelTextStyle(sysInfo->checkCpuGovernor(), ui->valCpuGovernor);
 
     ui->valClocksourceCurrent->setText(sysInfo->currentClocksource());
     setLabelTextStyle(sysInfo->checkClocksource(), ui->valClocksourceCurrent);
@@ -124,6 +126,8 @@ void SysInfoDialog::on_btnClipboardCopy_clicked()
     infoText += QStringLiteral("Sandbox: %1\n").arg(ui->valSandboxInfo->text());
     infoText += QStringLiteral("Architecture: %1 | CPU: %2 | OpenGL: %3\n")
                     .arg(ui->valHWArch->text(), ui->valCPU0ModelName->text(), ui->valOpenGL->text());
+    infoText += QStringLiteral("CPU Governor: %1 | Clocksource: %2\n")
+                    .arg(ui->valCpuGovernor->text(), ui->valClocksourceCurrent->text());
     infoText += SysInfo::get()->syntalosHWSupportInstalled()
                     ? QStringLiteral("Misc: Hardware support package installed.\n")
                     : QStringLiteral("Misc: Missing hardware support package.\n");

@@ -83,6 +83,13 @@ public:
     virtual size_t approxPendingCount() const = 0;
 
     /**
+     * @brief Number of items enqueued into this subscription since its stream was last started.
+     *
+     * The counter is reset whenever the producing stream is (re)started.
+     */
+    virtual uint64_t receivedCount() const = 0;
+
+    /**
      * @brief Approximate in-memory size of a single queued item, in bytes.
      *
      * Sampled once from a real item as it passes through the stream, so the
@@ -408,6 +415,12 @@ public:
         return m_queue.size_approx();
     }
 
+    uint64_t receivedCount() const override
+    {
+        // readers on other threads may see a value that lags by a few items
+        return m_receivedCount.load(std::memory_order_relaxed);
+    }
+
     ssize_t approxItemMemSize() const override
     {
         return m_stream ? m_stream->approxItemMemSize() : -1;
@@ -474,6 +487,7 @@ private:
     std::atomic_bool m_suspended;
     std::atomic_uint m_throttle;
     std::atomic_uint m_skippedElements;
+    std::atomic<uint64_t> m_receivedCount{0};
 
     // NOTE: These two variables are intentionally *not* threadsafe and are
     // only ever manipulated by the stream (in case of the time) or only
@@ -511,6 +525,10 @@ private:
         // Actually send the data to the subscribers
         // Construct std::optional<T> directly in the ring-buffer slot.
         m_queue.emplace(std::in_place, std::forward<U>(data));
+
+        // statistics counter: load+store (not fetch_add) on purpose,
+        // this is a plain increment on the producer thread and never a locked RMW
+        m_receivedCount.store(m_receivedCount.load(std::memory_order_relaxed) + 1, std::memory_order_relaxed);
 
         // ping the eventfd, in case anyone is listening for messages
         if (m_notify)
@@ -571,6 +589,7 @@ private:
         m_active = true;
         m_throttle = 0;
         m_notifyPending = false;
+        m_receivedCount.store(0, std::memory_order_relaxed);
         m_lastItemTime = currentTimePoint();
         drainQueue(); // ensure the queue is empty
     }
@@ -957,6 +976,11 @@ public:
     size_t approxPendingCount() const override
     {
         return m_inner->approxPendingCount();
+    }
+
+    uint64_t receivedCount() const override
+    {
+        return m_inner->receivedCount();
     }
 
     ssize_t approxItemMemSize() const override

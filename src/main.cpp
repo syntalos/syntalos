@@ -121,6 +121,12 @@ int main(int argc, char *argv[])
             "Try to reduce GUI user interactions when auto-running a project file, print to stderr instead."));
     parser.addOption(optnNonInteractive);
 
+    QCommandLineOption optnStatsOut(
+        QStringList() << "stats-out",
+        QStringLiteral("Write statistics of every completed run as JSON to the given file (replacing it)."),
+        "file");
+    parser.addOption(optnStatsOut);
+
     QCommandLineOption optnNetControlPort(
         QStringList() << "net-control-port",
         QStringLiteral("Override the ZMQ controller/command port for this run (does not persist)."),
@@ -166,6 +172,9 @@ int main(int argc, char *argv[])
         if (netCtlPort >= 0 || netFbPort >= 0)
             w->setNetPortOverrides(netCtlPort, netFbPort);
     }
+
+    if (parser.isSet(optnStatsOut))
+        w->setRunStatisticsOutputFile(parser.value(optnStatsOut));
 
     // we can show the main window now
     w->show();

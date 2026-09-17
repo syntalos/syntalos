@@ -45,6 +45,11 @@
 
 #include "resourceinfo.h"
 
+#include <QDir>
+#include <QFile>
+#include <sched.h>
+#include <sys/resource.h>
+
 #include <filesystem>
 #include <errno.h>
 #include <stdio.h>
@@ -55,6 +60,7 @@
 #include <algorithm>
 
 #include "fabric/logging.h"
+#include "datactl/syclock.h"
 
 namespace fs = std::filesystem;
 
@@ -252,6 +258,205 @@ qint64 directoryTotalSize(const QString &path)
             total += static_cast<qint64>(it->file_size(ec));
     }
     return total;
+}
+
+static double timevalToSec(const struct timeval &tv)
+{
+    return static_cast<double>(tv.tv_sec) + static_cast<double>(tv.tv_usec) / US_PER_S;
+}
+
+static ThreadUsageStats usageFromRusage(const struct rusage &ru, int64_t id)
+{
+    ThreadUsageStats s;
+    s.tid = id;
+    s.userTimeSec = timevalToSec(ru.ru_utime);
+    s.systemTimeSec = timevalToSec(ru.ru_stime);
+    s.voluntaryCtxSwitches = static_cast<uint64_t>(ru.ru_nvcsw);
+    s.involuntaryCtxSwitches = static_cast<uint64_t>(ru.ru_nivcsw);
+    s.minorPageFaults = static_cast<uint64_t>(ru.ru_minflt);
+    s.majorPageFaults = static_cast<uint64_t>(ru.ru_majflt);
+    s.peakRssKiB = static_cast<int64_t>(ru.ru_maxrss);
+
+    return s;
+}
+
+std::optional<ThreadUsageStats> captureCurrentThreadUsage()
+{
+    struct rusage ru;
+    if (getrusage(RUSAGE_THREAD, &ru) != 0)
+        return std::nullopt;
+    return usageFromRusage(ru, static_cast<int64_t>(gettid()));
+}
+
+std::optional<ThreadUsageStats> captureProcessUsage()
+{
+    struct rusage ru;
+    if (getrusage(RUSAGE_SELF, &ru) != 0)
+        return std::nullopt;
+    return usageFromRusage(ru, static_cast<int64_t>(getpid()));
+}
+
+/**
+ * Read a procfs "stat" file (of a process or a task) and return its fields after the
+ * executable name, so the first entry is field 3 (state) in proc(5) numbering.
+ */
+static QList<QByteArray> readProcStatFields(const QString &path)
+{
+    // NOTE: procfs files report a size of zero, so we must not rely on QIODevice::atEnd() here.
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly))
+        return {};
+    const auto line = f.readAll();
+
+    // the executable name is enclosed in parentheses and may contain spaces,
+    // so we split only after the closing parenthesis
+    const auto nameEnd = line.lastIndexOf(')');
+    if (nameEnd < 0)
+        return {};
+    return line.mid(nameEnd + 2).simplified().split(' ');
+}
+
+static QStringList readProcessTaskIds(qint64 pid)
+{
+    return QDir(QStringLiteral("/proc/%1/task").arg(pid)).entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+}
+
+/**
+ * Read the usage of a single process from procfs.
+ */
+static std::optional<ThreadUsageStats> readSingleProcessUsage(qint64 pid)
+{
+    // fields are numbered from 1 in proc(5): minflt=10, majflt=12, utime=14, stime=15
+    const auto fields = readProcStatFields(QStringLiteral("/proc/%1/stat").arg(pid));
+    if (fields.size() < 15)
+        return std::nullopt;
+    const auto field = [&](int n) {
+        return fields.at(n - 3).toULongLong();
+    };
+
+    const double clkTck = static_cast<double>(sysconf(_SC_CLK_TCK));
+    ThreadUsageStats s;
+    s.tid = pid;
+    s.minorPageFaults = field(10);
+    s.majorPageFaults = field(12);
+    s.userTimeSec = static_cast<double>(field(14)) / clkTck;
+    s.systemTimeSec = static_cast<double>(field(15)) / clkTck;
+
+    // context switches live in /proc/<pid>/status and only cover the main thread there,
+    // so we sum them up over all tasks of the process
+    for (const auto &tid : readProcessTaskIds(pid)) {
+        QFile sf(QStringLiteral("/proc/%1/task/%2/status").arg(pid).arg(tid));
+        if (!sf.open(QIODevice::ReadOnly))
+            continue;
+        const auto lines = sf.readAll().split('\n');
+        for (const auto &l : lines) {
+            if (l.startsWith("voluntary_ctxt_switches:"))
+                s.voluntaryCtxSwitches += l.mid(24).trimmed().toULongLong();
+            else if (l.startsWith("nonvoluntary_ctxt_switches:"))
+                s.involuntaryCtxSwitches += l.mid(27).trimmed().toULongLong();
+        }
+    }
+
+    return s;
+}
+
+/**
+ * Direct child processes of all tasks of a process, via /proc/<pid>/task/<tid>/children.
+ */
+static QList<qint64> readChildProcesses(qint64 pid)
+{
+    QList<qint64> children;
+    for (const auto &tid : readProcessTaskIds(pid)) {
+        QFile cf(QStringLiteral("/proc/%1/task/%2/children").arg(pid).arg(tid));
+        if (!cf.open(QIODevice::ReadOnly))
+            continue;
+        const auto parts = cf.readAll().split(' ');
+        for (const auto &p : parts) {
+            const auto cpid = p.trimmed().toLongLong();
+            if (cpid > 0)
+                children.append(cpid);
+        }
+    }
+    return children;
+}
+
+/**
+ * A process and its descendants, so that workers launched through a wrapper (a debugger,
+ * a virtualenv launcher, ...) are covered as well. The tree is walked to a limited depth,
+ * we do not expect deep process hierarchies here.
+ */
+static QList<qint64> readProcessTree(qint64 pid)
+{
+    QList<qint64> tree{pid};
+    QList<qint64> pending = readChildProcesses(pid);
+    for (int depth = 0; depth < 4 && !pending.isEmpty(); ++depth) {
+        QList<qint64> next;
+        for (const auto cpid : pending)
+            next += readChildProcesses(cpid);
+        tree += pending;
+        pending = next;
+    }
+    return tree;
+}
+
+std::optional<ThreadUsageStats> readProcessUsage(qint64 pid)
+{
+    auto usage = readSingleProcessUsage(pid);
+    if (!usage)
+        return std::nullopt;
+
+    for (const auto cpid : readProcessTree(pid).mid(1)) {
+        const auto cs = readSingleProcessUsage(cpid);
+        if (!cs)
+            continue;
+        usage->userTimeSec += cs->userTimeSec;
+        usage->systemTimeSec += cs->systemTimeSec;
+        usage->voluntaryCtxSwitches += cs->voluntaryCtxSwitches;
+        usage->involuntaryCtxSwitches += cs->involuntaryCtxSwitches;
+        usage->minorPageFaults += cs->minorPageFaults;
+        usage->majorPageFaults += cs->majorPageFaults;
+    }
+
+    return usage;
+}
+
+std::optional<ProcessSchedInfo> readProcessSchedInfo(qint64 pid)
+{
+    std::optional<ProcessSchedInfo> info;
+    for (const auto tpid : readProcessTree(pid)) {
+        for (const auto &tid : readProcessTaskIds(tpid)) {
+            // fields are numbered from 1 in proc(5): nice=19, policy=41
+            const auto fields = readProcStatFields(QStringLiteral("/proc/%1/task/%2/stat").arg(tpid).arg(tid));
+            if (fields.size() < 39)
+                continue;
+            const auto niceness = fields.at(19 - 3).toInt();
+            const auto policy = fields.at(41 - 3).toInt();
+
+            if (!info)
+                info = ProcessSchedInfo{.realtime = false, .minNiceness = niceness};
+            info->minNiceness = std::min(info->minNiceness, niceness);
+            if (policy == SCHED_FIFO || policy == SCHED_RR)
+                info->realtime = true;
+        }
+    }
+
+    return info;
+}
+
+ThreadUsageStats ThreadUsageStats::diff(const ThreadUsageStats &baseline) const
+{
+    ThreadUsageStats r = *this;
+    r.userTimeSec = std::max(0.0, userTimeSec - baseline.userTimeSec);
+    r.systemTimeSec = std::max(0.0, systemTimeSec - baseline.systemTimeSec);
+    r.voluntaryCtxSwitches = voluntaryCtxSwitches >= baseline.voluntaryCtxSwitches
+                                 ? voluntaryCtxSwitches - baseline.voluntaryCtxSwitches
+                                 : 0;
+    r.involuntaryCtxSwitches = involuntaryCtxSwitches >= baseline.involuntaryCtxSwitches
+                                   ? involuntaryCtxSwitches - baseline.involuntaryCtxSwitches
+                                   : 0;
+    r.minorPageFaults = minorPageFaults >= baseline.minorPageFaults ? minorPageFaults - baseline.minorPageFaults : 0;
+    r.majorPageFaults = majorPageFaults >= baseline.majorPageFaults ? majorPageFaults - baseline.majorPageFaults : 0;
+    return r;
 }
 
 ResourceTrend::ResourceTrend(double minRelevantRate, double smoothing)

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -20,15 +20,16 @@
 #pragma once
 
 #include <QObject>
+#include <optional>
 
 namespace Syntalos
 {
 
 enum class SysInfoCheckResult {
-    UNKNOWN,
-    OK,
-    SUSPICIOUS,
-    ISSUE
+    UNKNOWN,    /// We don't know.
+    OK,         /// We're good.
+    SUSPICIOUS, /// Something might be off and is not ideal for some experiments.
+    ISSUE       /// Something is really wrong and should be fixed.
 };
 
 class SysInfo : public QObject
@@ -90,6 +91,42 @@ public:
     int cpuCount() const;
     int cpuPhysicalCoreCount() const;
 
+    /**
+     * @brief The CPU frequency scaling governor(s) currently in use, summarized over all cores.
+     *
+     * Read live, as the governor can change at any time (power profiles, AC/battery, ...).
+     * Empty if the system does not expose frequency scaling (e.g. in a VM).
+     */
+    QString cpuGovernor() const;
+
+    /**
+     * @brief The CPU frequency scaling driver, e.g. "intel_pstate" or "amd-pstate-epp".
+     */
+    QString cpuScalingDriver() const;
+
+    /**
+     * @brief The energy-performance preference(s) of the CPU, summarized over all cores.
+     *
+     * Only available with drivers where the hardware picks the frequency by itself
+     * (intel_pstate / amd-pstate in active mode), empty otherwise.
+     */
+    QString cpuEnergyPerfPreference() const;
+
+    /**
+     * @brief Whether CPU frequency boost ("turbo") is enabled, nothing if the system does not tell.
+     */
+    std::optional<bool> cpuBoostEnabled() const;
+
+    /**
+     * @brief Human-readable combination of governor, driver, energy-performance preference and boost state.
+     */
+    QString cpuGovernorInfo() const;
+
+    /**
+     * @brief Rate the frequency scaling setup by the worst setting of any core.
+     */
+    SysInfoCheckResult checkCpuGovernor() const;
+
     bool syntalosHWSupportInstalled() const;
     QString syntalosVersion() const;
     QString qtVersion() const;
@@ -105,7 +142,7 @@ private:
     explicit SysInfo();
     ~SysInfo();
 
-    QString readSysFsValue(const QString &path);
+    static QString readSysFsValue(const QString &path);
     void readCPUInfo();
 };
 

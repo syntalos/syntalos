@@ -21,6 +21,7 @@
 
 #include "moduleapi.h"
 #include "optionalwaitcondition.h"
+#include "utils/resourceinfo.h"
 #include <QObject>
 
 namespace Syntalos
@@ -71,6 +72,24 @@ public:
     void stop();
 
     QuillLogger *logger() const;
+
+    /**
+     * @brief Priority elevation that was requested for this thread when it was started.
+     */
+    bool realtimeRequested() const;
+    int niceness() const;
+
+    /**
+     * @brief True if the requested priority elevation (realtime or niceness) took effect.
+     */
+    bool priorityApplied() const;
+
+    /**
+     * @brief Resource usage of the event thread, captured right before it exited.
+     *
+     * Only set after the thread has been stopped and joined.
+     */
+    std::optional<ThreadUsageStats> threadUsage() const;
 
 signals:
     void failed();
