@@ -22,7 +22,13 @@
 #include <algorithm>
 #include <cmath>
 #include <format>
-#include <QInputDialog>
+#include <QCheckBox>
+#include <QComboBox>
+#include <QDialog>
+#include <QDialogButtonBox>
+#include <QDoubleSpinBox>
+#include <QFormLayout>
+#include <QSpinBox>
 #include <opencv2/opencv.hpp>
 #include "datactl/frametype.h"
 #include "utils/misc.h"
@@ -43,9 +49,20 @@ private:
     std::shared_ptr<DataStream<SignalBlockI16>> m_int16Out;
     std::shared_ptr<DataStream<SignalBlockU16>> m_uint16Out;
 
+    enum class FrameContent {
+        TEST_CARD, /// flat synthetic test card
+        CAMERA     /// smooth, slowly changing image with sensor-like noise
+    };
+
+    /// Weights of the low/high test frequency for each channel of a signal port
+    using ChannelMix = std::vector<std::pair<double, double>>;
+
     int m_fps;
     QSize m_outFrameSize;
     bool m_colorVideo;
+    FrameContent m_frameContent;
+    cv::Mat m_scene;
+    std::vector<cv::Mat> m_noise;
     microseconds_t m_prevFrameTime;
 
     time_t m_prevRowTime;
@@ -55,6 +72,13 @@ private:
     double m_freqLow;
     double m_freqHigh;
     uint64_t m_sampleCount;
+
+    // channel count of all signal ports, zero selects the default channel layout
+    int m_signalChannels;
+    ChannelMix m_floatMix;
+    ChannelMix m_int32Mix;
+    ChannelMix m_int16Mix;
+    ChannelMix m_uint16Mix;
 
     // Edge-triggered digital line state for the LineReading output
     static constexpr int kNumLines = 3;
@@ -66,10 +90,12 @@ public:
           m_fps(200),
           m_outFrameSize(QSize(960, 600)),
           m_colorVideo(true),
+          m_frameContent(FrameContent::TEST_CARD),
           m_sampleRate(2000.0),
           m_freqLow(10.0),
           m_freqHigh(300.0),
-          m_sampleCount(0)
+          m_sampleCount(0),
+          m_signalChannels(0)
     {
         m_frameOut = registerOutputPort<Frame>(QStringLiteral("frames-out"), QStringLiteral("Frames"));
         m_rowsOut = registerOutputPort<TableRow>(QStringLiteral("rows-out"), QStringLiteral("Table Rows"));
@@ -98,24 +124,72 @@ public:
         if (m_running)
             return;
 
-        bool ok;
-        auto intVal = QInputDialog::getInt(
-            nullptr,
-            "Configure Debug Data Source",
-            "Video Framerate",
-            m_fps,
-            2,
-            10000,
-            1,
-            &ok);
-        if (ok)
-            m_fps = intVal;
+        QDialog dlg;
+        dlg.setWindowTitle(QStringLiteral("Configure Debug Data Source"));
+        auto layout = new QFormLayout(&dlg);
+
+        auto fpsSpin = new QSpinBox(&dlg);
+        fpsSpin->setRange(2, 10000);
+        fpsSpin->setValue(m_fps);
+        layout->addRow(QStringLiteral("Video Framerate"), fpsSpin);
+
+        auto widthSpin = new QSpinBox(&dlg);
+        widthSpin->setRange(kMinFrameEdge, kMaxFrameEdge);
+        widthSpin->setValue(m_outFrameSize.width());
+        layout->addRow(QStringLiteral("Frame Width"), widthSpin);
+
+        auto heightSpin = new QSpinBox(&dlg);
+        heightSpin->setRange(kMinFrameEdge, kMaxFrameEdge);
+        heightSpin->setValue(m_outFrameSize.height());
+        layout->addRow(QStringLiteral("Frame Height"), heightSpin);
+
+        auto contentCombo = new QComboBox(&dlg);
+        contentCombo->addItem(QStringLiteral("Test Card"), frameContentToString(FrameContent::TEST_CARD));
+        contentCombo->addItem(QStringLiteral("Camera-like"), frameContentToString(FrameContent::CAMERA));
+        contentCombo->setCurrentIndex(contentCombo->findData(frameContentToString(m_frameContent)));
+        layout->addRow(QStringLiteral("Frame Content"), contentCombo);
+
+        auto colorCheck = new QCheckBox(&dlg);
+        colorCheck->setChecked(m_colorVideo);
+        layout->addRow(QStringLiteral("Color Video"), colorCheck);
+
+        auto rateSpin = new QDoubleSpinBox(&dlg);
+        rateSpin->setRange(1.0, kMaxSampleRate);
+        rateSpin->setDecimals(0);
+        rateSpin->setSuffix(QStringLiteral(" Hz"));
+        rateSpin->setValue(m_sampleRate);
+        layout->addRow(QStringLiteral("Signal Sample Rate"), rateSpin);
+
+        auto channelsSpin = new QSpinBox(&dlg);
+        channelsSpin->setRange(0, kMaxSignalChannels);
+        channelsSpin->setSpecialValueText(QStringLiteral("Default"));
+        channelsSpin->setValue(m_signalChannels);
+        layout->addRow(QStringLiteral("Signal Channels"), channelsSpin);
+
+        auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+        connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+        connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+        layout->addRow(buttons);
+
+        if (dlg.exec() != QDialog::Accepted)
+            return;
+
+        m_fps = fpsSpin->value();
+        m_outFrameSize = QSize(widthSpin->value(), heightSpin->value());
+        m_frameContent = frameContentFromString(contentCombo->currentData().toString());
+        m_colorVideo = colorCheck->isChecked();
+        m_sampleRate = rateSpin->value();
+        m_signalChannels = channelsSpin->value();
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
     {
         settings.insert(QStringLiteral("fps"), m_fps);
         settings.insert(QStringLiteral("color_video"), m_colorVideo);
+        settings.insert(QStringLiteral("frame_width"), m_outFrameSize.width());
+        settings.insert(QStringLiteral("frame_height"), m_outFrameSize.height());
+        settings.insert(QStringLiteral("frame_content"), frameContentToString(m_frameContent));
+        settings.insert(QStringLiteral("signal_channels"), m_signalChannels);
         settings.insert(QStringLiteral("sample_rate"), m_sampleRate);
         settings.insert(QStringLiteral("test_freq_low"), m_freqLow);
         settings.insert(QStringLiteral("test_freq_high"), m_freqHigh);
@@ -126,7 +200,18 @@ public:
         const int fps = settings.value(QStringLiteral("fps"), 200).toInt();
         m_fps = std::clamp(fps, 2, 10000);
         m_colorVideo = settings.value(QStringLiteral("color_video"), true).toBool();
-        m_sampleRate = std::clamp(settings.value(QStringLiteral("sample_rate"), 2000.0).toDouble(), 1.0, 1000000.0);
+        m_outFrameSize = QSize(
+            std::clamp(settings.value(QStringLiteral("frame_width"), 960).toInt(), kMinFrameEdge, kMaxFrameEdge),
+            std::clamp(settings.value(QStringLiteral("frame_height"), 600).toInt(), kMinFrameEdge, kMaxFrameEdge));
+        m_frameContent = frameContentFromString(settings.value(QStringLiteral("frame_content")).toString());
+        m_signalChannels = std::clamp(
+            settings.value(QStringLiteral("signal_channels"), 0).toInt(),
+            0,
+            kMaxSignalChannels);
+        m_sampleRate = std::clamp(
+            settings.value(QStringLiteral("sample_rate"), 2000.0).toDouble(),
+            1.0,
+            kMaxSampleRate);
         m_freqLow = settings.value(QStringLiteral("test_freq_low"), 10.0).toDouble();
         m_freqHigh = settings.value(QStringLiteral("test_freq_high"), 300.0).toDouble();
 
@@ -139,6 +224,10 @@ public:
         m_frameOut->setMetadataValue("size", MetaSize(m_outFrameSize.width(), m_outFrameSize.height()));
         m_frameOut->start();
         m_prevFrameTime = microseconds_t(0);
+        m_scene.release();
+        m_noise.clear();
+        if (m_frameContent == FrameContent::CAMERA && m_frameOut->hasSubscribers())
+            createCameraScene();
 
         m_rowsOut->setSuggestedDataName(QStringLiteral("table-%1/testvalues").arg(datasetNameSuggestion()));
         m_rowsOut->setMetadataValue("table_header", MetaArray{"Time", "Tag", "Value"});
@@ -146,25 +235,53 @@ public:
         m_prevRowTime = 0;
 
         m_sampleCount = 0;
-        m_floatOut->setMetadataValue("signal_names", MetaArray{"Low", "High", "Low+High"});
+        setupSignalChannels(
+            m_floatOut,
+            m_floatMix,
+            {
+                "Low",
+                "High",
+                "Low+High"
+        },
+            {{1, 0}, {0, 1}, {1, 1}});
         m_floatOut->setMetadataValue("time_unit", "microseconds");
         m_floatOut->setMetadataValue("data_unit", "au");
         m_floatOut->setMetadataValue("sample_rate", m_sampleRate);
         m_floatOut->start();
 
-        m_int32Out->setMetadataValue("signal_names", MetaArray{"Int Low"});
+        setupSignalChannels(
+            m_int32Out,
+            m_int32Mix,
+            {
+                "Int Low"
+        },
+            {{1, 0}});
         m_int32Out->setMetadataValue("time_unit", "microseconds");
         m_int32Out->setMetadataValue("data_unit", "au");
         m_int32Out->setMetadataValue("sample_rate", m_sampleRate);
         m_int32Out->start();
 
-        m_int16Out->setMetadataValue("signal_names", MetaArray{"I16 Low", "I16 High"});
+        setupSignalChannels(
+            m_int16Out,
+            m_int16Mix,
+            {
+                "I16 Low",
+                "I16 High"
+        },
+            {{1, 0}, {0, 1}});
         m_int16Out->setMetadataValue("time_unit", "microseconds");
         m_int16Out->setMetadataValue("data_unit", "au");
         m_int16Out->setMetadataValue("sample_rate", m_sampleRate);
         m_int16Out->start();
 
-        m_uint16Out->setMetadataValue("signal_names", MetaArray{"U16 Low", "U16 High"});
+        setupSignalChannels(
+            m_uint16Out,
+            m_uint16Mix,
+            {
+                "U16 Low",
+                "U16 High"
+        },
+            {{1, 0}, {0, 1}});
         m_uint16Out->setMetadataValue("time_unit", "microseconds");
         m_uint16Out->setMetadataValue("data_unit", "au");
         m_uint16Out->setMetadataValue("sample_rate", m_sampleRate);
@@ -188,7 +305,10 @@ public:
 
         size_t dataIndex = 0;
         while (m_running) {
-            m_frameOut->push(createFrame_sleep(dataIndex, m_fps));
+            // we always pace the loop by the framerate, but only create data that somebody wants
+            const auto frameTime = waitForNextFrameTime(m_fps);
+            if (m_frameOut->hasSubscribers())
+                m_frameOut->push(createFrame(dataIndex, frameTime));
 
             auto row = createTablerow();
             if (row.has_value())
@@ -232,48 +352,152 @@ public:
             // the frame sleep above, so the effective rate is ~m_fps*blockLen.
             const int blockLen = std::max(1, static_cast<int>(std::lround(m_sampleRate / m_fps)));
 
-            SignalBlockF32 fsb(blockLen, 3);
-            SignalBlockI32 isb(blockLen, 1);
-            SignalBlockI16 ssb(blockLen, 2);
-            SignalBlockU16 usb(blockLen, 2);
+            VectorXu64 timestamps(blockLen);
+            std::vector<double> lo(blockLen);
+            std::vector<double> hi(blockLen);
             for (int i = 0; i < blockLen; ++i) {
                 const uint64_t n = m_sampleCount + static_cast<uint64_t>(i);
                 const double t = static_cast<double>(n) / m_sampleRate;
-                const uint64_t ts = static_cast<uint64_t>(std::llround(static_cast<double>(n) * 1e6 / m_sampleRate));
 
-                const double lo = 0.5 * std::sin(2.0 * M_PI * m_freqLow * t);
-                const double hi = 0.5 * std::sin(2.0 * M_PI * m_freqHigh * t);
-
-                fsb.timestamps[i] = ts;
-                fsb.data(i, 0) = static_cast<float>(lo);
-                fsb.data(i, 1) = static_cast<float>(hi);
-                fsb.data(i, 2) = static_cast<float>(lo + hi);
-
-                isb.timestamps[i] = ts;
-                isb.data(i, 0) = static_cast<int32_t>(std::lround(1000.0 * lo));
-
-                // signed 16-bit: exercise the negative half of the range as well
-                ssb.timestamps[i] = ts;
-                ssb.data(i, 0) = static_cast<int16_t>(std::lround(1000.0 * lo));
-                ssb.data(i, 1) = static_cast<int16_t>(std::lround(1000.0 * hi));
-
-                usb.timestamps[i] = ts;
-                usb.data(i, 0) = static_cast<uint16_t>(std::lround(2000.0 + 1000.0 * lo));
-                usb.data(i, 1) = static_cast<uint16_t>(std::lround(2000.0 + 1000.0 * hi));
+                timestamps[i] = static_cast<uint64_t>(std::llround(static_cast<double>(n) * 1e6 / m_sampleRate));
+                lo[i] = 0.5 * std::sin(2.0 * M_PI * m_freqLow * t);
+                hi[i] = 0.5 * std::sin(2.0 * M_PI * m_freqHigh * t);
             }
             m_sampleCount += static_cast<uint64_t>(blockLen);
 
-            m_floatOut->push(std::move(fsb));
-            m_int32Out->push(std::move(isb));
-            m_int16Out->push(std::move(ssb));
-            m_uint16Out->push(std::move(usb));
+            if (m_floatOut->hasSubscribers())
+                m_floatOut->push(createSignalBlock<SignalBlockF32>(timestamps, lo, hi, m_floatMix, [](double v) {
+                    return static_cast<float>(v);
+                }));
+            if (m_int32Out->hasSubscribers())
+                m_int32Out->push(createSignalBlock<SignalBlockI32>(timestamps, lo, hi, m_int32Mix, [](double v) {
+                    return static_cast<int32_t>(std::lround(1000.0 * v));
+                }));
+            // signed 16-bit: exercise the negative half of the range as well
+            if (m_int16Out->hasSubscribers())
+                m_int16Out->push(createSignalBlock<SignalBlockI16>(timestamps, lo, hi, m_int16Mix, [](double v) {
+                    return static_cast<int16_t>(std::lround(1000.0 * v));
+                }));
+            if (m_uint16Out->hasSubscribers())
+                m_uint16Out->push(createSignalBlock<SignalBlockU16>(timestamps, lo, hi, m_uint16Mix, [](double v) {
+                    return static_cast<uint16_t>(std::lround(2000.0 + 1000.0 * v));
+                }));
 
             dataIndex++;
         }
     }
 
+    void stop() override
+    {
+        m_scene.release();
+        m_noise.clear();
+        AbstractModule::stop();
+    }
+
 private:
-    Frame createFrame_sleep(size_t index, int fps)
+    static constexpr int kMinFrameEdge = 16;
+    static constexpr int kMaxFrameEdge = 8192;
+    static constexpr int kMaxSignalChannels = 4096;
+    static constexpr double kMaxSampleRate = 1000000.0;
+
+    static QString frameContentToString(FrameContent content)
+    {
+        return content == FrameContent::CAMERA ? QStringLiteral("camera") : QStringLiteral("testcard");
+    }
+
+    static FrameContent frameContentFromString(const QString &str)
+    {
+        return str == QStringLiteral("camera") ? FrameContent::CAMERA : FrameContent::TEST_CARD;
+    }
+
+    /**
+     * Set channel names and the frequency mix of each channel for a signal port.
+     * Uses the given default layout, unless a channel count was configured explicitly.
+     */
+    template<typename T>
+    void setupSignalChannels(
+        const std::shared_ptr<DataStream<T>> &stream,
+        ChannelMix &mix,
+        const MetaArray &defaultNames,
+        const ChannelMix &defaultMix)
+    {
+        if (m_signalChannels <= 0) {
+            mix = defaultMix;
+            stream->setMetadataValue("signal_names", defaultNames);
+            return;
+        }
+
+        // give every channel its own, deterministic blend of the two test frequencies
+        MetaArray names;
+        mix.clear();
+        for (int c = 0; c < m_signalChannels; ++c) {
+            const double w = ((c * 7) % 16) / 15.0;
+            mix.emplace_back(1.0 - w, w);
+            names.push_back(std::format("Ch{}", c + 1));
+        }
+        stream->setMetadataValue("signal_names", names);
+    }
+
+    template<typename SB, typename Conv>
+    static SB createSignalBlock(
+        const VectorXu64 &timestamps,
+        const std::vector<double> &lo,
+        const std::vector<double> &hi,
+        const ChannelMix &mix,
+        Conv convert)
+    {
+        const auto blockLen = lo.size();
+        SB sb(blockLen, mix.size());
+        sb.timestamps = timestamps;
+        for (size_t c = 0; c < mix.size(); ++c) {
+            const auto [wLo, wHi] = mix[c];
+            for (size_t i = 0; i < blockLen; ++i)
+                sb.data(i, c) = convert(wLo * lo[i] + wHi * hi[i]);
+        }
+
+        return sb;
+    }
+
+    /**
+     * Render a scene that looks roughly like camera data to an encoder: Soft color
+     * gradients with a few brighter discs for edges. It is larger than the frame, so
+     * we can slowly pan over it at runtime, and we add one of a few sensor-noise
+     * images to each frame. That way, creating a frame stays cheap.
+     */
+    void createCameraScene()
+    {
+        constexpr int kNoiseCount = 4;
+        const cv::Size frameSize(m_outFrameSize.width(), m_outFrameSize.height());
+        const cv::Size sceneSize(frameSize.width * 5 / 4, frameSize.height * 5 / 4);
+
+        // a few random colors from a teal-to-violet palette, scaled up to smooth gradients
+        cv::RNG rng(0x5Eed);
+        cv::Mat seed(6, 10, CV_8UC3);
+        rng.fill(seed, cv::RNG::UNIFORM, cv::Scalar(85, 90, 60), cv::Scalar(140, 200, 230));
+        cv::cvtColor(seed, seed, cv::COLOR_HSV2BGR);
+        cv::resize(seed, m_scene, sceneSize, 0, 0, cv::INTER_CUBIC);
+
+        for (int i = 0; i < 14; ++i) {
+            const cv::Point center(rng.uniform(0, sceneSize.width), rng.uniform(0, sceneSize.height));
+            const auto radius = rng.uniform(sceneSize.height / 24, sceneSize.height / 7);
+            const auto color = cv::Scalar(m_scene.at<cv::Vec3b>(center)) * rng.uniform(1.15, 1.5);
+            cv::circle(m_scene, center, radius, color, cv::FILLED, cv::LINE_AA);
+        }
+        if (!m_colorVideo)
+            cv::cvtColor(m_scene, m_scene, cv::COLOR_BGR2GRAY);
+
+        // noise is centered around 128, so we can apply it with a single saturating operation
+        for (int i = 0; i < kNoiseCount; ++i) {
+            cv::Mat noise(frameSize, m_scene.type());
+            rng.fill(noise, cv::RNG::NORMAL, 128, 5);
+            m_noise.push_back(noise);
+        }
+    }
+
+    /**
+     * Sleep until the next frame is due, and return its timestamp.
+     */
+    microseconds_t waitForNextFrameTime(int fps)
     {
         const auto targetIntervalUsec = microseconds_t(static_cast<long>(std::round(1000000.0 / fps)));
 
@@ -288,8 +512,38 @@ private:
                 std::this_thread::sleep_for(sleepDuration);
         }
 
+        m_prevFrameTime = nextFrameTime;
+        return nextFrameTime;
+    }
+
+    Frame createFrame(size_t index, const microseconds_t &frameTime)
+    {
         const auto width = m_outFrameSize.width();
         const auto height = m_outFrameSize.height();
+
+        if (!m_scene.empty()) {
+            // pan slowly over the scene, independent of the framerate
+            const double sec = frameTime.count() / 1e6;
+            const cv::Rect view(
+                static_cast<int>((m_scene.cols - width) * (0.5 + 0.5 * std::sin(2.0 * M_PI * sec / 20.0))),
+                static_cast<int>((m_scene.rows - height) * (0.5 + 0.5 * std::cos(2.0 * M_PI * sec / 13.0))),
+                width,
+                height);
+
+            Frame frame(index);
+            frame.time = frameTime;
+            cv::addWeighted(m_scene(view), 1.0, m_noise[index % m_noise.size()], 1.0, -128.0, frame.mat);
+            cv::putText(
+                frame.mat,
+                "Frame: " + numToString(index),
+                cv::Point(24, height / 2),
+                cv::FONT_HERSHEY_SIMPLEX,
+                1.2,
+                cv::Scalar(249, 249, 249),
+                2,
+                cv::LINE_AA);
+            return frame;
+        }
 
         // empty image with blue background
         cv::Mat image(height, width, CV_8UC3, cv::Scalar(67, 42, 30));
@@ -317,10 +571,9 @@ private:
             cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
 
         Frame frame(index);
-        frame.time = nextFrameTime;
+        frame.time = frameTime;
         frame.mat = image;
 
-        m_prevFrameTime = frame.time;
         return frame;
     }
 
