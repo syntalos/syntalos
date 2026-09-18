@@ -63,6 +63,9 @@ struct ModuleRunStats {
     /// usage of the out-of-process worker during this run (if the module has one)
     qint64 workerPid = 0;
     std::optional<ThreadUsageStats> worker;
+
+    /// measurements the module reported itself, via AbstractModule::setRunStatistic()
+    QVariantHash moduleStats;
 };
 
 /**

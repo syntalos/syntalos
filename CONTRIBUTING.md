@@ -113,7 +113,7 @@ At the end of every run it assembles `RunStatistics` (`src/runstatistics.h`): pe
 counts and peak backlog, per-thread CPU time and context switches, priority elevation results, and
 system context. They are displayed in *Diagnostics → Logs → Last Run Statistics* and can be written
 as JSON with `syntalos --stats-out <file>`. We only enable instrumentation that does not slow down
-a run by default.
+a run by default. Modules can add measurements of their own with `setRunStatistic()`.
 NOTE: Context switches are measured on the main module thread, which leaves any additional
 threads that a module may spawn unaccounted for.
 

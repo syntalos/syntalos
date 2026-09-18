@@ -495,7 +495,7 @@ private:
     }
 
     /**
-     * Sleep until the next frame is due, and return its timestamp.
+     * Sleep until the next frame is due, and return its acquisition timestamp.
      */
     microseconds_t waitForNextFrameTime(int fps)
     {
@@ -512,8 +512,10 @@ private:
                 std::this_thread::sleep_for(sleepDuration);
         }
 
+        // We pace by the nominal schedule to not drift, but stamp the frame with the time
+        // it was actually "acquired" at, like a camera would do.
         m_prevFrameTime = nextFrameTime;
-        return nextFrameTime;
+        return m_syTimer->timeSinceStartUsec();
     }
 
     Frame createFrame(size_t index, const microseconds_t &frameTime)

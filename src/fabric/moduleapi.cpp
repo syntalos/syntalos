@@ -586,6 +586,7 @@ public:
     QString id;
     QString name;
     QString lastError;
+    QVariantHash runStatistics;
     int modIndex;
     uint potentialNoaffinityCPUCount;
     int defaultRealtimePriority;
@@ -930,6 +931,21 @@ void AbstractModule::updateStartWaitCondition(OptionalWaitCondition *)
 QString AbstractModule::lastError() const
 {
     return d->lastError;
+}
+
+QVariantHash AbstractModule::runStatistics() const
+{
+    return d->runStatistics;
+}
+
+void AbstractModule::clearRunStatistics()
+{
+    d->runStatistics.clear();
+}
+
+void AbstractModule::setRunStatistic(const QString &key, const QVariant &value)
+{
+    d->runStatistics.insert(key, value);
 }
 
 QString AbstractModule::moduleRootDir() const

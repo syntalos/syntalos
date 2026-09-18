@@ -783,6 +783,13 @@ public:
     QString lastError() const;
 
     /**
+     * @brief Statistics this module reported for the last run
+     *
+     * @see setRunStatistic
+     */
+    QVariantHash runStatistics() const;
+
+    /**
      * @brief Obtain the root directory of this (loadable) module.
      * @return Directory of this module as absolute path.
      */
@@ -852,6 +859,17 @@ protected:
     void setStatusMessage(const QString &message);
     void setStatusMessage(const std::string &message);
     void setStatusMessage(const char *message);
+
+    /**
+     * @brief Report a module-specific value for the statistics of the current run
+     *
+     * Modules can use this to add measurements of their own (e.g. latencies or dropped
+     * items) to the run statistics report. Values must be convertible to JSON, a
+     * QVariantHash can be used to group them.
+     * All values are reset before a new run is prepared. This function is not thread-safe,
+     * call it from the main thread, usually in stop().
+     */
+    void setRunStatistic(const QString &key, const QVariant &value);
 
     bool makeDirectory(const QString &dir);
     void appProcessEvents();
@@ -1165,6 +1183,7 @@ private:
 
     void setIdentity(const QString &id, int index);
     void setState(ModuleState state);
+    void clearRunStatistics();
     void setSimpleStorageNames(bool enabled);
     void resetEventCallbacks();
     void setPotentialNoaffinityCPUCount(uint coreN);

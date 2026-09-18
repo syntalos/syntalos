@@ -128,6 +128,8 @@ QJsonObject RunStatistics::toJson() const
             if (m.worker)
                 o.insert(QStringLiteral("worker"), usageToJson(*m.worker));
         }
+        if (!m.moduleStats.isEmpty())
+            o.insert(QStringLiteral("module_stats"), QJsonObject::fromVariantHash(m.moduleStats));
         mods.append(o);
     }
     root.insert(QStringLiteral("modules"), mods);
@@ -279,6 +281,23 @@ static QString htmlDataTableStart(const QStringList &columns)
     return html + QStringLiteral("</tr>");
 }
 
+/**
+ * Format a value reported by a module, grouped values are shown as "key: value" list.
+ */
+static QString fmtModuleStatValue(const QVariant &value)
+{
+    if (value.typeId() == QMetaType::QVariantHash || value.typeId() == QMetaType::QVariantMap) {
+        const auto map = value.toMap();
+        QStringList parts;
+        for (auto it = map.constBegin(); it != map.constEnd(); ++it)
+            parts << QStringLiteral("%1:&nbsp;%2").arg(it.key().toHtmlEscaped(), fmtModuleStatValue(it.value()));
+        return parts.join(QStringLiteral(", "));
+    }
+    if (value.typeId() == QMetaType::Double || value.typeId() == QMetaType::Float)
+        return QString::number(value.toDouble(), 'f', 2);
+    return value.toString().toHtmlEscaped();
+}
+
 QString RunStatistics::toHtml() const
 {
     const auto colWarn = SyColorWarning.name();
@@ -390,6 +409,23 @@ QString RunStatistics::toHtml() const
             "Out-of-process modules show the usage of their worker process. Modules sharing an "
             "event thread are accounted for under that thread below. We cannot track additional threads "
             "spawned by the modules (e.g. for video encoders), so accounting may be inaccurate for those.</small></p>");
+
+    // measurements reported by the modules themselves
+    QString modStatsHtml;
+    for (const auto &m : modules) {
+        auto keys = m.moduleStats.keys();
+        std::sort(keys.begin(), keys.end());
+        for (const auto &key : keys)
+            modStatsHtml += QStringLiteral("<tr><td>%1</td><td>%2</td><td>%3</td></tr>")
+                                .arg(
+                                    m.name.toHtmlEscaped(),
+                                    key.toHtmlEscaped(),
+                                    fmtModuleStatValue(m.moduleStats[key]));
+    }
+    if (!modStatsHtml.isEmpty())
+        html += QStringLiteral("<h3>Module Statistics</h3>")
+                + htmlDataTableStart({QStringLiteral("Module"), QStringLiteral("Statistic"), QStringLiteral("Value")})
+                + modStatsHtml + QStringLiteral("</table>");
 
     // event threads
     if (!eventThreads.isEmpty()) {

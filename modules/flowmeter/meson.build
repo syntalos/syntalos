@@ -12,7 +12,7 @@ module_moc_src = [
 
 module_ui = []
 
-module_deps = [kfwidgetsaddons_dep]
+module_deps = [kfwidgetsaddons_dep, opencv_dep]
 
 module_data = [
     'flowmeter.svg',

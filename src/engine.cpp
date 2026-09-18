@@ -2540,6 +2540,7 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
         // run-scoped, so carrying them across prepare() calls is always wrong and causes
         // stale-callback crashes if a module forgets to clear them itself.
         mod->clearDataReceivedEventRegistrations();
+        mod->clearRunStatistics();
 
         // prepare the module
         if (!mod->prepare(runInfo)) {
@@ -3340,6 +3341,7 @@ void Engine::collectRunStatistics(const RunStatsCollectInput &in)
         ms.finalState = mod->state();
         ms.eventThreadKey = modEventThreadKey.value(mod);
         ms.errorMessage = modErrors.value(mod);
+        ms.moduleStats = mod->runStatistics();
         ms.realtimeRequested = mod->isRealtimeApproved();
         ms.niceness = mod->defaultThreadNiceness();
         const bool priorityRequested = ms.realtimeRequested || ms.niceness != 0;

@@ -23,6 +23,7 @@
 #include <atomic>
 #include <cmath>
 #include <functional>
+#include <random>
 
 #include <QDialog>
 #include <QElapsedTimer>
@@ -36,6 +37,7 @@
 #include <KLed>
 
 #include "datactl/datatypes.h"
+#include "datactl/frametype.h"
 #include "datatypeselector.h"
 
 SYNTALOS_MODULE(FlowMeterModule)
@@ -240,6 +242,93 @@ private:
     double m_peakRate = 0.0;
 };
 
+/**
+ * Arrival and data age measurements for one input port.
+ *
+ * The age of an item is the time between its own timestamp and its arrival here.
+ * Since timestamps tell when data was acquired, the age includes everything the source and
+ * all modules in between did with it. It is *not* a transport latency, and is only
+ * meaningful when compared against a baseline measured with the same source.
+ */
+struct InputStats {
+    static constexpr size_t kMaxAgeSamples = 1000000;
+
+    double timeUnitToUsec = 1.0; // only relevant for signal blocks, zero if we can not interpret their timestamps
+
+    uint64_t items = 0;
+    uint64_t samples = 0;
+
+    // data age in microseconds, may be negative if a source stamps its data ahead of time
+    std::vector<int32_t> ages;
+    uint64_t agesSeen = 0;
+    std::minstd_rand rng;
+
+    int64_t lastArrivalUsec = -1;
+    double intervalSum = 0;
+    double intervalSqSum = 0;
+    int64_t intervalMax = 0;
+
+    void addArrival(int64_t nowUsec)
+    {
+        items++;
+        if (lastArrivalUsec >= 0) {
+            const auto interval = nowUsec - lastArrivalUsec;
+            intervalSum += interval;
+            intervalSqSum += static_cast<double>(interval) * interval;
+            intervalMax = std::max(intervalMax, interval);
+        }
+        lastArrivalUsec = nowUsec;
+    }
+
+    void addAge(int64_t ageUsec)
+    {
+        const auto value = static_cast<int32_t>(std::clamp<int64_t>(ageUsec, INT32_MIN, INT32_MAX));
+        agesSeen++;
+        if (ages.size() < kMaxAgeSamples) {
+            ages.push_back(value);
+            return;
+        }
+
+        // reservoir sampling, so very long runs do not need unbounded memory
+        const auto slot = std::uniform_int_distribution<uint64_t>(0, agesSeen - 1)(rng);
+        if (slot < kMaxAgeSamples)
+            ages[slot] = value;
+    }
+
+    int32_t agePercentile(double p)
+    {
+        const auto idx = static_cast<size_t>(std::lround(p * (ages.size() - 1)));
+        std::nth_element(ages.begin(), ages.begin() + idx, ages.end());
+        return ages[idx];
+    }
+
+    QVariantHash toVariant(bool isSignal)
+    {
+        QVariantHash v;
+        v.insert(QStringLiteral("items"), static_cast<qulonglong>(items));
+        if (isSignal)
+            v.insert(QStringLiteral("samples"), static_cast<qulonglong>(samples));
+
+        if (items > 1) {
+            const double n = items - 1;
+            const double mean = intervalSum / n;
+            const double variance = std::max(0.0, intervalSqSum / n - mean * mean);
+            v.insert(QStringLiteral("interval_mean_us"), static_cast<qlonglong>(std::llround(mean)));
+            v.insert(QStringLiteral("interval_stddev_us"), static_cast<qlonglong>(std::llround(std::sqrt(variance))));
+            v.insert(QStringLiteral("interval_max_us"), static_cast<qlonglong>(intervalMax));
+        }
+
+        if (!ages.empty()) {
+            v.insert(QStringLiteral("age_p50_us"), agePercentile(0.50));
+            v.insert(QStringLiteral("age_p95_us"), agePercentile(0.95));
+            v.insert(QStringLiteral("age_p99_us"), agePercentile(0.99));
+            v.insert(QStringLiteral("age_max_us"), *std::max_element(ages.begin(), ages.end()));
+        }
+
+        return v;
+    }
+};
+
 class FlowMeterModule : public AbstractModule
 {
     Q_OBJECT
@@ -247,6 +336,8 @@ private:
     std::shared_ptr<VarStreamInputPort> m_inPort;
     std::shared_ptr<VariantStreamSubscription> m_sub;
     std::atomic<uint64_t> m_count{0};
+    InputStats m_stats;
+    bool m_isSignal = false;
 
     FlowMeterSettingsDialog *m_settingsDlg;
     FlowMeterDisplay *m_display;
@@ -319,6 +410,14 @@ public:
         }
 
         m_sub = m_inPort->subscriptionVar();
+
+        m_stats = InputStats();
+        m_isSignal = withSignalBlockType(m_sub->dataTypeId(), [](auto) {});
+        const auto timeUnit = m_sub->metadataValue("time_unit", std::string{"microseconds"});
+        if (timeUnit == "milliseconds")
+            m_stats.timeUnitToUsec = 1000.0;
+        else if (timeUnit != "microseconds")
+            m_stats.timeUnitToUsec = 0;
         registerDataReceivedEvent(
             [this]() {
                 onData();
@@ -339,14 +438,50 @@ public:
     {
         m_display->setRunning(false);
         m_settingsDlg->setRunning(false);
+
+        // our event thread has been joined at this point, so we can safely access the measurements
+        if (m_sub) {
+            const auto v = m_stats.toVariant(m_isSignal);
+            for (auto it = v.constBegin(); it != v.constEnd(); ++it)
+                setRunStatistic(it.key(), it.value());
+        }
     }
 
     void onData()
     {
         // Drain every queued item and count it. We must drain (even though we
         // discard the decoded value) so the meter does not act as a bottleneck.
-        while (m_sub->callIfNextVar([](BaseDataType &) {}))
+        while (m_sub->callIfNextVar([this](BaseDataType &data) {
+            const auto nowUsec = m_syTimer->timeSinceStartUsec().count();
+            m_stats.addArrival(nowUsec);
+            if (const auto itemTime = itemTimeUsec(data))
+                m_stats.addAge(nowUsec - *itemTime);
+        }))
             m_count.fetch_add(1, std::memory_order_relaxed);
+    }
+
+    /**
+     * Acquisition time of an item, if its type carries one that we know how to read.
+     * For signal blocks, we use the time of the newest sample.
+     */
+    std::optional<int64_t> itemTimeUsec(BaseDataType &data)
+    {
+        std::optional<int64_t> time;
+        const auto typeId = m_sub->dataTypeId();
+        if (typeId == syDataTypeId<Frame>()) {
+            time = static_cast<Frame &>(data).time.count();
+        } else if (typeId == syDataTypeId<LineReading>()) {
+            time = static_cast<LineReading &>(data).time.count();
+        } else {
+            visitSignalBlock(data, [&](auto &block) {
+                const auto len = block.length();
+                m_stats.samples += len;
+                if (len > 0 && m_stats.timeUnitToUsec > 0)
+                    time = static_cast<int64_t>(std::llround(block.timestamps[len - 1] * m_stats.timeUnitToUsec));
+            });
+        }
+
+        return time;
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
