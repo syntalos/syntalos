@@ -45,6 +45,7 @@
 #include <QDateTime>
 #include <QElapsedTimer>
 #include <QMessageBox>
+#include <QSet>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QThread>
@@ -2934,25 +2935,12 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
         startWaitCondition->wakeAll();
     }
 
-    // join all threads running evented modules, therefore stop
-    // processing any new events
-    lastPhaseTimepoint = d->timer->currentTimePoint();
-    for (const auto &evThread : evThreads.values()) {
-        emitStatusMessage(QStringLiteral("Waiting for event thread `%1`...").arg(evThread->threadName()));
-        evThread->stop();
-    }
-    LOG_INFO(d->log, "Waited {} msec for event threads to stop.", timeDiffToNowMsec(lastPhaseTimepoint).count());
-
-    // send stop command to all active modules in their designated stop order
-    for (auto &mod : modOrder.stop) {
-        emitStatusMessage(QStringLiteral("Stopping '%1'...").arg(mod->name()));
-        lastPhaseTimepoint = d->timer->currentTimePoint();
-
-        // wait a little bit for modules to process remaining data from their
-        // stream subscriptions - we don't wait too long here, simply because
-        // the upstream module may still be generating data (and in that case
-        // we would never be able to stop, especially if there are cycles in
-        // the module graph
+    // Wait a little bit for a module to process remaining data from its
+    // stream subscriptions - we don't wait too long here, simply because
+    // the upstream module may still be generating data (and in that case
+    // we would never be able to stop, especially if there are cycles in
+    // the module graph
+    const auto waitForInputsDrained = [this](AbstractModule *mod) {
         for (const auto &iport : mod->inPorts()) {
             if (!iport->hasSubscription())
                 continue;
@@ -2981,6 +2969,11 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
                     iport->id(),
                     remainingElements);
         }
+    };
+
+    // Send the stop command to a module and terminate its outgoing streams
+    const auto stopModule = [this, &lastPhaseTimepoint](AbstractModule *mod) {
+        lastPhaseTimepoint = d->timer->currentTimePoint();
 
         // send the stop command
         mod->stop();
@@ -3000,6 +2993,73 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
             mod->setState(ModuleState::IDLE);
 
         LOG_INFO(d->log, "Module '{}' stopped in {} msec", mod->name(), timeDiffToNowMsec(lastPhaseTimepoint).count());
+    };
+
+    // join an event thread, then stop all modules that were running on it
+    QSet<QString> stoppedEvThreads;
+    const auto stopEventThread = [this, &evThreads, &lastPhaseTimepoint, &stopModule, &stoppedEvThreads](
+                                     const QString &evThreadKey,
+                                     const QList<AbstractModule *> &evMods) {
+        const auto evThread = evThreads.value(evThreadKey);
+        stoppedEvThreads.insert(evThreadKey);
+        if (evThread) {
+            emitStatusMessage(QStringLiteral("Waiting for event thread `%1`...").arg(evThread->threadName()));
+            lastPhaseTimepoint = d->timer->currentTimePoint();
+            evThread->stop();
+            LOG_INFO(
+                d->log,
+                "Event thread '{}' stopped in {} msec",
+                evThreadKey,
+                timeDiffToNowMsec(lastPhaseTimepoint).count());
+        } else {
+            LOG_WARNING(d->log, "No event thread found for module group '{}'.", evThreadKey);
+        }
+
+        for (auto evMod : evMods) {
+            emitStatusMessage(QStringLiteral("Stopping '%1'...").arg(evMod->name()));
+            stopModule(evMod);
+        }
+    };
+
+    QHash<AbstractModule *, QString> modEvThreadKey;
+    for (auto it = eventModules.constBegin(); it != eventModules.constEnd(); ++it) {
+        for (auto evMod : it.value())
+            modEvThreadKey.insert(evMod, it.key());
+    }
+    // event-driven modules whose inputs have been drained, but which are waiting
+    // for the thread they are running on to be joined before they can be stopped
+    QHash<QString, QList<AbstractModule *>> pendingEvThreadMods;
+
+    // send stop command to all active modules in their designated stop order
+    for (auto &mod : modOrder.stop) {
+        emitStatusMessage(QStringLiteral("Stopping '%1'...").arg(mod->name()));
+        waitForInputsDrained(mod);
+
+        const auto evThreadKey = modEvThreadKey.value(mod);
+        if (evThreadKey.isEmpty()) {
+            stopModule(mod);
+            continue;
+        }
+
+        // An event thread must be joined before any module running on it is stopped, but
+        // joining it also cuts off all other modules on that thread, which may still have
+        // upstream modules running. So we defer stopping event-driven modules until the last
+        // module on their thread comes up in the stop order: At that point, all their
+        // upstream modules have been stopped and their inputs have been drained.
+        auto &pendingMods = pendingEvThreadMods[evThreadKey];
+        pendingMods.append(mod);
+        if (pendingMods.size() < eventModules.value(evThreadKey).size())
+            continue;
+
+        stopEventThread(evThreadKey, pendingEvThreadMods.take(evThreadKey));
+    }
+
+    // stop any event thread (and its modules) that may not have been covered by the module stop order
+    for (auto it = evThreads.constBegin(); it != evThreads.constEnd(); ++it) {
+        if (stoppedEvThreads.contains(it.key()))
+            continue;
+        LOG_WARNING(d->log, "Event thread '{}' was not stopped via module stop order.", it.key());
+        stopEventThread(it.key(), pendingEvThreadMods.take(it.key()));
     }
 
     // Wake up all threads again, just in case one is still stuck waiting
