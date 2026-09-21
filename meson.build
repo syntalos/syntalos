@@ -5,7 +5,7 @@ project('Syntalos', 'c', 'cpp',
                     'b_lto=true'],
   subproject_dir : 'vendor/wrap',
 
-  license: 'LGPL-3.0+ and GPL-3.0+',
+  license: 'LGPL-3.0+',
   version: '3.2.1',
 )
 
