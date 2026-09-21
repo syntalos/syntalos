@@ -87,5 +87,16 @@ eatmydata apt-get install -yq --no-install-recommends \
     rtkit
 
 # requirements to build iceoryx2 from source
-eatmydata apt-get install -yq --no-install-recommends \
-    cargo
+# (iceoryx2 needs a newer Rust toolchain than Debian stable provides,
+#  so we fetch it from backports there)
+if [ "$ID" = "debian" ] && [ "$VERSION_CODENAME" = "trixie" ]; then
+    echo "deb http://deb.debian.org/debian trixie-backports main" \
+        > /etc/apt/sources.list.d/backports.list
+    apt-get update -qq
+    eatmydata apt-get install -yq --no-install-recommends \
+        -t trixie-backports \
+        rustc cargo
+else
+    eatmydata apt-get install -yq --no-install-recommends \
+        cargo
+fi
