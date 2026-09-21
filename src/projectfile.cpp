@@ -24,6 +24,9 @@
 #include <QTemporaryFile>
 #include <QMessageBox>
 #include <utility>
+#include <cerrno>
+#include <cstring>
+#include <sys/stat.h>
 
 #include "engine.h"
 #include "flowgraphview.h"
@@ -203,6 +206,22 @@ bool saveProjectConfiguration(
     }
 
     file.close();
+
+    // Carry over the mode of the file we are replacing, or grant the default
+    // permissions for a new file if there is none yet (otherwise we would keep
+    // temporary-file defaults, which is unexpected for saves like this).
+    struct ::stat sb;
+    mode_t mode;
+    if (::stat(qPrintable(realFileName), &sb) == 0) {
+        mode = sb.st_mode & 07777;
+    } else {
+        const mode_t mask = ::umask(0);
+        ::umask(mask);
+        mode = 0666 & ~mask;
+    }
+    if (::chmod(qPrintable(file.fileName()), mode) != 0)
+        LOG_WARNING(log, "Unable to set permissions on '{}': {}", realFileName, std::strerror(errno));
+
     if (::rename(qPrintable(file.fileName()), qPrintable(realFileName)) != 0) {
         QFile::remove(file.fileName());
         LOG_ERROR(log, "Failed to save '{}': Final rename failed.", realFileName);
