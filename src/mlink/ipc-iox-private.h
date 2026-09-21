@@ -314,42 +314,55 @@ public:
 
     void handleEvents()
     {
+        // try_wait() only hands us a "reasonable batch" per call, so loop until it is empty.
+        // Same-ID notifications coalesce into one counted activation; acting once is enough,
+        // since update_connections() registers all pending subscribers and a single Sample
+        // notification wakes every attached listener.
         for (;;) {
-            auto event = m_listener.try_wait_one();
-            if (!event.has_value() || !event->has_value())
-                break;
-            const auto eventId = static_cast<SyPubSubEvent>(event->value().as_value());
+            auto handled = m_listener.try_wait([this](iox2::EventActivation event) {
+                const auto eventId = static_cast<SyPubSubEvent>(event.id().as_value());
 
-            switch (eventId) {
-            case SyPubSubEvent::SubscriberConnected: {
-                // Register the new subscriber and back-fill the history into its buffer.
-                m_publisher.update_connections().value();
+                switch (eventId) {
+                case SyPubSubEvent::SubscriberConnected: {
+                    // Register the new subscriber and back-fill the history into its buffer.
+                    m_publisher.update_connections().value();
 
-                // Wake the just-connected subscriber so it drains the history sample we just
-                // back-filled. deliver_sample_history() places the bytes in the subscriber's buffer
-                // but fires NO Sample event; the only wakeup is this explicit notification.
-                // Without it, a subscriber on a sparse/idle stream would never wake to read the
-                // history and would receive zero data for the whole run (discovered as the root cause
-                // of a rare CI-only flake in the ipc-test-complex deep table chain). An extra Sample
-                // notification with no new live sample is harmless: the subscriber wakes, receive()
-                // returns the history sample (or nothing), and its drain loop handles the rest.
-                m_notifier.notify_with_custom_event_id(iox2::EventId(static_cast<size_t>(SyPubSubEvent::Sample)))
-                    .value();
-                break;
-            }
-            case SyPubSubEvent::SubscriberDisconnected: {
-                // No action needed (but useful for debugging)
-                break;
-            }
-            default: {
+                    // Wake the just-connected subscriber so it drains the history sample we just
+                    // back-filled. deliver_sample_history() places the bytes in the subscriber's buffer
+                    // but fires NO Sample event; the only wakeup is this explicit notification.
+                    // Without it, a subscriber on a sparse/idle stream would never wake to read the
+                    // history and would receive zero data for the whole run (discovered as the root cause
+                    // of a rare CI-only flake in the ipc-test-complex deep table chain). An extra Sample
+                    // notification with no new live sample is harmless: the subscriber wakes, receive()
+                    // returns the history sample (or nothing), and its drain loop handles the rest.
+                    m_notifier.notify_with_custom_event_id(iox2::EventId(static_cast<size_t>(SyPubSubEvent::Sample)))
+                        .value();
+                    break;
+                }
+                case SyPubSubEvent::SubscriberDisconnected: {
+                    // No action needed (but useful for debugging)
+                    break;
+                }
+                default: {
+                    logMessage(
+                        datactl::LogSeverity::Warning,
+                        "Received unexpected event ID on {}: {}",
+                        m_serviceName.to_string().unchecked_access().c_str(),
+                        static_cast<size_t>(eventId));
+                    break;
+                }
+                }
+            });
+            if (!handled.has_value()) [[unlikely]] {
                 logMessage(
-                    datactl::LogSeverity::Warning,
-                    "Received unexpected event ID on {}: {}",
+                    datactl::LogSeverity::Debug,
+                    "Listener wait failed on {}: {}",
                     m_serviceName.to_string().unchecked_access().c_str(),
-                    static_cast<size_t>(eventId));
+                    iox2::bb::into<const char *>(handled.error()));
                 break;
             }
-            }
+            if (handled.value() == 0)
+                break;
         }
     }
 
@@ -629,29 +642,42 @@ public:
     {
         // Per the iceoryx2 FAQ: We MUST drain all pending events before returning,
         // otherwise the WaitSet fires again immediately (100% CPU / notification flood).
-        // try_wait_all() only returns a "reasonable batch", so we loop with
-        // try_wait_one() until the listener is truly empty.
-        for (auto event = m_listener.try_wait_one(); event.has_value() && event->has_value();
-             event = m_listener.try_wait_one()) {
-            const auto eventId = static_cast<SyPubSubEvent>(event->value().as_value());
-            if (eventId == SyPubSubEvent::Sample) {
-                // We received a sample. We should receive exactly the same amount of events as samples are
-                // in the pipeline, however, if we ever miss an event, we would miss a sample.
-                // This is handled by the extra pass on the listener after draining all events.
-                const auto &maybeReceived = m_subscriber.receive();
-                if (!maybeReceived.has_value()) [[unlikely]] {
-                    logMessage(
-                        datactl::LogSeverity::Error,
-                        "Failed to receive sample on {}: {}",
-                        m_serviceName.to_string().unchecked_access().c_str(),
-                        iox2::bb::into<const char *>(maybeReceived.error()));
-                    continue;
-                }
-                const auto &sample = maybeReceived.value();
-                if (sample.has_value())
+        // try_wait() only returns a "reasonable batch" per call, so loop until it is empty.
+        for (;;) {
+            auto handled = m_listener.try_wait([this, &callback](iox2::EventActivation event) {
+                const auto eventId = static_cast<SyPubSubEvent>(event.id().as_value());
+                if (eventId != SyPubSubEvent::Sample)
+                    return;
+
+                // Sample notifications coalesce into one activation with a count, so receive
+                // one sample per recorded notification. Should a notification ever be missed,
+                // the flush pass below picks up the orphaned sample.
+                for (uint64_t i = 0; i < event.count(); ++i) {
+                    const auto &maybeReceived = m_subscriber.receive();
+                    if (!maybeReceived.has_value()) [[unlikely]] {
+                        logMessage(
+                            datactl::LogSeverity::Error,
+                            "Failed to receive sample on {}: {}",
+                            m_serviceName.to_string().unchecked_access().c_str(),
+                            iox2::bb::into<const char *>(maybeReceived.error()));
+                        return;
+                    }
+                    const auto &sample = maybeReceived.value();
+                    if (!sample.has_value())
+                        return;
                     callback(sample->payload());
-                continue;
+                }
+            });
+            if (!handled.has_value()) [[unlikely]] {
+                logMessage(
+                    datactl::LogSeverity::Debug,
+                    "Listener wait failed on {}: {}",
+                    m_serviceName.to_string().unchecked_access().c_str(),
+                    iox2::bb::into<const char *>(handled.error()));
+                break;
             }
+            if (handled.value() == 0)
+                break;
         }
 
         // Flush any samples that arrived in the subscriber buffer before their
@@ -680,8 +706,16 @@ public:
     void drain()
     {
         for (;;) {
-            auto ev = m_listener.try_wait_one();
-            if (!ev.has_value() || !ev->has_value())
+            auto handled = m_listener.try_wait([](iox2::EventActivation) {});
+            if (!handled.has_value()) [[unlikely]] {
+                logMessage(
+                    datactl::LogSeverity::Debug,
+                    "Listener wait failed on {}: {}",
+                    m_serviceName.to_string().unchecked_access().c_str(),
+                    iox2::bb::into<const char *>(handled.error()));
+                break;
+            }
+            if (handled.value() == 0)
                 break;
         }
 
@@ -1086,8 +1120,8 @@ inline auto makeSliceClient(
 inline void drainListenerEvents(IoxListener &listener)
 {
     for (;;) {
-        auto ev = listener.try_wait_one();
-        if (!ev.has_value() || !ev->has_value())
+        auto handled = listener.try_wait([](iox2::EventActivation) {});
+        if (!handled.has_value() || handled.value() == 0)
             break;
     }
 }

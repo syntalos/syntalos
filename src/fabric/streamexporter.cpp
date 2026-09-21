@@ -320,7 +320,7 @@ static GSource *efd_signal_source_new(int event_fd, VariantStreamSubscription *s
 // A GSource that watches a file descriptor for readability but, unlike EFDSignalSource, never
 // read()s it. This is required for the IOX listener FD: it is a readiness-multiplexing FD
 // (SynchronousMultiplexing) whose underlying events must be consumed by the listener's own
-// try_wait_one() loop (inside SyPublisher::handleEvents()), not by a raw read() - reading it
+// try_wait() loop (inside SyPublisher::handleEvents()), not by a raw read() - reading it
 // ourselves would corrupt iceoryx2's notification state.
 typedef struct {
     GSource source;
