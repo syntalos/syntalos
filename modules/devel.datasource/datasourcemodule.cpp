@@ -385,13 +385,9 @@ public:
 
             dataIndex++;
         }
-    }
 
-    void stop() override
-    {
         m_scene.release();
         m_noise.clear();
-        AbstractModule::stop();
     }
 
 private:
