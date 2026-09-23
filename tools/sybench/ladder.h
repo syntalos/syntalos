@@ -1,0 +1,63 @@
+/*
+ * Copyright (C) 2026 Matthias Klumpp <matthias@tenstral.net>
+ *
+ * Licensed under the GNU Lesser General Public License Version 3
+ *
+ * This library is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation, either version 3 of the license, or
+ * (at your option) any later version.
+ *
+ * This library is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Lesser General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this library.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#pragma once
+
+#include <QList>
+#include <functional>
+#include <optional>
+
+namespace SyBench
+{
+
+/**
+ * @brief Search strategy for the highest sustainable level of a dimension
+ */
+struct LadderConfig {
+    int startLevel = 1;
+    int maxLevel = 4096;
+    int bisections = 2; /// refinement steps between the last pass and the first failure
+};
+
+struct LadderStep {
+    int level = 0;
+    bool passed = false;
+};
+
+struct LadderOutcome {
+    int sustained = 0; /// highest level that passed, 0 if even the lowest tried level failed
+    bool cancelled = false;
+    bool reachedMax = false; /// the maximum level passed, the true limit is higher
+    QList<LadderStep> steps;
+};
+
+/**
+ * @brief Try level, returns whether it passed. std::nullopt aborts the search (cancelled).
+ */
+using TryLevelFn = std::function<std::optional<bool>(int level)>;
+
+/**
+ * @brief Run a doubling search from the start level, then bisect between the last
+ * pass and the first failure.
+ *
+ * If the start level already fails, the level is halved until one passes (or level 1 fails).
+ */
+LadderOutcome runLadder(const LadderConfig &cfg, const TryLevelFn &tryLevel);
+
+} // namespace SyBench
