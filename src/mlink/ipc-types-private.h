@@ -310,8 +310,7 @@ static const std::string SYNC_OFFSET_CHANNEL_ID = "SyncOffset";
 /**
  * Request the module API version supported by the worker.
  */
-struct ApiVersionRequest {
-};
+struct ApiVersionRequest {};
 static const std::string API_VERSION_CALL_ID = "ApiVersion";
 
 /**
@@ -568,29 +567,25 @@ static const std::string START_CALL_ID = "Start";
 /**
  * Stop module run, this enters the IDLE stage
  */
-struct StopRequest {
-};
+struct StopRequest {};
 static const std::string STOP_CALL_ID = "Stop";
 
 /**
  * Request to shutdown the module process cleanly
  */
-struct ShutdownRequest {
-};
+struct ShutdownRequest {};
 static const std::string SHUTDOWN_CALL_ID = "Shutdown";
 
 /**
  * Request to show the GUI dialog to change settings.
  */
-struct ShowSettingsRequest {
-};
+struct ShowSettingsRequest {};
 static const std::string SHOW_SETTINGS_CALL_ID = "ShowSettings";
 
 /**
  * Request to show the display window(s) of the module.
  */
-struct ShowDisplayRequest {
-};
+struct ShowDisplayRequest {};
 static const std::string SHOW_DISPLAY_CALL_ID = "ShowDisplay";
 
 /**

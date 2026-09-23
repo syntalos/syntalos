@@ -57,8 +57,7 @@ struct fmtquill::formatter<QString> {
 };
 
 template<>
-struct quill::Codec<QString> : quill::DeferredFormatCodec<QString> {
-};
+struct quill::Codec<QString> : quill::DeferredFormatCodec<QString> {};
 
 // -- QByteArray --------------------------------------------------------------─
 
@@ -76,8 +75,7 @@ struct fmtquill::formatter<QByteArray> {
 };
 
 template<>
-struct quill::Codec<QByteArray> : quill::DeferredFormatCodec<QByteArray> {
-};
+struct quill::Codec<QByteArray> : quill::DeferredFormatCodec<QByteArray> {};
 
 // -- QStringList --------------------------------------------------------------
 
@@ -103,8 +101,7 @@ struct fmtquill::formatter<QStringList> {
 };
 
 template<>
-struct quill::Codec<QStringList> : quill::DeferredFormatCodec<QStringList> {
-};
+struct quill::Codec<QStringList> : quill::DeferredFormatCodec<QStringList> {};
 
 // -- QPoint ------------------------------------------------------------------─
 
@@ -122,8 +119,7 @@ struct fmtquill::formatter<QPoint> {
 };
 
 template<>
-struct quill::Codec<QPoint> : quill::DeferredFormatCodec<QPoint> {
-};
+struct quill::Codec<QPoint> : quill::DeferredFormatCodec<QPoint> {};
 
 // -- QPointF ------------------------------------------------------------------
 
@@ -141,8 +137,7 @@ struct fmtquill::formatter<QPointF> {
 };
 
 template<>
-struct quill::Codec<QPointF> : quill::DeferredFormatCodec<QPointF> {
-};
+struct quill::Codec<QPointF> : quill::DeferredFormatCodec<QPointF> {};
 
 // -- QSize --------------------------------------------------------------------
 
@@ -160,8 +155,7 @@ struct fmtquill::formatter<QSize> {
 };
 
 template<>
-struct quill::Codec<QSize> : quill::DeferredFormatCodec<QSize> {
-};
+struct quill::Codec<QSize> : quill::DeferredFormatCodec<QSize> {};
 
 // -- QSizeF ------------------------------------------------------------------─
 
@@ -179,8 +173,7 @@ struct fmtquill::formatter<QSizeF> {
 };
 
 template<>
-struct quill::Codec<QSizeF> : quill::DeferredFormatCodec<QSizeF> {
-};
+struct quill::Codec<QSizeF> : quill::DeferredFormatCodec<QSizeF> {};
 
 // -- QRect --------------------------------------------------------------------
 
@@ -198,8 +191,7 @@ struct fmtquill::formatter<QRect> {
 };
 
 template<>
-struct quill::Codec<QRect> : quill::DeferredFormatCodec<QRect> {
-};
+struct quill::Codec<QRect> : quill::DeferredFormatCodec<QRect> {};
 
 // -- QRectF ------------------------------------------------------------------─
 
@@ -217,8 +209,7 @@ struct fmtquill::formatter<QRectF> {
 };
 
 template<>
-struct quill::Codec<QRectF> : quill::DeferredFormatCodec<QRectF> {
-};
+struct quill::Codec<QRectF> : quill::DeferredFormatCodec<QRectF> {};
 
 // -- QColor ------------------------------------------------------------------─
 
@@ -238,8 +229,7 @@ struct fmtquill::formatter<QColor> {
 };
 
 template<>
-struct quill::Codec<QColor> : quill::DeferredFormatCodec<QColor> {
-};
+struct quill::Codec<QColor> : quill::DeferredFormatCodec<QColor> {};
 
 // -- QDate --------------------------------------------------------------------
 
@@ -257,8 +247,7 @@ struct fmtquill::formatter<QDate> {
 };
 
 template<>
-struct quill::Codec<QDate> : quill::DeferredFormatCodec<QDate> {
-};
+struct quill::Codec<QDate> : quill::DeferredFormatCodec<QDate> {};
 
 // -- QTime --------------------------------------------------------------------
 
@@ -276,8 +265,7 @@ struct fmtquill::formatter<QTime> {
 };
 
 template<>
-struct quill::Codec<QTime> : quill::DeferredFormatCodec<QTime> {
-};
+struct quill::Codec<QTime> : quill::DeferredFormatCodec<QTime> {};
 
 // -- QDateTime ----------------------------------------------------------------
 
@@ -295,8 +283,7 @@ struct fmtquill::formatter<QDateTime> {
 };
 
 template<>
-struct quill::Codec<QDateTime> : quill::DeferredFormatCodec<QDateTime> {
-};
+struct quill::Codec<QDateTime> : quill::DeferredFormatCodec<QDateTime> {};
 
 // -- QUrl --------------------------------------------------------------------─
 
@@ -314,8 +301,7 @@ struct fmtquill::formatter<QUrl> {
 };
 
 template<>
-struct quill::Codec<QUrl> : quill::DeferredFormatCodec<QUrl> {
-};
+struct quill::Codec<QUrl> : quill::DeferredFormatCodec<QUrl> {};
 
 // -- QUuid --------------------------------------------------------------------
 
@@ -333,5 +319,4 @@ struct fmtquill::formatter<QUuid> {
 };
 
 template<>
-struct quill::Codec<QUuid> : quill::DeferredFormatCodec<QUuid> {
-};
+struct quill::Codec<QUuid> : quill::DeferredFormatCodec<QUuid> {};

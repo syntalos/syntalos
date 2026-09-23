@@ -74,7 +74,7 @@ enum class ModuleFeature {
     REQUEST_CPU_AFFINITY = 1 << 4, /// Pin the module's thread to a separate CPU core, if possible (even if the user
                                    /// disabled this)
     PROHIBIT_CPU_AFFINITY = 1
-                            << 5 /// Never set a core affinity for the thread of this module, even if the user wanted it
+        << 5 /// Never set a core affinity for the thread of this module, even if the user wanted it
 };
 Q_DECLARE_FLAGS(ModuleFeatures, ModuleFeature)
 Q_DECLARE_OPERATORS_FOR_FLAGS(ModuleFeatures)

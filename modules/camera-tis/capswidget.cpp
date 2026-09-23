@@ -281,7 +281,7 @@ void CapsWidget::fill_combo_framerate(const QString &format, const scaling &scal
         // either select 30 FPS or the highest
         auto f = std::find(res.begin(), res.end(), 30.0);
         if (f == res.end()) {
-            f = std ::max_element(res.begin(), res.end());
+            f = std::max_element(res.begin(), res.end());
         }
         if (f != res.end()) {
             p_combo_framerate->setCurrentText(QString::number(*f));

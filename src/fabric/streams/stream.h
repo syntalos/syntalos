@@ -860,8 +860,7 @@ public:
 
 private:
     // Empty tag type used as the scratch member when buffer reuse is disabled.
-    struct NoScratch {
-    };
+    struct NoScratch {};
 
     QuillLogger *m_log;
     std::thread::id m_ownerId{};

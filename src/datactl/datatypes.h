@@ -57,14 +57,12 @@ namespace Syntalos
  *   2. Add a full specialization of supports_buffer_reuse below.
  */
 template<typename T>
-struct supports_buffer_reuse : std::false_type {
-};
+struct supports_buffer_reuse : std::false_type {};
 
 // Frame carries a cv::Mat whose pixel buffer can be reused
 struct Frame;
 template<>
-struct supports_buffer_reuse<Frame> : std::true_type {
-};
+struct supports_buffer_reuse<Frame> : std::true_type {};
 
 /**
  * @brief The ModuleState enum
