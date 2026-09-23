@@ -15,10 +15,13 @@ class ExampleModule : public SyntalosLinkModule
 private:
     std::shared_ptr<InputPortInfo> m_tabIn;
     std::shared_ptr<OutputPortLink<TableRow>> m_tabOut;
+    std::shared_ptr<InputPortInfo> m_frameIn;
+    std::shared_ptr<OutputPortLink<Frame>> m_frameOut;
 
     std::shared_ptr<EDLDataset> m_dataset;
     fs::path m_logFilePath;
     int m_rowCount{0};
+    int m_frameCount{0};
 
 public:
     explicit ExampleModule(SyntalosLink *slink)
@@ -32,6 +35,11 @@ public:
             this,
             &ExampleModule::onTableDataReceived);
 
+        // Frames are forwarded unchanged, to show how (potentially large) video data
+        // passes through an out-of-process module
+        m_frameOut = registerOutputPortOrAbort<Frame>("frames-out", "Frames Out");
+        m_frameIn = registerInputPortOrAbort<Frame>("frames-in", "Frames In", this, &ExampleModule::onFrameReceived);
+
         // notify that initialization is done and the module is idle now
         setState(ModuleState::IDLE);
     }
@@ -42,6 +50,10 @@ public:
     {
         // Actions to prepare an acquisition run go here!
         m_tabOut->setMetadataVar("table_header", m_tabIn->metadata().valueOr("table_header", MetaArray{}));
+
+        // pass the video stream properties on, so consumers (e.g. a video recorder) know what to expect
+        for (const auto &[key, value] : m_frameIn->metadata())
+            m_frameOut->setMetadataVar(key, value);
 
         // Create the default EDL dataset for this module and record metadata
         auto dsetResult = createDefaultDataset();
@@ -55,6 +67,7 @@ public:
 
         m_logFilePath = m_dataset->setDataFile("rows.tsv", "Example data");
         m_rowCount = 0;
+        m_frameCount = 0;
 
         // success, we need to signal "ready" here
         setState(ModuleState::READY);
@@ -85,11 +98,21 @@ public:
         }
     }
 
+    void onFrameReceived(const Frame &frame)
+    {
+        // Frames are forwarded as they are. Any image processing would go here,
+        // the pixel data is a regular OpenCV matrix (frame.mat)
+        m_frameOut->submit(frame);
+        m_frameCount++;
+    }
+
     void stop() override
     {
         // Write a short summary attribute at the end of the run
-        if (m_dataset)
+        if (m_dataset) {
             m_dataset->insertAttribute("row_count", m_rowCount);
+            m_dataset->insertAttribute("frame_count", m_frameCount);
+        }
 
         // Actions to perform once the run is stopped go here
         SyntalosLinkModule::stop();
