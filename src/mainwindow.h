@@ -58,6 +58,7 @@ constexpr int SY_EXIT_LOAD_ERROR = 2;
 constexpr int SY_EXIT_PERMISSION_ERROR = 3;
 constexpr int SY_EXIT_NOT_FOUND = 4;
 constexpr int SY_EXIT_RUN_FAILED = 5;
+constexpr int SY_EXIT_ALREADY_RUNNING = 6;
 
 /**
  * @brief Main application window

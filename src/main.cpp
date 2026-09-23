@@ -27,6 +27,8 @@
 #include <KDBusService>
 #include <QApplication>
 #include <QCommandLineParser>
+#include <QDBusConnection>
+#include <QDBusConnectionInterface>
 #include <QDir>
 #include <QMessageBox>
 #pragma GCC diagnostic push
@@ -150,6 +152,17 @@ int main(int argc, char *argv[])
     const bool autoRun = parser.isSet(optnAutoRun) || runForSecs > 0;
 
     // ensure we only ever run one instance of the application
+    // KDBusService just exits the second instance with 0 (and forwards arguments),
+    // so we check for the service name ourselves first to give the caller a clear reason and exit code.
+    const auto instanceServiceName = QStringLiteral("local.") + QCoreApplication::applicationName();
+    {
+        const auto bus = QDBusConnection::sessionBus();
+        if (bus.isConnected() && bus.interface()->isServiceRegistered(instanceServiceName)) {
+            qCritical().noquote() << "Another instance of Syntalos is already running. "
+                                     "Only one instance may run at a time, please close it first.";
+            return SY_EXIT_ALREADY_RUNNING;
+        }
+    }
     KDBusService service(KDBusService::Unique);
 
     // at this point, we have all startup information and can launch the logging system
