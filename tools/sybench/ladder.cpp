@@ -35,6 +35,7 @@ LadderOutcome runLadder(const LadderConfig &cfg, const TryLevelFn &tryLevel)
         const auto res = tryLevel(level);
         if (!res.has_value()) {
             out.cancelled = true;
+            out.sustained = lo;
             return std::nullopt;
         }
         out.steps.append(LadderStep{level, *res});

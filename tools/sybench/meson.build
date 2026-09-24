@@ -1,4 +1,4 @@
-# Build definition for the Syntalos System Benchmark
+# Build definition for the Syntalos Benchmark Tool
 
 sybench_core_hdr = [
     'dimension.h',
@@ -34,15 +34,39 @@ sybench_core_dep = declare_dependency(
     include_directories: include_directories('.'),
 )
 
+sybench_moc_hdr = [
+    'benchsession.h',
+    'benchwindow.h',
+]
+sybench_src = [
+    'main.cpp',
+    'benchsession.cpp',
+    'benchwindow.cpp',
+    'report.cpp',
+    '../../src/appstyle.cpp',
+]
+sybench_ui = ['benchwindow.ui']
+
+sybench_moc = qt.compile_moc(
+    headers: sybench_moc_hdr,
+    dependencies: [qt_core_dep, qt_gui_dep],
+)
+sybench_moc += qt.compile_ui(sources: sybench_ui)
+
 syntalos_bench_exe = executable('syntalos-benchmark',
-    ['main.cpp'],
-    dependencies: [sybench_core_dep],
+    [sybench_moc_hdr, sybench_src, sybench_moc],
+    dependencies: [
+        sybench_core_dep,
+        qt_gui_dep,
+        kfconfigwidgets_dep,
+    ],
+    include_directories: [include_directories('../../src')],
     install: true,
     install_rpath: sy_libdir
 )
 
 #
-# Unit test for the project generator and ladder logic
+# Unit tests
 #
 test_sybench_moc_src = ['test-sybench.cpp']
 test_sybench_moc = qt.compile_moc(sources: test_sybench_moc_src)

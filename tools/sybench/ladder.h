@@ -41,7 +41,7 @@ struct LadderStep {
 };
 
 struct LadderOutcome {
-    int sustained = 0; /// highest level that passed, 0 if even the lowest tried level failed
+    int sustained = 0; /// highest level that passed, 0 if even the lowest tried level failed (partial if cancelled)
     bool cancelled = false;
     bool reachedMax = false; /// the maximum level passed, the true limit is higher
     QList<LadderStep> steps;

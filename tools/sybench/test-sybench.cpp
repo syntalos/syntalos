@@ -62,8 +62,8 @@ private slots:
         QTemporaryDir tmpDir;
         QVERIFY(tmpDir.isValid());
         const auto fname = tmpDir.filePath(QStringLiteral("gen.syct"));
-        QString error;
-        QVERIFY2(writeProjectFile(spec, fname, &error), qPrintable(error));
+        const auto written = writeProjectFile(spec, fname);
+        QVERIFY2(written.has_value(), qPrintable(written.error_or(QString())));
 
         KTar tar(fname);
         QVERIFY(tar.open(QIODevice::ReadOnly));
@@ -116,13 +116,13 @@ private slots:
     {
         QTemporaryDir tmpDir;
         QVERIFY(tmpDir.isValid());
-        QString error;
 
         ProjectSpec dup;
         dup.addModule(Modules::dataSourceCamera(QStringLiteral("Cam"), 640, 480, 30));
         dup.addModule(Modules::dataSourceCamera(QStringLiteral("Cam"), 640, 480, 30));
-        QVERIFY(!writeProjectFile(dup, tmpDir.filePath(QStringLiteral("dup.syct")), &error));
-        QVERIFY(error.contains(QStringLiteral("Duplicate")));
+        const auto dupRes = writeProjectFile(dup, tmpDir.filePath(QStringLiteral("dup.syct")));
+        QVERIFY(!dupRes.has_value());
+        QVERIFY(dupRes.error().contains(QStringLiteral("Duplicate")));
 
         ProjectSpec dangling;
         dangling.addModule(
@@ -131,8 +131,9 @@ private slots:
                 QStringLiteral("Frame"),
                 QStringLiteral("Nobody"),
                 QStringLiteral("frames-out")));
-        QVERIFY(!writeProjectFile(dangling, tmpDir.filePath(QStringLiteral("dangling.syct")), &error));
-        QVERIFY(error.contains(QStringLiteral("unknown module")));
+        const auto danglingRes = writeProjectFile(dangling, tmpDir.filePath(QStringLiteral("dangling.syct")));
+        QVERIFY(!danglingRes.has_value());
+        QVERIFY(danglingRes.error().contains(QStringLiteral("unknown module")));
     }
 
     void cameraDimensionProject()

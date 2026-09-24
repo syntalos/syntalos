@@ -24,6 +24,7 @@
 #include <QList>
 #include <QString>
 #include <QVariantHash>
+#include <expected>
 
 namespace SyBench
 {
@@ -68,6 +69,6 @@ struct ProjectSpec {
 /**
  * @brief Write a project description as Syntalos .syct file
  */
-bool writeProjectFile(const ProjectSpec &spec, const QString &fileName, QString *errorMessage = nullptr);
+auto writeProjectFile(const ProjectSpec &spec, const QString &fileName) -> std::expected<void, QString>;
 
 } // namespace SyBench

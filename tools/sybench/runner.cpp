@@ -227,13 +227,12 @@ void parseRunStatistics(const QJsonObject &stats, StepResult &r)
     }
 }
 
-StepResult SyntalosRunner::run(const StepRunConfig &cfg)
+auto SyntalosRunner::run(const StepRunConfig &cfg) -> std::expected<StepResult, QString>
 {
+    if (m_bin.isEmpty())
+        return std::unexpected(QStringLiteral("The syntalos executable was not found."));
+
     StepResult r;
-    if (m_bin.isEmpty()) {
-        r.failureReason = QStringLiteral("The syntalos executable was not found.");
-        return r;
-    }
     if (m_cancel) {
         r.cancelled = true;
         r.failureReason = QStringLiteral("Cancelled.");
@@ -258,11 +257,8 @@ StepResult SyntalosRunner::run(const StepRunConfig &cfg)
     proc.setProcessChannelMode(QProcess::MergedChannels);
     log(QStringLiteral("Launching: %1 %2").arg(m_bin, args.join(QLatin1Char(' '))));
     proc.start();
-    if (!proc.waitForStarted(10000)) {
-        r.failureReason = QStringLiteral("Unable to start Syntalos: %1").arg(proc.errorString());
-        return r;
-    }
-    r.launched = true;
+    if (!proc.waitForStarted(10000))
+        return std::unexpected(QStringLiteral("Unable to start Syntalos: %1").arg(proc.errorString()));
 
     QStringList outLines;
     const auto collectOutput = [&]() {

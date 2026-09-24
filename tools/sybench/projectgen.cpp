@@ -91,33 +91,27 @@ static QVariantHash makeGraphSettings(const ProjectSpec &spec)
     return graph;
 }
 
-bool writeProjectFile(const ProjectSpec &spec, const QString &fileName, QString *errorMessage)
+auto writeProjectFile(const ProjectSpec &spec, const QString &fileName) -> std::expected<void, QString>
 {
-    const auto setError = [&](const QString &msg) {
-        if (errorMessage)
-            *errorMessage = msg;
-        return false;
-    };
-
     QSet<QString> names;
     for (const auto &m : spec.modules) {
         if (m.id.isEmpty() || m.name.isEmpty())
-            return setError(QStringLiteral("Module without id or name in project specification."));
+            return std::unexpected(QStringLiteral("Module without id or name in project specification."));
         if (names.contains(m.name))
-            return setError(QStringLiteral("Duplicate module name '%1' in project specification.").arg(m.name));
+            return std::unexpected(QStringLiteral("Duplicate module name '%1' in project specification.").arg(m.name));
         names.insert(m.name);
     }
     for (const auto &m : spec.modules) {
         for (const auto &sub : m.subscriptions) {
             if (!names.contains(sub.srcModuleName))
-                return setError(
+                return std::unexpected(
                     QStringLiteral("Module '%1' subscribes to unknown module '%2'.").arg(m.name, sub.srcModuleName));
         }
     }
 
     KTar tar(fileName);
     if (!tar.open(QIODevice::WriteOnly))
-        return setError(QStringLiteral("Unable to open '%1' for writing.").arg(fileName));
+        return std::unexpected(QStringLiteral("Unable to open '%1' for writing.").arg(fileName));
 
     const auto timeCreated = QDateTime::fromSecsSinceEpoch(QDateTime::currentSecsSinceEpoch());
     const auto writeEntry = [&](const QString &name, const QByteArray &data) {
@@ -152,7 +146,7 @@ bool writeProjectFile(const ProjectSpec &spec, const QString &fileName, QString 
     settings.insert(QStringLiteral("network"), netSettings);
 
     if (!writeEntry(QStringLiteral("main.toml"), qVariantHashToTomlData(settings)))
-        return setError(QStringLiteral("Failed to write main.toml"));
+        return std::unexpected(QStringLiteral("Failed to write main.toml"));
     writeEntry(QStringLiteral("subjects.toml"), QByteArray());
     writeEntry(QStringLiteral("experimenters.toml"), QByteArray());
     writeEntry(QStringLiteral("graph.toml"), qVariantHashToTomlData(makeGraphSettings(spec)));
@@ -161,7 +155,7 @@ bool writeProjectFile(const ProjectSpec &spec, const QString &fileName, QString 
     for (const auto &m : spec.modules) {
         const auto dirEntryId = QStringLiteral("%1-%2").arg(modIndex, 3, 10, QChar('0')).arg(m.id);
         if (!writeDirEntry(dirEntryId))
-            return setError(QStringLiteral("Failed to write directory entry for '%1'").arg(m.name));
+            return std::unexpected(QStringLiteral("Failed to write directory entry for '%1'").arg(m.name));
 
         if (!m.settings.isEmpty())
             writeEntry(QStringLiteral("%1/%2.toml").arg(dirEntryId, m.id), qVariantHashToTomlData(m.settings));
@@ -184,8 +178,8 @@ bool writeProjectFile(const ProjectSpec &spec, const QString &fileName, QString 
     }
 
     if (!tar.close())
-        return setError(QStringLiteral("Failed to finalize '%1'.").arg(fileName));
-    return true;
+        return std::unexpected(QStringLiteral("Failed to finalize '%1'.").arg(fileName));
+    return {};
 }
 
 } // namespace SyBench

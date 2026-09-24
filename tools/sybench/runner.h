@@ -23,6 +23,7 @@
 #include <QList>
 #include <QString>
 #include <atomic>
+#include <expected>
 #include <functional>
 
 namespace SyBench
@@ -90,8 +91,7 @@ struct ModuleUsage {
  * @brief Everything we learned from one Syntalos run
  */
 struct StepResult {
-    bool launched = false; /// the Syntalos process could be started at all
-    bool success = false;  /// the run completed without error
+    bool success = false; /// the run completed without error
     bool cancelled = false;
     bool memoryExceeded = false; /// the run was killed for using too much memory (queues overflowing)
     QString failureReason;
@@ -141,8 +141,11 @@ public:
 
     /**
      * @brief Run one step synchronously. Blocks for the whole run.
+     *
+     * A failed, killed or cancelled run is still a result; the error branch is only
+     * taken when Syntalos could not be launched at all.
      */
-    StepResult run(const StepRunConfig &cfg);
+    auto run(const StepRunConfig &cfg) -> std::expected<StepResult, QString>;
 
     /**
      * @brief Abort a running step from another thread.

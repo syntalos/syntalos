@@ -17,21 +17,17 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include <QCommandLineParser>
 #include <QApplication>
-#include <QCoreApplication>
+#include <QCommandLineParser>
 #include <QDir>
-#include <QJsonArray>
-#include <QJsonDocument>
-#include <QJsonObject>
 #include <QTextStream>
 
 #include "config.h"
-#include "dimension.h"
-#include "ladder.h"
-#include "projectgen.h"
-#include "runner.h"
-#include "sysinfo.h"
+#include "benchsession.h"
+#include "benchwindow.h"
+#include "report.h"
+#include "utils/style.h"
+#include "appstyle.h"
 
 using namespace SyBench;
 
@@ -44,50 +40,39 @@ QTextStream &out()
     return stream;
 }
 
-QTextStream &err()
+/**
+ * Developer mode: run ladders without a window and print the report as JSON.
+ */
+int runHeadless(const SessionConfig &config)
 {
-    static QTextStream stream(stderr);
-    return stream;
+    BenchSession session(config);
+    QList<LadderRecord> ladders;
+    QObject::connect(&session, &BenchSession::logMessage, [](const QString &msg) {
+        out() << msg << "\n";
+        out().flush();
+    });
+    QObject::connect(&session, &BenchSession::ladderFinished, [&ladders](const LadderRecord &lr) {
+        ladders.append(lr);
+    });
+    session.run();
+
+    out() << QJsonDocument(buildReport(ladders, config, session.cpuCores())).toJson(QJsonDocument::Indented) << "\n";
+    return 0;
 }
 
-struct StepRecord {
-    int level;
-    StepVerdict verdict;
-    StepResult result;
-};
-
-/**
- * Run one step: generate the project, run Syntalos on it, judge the outcome.
- */
-StepVerdict runStep(
-    SyntalosRunner &runner,
-    const Dimension &dim,
-    const QString &profileId,
-    int level,
-    int durationSec,
-    const QDir &workDir,
-    StepResult *resultOut = nullptr)
+int runSelfTest(const SessionConfig &config)
 {
-    const auto baseName = QStringLiteral("%1-%2-L%3").arg(dim.id(), profileId).arg(level);
-    auto spec = dim.buildProject(profileId, level);
-    spec.exportBaseDir = workDir.absolutePath();
-
-    QString error;
-    StepRunConfig cfg;
-    cfg.projectFile = workDir.filePath(baseName + QStringLiteral(".syct"));
-    cfg.statsFile = workDir.filePath(baseName + QStringLiteral(".stats.json"));
-    cfg.durationSec = durationSec;
-    cfg.ephemeral = !dim.writesData();
-    if (!writeProjectFile(spec, cfg.projectFile, &error)) {
-        StepVerdict v;
-        v.summary = QStringLiteral("project generation failed: %1").arg(error);
-        return v;
-    }
-
-    const auto result = runner.run(cfg);
-    if (resultOut)
-        *resultOut = result;
-    return dim.evaluate(profileId, level, result);
+    BenchSession session(config);
+    QObject::connect(&session, &BenchSession::logMessage, [](const QString &msg) {
+        out() << "    " << msg << "\n";
+        out().flush();
+    });
+    auto dim = createDimension(QStringLiteral("camera-capacity"));
+    const auto rec = session.runSingleStep(*dim, dim->profiles().first().id, 1, 3);
+    out() << "Self test: " << (rec.verdict.passed ? "PASS" : "FAIL") << " (" << rec.verdict.summary << ")\n";
+    if (!rec.verdict.passed && !rec.result.outputTail.isEmpty())
+        out() << rec.result.outputTail << "\n";
+    return rec.verdict.passed ? 0 : 1;
 }
 
 } // namespace
@@ -95,8 +80,10 @@ StepVerdict runStep(
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
-    QCoreApplication::setApplicationName(QStringLiteral("syntalos-benchmark"));
-    QCoreApplication::setApplicationVersion(QStringLiteral(PROJECT_VERSION));
+    app.setApplicationName(QStringLiteral("syntalos-benchmark"));
+    app.setOrganizationName(QStringLiteral("Syntalos"));
+    app.setOrganizationDomain(QStringLiteral("syntalos.org"));
+    app.setApplicationVersion(QStringLiteral(PROJECT_VERSION));
 
     QCommandLineParser parser;
     parser.setApplicationDescription(
@@ -112,165 +99,78 @@ int main(int argc, char *argv[])
         QStringLiteral("work-dir"),
         QStringLiteral("Directory for generated projects and statistics."),
         QStringLiteral("dir"));
+    QCommandLineOption optSelfTest(
+        QStringLiteral("self-test"),
+        QStringLiteral("Run a single short step without a window to verify the setup works."));
+    // developer options, they run the benchmark without a window
     QCommandLineOption optDimension(
         QStringLiteral("dimension"),
-        QStringLiteral("Dimension to run (default: all)."),
+        QStringLiteral("Dimension to run headless."),
         QStringLiteral("id"));
     QCommandLineOption optProfile(
         QStringLiteral("profile"),
-        QStringLiteral("Only run this profile of the dimension."),
+        QStringLiteral("Only run this profile."),
         QStringLiteral("id"));
     QCommandLineOption optStepSecs(
         QStringLiteral("step-seconds"),
-        QStringLiteral("Duration of each measured run (default: 20)."),
+        QStringLiteral("Duration of each run."),
         QStringLiteral("sec"));
     QCommandLineOption optStartLevel(
         QStringLiteral("start-level"),
-        QStringLiteral("Level to start the ladder at (default: half the physical cores)."),
+        QStringLiteral("Ladder start level."),
         QStringLiteral("n"));
-    QCommandLineOption optQuick(QStringLiteral("quick"), QStringLiteral("Quick mode: 10 s steps, one bisection."));
-    QCommandLineOption optNoWarmup(QStringLiteral("no-warmup"), QStringLiteral("Skip the discarded warm-up run."));
-    QCommandLineOption optSelfTest(
-        QStringLiteral("self-test"),
-        QStringLiteral("Run a single short step of the camera dimension to verify the setup works."));
-    parser.addOption(optSyBin);
-    parser.addOption(optWorkDir);
-    parser.addOption(optDimension);
-    parser.addOption(optProfile);
-    parser.addOption(optStepSecs);
-    parser.addOption(optStartLevel);
-    parser.addOption(optQuick);
-    parser.addOption(optNoWarmup);
-    parser.addOption(optSelfTest);
+    QCommandLineOption optQuick(QStringLiteral("quick"), QStringLiteral("Quick mode."));
+    QCommandLineOption optNoWarmup(QStringLiteral("no-warmup"), QStringLiteral("Skip the warm-up run."));
+    for (auto *opt : {&optDimension, &optProfile, &optStepSecs, &optStartLevel, &optQuick, &optNoWarmup})
+        opt->setFlags(QCommandLineOption::HiddenFromHelp);
+    parser.addOptions(
+        {optSyBin,
+         optWorkDir,
+         optSelfTest,
+         optDimension,
+         optProfile,
+         optStepSecs,
+         optStartLevel,
+         optQuick,
+         optNoWarmup});
     parser.process(app);
 
-    SyntalosRunner runner;
-    if (parser.isSet(optSyBin))
-        runner.setSyntalosBinary(parser.value(optSyBin));
-    if (runner.syntalosBinary().isEmpty()) {
-        err() << "Unable to find the syntalos executable. Use --syntalos-bin to set it.\n";
-        return 2;
-    }
-    runner.setLogHandler([](const QString &msg) {
-        out() << "    " << msg << "\n";
-        out().flush();
-    });
-
-    QDir workDir(
-        parser.isSet(optWorkDir)
-            ? parser.value(optWorkDir)
-            : QDir::temp().filePath(QStringLiteral("syntalos-bench-%1").arg(QCoreApplication::applicationPid())));
-    if (!workDir.mkpath(QStringLiteral("."))) {
-        err() << "Unable to create work directory " << workDir.absolutePath() << "\n";
-        return 2;
-    }
-
-    const int cpuCores = Syntalos::SysInfo::get()->cpuPhysicalCoreCount();
-    const bool quick = parser.isSet(optQuick);
-    int stepSecs = quick ? 10 : 20;
+    SessionConfig config;
+    config.syntalosBinary = parser.value(optSyBin);
+    config.workDir = parser.isSet(optWorkDir)
+                         ? parser.value(optWorkDir)
+                         : QDir::temp().filePath(
+                               QStringLiteral("syntalos-bench-%1").arg(QCoreApplication::applicationPid()));
+    config.quick = parser.isSet(optQuick);
+    config.warmup = !parser.isSet(optNoWarmup);
     if (parser.isSet(optStepSecs))
-        stepSecs = std::max(1, parser.value(optStepSecs).toInt());
+        config.stepSeconds = std::max(1, parser.value(optStepSecs).toInt());
+    if (parser.isSet(optStartLevel))
+        config.startLevel = std::max(1, parser.value(optStartLevel).toInt());
 
-    out() << "Syntalos: " << runner.syntalosBinary() << "\n";
-    out() << "Work directory: " << workDir.absolutePath() << "\n";
-    out() << "Physical cores: " << cpuCores << ", step duration: " << stepSecs << " s\n";
-    out().flush();
+    if (parser.isSet(optSelfTest))
+        return runSelfTest(config);
 
-    if (parser.isSet(optSelfTest)) {
-        auto dim = createDimension(QStringLiteral("camera-capacity"));
-        StepResult result;
-        const auto verdict = runStep(runner, *dim, dim->profiles().first().id, 1, 3, workDir, &result);
-        out() << "Self test: " << (verdict.passed ? "PASS" : "FAIL") << " (" << verdict.summary << ")\n";
-        if (!verdict.passed && !result.outputTail.isEmpty())
-            out() << result.outputTail << "\n";
-        return verdict.passed ? 0 : 1;
-    }
-
-    std::vector<std::unique_ptr<Dimension>> dims;
     if (parser.isSet(optDimension)) {
-        auto d = createDimension(parser.value(optDimension));
-        if (!d) {
-            err() << "Unknown dimension '" << parser.value(optDimension) << "'. Available:";
-            for (const auto &ad : createAllDimensions())
-                err() << " " << ad->id();
-            err() << "\n";
+        auto dim = createDimension(parser.value(optDimension));
+        if (!dim) {
+            QTextStream(stderr) << "Unknown dimension '" << parser.value(optDimension) << "'.\n";
             return 2;
         }
-        dims.push_back(std::move(d));
-    } else {
-        dims = createAllDimensions();
-    }
-
-    // the first launch of Syntalos on a machine is slower, so we do one run and throw its result away
-    if (!parser.isSet(optNoWarmup)) {
-        out() << "Warm-up run (discarded)...\n";
-        const auto &dim = *dims.front();
-        runStep(runner, dim, dim.profiles().first().id, dim.startLevel(cpuCores), 5, workDir);
-    }
-
-    QJsonArray report;
-    for (const auto &dim : dims) {
-        for (const auto &profile : dim->profiles()) {
-            if (parser.isSet(optProfile) && profile.id != parser.value(optProfile))
-                continue;
-            out() << "\n== " << dim->title() << ", " << profile.title << " ==\n";
-            out().flush();
-
-            LadderConfig lcfg;
-            lcfg.startLevel = parser.isSet(optStartLevel) ? parser.value(optStartLevel).toInt()
-                                                          : dim->startLevel(cpuCores);
-            lcfg.maxLevel = dim->maxLevel();
-            lcfg.bisections = quick ? 1 : 2;
-
-            QList<StepRecord> records;
-            const auto outcome = runLadder(lcfg, [&](int level) -> std::optional<bool> {
-                if (runner.isCancelled())
-                    return std::nullopt;
-                out() << "  Trying " << level << " " << dim->levelUnit() << "...\n";
-                out().flush();
-                StepResult result;
-                const auto verdict = runStep(runner, *dim, profile.id, level, stepSecs, workDir, &result);
-                if (result.cancelled)
-                    return std::nullopt;
-                records.append(StepRecord{level, verdict, result});
-                out() << "  -> " << (verdict.passed ? "PASS" : "FAIL") << ": " << verdict.summary
-                      << QStringLiteral(" [load %1, %2/%3 threads elevated, peak RSS %4 MiB]")
-                             .arg(result.processLoad(), 0, 'f', 2)
-                             .arg(result.threadsElevated)
-                             .arg(result.threadsTotal)
-                             .arg(std::max(result.peakRssKiB, result.observedPeakRssKiB) / 1024)
-                      << "\n";
-                if (!verdict.passed && !result.success && !result.outputTail.isEmpty())
-                    out() << result.outputTail.section(QLatin1Char('\n'), -5) << "\n";
-                out().flush();
-                return verdict.passed;
-            });
-
-            out() << "  Sustained: " << outcome.sustained << " " << dim->levelUnit()
-                  << (outcome.reachedMax ? " (maximum tested level)" : "") << "\n";
-
-            QJsonObject entry;
-            entry.insert(QStringLiteral("dimension"), dim->id());
-            entry.insert(QStringLiteral("profile"), profile.id);
-            entry.insert(QStringLiteral("sustained"), outcome.sustained);
-            entry.insert(QStringLiteral("reached_max"), outcome.reachedMax);
-            QJsonArray steps;
-            for (const auto &rec : records) {
-                QJsonObject so;
-                so.insert(QStringLiteral("level"), rec.level);
-                so.insert(QStringLiteral("passed"), rec.verdict.passed);
-                so.insert(QStringLiteral("summary"), rec.verdict.summary);
-                so.insert(QStringLiteral("min_rate_fraction"), rec.verdict.minRateFraction);
-                so.insert(QStringLiteral("process_load"), rec.result.processLoad());
-                so.insert(QStringLiteral("threads_elevated"), rec.result.threadsElevated);
-                so.insert(QStringLiteral("peak_rss_kib"), rec.result.peakRssKiB);
-                steps.append(so);
-            }
-            entry.insert(QStringLiteral("steps"), steps);
-            report.append(entry);
+        for (const auto &p : dim->profiles()) {
+            if (!parser.isSet(optProfile) || p.id == parser.value(optProfile))
+                config.selections.append({dim->id(), p.id});
         }
+        return runHeadless(config);
     }
 
-    out() << "\n" << QJsonDocument(report).toJson(QJsonDocument::Indented) << "\n";
-    return 0;
+    setDefaultStyle();
+    switchIconTheme(QStringLiteral("breeze"));
+
+    BenchWindow w;
+    if (!config.syntalosBinary.isEmpty())
+        w.setSyntalosBinary(config.syntalosBinary);
+    w.setWorkDir(config.workDir);
+    w.show();
+    return app.exec();
 }
