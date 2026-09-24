@@ -16,7 +16,6 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include "runner.h"
 
 #include <QCoreApplication>
@@ -24,14 +23,13 @@
 #include <QElapsedTimer>
 #include <QFile>
 #include <QFileInfo>
-#include <QJsonArray>
-#include <QJsonDocument>
 #include <QProcess>
-#include <QStandardPaths>
-#include <QThread>
-#include <unistd.h>
 
+#include "executils.h"
+#include "logging.h"
 #include "utils/resourceinfo.h"
+
+using namespace Syntalos;
 
 namespace SyBench
 {
@@ -40,24 +38,81 @@ namespace SyBench
 static constexpr int SY_EXIT_RUN_FAILED = 5;
 static constexpr int SY_EXIT_ALREADY_RUNNING = 6;
 
-const MeterStats *StepResult::meter(const QString &moduleName) const
+std::optional<MeterStats> MeterStats::fromModule(const ModuleRunStats &mod)
 {
-    for (const auto &m : meters) {
-        if (m.moduleName == moduleName)
-            return &m;
-    }
-    return nullptr;
+    if (mod.id != QLatin1String("flowmeter") || mod.moduleStats.isEmpty())
+        return std::nullopt;
+    const auto &ms = mod.moduleStats;
+    MeterStats m;
+    m.moduleName = mod.name;
+    m.items = ms.value(QStringLiteral("items")).toLongLong();
+    m.intervalMeanUs = ms.value(QStringLiteral("interval_mean_us")).toLongLong();
+    m.intervalMaxUs = ms.value(QStringLiteral("interval_max_us")).toLongLong();
+    m.ageP50Us = ms.value(QStringLiteral("age_p50_us")).toLongLong();
+    m.ageP95Us = ms.value(QStringLiteral("age_p95_us")).toLongLong();
+    m.ageP99Us = ms.value(QStringLiteral("age_p99_us")).toLongLong();
+    m.ageMaxUs = ms.value(QStringLiteral("age_max_us")).toLongLong();
+    return m;
+}
+
+double StepResult::durationSec() const
+{
+    return stats ? stats->durationSec : 0.0;
+}
+
+double StepResult::processCpuSec() const
+{
+    return (stats && stats->process) ? stats->process->cpuTimeSec() : 0.0;
 }
 
 double StepResult::processLoad() const
 {
-    if (usageWindowSec <= 0)
+    if (!stats || stats->usageWindowSec <= 0)
         return 0;
-    return processCpuSec / usageWindowSec;
+    return processCpuSec() / stats->usageWindowSec;
+}
+
+qint64 StepResult::peakRssKiB() const
+{
+    return std::max(stats ? stats->peakRssKiB : 0, observedPeakRssKiB);
+}
+
+int StepResult::threadsTotal() const
+{
+    return stats ? stats->threadsTotal : 0;
+}
+
+int StepResult::threadsElevated() const
+{
+    return stats ? stats->threadsElevated : 0;
+}
+
+QList<MeterStats> StepResult::meters() const
+{
+    QList<MeterStats> res;
+    if (!stats)
+        return res;
+    for (const auto &mod : stats->modules) {
+        if (const auto m = MeterStats::fromModule(mod))
+            res.append(*m);
+    }
+    return res;
+}
+
+std::optional<MeterStats> StepResult::meter(const QString &moduleName) const
+{
+    if (!stats)
+        return std::nullopt;
+    for (const auto &mod : stats->modules) {
+        if (mod.name == moduleName)
+            return MeterStats::fromModule(mod);
+    }
+    return std::nullopt;
 }
 
 SyntalosRunner::SyntalosRunner()
-    : m_bin(findSyntalosBinary())
+    : m_bin(findSyntalosBinary()),
+      m_log(getLogger("bench.runner"))
 {
 }
 
@@ -74,7 +129,7 @@ QString SyntalosRunner::findSyntalosBinary()
         if (fi.isFile() && fi.isExecutable())
             return fi.canonicalFilePath();
     }
-    return QStandardPaths::findExecutable(QStringLiteral("syntalos"));
+    return findHostExecutable(QStringLiteral("syntalos"));
 }
 
 void SyntalosRunner::setSyntalosBinary(const QString &path)
@@ -85,17 +140,6 @@ void SyntalosRunner::setSyntalosBinary(const QString &path)
 QString SyntalosRunner::syntalosBinary() const
 {
     return m_bin;
-}
-
-void SyntalosRunner::setLogHandler(LogFn fn)
-{
-    m_log = std::move(fn);
-}
-
-void SyntalosRunner::log(const QString &msg) const
-{
-    if (m_log)
-        m_log(msg);
 }
 
 void SyntalosRunner::cancel()
@@ -111,120 +155,6 @@ bool SyntalosRunner::isCancelled() const
 void SyntalosRunner::resetCancel()
 {
     m_cancel = false;
-}
-
-static qint64 processRssKiB(qint64 pid)
-{
-    QFile f(QStringLiteral("/proc/%1/statm").arg(pid));
-    if (!f.open(QIODevice::ReadOnly))
-        return 0;
-    const auto parts = f.readAll().split(' ');
-    if (parts.size() < 2)
-        return 0;
-    static const long pageKiB = sysconf(_SC_PAGESIZE) / 1024;
-    return parts[1].toLongLong() * pageKiB;
-}
-
-qint64 processTreeRssKiB(qint64 pid)
-{
-    qint64 total = processRssKiB(pid);
-
-    // find direct children by scanning the parent pid of every process
-    QDir procDir(QStringLiteral("/proc"));
-    const auto entries = procDir.entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-    for (const auto &entry : entries) {
-        bool isPid = false;
-        const qint64 childPid = entry.toLongLong(&isPid);
-        if (!isPid || childPid == pid)
-            continue;
-        QFile f(QStringLiteral("/proc/%1/stat").arg(childPid));
-        if (!f.open(QIODevice::ReadOnly))
-            continue;
-        const auto stat = f.readAll();
-        // the parent pid is the first field after the parenthesized command name
-        const int nameEnd = stat.lastIndexOf(')');
-        if (nameEnd < 0)
-            continue;
-        const auto fields = stat.mid(nameEnd + 2).split(' ');
-        if (fields.size() < 2)
-            continue;
-        if (fields[1].toLongLong() == pid)
-            total += processTreeRssKiB(childPid);
-    }
-    return total;
-}
-
-static double usageCpuSec(const QJsonObject &usage)
-{
-    return usage.value(QStringLiteral("user_time_sec")).toDouble()
-           + usage.value(QStringLiteral("system_time_sec")).toDouble();
-}
-
-void parseRunStatistics(const QJsonObject &stats, StepResult &r)
-{
-    r.rawStats = stats;
-    const auto run = stats.value(QStringLiteral("run")).toObject();
-    r.success = run.value(QStringLiteral("success")).toBool(false);
-    if (!r.success && r.failureReason.isEmpty())
-        r.failureReason = run.value(QStringLiteral("failure_reason")).toString();
-    r.durationSec = run.value(QStringLiteral("duration_sec")).toDouble();
-    r.usageWindowSec = run.value(QStringLiteral("usage_window_sec")).toDouble();
-    r.processCpuSec = usageCpuSec(run.value(QStringLiteral("process")).toObject());
-    r.peakRssKiB = run.value(QStringLiteral("peak_rss_kib")).toInteger();
-    r.bytesWritten = run.value(QStringLiteral("bytes_written")).toInteger();
-    r.cpuCores = run.value(QStringLiteral("cpu_cores")).toInt();
-    r.threadsTotal = run.value(QStringLiteral("threads_total")).toInt();
-    r.threadsElevated = run.value(QStringLiteral("threads_elevated")).toInt();
-
-    r.meters.clear();
-    r.modules.clear();
-    const auto mods = stats.value(QStringLiteral("modules")).toArray();
-    for (const auto &mv : mods) {
-        const auto mo = mv.toObject();
-        ModuleUsage mu;
-        mu.name = mo.value(QStringLiteral("name")).toString();
-        mu.id = mo.value(QStringLiteral("id")).toString();
-        mu.driver = mo.value(QStringLiteral("driver")).toString();
-        mu.eventThread = mo.value(QStringLiteral("event_thread")).toString();
-        mu.outOfProcess = mo.value(QStringLiteral("out_of_process")).toBool();
-        mu.realtimeApplied = mo.value(QStringLiteral("realtime_applied")).toBool();
-        if (mo.contains(QStringLiteral("worker")))
-            mu.cpuSec = usageCpuSec(mo.value(QStringLiteral("worker")).toObject());
-        else
-            mu.cpuSec = usageCpuSec(mo.value(QStringLiteral("thread")).toObject());
-        r.modules.append(mu);
-
-        if (mu.id != QLatin1String("flowmeter"))
-            continue;
-        const auto ms = mo.value(QStringLiteral("module_stats")).toObject();
-        if (ms.isEmpty())
-            continue;
-        MeterStats meter;
-        meter.moduleName = mu.name;
-        meter.items = ms.value(QStringLiteral("items")).toInteger();
-        meter.intervalMeanUs = ms.value(QStringLiteral("interval_mean_us")).toInteger();
-        meter.intervalMaxUs = ms.value(QStringLiteral("interval_max_us")).toInteger();
-        meter.ageP50Us = ms.value(QStringLiteral("age_p50_us")).toInteger();
-        meter.ageP95Us = ms.value(QStringLiteral("age_p95_us")).toInteger();
-        meter.ageP99Us = ms.value(QStringLiteral("age_p99_us")).toInteger();
-        meter.ageMaxUs = ms.value(QStringLiteral("age_max_us")).toInteger();
-        r.meters.append(meter);
-    }
-
-    r.connections.clear();
-    const auto conns = stats.value(QStringLiteral("connections")).toArray();
-    for (const auto &cv : conns) {
-        const auto co = cv.toObject();
-        ConnectionStats cs;
-        cs.srcModule = co.value(QStringLiteral("src_module")).toString();
-        cs.srcPort = co.value(QStringLiteral("src_port")).toString();
-        cs.dstModule = co.value(QStringLiteral("dst_module")).toString();
-        cs.dstPort = co.value(QStringLiteral("dst_port")).toString();
-        cs.peakPending = co.value(QStringLiteral("peak_pending")).toInteger();
-        cs.pendingAtStop = co.value(QStringLiteral("pending_at_stop")).toInteger();
-        cs.directIpc = co.value(QStringLiteral("direct_ipc")).toBool();
-        r.connections.append(cs);
-    }
 }
 
 auto SyntalosRunner::run(const StepRunConfig &cfg) -> std::expected<StepResult, QString>
@@ -255,7 +185,7 @@ auto SyntalosRunner::run(const StepRunConfig &cfg) -> std::expected<StepResult, 
     proc.setProgram(m_bin);
     proc.setArguments(args);
     proc.setProcessChannelMode(QProcess::MergedChannels);
-    log(QStringLiteral("Launching: %1 %2").arg(m_bin, args.join(QLatin1Char(' '))));
+    LOG_INFO(m_log, "Launching: {} {}", m_bin, args.join(QLatin1Char(' ')));
     proc.start();
     if (!proc.waitForStarted(10000))
         return std::unexpected(QStringLiteral("Unable to start Syntalos: %1").arg(proc.errorString()));
@@ -274,17 +204,16 @@ auto SyntalosRunner::run(const StepRunConfig &cfg) -> std::expected<StepResult, 
 
     qint64 memoryLimitKiB = cfg.memoryLimitKiB;
     if (memoryLimitKiB <= 0)
-        memoryLimitKiB = Syntalos::readMemInfo().memAvailableKiB * 6 / 10;
+        memoryLimitKiB = readMemInfo().memAvailableKiB * 6 / 10;
     const qint64 pid = proc.processId();
 
     QElapsedTimer timer;
     timer.start();
     const qint64 hardLimitMs = (cfg.durationSec + cfg.startupGraceSec) * 1000LL;
     qint64 killDeadlineMs = 0;
-    const auto stopProcess = [&](const QString &why, int graceMs) {
+    const auto stopProcess = [&](int graceMs) {
         if (killDeadlineMs != 0)
             return;
-        log(why);
         proc.terminate();
         killDeadlineMs = timer.elapsed() + graceMs;
     };
@@ -295,10 +224,10 @@ auto SyntalosRunner::run(const StepRunConfig &cfg) -> std::expected<StepResult, 
 
         // An overloaded Syntalos lets its data queues grow without bound and can take the whole
         // machine down with it, so we watch its memory and stop the run before that happens.
-        const auto rssKiB = processTreeRssKiB(pid);
+        const auto rssKiB = readProcessTreeRssKiB(pid);
         r.observedPeakRssKiB = std::max(r.observedPeakRssKiB, rssKiB);
-        const auto memAvailableKiB = Syntalos::readMemInfo().memAvailableKiB;
-        if (rssKiB > memoryLimitKiB || memAvailableKiB < cfg.systemMemoryFloorKiB) {
+        const auto memAvailableKiB = readMemInfo().memAvailableKiB;
+        if (killDeadlineMs == 0 && (rssKiB > memoryLimitKiB || memAvailableKiB < cfg.systemMemoryFloorKiB)) {
             r.memoryExceeded = true;
             r.failureReason = QStringLiteral(
                                   "Memory limit exceeded: Syntalos used %1 MiB (limit %2 MiB, %3 MiB "
@@ -307,17 +236,20 @@ auto SyntalosRunner::run(const StepRunConfig &cfg) -> std::expected<StepResult, 
                                   .arg(memoryLimitKiB / 1024)
                                   .arg(memAvailableKiB / 1024);
             // no graceful stop here: the engine would keep filling its queues while draining them
-            log(QStringLiteral("Memory limit exceeded, killing Syntalos..."));
+            LOG_WARNING(m_log, "Memory limit exceeded, killing Syntalos ({} MiB used)", rssKiB / 1024);
             proc.kill();
             killDeadlineMs = timer.elapsed();
         }
 
         if (m_cancel) {
+            if (!r.cancelled)
+                LOG_INFO(m_log, "Cancelling run, terminating Syntalos...");
             r.cancelled = true;
-            stopProcess(QStringLiteral("Cancelling run, terminating Syntalos..."), 15000);
+            stopProcess(15000);
         } else if (timer.elapsed() > hardLimitMs && killDeadlineMs == 0) {
             r.failureReason = QStringLiteral("Syntalos did not finish the run in time.");
-            stopProcess(QStringLiteral("Run exceeded its time limit, terminating Syntalos..."), 15000);
+            LOG_WARNING(m_log, "Run exceeded its time limit, terminating Syntalos...");
+            stopProcess(15000);
         }
         if (killDeadlineMs != 0 && timer.elapsed() > killDeadlineMs)
             proc.kill();
@@ -332,11 +264,15 @@ auto SyntalosRunner::run(const StepRunConfig &cfg) -> std::expected<StepResult, 
         return r;
     }
 
-    QFile f(cfg.statsFile);
-    if (f.open(QIODevice::ReadOnly)) {
-        const auto doc = QJsonDocument::fromJson(f.readAll());
-        if (doc.isObject())
-            parseRunStatistics(doc.object(), r);
+    if (QFile::exists(cfg.statsFile)) {
+        if (auto stats = RunStatistics::loadJson(cfg.statsFile); stats) {
+            r.success = !stats->failed;
+            if (stats->failed)
+                r.failureReason = stats->failReason;
+            r.stats = std::move(*stats);
+        } else {
+            LOG_WARNING(m_log, "{}", stats.error());
+        }
     }
 
     if (r.memoryExceeded) {
@@ -349,14 +285,16 @@ auto SyntalosRunner::run(const StepRunConfig &cfg) -> std::expected<StepResult, 
         r.failureReason = (r.exitCode == SY_EXIT_RUN_FAILED)
                               ? QStringLiteral("The run failed (no details recorded).")
                               : QStringLiteral("Syntalos exited with code %1.").arg(r.exitCode);
-    } else if (r.exitCode == 0 && r.rawStats.isEmpty()) {
+    } else if (r.exitCode == 0 && !r.stats) {
         r.success = false;
         r.failureReason = QStringLiteral("Syntalos wrote no run statistics.");
     }
 
-    log(QStringLiteral("Run finished: exit code %1, %2")
-            .arg(r.exitCode)
-            .arg(r.success ? QStringLiteral("success") : r.failureReason));
+    LOG_INFO(
+        m_log,
+        "Run finished: exit code {}, {}",
+        r.exitCode,
+        r.success ? QStringLiteral("success") : r.failureReason);
     return r;
 }
 

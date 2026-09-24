@@ -16,63 +16,57 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDir>
-#include <QTextStream>
 
-#include "config.h"
+#include "appstyle.h"
 #include "benchsession.h"
 #include "benchwindow.h"
+#include "config.h"
+#include "logging.h"
 #include "report.h"
 #include "utils/style.h"
-#include "appstyle.h"
 
 using namespace SyBench;
 
 namespace
 {
 
-QTextStream &out()
-{
-    static QTextStream stream(stdout);
-    return stream;
-}
-
 /**
- * Developer mode: run ladders without a window and print the report as JSON.
+ * Developer mode: run ladders without a window and write the report into the work directory.
  */
 int runHeadless(const SessionConfig &config)
 {
     BenchSession session(config);
     QList<LadderRecord> ladders;
-    QObject::connect(&session, &BenchSession::logMessage, [](const QString &msg) {
-        out() << msg << "\n";
-        out().flush();
-    });
     QObject::connect(&session, &BenchSession::ladderFinished, [&ladders](const LadderRecord &lr) {
         ladders.append(lr);
     });
     session.run();
 
-    out() << QJsonDocument(buildReport(ladders, config, session.cpuCores())).toJson(QJsonDocument::Indented) << "\n";
+    const auto reportFile = QDir(config.workDir).filePath(QStringLiteral("report.json"));
+    if (const auto res = saveReport(reportFile, ladders, config, session.cpuCores()); !res) {
+        LOG_ERROR(logRoot, "{}", res.error());
+        return 1;
+    }
+    LOG_INFO(logRoot, "Report written to {}", reportFile);
     return 0;
 }
 
 int runSelfTest(const SessionConfig &config)
 {
     BenchSession session(config);
-    QObject::connect(&session, &BenchSession::logMessage, [](const QString &msg) {
-        out() << "    " << msg << "\n";
-        out().flush();
-    });
     auto dim = createDimension(QStringLiteral("camera-capacity"));
     const auto rec = session.runSingleStep(*dim, dim->profiles().first().id, 1, 3);
-    out() << "Self test: " << (rec.verdict.passed ? "PASS" : "FAIL") << " (" << rec.verdict.summary << ")\n";
-    if (!rec.verdict.passed && !rec.result.outputTail.isEmpty())
-        out() << rec.result.outputTail << "\n";
-    return rec.verdict.passed ? 0 : 1;
+    if (rec.verdict.passed) {
+        LOG_INFO(logRoot, "Self test: PASS ({})", rec.verdict.summary);
+        return 0;
+    }
+    LOG_ERROR(logRoot, "Self test: FAIL ({})", rec.verdict.summary);
+    if (!rec.result.outputTail.isEmpty())
+        LOG_INFO(logRoot, "Syntalos output:\n{}", rec.result.outputTail);
+    return 1;
 }
 
 } // namespace
@@ -135,6 +129,9 @@ int main(int argc, char *argv[])
          optNoWarmup});
     parser.process(app);
 
+    // console logging only, a benchmark tool does not need a persistent log
+    Syntalos::initializeSyLogSystem();
+
     SessionConfig config;
     config.syntalosBinary = parser.value(optSyBin);
     config.workDir = parser.isSet(optWorkDir)
@@ -148,29 +145,33 @@ int main(int argc, char *argv[])
     if (parser.isSet(optStartLevel))
         config.startLevel = std::max(1, parser.value(optStartLevel).toInt());
 
-    if (parser.isSet(optSelfTest))
-        return runSelfTest(config);
-
-    if (parser.isSet(optDimension)) {
+    int ret = 0;
+    if (parser.isSet(optSelfTest)) {
+        ret = runSelfTest(config);
+    } else if (parser.isSet(optDimension)) {
         auto dim = createDimension(parser.value(optDimension));
         if (!dim) {
-            QTextStream(stderr) << "Unknown dimension '" << parser.value(optDimension) << "'.\n";
-            return 2;
+            LOG_ERROR(logRoot, "Unknown dimension '{}'.", parser.value(optDimension));
+            ret = 2;
+        } else {
+            for (const auto &p : dim->profiles()) {
+                if (!parser.isSet(optProfile) || p.id == parser.value(optProfile))
+                    config.selections.append({dim->id(), p.id});
+            }
+            ret = runHeadless(config);
         }
-        for (const auto &p : dim->profiles()) {
-            if (!parser.isSet(optProfile) || p.id == parser.value(optProfile))
-                config.selections.append({dim->id(), p.id});
-        }
-        return runHeadless(config);
+    } else {
+        setDefaultStyle();
+        switchIconTheme(QStringLiteral("breeze"));
+
+        BenchWindow w;
+        if (!config.syntalosBinary.isEmpty())
+            w.setSyntalosBinary(config.syntalosBinary);
+        w.setWorkDir(config.workDir);
+        w.show();
+        ret = app.exec();
     }
 
-    setDefaultStyle();
-    switchIconTheme(QStringLiteral("breeze"));
-
-    BenchWindow w;
-    if (!config.syntalosBinary.isEmpty())
-        w.setSyntalosBinary(config.syntalosBinary);
-    w.setWorkDir(config.workDir);
-    w.show();
-    return app.exec();
+    Syntalos::shutdownSyLogSystem();
+    return ret;
 }

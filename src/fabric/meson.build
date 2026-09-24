@@ -37,6 +37,8 @@ syntalos_fabric_src = [
     'streamexporter.cpp',
     'sysinfo.h',
     'sysinfo.cpp',
+    'runstatistics.h',
+    'runstatistics.cpp',
     'simpleterminal.h',
     'simpleterminal.cpp',
 

@@ -420,6 +420,44 @@ std::optional<ThreadUsageStats> readProcessUsage(qint64 pid)
     return usage;
 }
 
+static qint64 readProcessRssKiB(qint64 pid)
+{
+    QFile f(QStringLiteral("/proc/%1/statm").arg(pid));
+    if (!f.open(QIODevice::ReadOnly))
+        return 0;
+    const auto parts = f.readAll().split(' ');
+    if (parts.size() < 2)
+        return 0;
+    static const long pageKiB = sysconf(_SC_PAGESIZE) / 1024;
+    return parts[1].toLongLong() * pageKiB;
+}
+
+qint64 readProcessTreeRssKiB(qint64 pid)
+{
+    qint64 total = readProcessRssKiB(pid);
+
+    // find direct children by looking at the parent pid of every process
+    const auto entries = QDir(QStringLiteral("/proc")).entryList(QDir::Dirs | QDir::NoDotAndDotDot);
+    for (const auto &entry : entries) {
+        bool isPid = false;
+        const qint64 childPid = entry.toLongLong(&isPid);
+        if (!isPid || childPid == pid)
+            continue;
+        QFile f(QStringLiteral("/proc/%1/stat").arg(childPid));
+        if (!f.open(QIODevice::ReadOnly))
+            continue;
+        const auto stat = f.readAll();
+        // the parent pid is the first field after the parenthesized command name
+        const int nameEnd = stat.lastIndexOf(')');
+        if (nameEnd < 0)
+            continue;
+        const auto fields = stat.mid(nameEnd + 2).split(' ');
+        if (fields.size() >= 2 && fields[1].toLongLong() == pid)
+            total += readProcessTreeRssKiB(childPid);
+    }
+    return total;
+}
+
 std::optional<ProcessSchedInfo> readProcessSchedInfo(qint64 pid)
 {
     std::optional<ProcessSchedInfo> info;

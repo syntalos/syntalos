@@ -35,7 +35,7 @@
 #include <sys/stat.h>
 
 #include "logging.h"
-#include "runstatistics.h"
+#include "fabric/runstatistics.h"
 #include "utils/style.h"
 
 using namespace Syntalos;

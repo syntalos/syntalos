@@ -27,6 +27,7 @@
 #include <QThread>
 
 #include "report.h"
+#include "utils/misc.h"
 
 namespace SyBench
 {
@@ -163,7 +164,7 @@ void BenchWindow::startBenchmark()
     ui->progressBar->setRange(0, m_config.selections.size() * m_stepsPerLadder);
     m_session->moveToThread(m_thread);
     connect(m_thread, &QThread::started, m_session, &BenchSession::run);
-    connect(m_session, &BenchSession::logMessage, this, &BenchWindow::appendLog);
+    connect(m_session, &BenchSession::progressMessage, this, &BenchWindow::appendLog);
     connect(m_session, &BenchSession::phaseChanged, this, &BenchWindow::onPhaseChanged);
     connect(m_session, &BenchSession::ladderStarted, this, &BenchWindow::onLadderStarted);
     connect(m_session, &BenchSession::stepFinished, this, &BenchWindow::onStepFinished);
@@ -246,27 +247,8 @@ void BenchWindow::onLadderStarted(int index, int, const LadderRecord &)
     ui->progressBar->setValue(index * m_stepsPerLadder);
 }
 
-static QString formatMiB(qint64 kib)
-{
-    return QStringLiteral("%1 MiB").arg(kib / 1024);
-}
-
 void BenchWindow::onStepFinished(const StepRecord &step)
 {
-    QString dimTitle = step.dimensionId;
-    QString profileTitle = step.profileId;
-    QString unit;
-    for (const auto &dim : createAllDimensions()) {
-        if (dim->id() != step.dimensionId)
-            continue;
-        dimTitle = dim->title();
-        unit = dim->levelUnit();
-        for (const auto &p : dim->profiles()) {
-            if (p.id == step.profileId)
-                profileTitle = p.title;
-        }
-    }
-
     m_ladderSteps++;
     ui->progressBar->setValue(m_ladderIndex * m_stepsPerLadder + std::min(m_ladderSteps, m_stepsPerLadder - 1));
 
@@ -277,9 +259,9 @@ void BenchWindow::onStepFinished(const StepRecord &step)
         ui->stepsTable->setItem(row, col, item);
         return item;
     };
-    setCell(0, dimTitle);
-    setCell(1, profileTitle);
-    setCell(2, QStringLiteral("%1 %2").arg(step.level).arg(unit));
+    setCell(0, step.dimensionTitle);
+    setCell(1, step.profileTitle);
+    setCell(2, QStringLiteral("%1 %2").arg(step.level).arg(step.levelUnit));
     auto *resItem = setCell(3, step.verdict.passed ? QStringLiteral("Pass") : QStringLiteral("Fail"));
     resItem->setIcon(
         QIcon::fromTheme(step.verdict.passed ? QStringLiteral("emblem-checked") : QStringLiteral("emblem-error")));
@@ -288,7 +270,7 @@ void BenchWindow::onStepFinished(const StepRecord &step)
         5,
         step.result.success ? QStringLiteral("%1 cores").arg(step.result.processLoad(), 0, 'f', 1)
                             : QStringLiteral("-"));
-    setCell(6, formatMiB(std::max(step.result.peakRssKiB, step.result.observedPeakRssKiB)));
+    setCell(6, Syntalos::formatByteSize(step.result.peakRssKiB() * 1024));
     ui->stepsTable->scrollToBottom();
 }
 

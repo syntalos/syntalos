@@ -16,15 +16,16 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
-
 #pragma once
 
-#include <QJsonObject>
 #include <QList>
 #include <QString>
 #include <atomic>
 #include <expected>
-#include <functional>
+#include <optional>
+
+#include "fabric/runstatistics.h"
+#include "logging.h"
 
 namespace SyBench
 {
@@ -48,7 +49,7 @@ struct StepRunConfig {
 };
 
 /**
- * @brief Counts a flow meter module collected
+ * @brief Counts a flow meter module collected, taken from its module statistics
  */
 struct MeterStats {
     QString moduleName;
@@ -59,32 +60,8 @@ struct MeterStats {
     qint64 ageP95Us = 0;
     qint64 ageP99Us = 0;
     qint64 ageMaxUs = 0;
-};
 
-/**
- * @brief Queue statistics of one connection between two modules
- */
-struct ConnectionStats {
-    QString srcModule;
-    QString srcPort;
-    QString dstModule;
-    QString dstPort;
-    qint64 peakPending = 0;
-    qint64 pendingAtStop = 0;
-    bool directIpc = false;
-};
-
-/**
- * @brief Resource usage of one module
- */
-struct ModuleUsage {
-    QString name;
-    QString id;
-    QString driver;
-    QString eventThread;
-    bool outOfProcess = false;
-    bool realtimeApplied = false;
-    double cpuSec = 0; /// user + system time of the module's thread or worker process
+    static std::optional<MeterStats> fromModule(const Syntalos::ModuleRunStats &mod);
 };
 
 /**
@@ -96,26 +73,19 @@ struct StepResult {
     bool memoryExceeded = false; /// the run was killed for using too much memory (queues overflowing)
     QString failureReason;
     int exitCode = -1;
+    qint64 observedPeakRssKiB = 0; /// sampled by the runner, also available if the run was killed
+    QString outputTail;            /// last lines of the Syntalos output, for diagnostics
 
-    double durationSec = 0;
-    double usageWindowSec = 0;
-    double processCpuSec = 0;
-    qint64 peakRssKiB = 0;         /// as reported by Syntalos itself
-    qint64 observedPeakRssKiB = 0; /// as sampled by the runner, also available if the run was killed
-    qint64 bytesWritten = 0;
-    int cpuCores = 0;
-    int threadsTotal = 0;
-    int threadsElevated = 0;
+    std::optional<Syntalos::RunStatistics> stats; /// what Syntalos reported, if it got that far
 
-    QList<MeterStats> meters;
-    QList<ConnectionStats> connections;
-    QList<ModuleUsage> modules;
-
-    QJsonObject rawStats; /// the complete statistics document, for the report
-    QString outputTail;   /// last lines of the Syntalos output, for diagnostics
-
-    [[nodiscard]] const MeterStats *meter(const QString &moduleName) const;
+    [[nodiscard]] double durationSec() const;
+    [[nodiscard]] double processCpuSec() const;
     [[nodiscard]] double processLoad() const; /// CPU seconds per wall-clock second in the usage window
+    [[nodiscard]] qint64 peakRssKiB() const;  /// the larger of the reported and the observed peak
+    [[nodiscard]] int threadsTotal() const;
+    [[nodiscard]] int threadsElevated() const;
+    [[nodiscard]] QList<MeterStats> meters() const;
+    [[nodiscard]] std::optional<MeterStats> meter(const QString &moduleName) const;
 };
 
 /**
@@ -124,8 +94,6 @@ struct StepResult {
 class SyntalosRunner
 {
 public:
-    using LogFn = std::function<void(const QString &)>;
-
     SyntalosRunner();
 
     /**
@@ -136,8 +104,6 @@ public:
 
     void setSyntalosBinary(const QString &path);
     QString syntalosBinary() const;
-
-    void setLogHandler(LogFn fn);
 
     /**
      * @brief Run one step synchronously. Blocks for the whole run.
@@ -156,20 +122,8 @@ public:
 
 private:
     QString m_bin;
-    LogFn m_log;
+    quill::Logger *m_log;
     std::atomic_bool m_cancel{false};
-
-    void log(const QString &msg) const;
 };
-
-/**
- * @brief Resident memory of a process and all its descendants, in KiB.
- */
-qint64 processTreeRssKiB(qint64 pid);
-
-/**
- * @brief Parse a Syntalos run statistics document into a step result.
- */
-void parseRunStatistics(const QJsonObject &stats, StepResult &result);
 
 } // namespace SyBench

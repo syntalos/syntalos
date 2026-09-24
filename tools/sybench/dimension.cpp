@@ -46,31 +46,34 @@ StepVerdict evaluateRates(const StepResult &result, const QList<RateCheck> &chec
         v.summary = result.failureReason.isEmpty() ? QStringLiteral("run failed") : result.failureReason;
         return v;
     }
-    if (result.durationSec <= 0) {
+    if (!result.stats || result.stats->durationSec <= 0) {
         v.summary = QStringLiteral("no run duration recorded");
         return v;
     }
+    const auto &stats = *result.stats;
 
     double maxRate = 0;
     v.minRateFraction = 1.0;
     for (const auto &c : checks) {
         maxRate = std::max(maxRate, c.expectedRate);
-        const auto *m = result.meter(c.meterName);
-        if (m == nullptr) {
+        const auto m = result.meter(c.meterName);
+        if (!m) {
             v.minRateFraction = 0;
             v.summary = QStringLiteral("no statistics from meter '%1'").arg(c.meterName);
             return v;
         }
-        const double expected = c.expectedRate * result.durationSec;
+        const double expected = c.expectedRate * stats.durationSec;
         if (expected > 0)
             v.minRateFraction = std::min(v.minRateFraction, m->items / expected);
     }
 
     // a backlog of more than half a second of data means the consumer can not keep up
     const qint64 backlogLimit = std::max<qint64>(4, std::llround(maxRate / 2.0));
-    for (const auto &c : result.connections) {
-        v.maxPeakBacklog = std::max(v.maxPeakBacklog, c.peakPending);
-        v.maxBacklogAtStop = std::max(v.maxBacklogAtStop, c.pendingAtStop);
+    for (const auto &c : stats.connections) {
+        if (c.directIpc)
+            continue;
+        v.maxPeakBacklog = std::max<qint64>(v.maxPeakBacklog, c.peakPending);
+        v.maxBacklogAtStop = std::max<qint64>(v.maxBacklogAtStop, c.pendingAtStop);
     }
 
     const bool rateOk = v.minRateFraction >= minRateFraction;

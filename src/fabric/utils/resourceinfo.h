@@ -124,6 +124,13 @@ std::optional<ThreadUsageStats> captureProcessUsage();
 std::optional<ThreadUsageStats> readProcessUsage(qint64 pid);
 
 /**
+ * @brief Current resident memory of a process and all of its descendants, in KiB.
+ *
+ * Useful to watch a process that spawns workers. Returns 0 if the process does not exist.
+ */
+qint64 readProcessTreeRssKiB(qint64 pid);
+
+/**
  * @brief Strongest scheduling priority found among all threads of a process.
  */
 struct ProcessSchedInfo {

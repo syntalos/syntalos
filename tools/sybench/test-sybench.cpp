@@ -40,10 +40,7 @@ private:
         if (entry == nullptr || !entry->isFile())
             return {};
         QString error;
-        const auto data = parseTomlData(static_cast<const KArchiveFile *>(entry)->data(), error);
-        if (!error.isEmpty())
-            qWarning() << "TOML error in" << path << ":" << error;
-        return data;
+        return parseTomlData(static_cast<const KArchiveFile *>(entry)->data(), error);
     }
 
 private slots:
@@ -155,59 +152,85 @@ private slots:
         QCOMPARE(dim->startLevel(1), 1);
     }
 
-    void rateEvaluation()
+    static StepResult makeResult(qint64 items, qint64 peakPending, qint64 pendingAtStop)
     {
+        Syntalos::RunStatistics stats;
+        stats.durationSec = 10.0;
+        Syntalos::ModuleRunStats meter;
+        meter.id = QStringLiteral("flowmeter");
+        meter.name = QStringLiteral("Meter 1");
+        meter.moduleStats.insert(QStringLiteral("items"), items);
+        stats.modules.append(meter);
+        Syntalos::ConnectionRunStats conn;
+        conn.srcModule = QStringLiteral("Cam");
+        conn.dstModule = QStringLiteral("Meter 1");
+        conn.peakPending = peakPending;
+        conn.pendingAtStop = pendingAtStop;
+        stats.connections.append(conn);
+
         StepResult r;
         r.success = true;
-        r.durationSec = 10.0;
-        r.meters.append(MeterStats{QStringLiteral("Meter 1"), 298});
-        r.connections.append(
-            ConnectionStats{
-                QStringLiteral("Cam"),
-                QStringLiteral("frames-out"),
-                QStringLiteral("Meter 1"),
-                QStringLiteral("data-in"),
-                3,
-                0});
+        r.stats = stats;
+        return r;
+    }
+
+    void rateEvaluation()
+    {
         const QList<RateCheck> checks = {
             RateCheck{QStringLiteral("Meter 1"), 30.0}
         };
 
-        auto v = evaluateRates(r, checks);
+        auto v = evaluateRates(makeResult(298, 3, 0), checks);
         QVERIFY2(v.passed, qPrintable(v.summary));
         QVERIFY(v.minRateFraction > 0.99);
 
-        r.meters[0].items = 280;
-        v = evaluateRates(r, checks);
-        QVERIFY(!v.passed);
+        // too few items
+        QVERIFY(!evaluateRates(makeResult(280, 3, 0), checks).passed);
+        // items left in the queue at stop
+        QVERIFY(!evaluateRates(makeResult(300, 3, 5), checks).passed);
+        // more than half a second of backlog at 30 fps
+        QVERIFY(!evaluateRates(makeResult(300, 40, 0), checks).passed);
+        QVERIFY(evaluateRates(makeResult(300, 10, 0), checks).passed);
 
-        r.meters[0].items = 300;
-        r.connections[0].pendingAtStop = 5;
-        v = evaluateRates(r, checks);
-        QVERIFY(!v.passed);
-        r.connections[0].pendingAtStop = 0;
-
-        r.connections[0].peakPending = 40; // more than half a second at 30 fps
-        v = evaluateRates(r, checks);
-        QVERIFY(!v.passed);
-        r.connections[0].peakPending = 10;
-        v = evaluateRates(r, checks);
-        QVERIFY(v.passed);
-
-        r.success = false;
-        r.failureReason = QStringLiteral("boom");
-        v = evaluateRates(r, checks);
+        auto failed = makeResult(300, 0, 0);
+        failed.success = false;
+        failed.failureReason = QStringLiteral("boom");
+        v = evaluateRates(failed, checks);
         QVERIFY(!v.passed);
         QCOMPARE(v.summary, QStringLiteral("boom"));
 
         // a meter that never reported is a failure, not a pass
-        r.success = true;
-        v = evaluateRates(
-            r,
-            {
-                RateCheck{QStringLiteral("Meter 2"), 30.0}
-        });
-        QVERIFY(!v.passed);
+        QVERIFY(!evaluateRates(
+                     makeResult(300, 0, 0),
+                     {
+                         RateCheck{QStringLiteral("Meter 2"), 30.0}
+        })
+                     .passed);
+    }
+
+    void runStatisticsRoundTrip()
+    {
+        auto stats = makeResult(123, 4, 1).stats.value();
+        stats.runId = QStringLiteral("run-1");
+        stats.threadsTotal = 7;
+        Syntalos::ThreadUsageStats usage;
+        usage.userTimeSec = 1.5;
+        usage.systemTimeSec = 0.25;
+        stats.process = usage;
+
+        const auto loaded = Syntalos::RunStatistics::fromJson(stats.toJson());
+        QVERIFY2(loaded.has_value(), qPrintable(loaded.error_or(QString())));
+        QCOMPARE(loaded->runId, QStringLiteral("run-1"));
+        QCOMPARE(loaded->threadsTotal, 7);
+        QCOMPARE(loaded->durationSec, 10.0);
+        QVERIFY(loaded->process.has_value());
+        QCOMPARE(loaded->process->cpuTimeSec(), 1.75);
+        QCOMPARE(loaded->modules.size(), 1);
+        QCOMPARE(loaded->modules.first().moduleStats.value(QStringLiteral("items")).toLongLong(), 123);
+        QCOMPARE(loaded->connections.size(), 1);
+        QCOMPARE(loaded->connections.first().peakPending, 4u);
+
+        QVERIFY(!Syntalos::RunStatistics::fromJson(QJsonObject()).has_value());
     }
 
     static QList<int> levelsOf(const LadderOutcome &o)

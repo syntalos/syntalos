@@ -44,16 +44,16 @@ static QJsonObject stepToJson(const StepRecord &s)
     o.insert(QStringLiteral("max_backlog_at_stop"), s.verdict.maxBacklogAtStop);
     o.insert(QStringLiteral("run_success"), s.result.success);
     o.insert(QStringLiteral("memory_exceeded"), s.result.memoryExceeded);
-    o.insert(QStringLiteral("duration_sec"), s.result.durationSec);
+    o.insert(QStringLiteral("duration_sec"), s.result.durationSec());
     o.insert(QStringLiteral("process_load"), s.result.processLoad());
-    o.insert(QStringLiteral("process_cpu_sec"), s.result.processCpuSec);
-    o.insert(QStringLiteral("threads_total"), s.result.threadsTotal);
-    o.insert(QStringLiteral("threads_elevated"), s.result.threadsElevated);
-    o.insert(QStringLiteral("peak_rss_kib"), std::max(s.result.peakRssKiB, s.result.observedPeakRssKiB));
+    o.insert(QStringLiteral("process_cpu_sec"), s.result.processCpuSec());
+    o.insert(QStringLiteral("threads_total"), s.result.threadsTotal());
+    o.insert(QStringLiteral("threads_elevated"), s.result.threadsElevated());
+    o.insert(QStringLiteral("peak_rss_kib"), s.result.peakRssKiB());
     o.insert(QStringLiteral("stats_file"), QFileInfo(s.statsFile).fileName());
 
     QJsonArray meters;
-    for (const auto &m : s.result.meters) {
+    for (const auto &m : s.result.meters()) {
         QJsonObject mo;
         mo.insert(QStringLiteral("module"), m.moduleName);
         mo.insert(QStringLiteral("items"), m.items);

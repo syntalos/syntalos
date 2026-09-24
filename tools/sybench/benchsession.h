@@ -28,6 +28,7 @@
 
 #include "dimension.h"
 #include "ladder.h"
+#include "logging.h"
 #include "runner.h"
 
 namespace SyBench
@@ -51,7 +52,10 @@ struct SessionConfig {
  */
 struct StepRecord {
     QString dimensionId;
+    QString dimensionTitle;
     QString profileId;
+    QString profileTitle;
+    QString levelUnit;
     int level = 0;
     StepVerdict verdict;
     StepResult result;
@@ -99,7 +103,10 @@ public slots:
     void cancel();
 
 signals:
-    void logMessage(const QString &msg);
+    /**
+     * @brief Human-readable progress, e.g. for a log pane in the GUI.
+     */
+    void progressMessage(const QString &msg);
     void phaseChanged(const QString &text);
     void ladderStarted(int index, int total, const SyBench::LadderRecord &ladder);
     void stepStarted(const SyBench::LadderRecord &ladder, int level);
@@ -111,10 +118,12 @@ private:
     SessionConfig m_config;
     SyntalosRunner m_runner;
     std::vector<std::unique_ptr<Dimension>> m_dimensions;
+    quill::Logger *m_log;
     int m_cpuCores;
     std::atomic_bool m_cancelled{false};
 
     const Dimension *dimension(const QString &id) const;
+    void progress(const QString &msg);
     StepRecord runStep(const Dimension &dim, const QString &profileId, int level, int durationSec);
 };
 

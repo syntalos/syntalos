@@ -25,6 +25,7 @@
 #include <QMap>
 #include <QString>
 #include <QStringList>
+#include <expected>
 #include <vector>
 
 #include "datactl/datatypes.h"
@@ -143,7 +144,17 @@ struct RunStatistics {
     /**
      * @brief Write the statistics as JSON to @p path, replacing any existing file.
      */
-    bool saveJson(const QString &path, QString *errorMessage = nullptr) const;
+    auto saveJson(const QString &path) const -> std::expected<void, QString>;
+
+    /**
+     * @brief Read statistics back from a JSON document written by toJson().
+     */
+    static auto fromJson(const QJsonObject &root) -> std::expected<RunStatistics, QString>;
+
+    /**
+     * @brief Read statistics from a JSON file written by saveJson().
+     */
+    static auto loadJson(const QString &path) -> std::expected<RunStatistics, QString>;
 };
 
 #pragma GCC diagnostic pop

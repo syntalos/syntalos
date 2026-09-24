@@ -63,7 +63,7 @@
 #include "moduleeventthread.h"
 #include "networkcontroller.h"
 #include "projectmetrics.h"
-#include "runstatistics.h"
+#include "fabric/runstatistics.h"
 #include "modulelibrary.h"
 #include "mlinkmodule.h"
 #include "sysinfo.h"
@@ -3519,11 +3519,10 @@ void Engine::collectRunStatistics(const RunStatsCollectInput &in)
     d->lastRunStats = stats;
 
     if (!d->runStatsOutputFile.isEmpty()) {
-        QString errorMsg;
-        if (stats->saveJson(d->runStatsOutputFile, &errorMsg))
+        if (const auto res = stats->saveJson(d->runStatsOutputFile); res)
             LOG_INFO(d->log, "Run statistics written to {}", d->runStatsOutputFile);
         else
-            LOG_ERROR(d->log, "Unable to write run statistics to {}: {}", d->runStatsOutputFile, errorMsg);
+            LOG_ERROR(d->log, "Unable to write run statistics to {}: {}", d->runStatsOutputFile, res.error());
     }
 }
 

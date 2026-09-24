@@ -21,6 +21,7 @@
 
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QFile>
 #include <QSaveFile>
 
 #include "utils/style.h"
@@ -180,21 +181,179 @@ QByteArray RunStatistics::toJsonData() const
     return QJsonDocument(toJson()).toJson(QJsonDocument::Indented);
 }
 
-bool RunStatistics::saveJson(const QString &path, QString *errorMessage) const
+auto RunStatistics::saveJson(const QString &path) const -> std::expected<void, QString>
 {
     QSaveFile f(path);
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
-        if (errorMessage)
-            *errorMessage = f.errorString();
-        return false;
-    }
+    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+        return std::unexpected(f.errorString());
     f.write(toJsonData());
-    if (!f.commit()) {
-        if (errorMessage)
-            *errorMessage = f.errorString();
-        return false;
+    if (!f.commit())
+        return std::unexpected(f.errorString());
+    return {};
+}
+
+static std::optional<ThreadUsageStats> usageFromJson(const QJsonValue &v)
+{
+    if (!v.isObject())
+        return std::nullopt;
+    const auto o = v.toObject();
+    ThreadUsageStats u;
+    u.tid = o.value(QStringLiteral("tid")).toInteger();
+    u.userTimeSec = o.value(QStringLiteral("user_time_sec")).toDouble();
+    u.systemTimeSec = o.value(QStringLiteral("system_time_sec")).toDouble();
+    u.voluntaryCtxSwitches = o.value(QStringLiteral("voluntary_ctx_switches")).toInteger();
+    u.involuntaryCtxSwitches = o.value(QStringLiteral("involuntary_ctx_switches")).toInteger();
+    u.minorPageFaults = o.value(QStringLiteral("minor_page_faults")).toInteger();
+    u.majorPageFaults = o.value(QStringLiteral("major_page_faults")).toInteger();
+    return u;
+}
+
+static ModuleDriverKind driverKindFromString(const QString &s)
+{
+    for (const auto kind :
+         {ModuleDriverKind::NONE,
+          ModuleDriverKind::THREAD_DEDICATED,
+          ModuleDriverKind::EVENTS_DEDICATED,
+          ModuleDriverKind::EVENTS_SHARED}) {
+        if (driverKindToString(kind) == s)
+            return kind;
     }
-    return true;
+    return ModuleDriverKind::NONE;
+}
+
+static ModuleState moduleStateFromString(const QString &s)
+{
+    for (int i = static_cast<int>(ModuleState::UNKNOWN); i <= static_cast<int>(ModuleState::ERROR); ++i) {
+        const auto state = static_cast<ModuleState>(i);
+        if (QString::fromStdString(toString(state)) == s)
+            return state;
+    }
+    return ModuleState::UNKNOWN;
+}
+
+static ConnectionHeatLevel heatFromString(const QString &s)
+{
+    for (const auto heat :
+         {ConnectionHeatLevel::NONE,
+          ConnectionHeatLevel::LOW,
+          ConnectionHeatLevel::MEDIUM,
+          ConnectionHeatLevel::HIGH}) {
+        if (heatToString(heat) == s)
+            return heat;
+    }
+    return ConnectionHeatLevel::NONE;
+}
+
+/**
+ * The inverse of insertPriorityApplied().
+ */
+static std::optional<bool> readPriorityApplied(const QJsonObject &o)
+{
+    if (o.contains(QStringLiteral("realtime_applied")))
+        return o.value(QStringLiteral("realtime_applied")).toBool();
+    if (o.contains(QStringLiteral("niceness_applied")))
+        return o.value(QStringLiteral("niceness_applied")).toBool();
+    return std::nullopt;
+}
+
+auto RunStatistics::fromJson(const QJsonObject &root) -> std::expected<RunStatistics, QString>
+{
+    const int version = root.value(QStringLiteral("format_version")).toInt(-1);
+    if (version < 1 || version > FormatVersion)
+        return std::unexpected(QStringLiteral("Unsupported run statistics format version %1").arg(version));
+    if (!root.value(QStringLiteral("run")).isObject())
+        return std::unexpected(QStringLiteral("Run statistics document has no run section"));
+
+    RunStatistics stats;
+    const auto run = root.value(QStringLiteral("run")).toObject();
+    stats.runId = run.value(QStringLiteral("id")).toString();
+    stats.experimentId = run.value(QStringLiteral("experiment_id")).toString();
+    stats.started = QDateTime::fromString(run.value(QStringLiteral("started")).toString(), Qt::ISODateWithMs);
+    stats.durationSec = run.value(QStringLiteral("duration_sec")).toDouble();
+    stats.usageWindowSec = run.value(QStringLiteral("usage_window_sec")).toDouble();
+    stats.ephemeral = run.value(QStringLiteral("ephemeral")).toBool();
+    stats.failed = !run.value(QStringLiteral("success")).toBool(true);
+    stats.failReason = run.value(QStringLiteral("failure_reason")).toString();
+    stats.exportDir = run.value(QStringLiteral("export_dir")).toString();
+    stats.bytesWritten = run.value(QStringLiteral("bytes_written")).toInteger(-1);
+    stats.cpuCoreCount = run.value(QStringLiteral("cpu_cores")).toInt();
+    stats.priorityBudget = static_cast<uint>(run.value(QStringLiteral("priority_budget")).toInt());
+    stats.threadsTotal = run.value(QStringLiteral("threads_total")).toInt();
+    stats.threadsElevated = run.value(QStringLiteral("threads_elevated")).toInt();
+    stats.mainThread = usageFromJson(run.value(QStringLiteral("main_thread")));
+    stats.process = usageFromJson(run.value(QStringLiteral("process")));
+    stats.peakRssKiB = run.value(QStringLiteral("peak_rss_kib")).toInteger(-1);
+
+    for (const auto &mv : root.value(QStringLiteral("modules")).toArray()) {
+        const auto o = mv.toObject();
+        ModuleRunStats m;
+        m.id = o.value(QStringLiteral("id")).toString();
+        m.name = o.value(QStringLiteral("name")).toString();
+        m.driver = driverKindFromString(o.value(QStringLiteral("driver")).toString());
+        m.finalState = moduleStateFromString(o.value(QStringLiteral("final_state")).toString());
+        m.outOfProcess = o.value(QStringLiteral("out_of_process")).toBool();
+        m.eventThreadKey = o.value(QStringLiteral("event_thread")).toString();
+        m.errorMessage = o.value(QStringLiteral("error")).toString();
+        m.realtimeRequested = o.value(QStringLiteral("realtime_requested")).toBool();
+        m.niceness = o.value(QStringLiteral("niceness")).toInt();
+        m.priorityApplied = readPriorityApplied(o);
+        for (const auto &c : o.value(QStringLiteral("cpu_affinity")).toArray())
+            m.cpuAffinity.push_back(static_cast<uint>(c.toInt()));
+        m.thread = usageFromJson(o.value(QStringLiteral("thread")));
+        m.workerPid = o.value(QStringLiteral("worker_pid")).toInteger();
+        m.worker = usageFromJson(o.value(QStringLiteral("worker")));
+        m.moduleStats = o.value(QStringLiteral("module_stats")).toObject().toVariantHash();
+        stats.modules.append(m);
+    }
+
+    for (const auto &ev : root.value(QStringLiteral("event_threads")).toArray()) {
+        const auto o = ev.toObject();
+        EventThreadRunStats e;
+        e.key = o.value(QStringLiteral("key")).toString();
+        for (const auto &n : o.value(QStringLiteral("modules")).toArray())
+            e.moduleNames.append(n.toString());
+        e.realtimeRequested = o.value(QStringLiteral("realtime_requested")).toBool();
+        e.niceness = o.value(QStringLiteral("niceness")).toInt();
+        e.priorityApplied = readPriorityApplied(o).value_or(false);
+        e.thread = usageFromJson(o.value(QStringLiteral("thread")));
+        stats.eventThreads.append(e);
+    }
+
+    for (const auto &cv : root.value(QStringLiteral("connections")).toArray()) {
+        const auto o = cv.toObject();
+        ConnectionRunStats c;
+        c.srcModule = o.value(QStringLiteral("src_module")).toString();
+        c.srcPort = o.value(QStringLiteral("src_port")).toString();
+        c.dstModule = o.value(QStringLiteral("dst_module")).toString();
+        c.dstPort = o.value(QStringLiteral("dst_port")).toString();
+        c.dataType = o.value(QStringLiteral("data_type")).toString();
+        c.directIpc = o.value(QStringLiteral("direct_ipc")).toBool();
+        c.itemsReceived = o.value(QStringLiteral("items_received")).toInteger();
+        c.peakPending = o.value(QStringLiteral("peak_pending")).toInteger();
+        c.pendingAtStop = o.value(QStringLiteral("pending_at_stop")).toInteger();
+        c.maxHeat = heatFromString(o.value(QStringLiteral("max_heat")).toString());
+        stats.connections.append(c);
+    }
+
+    const auto sys = root.value(QStringLiteral("system")).toObject();
+    for (auto it = sys.constBegin(); it != sys.constEnd(); ++it)
+        stats.system.insert(it.key(), it.value().toString());
+
+    return stats;
+}
+
+auto RunStatistics::loadJson(const QString &path) -> std::expected<RunStatistics, QString>
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly))
+        return std::unexpected(QStringLiteral("Unable to read %1: %2").arg(path, f.errorString()));
+    QJsonParseError perr;
+    const auto doc = QJsonDocument::fromJson(f.readAll(), &perr);
+    if (doc.isNull())
+        return std::unexpected(QStringLiteral("Unable to parse %1: %2").arg(path, perr.errorString()));
+    if (!doc.isObject())
+        return std::unexpected(QStringLiteral("%1 does not contain a JSON object").arg(path));
+    return fromJson(doc.object());
 }
 
 static QString fmtSec(double sec)
