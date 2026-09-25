@@ -2,6 +2,7 @@
 
 sybench_core_hdr = [
     'dimension.h',
+    'health.h',
     'ladder.h',
     'projectgen.h',
     'runner.h',
@@ -10,6 +11,10 @@ sybench_core_hdr = [
 sybench_core_src = [
     'dimension.cpp',
     'dimensions-camera.cpp',
+    'dimensions-encoding.cpp',
+    'dimensions-oop.cpp',
+    'dimensions-signal.cpp',
+    'health.cpp',
     'ladder.cpp',
     'projectgen.cpp',
     'runner.cpp',

@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include "benchwindow.h"
 #include "ui_benchwindow.h"
 
@@ -26,6 +27,7 @@
 #include <QMessageBox>
 #include <QThread>
 
+#include "health.h"
 #include "report.h"
 #include "utils/misc.h"
 
@@ -44,6 +46,8 @@ BenchWindow::BenchWindow(QWidget *parent)
     ui->backButton->setIcon(QIcon::fromTheme(QStringLiteral("go-previous")));
 
     ui->summaryTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
+    ui->healthTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    ui->healthTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
     ui->stepsTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     ui->stepsTable->horizontalHeader()->setSectionResizeMode(4, QHeaderView::Stretch);
 
@@ -55,6 +59,8 @@ BenchWindow::BenchWindow(QWidget *parent)
     connect(ui->stopButton, &QPushButton::clicked, this, &BenchWindow::stopBenchmark);
     connect(ui->saveButton, &QPushButton::clicked, this, &BenchWindow::saveReport);
     connect(ui->backButton, &QPushButton::clicked, this, &BenchWindow::backToStart);
+    connect(ui->dataDirButton, &QPushButton::clicked, this, &BenchWindow::chooseDataDir);
+    ui->dataDirEdit->setText(defaultDataDir());
 
     m_elapsedTimer.setInterval(1000);
     connect(&m_elapsedTimer, &QTimer::timeout, this, &BenchWindow::updateElapsed);
@@ -83,6 +89,21 @@ void BenchWindow::setWorkDir(const QString &dir)
     m_workDir = dir;
 }
 
+void BenchWindow::setDataDir(const QString &dir)
+{
+    ui->dataDirEdit->setText(dir);
+}
+
+void BenchWindow::chooseDataDir()
+{
+    const auto dir = QFileDialog::getExistingDirectory(
+        this,
+        QStringLiteral("Select Data Directory"),
+        ui->dataDirEdit->text());
+    if (!dir.isEmpty())
+        ui->dataDirEdit->setText(dir);
+}
+
 void BenchWindow::populateDimensions()
 {
     ui->dimensionTree->clear();
@@ -109,6 +130,7 @@ SessionConfig BenchWindow::collectConfig() const
     SessionConfig cfg;
     cfg.quick = ui->quickCheck->isChecked();
     cfg.workDir = m_workDir;
+    cfg.dataDir = ui->dataDirEdit->text().trimmed();
     cfg.syntalosBinary = m_syntalosBinary;
     for (int i = 0; i < ui->dimensionTree->topLevelItemCount(); ++i) {
         const auto *item = ui->dimensionTree->topLevelItem(i);
@@ -153,6 +175,8 @@ void BenchWindow::startBenchmark()
     ui->summaryTable->setRowCount(0);
     ui->stepsTable->setRowCount(0);
     ui->logView->clear();
+    ui->healthLabel->setVisible(false);
+    ui->healthTable->setVisible(false);
     ui->progressBar->setValue(0);
     ui->phaseLabel->setText(QStringLiteral("Starting..."));
     ui->pages->setCurrentWidget(ui->runPage);
@@ -202,6 +226,27 @@ void BenchWindow::onSessionFinished(bool cancelled)
     m_thread->deleteLater();
     m_thread = nullptr;
     setRunningState(false);
+    showHealth();
+}
+
+void BenchWindow::showHealth()
+{
+    ui->healthTable->setRowCount(0);
+    for (const auto &item : collectHealthItems()) {
+        const int row = ui->healthTable->rowCount();
+        ui->healthTable->insertRow(row);
+        ui->healthTable->setItem(row, 0, new QTableWidgetItem(item.name));
+        ui->healthTable->setItem(row, 1, new QTableWidgetItem(item.value));
+        auto *status = new QTableWidgetItem(healthStatusString(item.status));
+        // same colours as the System Info dialog in Syntalos
+        if (item.status == Syntalos::SysInfoCheckResult::ISSUE)
+            status->setForeground(QColor(218, 68, 83));
+        else if (item.status == Syntalos::SysInfoCheckResult::SUSPICIOUS)
+            status->setForeground(QColor(244, 119, 80));
+        ui->healthTable->setItem(row, 2, status);
+    }
+    ui->healthLabel->setVisible(true);
+    ui->healthTable->setVisible(true);
 }
 
 void BenchWindow::saveReport()
@@ -262,7 +307,11 @@ void BenchWindow::onStepFinished(const StepRecord &step)
     setCell(0, step.dimensionTitle);
     setCell(1, step.profileTitle);
     setCell(2, QStringLiteral("%1 %2").arg(step.level).arg(step.levelUnit));
-    auto *resItem = setCell(3, step.verdict.passed ? QStringLiteral("Pass") : QStringLiteral("Fail"));
+    auto *resItem = setCell(
+        3,
+        step.verdict.passed          ? QStringLiteral("Pass")
+        : step.verdict.sourceLimited ? QStringLiteral("Inconclusive")
+                                     : QStringLiteral("Fail"));
     resItem->setIcon(
         QIcon::fromTheme(step.verdict.passed ? QStringLiteral("emblem-checked") : QStringLiteral("emblem-error")));
     setCell(4, step.verdict.summary);
@@ -284,6 +333,8 @@ void BenchWindow::onLadderFinished(const LadderRecord &ladder)
     auto sustained = QStringLiteral("%1 %2").arg(ladder.outcome.sustained).arg(ladder.levelUnit);
     if (ladder.outcome.cancelled)
         sustained += QStringLiteral(" (incomplete)");
+    else if (ladder.outcome.inconclusive)
+        sustained += QStringLiteral(" (source limit reached)");
     else if (ladder.outcome.reachedMax)
         sustained += QStringLiteral(" (or more)");
     auto *item = new QTableWidgetItem(sustained);

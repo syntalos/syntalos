@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include "dimension.h"
 
 namespace SyBench
@@ -73,7 +74,7 @@ public:
             "at their full frame rate, without encoding.");
     }
 
-    QString levelUnit() const override
+    QString levelUnit(const QString &) const override
     {
         return QStringLiteral("streams");
     }
@@ -91,6 +92,11 @@ public:
         return QStringLiteral("Meter %1").arg(i);
     }
 
+    static QString sourceMeterName(int i)
+    {
+        return QStringLiteral("Source Meter %1").arg(i);
+    }
+
     ProjectSpec buildProject(const QString &profileId, int level) const override
     {
         const auto &p = profile(profileId);
@@ -100,7 +106,10 @@ public:
             const auto camName = QStringLiteral("Camera %1").arg(i);
             const auto tfName = QStringLiteral("Scale %1").arg(i);
             spec.addModule(Modules::dataSourceCamera(camName, p.width, p.height, p.fps));
+            spec.addModule(
+                Modules::flowMeter(sourceMeterName(i), QStringLiteral("Frame"), camName, QStringLiteral("frames-out")));
             spec.addModule(Modules::videoTransformScale(tfName, 0.5, camName, QStringLiteral("frames-out")));
+            spec.addModule(Modules::canvas(QStringLiteral("Display %1").arg(i), tfName, QStringLiteral("frames-out")));
             spec.addModule(
                 Modules::flowMeter(meterName(i), QStringLiteral("Frame"), tfName, QStringLiteral("frames-out")));
         }
@@ -111,8 +120,14 @@ public:
     {
         const auto &p = profile(profileId);
         QList<RateCheck> checks;
-        for (int i = 1; i <= level; ++i)
-            checks.append(RateCheck{meterName(i), static_cast<double>(p.fps)});
+        for (int i = 1; i <= level; ++i) {
+            checks.append(
+                RateCheck{
+                    .moduleName = sourceMeterName(i),
+                    .expectedRate = static_cast<double>(p.fps),
+                    .isSource = true});
+            checks.append(RateCheck{.moduleName = meterName(i), .expectedRate = static_cast<double>(p.fps)});
+        }
         return evaluateRates(result, checks);
     }
 };

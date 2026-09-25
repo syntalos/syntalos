@@ -79,6 +79,27 @@ Close Syntalos and other demanding applications before starting. Each step runs 
          </widget>
         </item>
         <item>
+         <layout class="QHBoxLayout" name="dataDirLayout">
+          <item>
+           <widget class="QLabel" name="dataDirLabel">
+            <property name="text">
+             <string>Data directory for recording tests:</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="dataDirEdit"/>
+          </item>
+          <item>
+           <widget class="QPushButton" name="dataDirButton">
+            <property name="text">
+             <string>Browse...</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
          <widget class="QLabel" name="syntalosLabel">
           <property name="text">
            <string notr="true">Syntalos: (not found)</string>
@@ -183,6 +204,47 @@ Close Syntalos and other demanding applications before starting. Each step runs 
           <column>
            <property name="text">
             <string>Sustained</string>
+           </property>
+          </column>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="healthLabel">
+          <property name="text">
+           <string>System Health</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTableWidget" name="healthTable">
+          <property name="maximumSize">
+           <size>
+            <width>16777215</width>
+            <height>230</height>
+           </size>
+          </property>
+          <property name="editTriggers">
+           <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+          </property>
+          <property name="selectionMode">
+           <enum>QAbstractItemView::SelectionMode::NoSelection</enum>
+          </property>
+          <attribute name="verticalHeaderVisible">
+           <bool>false</bool>
+          </attribute>
+          <column>
+           <property name="text">
+            <string>Check</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Value</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Status</string>
            </property>
           </column>
          </widget>

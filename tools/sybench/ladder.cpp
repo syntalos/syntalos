@@ -28,31 +28,41 @@ LadderOutcome runLadder(const LadderConfig &cfg, const TryLevelFn &tryLevel)
 {
     LadderOutcome out;
     const int maxLevel = std::max(1, cfg.maxLevel);
-    int lo = 0; // highest level known to pass
-    int hi = 0; // lowest level known to fail (0: none yet)
+    int lo = 0;           // highest level known to pass
+    int hi = 0;           // lowest level known to fail (0: none yet)
+    int lowestFailed = 0; // lowest level that failed for real (not source-limited)
 
-    const auto attempt = [&](int level) -> std::optional<bool> {
+    // returns false if the search has to stop
+    const auto attempt = [&](int level, bool &passed) {
         const auto res = tryLevel(level);
-        if (!res.has_value()) {
+        if (res == LevelResult::Cancelled) {
             out.cancelled = true;
             out.sustained = lo;
-            return std::nullopt;
+            return false;
         }
-        out.steps.append(LadderStep{level, *res});
-        if (*res)
+        // an inconclusive step (the data source itself could not keep up) bounds the search
+        // from above like a failure, so we still refine towards the highest level that works
+        passed = res == LevelResult::Passed;
+        out.steps.append(LadderStep{level, passed});
+        if (passed) {
             lo = std::max(lo, level);
-        else
+        } else {
             hi = (hi == 0) ? level : std::min(hi, level);
-        return res;
+            if (res == LevelResult::Failed)
+                lowestFailed = (lowestFailed == 0) ? level : std::min(lowestFailed, level);
+        }
+        // the result is only source-limited if no real failure bounds it from above
+        out.inconclusive = hi != 0 && lowestFailed != hi;
+        return true;
     };
 
     // doubling phase
     int level = std::clamp(cfg.startLevel, 1, maxLevel);
     while (true) {
-        const auto res = attempt(level);
-        if (!res.has_value())
+        bool passed = false;
+        if (!attempt(level, passed))
             return out;
-        if (!*res)
+        if (!passed)
             break;
         if (level >= maxLevel) {
             out.reachedMax = true;
@@ -63,10 +73,10 @@ LadderOutcome runLadder(const LadderConfig &cfg, const TryLevelFn &tryLevel)
 
     // halving phase, if even the start level failed
     while (lo == 0 && hi > 1) {
-        const auto res = attempt(hi / 2);
-        if (!res.has_value())
+        bool passed = false;
+        if (!attempt(hi / 2, passed))
             return out;
-        if (*res)
+        if (passed)
             break;
     }
 
@@ -76,7 +86,8 @@ LadderOutcome runLadder(const LadderConfig &cfg, const TryLevelFn &tryLevel)
             const int mid = (lo + hi) / 2;
             if (mid <= lo || mid >= hi)
                 break;
-            if (!attempt(mid).has_value())
+            bool passed = false;
+            if (!attempt(mid, passed))
                 return out;
         }
     }

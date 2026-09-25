@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDir>
@@ -93,6 +94,10 @@ int main(int argc, char *argv[])
         QStringLiteral("work-dir"),
         QStringLiteral("Directory for generated projects and statistics."),
         QStringLiteral("dir"));
+    QCommandLineOption optDataDir(
+        QStringLiteral("data-dir"),
+        QStringLiteral("Directory the recording tests write to (default: the user cache directory)."),
+        QStringLiteral("dir"));
     QCommandLineOption optSelfTest(
         QStringLiteral("self-test"),
         QStringLiteral("Run a single short step without a window to verify the setup works."));
@@ -113,18 +118,24 @@ int main(int argc, char *argv[])
         QStringLiteral("start-level"),
         QStringLiteral("Ladder start level."),
         QStringLiteral("n"));
+    QCommandLineOption optMaxLevel(
+        QStringLiteral("max-level"),
+        QStringLiteral("Ladder maximum level."),
+        QStringLiteral("n"));
     QCommandLineOption optQuick(QStringLiteral("quick"), QStringLiteral("Quick mode."));
     QCommandLineOption optNoWarmup(QStringLiteral("no-warmup"), QStringLiteral("Skip the warm-up run."));
-    for (auto *opt : {&optDimension, &optProfile, &optStepSecs, &optStartLevel, &optQuick, &optNoWarmup})
+    for (auto *opt : {&optDimension, &optProfile, &optStepSecs, &optStartLevel, &optMaxLevel, &optQuick, &optNoWarmup})
         opt->setFlags(QCommandLineOption::HiddenFromHelp);
     parser.addOptions(
         {optSyBin,
          optWorkDir,
+         optDataDir,
          optSelfTest,
          optDimension,
          optProfile,
          optStepSecs,
          optStartLevel,
+         optMaxLevel,
          optQuick,
          optNoWarmup});
     parser.process(app);
@@ -134,6 +145,7 @@ int main(int argc, char *argv[])
 
     SessionConfig config;
     config.syntalosBinary = parser.value(optSyBin);
+    config.dataDir = parser.isSet(optDataDir) ? parser.value(optDataDir) : defaultDataDir();
     config.workDir = parser.isSet(optWorkDir)
                          ? parser.value(optWorkDir)
                          : QDir::temp().filePath(
@@ -142,6 +154,8 @@ int main(int argc, char *argv[])
     config.warmup = !parser.isSet(optNoWarmup);
     if (parser.isSet(optStepSecs))
         config.stepSeconds = std::max(1, parser.value(optStepSecs).toInt());
+    if (parser.isSet(optMaxLevel))
+        config.maxLevel = std::max(1, parser.value(optMaxLevel).toInt());
     if (parser.isSet(optStartLevel))
         config.startLevel = std::max(1, parser.value(optStartLevel).toInt());
 
@@ -168,6 +182,7 @@ int main(int argc, char *argv[])
         if (!config.syntalosBinary.isEmpty())
             w.setSyntalosBinary(config.syntalosBinary);
         w.setWorkDir(config.workDir);
+        w.setDataDir(config.dataDir);
         w.show();
         ret = app.exec();
     }

@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #pragma once
 
 #include <QList>
@@ -36,13 +37,16 @@ namespace SyBench
 struct StepRunConfig {
     QString projectFile;
     int durationSec = 20;
-    bool ephemeral = true;    /// ephemeral runs store nothing permanently; set false for disk-write tests
-    QString exportDir;        /// export directory override for non-ephemeral runs
-    QString statsFile;        /// where Syntalos should write its run statistics JSON
-    int startupGraceSec = 90; /// extra time allowed for startup and teardown before the run is killed
+    bool ephemeral = true; /// ephemeral runs store nothing permanently; set false for disk-write tests
+    QString exportDir;     /// export directory override for non-ephemeral runs
+    QString statsFile;     /// where Syntalos should write its run statistics JSON
+    /// time allowed until Syntalos reports that all modules are running (project loading, module startup)
+    int startupTimeoutSec = 300;
+    /// extra time allowed after the run duration for stopping and teardown
+    int teardownGraceSec = 60;
 
-    /// Kill the run when Syntalos (and its workers) use more resident memory than this.
-    /// 0 = automatic: 60% of the memory available when the run starts.
+    /// Stop the run when Syntalos (and its workers) use more resident memory than this.
+    /// 0 = automatic: the memory available when the run starts, minus 2 GiB of headroom.
     qint64 memoryLimitKiB = 0;
     /// Kill the run when the whole system has less memory available than this (default 1 GiB).
     qint64 systemMemoryFloorKiB = 1024 * 1024;
@@ -70,7 +74,9 @@ struct MeterStats {
 struct StepResult {
     bool success = false; /// the run completed without error
     bool cancelled = false;
-    bool memoryExceeded = false; /// the run was killed for using too much memory (queues overflowing)
+    bool memoryExceeded = false; /// the run was stopped for using too much memory
+    bool started = false;        /// Syntalos reported that all modules were running
+    double startupSec = 0;       /// time from launch until all modules were running
     QString failureReason;
     int exitCode = -1;
     qint64 observedPeakRssKiB = 0; /// sampled by the runner, also available if the run was killed

@@ -19,25 +19,31 @@
 
 #pragma once
 
-#include <QJsonObject>
+#include <QJsonArray>
 #include <QList>
 #include <QString>
-#include <expected>
 
-#include "benchsession.h"
+#include "sysinfo.h"
 
 namespace SyBench
 {
 
 /**
- * @brief Build the benchmark report document
+ * @brief One system configuration check relevant for acquisition performance
  */
-QJsonObject buildReport(const QList<LadderRecord> &ladders, const SessionConfig &config, int cpuCores);
+struct HealthItem {
+    QString name;
+    QString value;
+    Syntalos::SysInfoCheckResult status = Syntalos::SysInfoCheckResult::UNKNOWN;
+};
+
+QString healthStatusString(Syntalos::SysInfoCheckResult status);
 
 /**
- * @brief Save the report as JSON file, with the per-step run statistics in a folder next to it.
+ * @brief Run the system checks and describe their outcome.
  */
-auto saveReport(const QString &fileName, const QList<LadderRecord> &ladders, const SessionConfig &config, int cpuCores)
-    -> std::expected<void, QString>;
+QList<HealthItem> collectHealthItems();
+
+QJsonArray healthToJson(const QList<HealthItem> &items);
 
 } // namespace SyBench

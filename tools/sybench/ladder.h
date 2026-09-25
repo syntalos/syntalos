@@ -21,7 +21,6 @@
 
 #include <QList>
 #include <functional>
-#include <optional>
 
 namespace SyBench
 {
@@ -43,14 +42,22 @@ struct LadderStep {
 struct LadderOutcome {
     int sustained = 0; /// highest level that passed, 0 if even the lowest tried level failed (partial if cancelled)
     bool cancelled = false;
-    bool reachedMax = false; /// the maximum level passed, the true limit is higher
+    bool inconclusive = false; /// the boundary was a source limit, not a failure: the result is a lower bound
+    bool reachedMax = false;   /// the maximum level passed, the true limit is higher
     QList<LadderStep> steps;
 };
 
 /**
- * @brief Try level, returns whether it passed. std::nullopt aborts the search (cancelled).
+ * @brief What trying one level yielded
  */
-using TryLevelFn = std::function<std::optional<bool>(int level)>;
+enum class LevelResult {
+    Passed,
+    Failed,
+    Inconclusive, /// the step could not be judged (source limit); treated as the upper boundary
+    Cancelled
+};
+
+using TryLevelFn = std::function<LevelResult(int level)>;
 
 /**
  * @brief Run a doubling search from the start level, then bisect between the last

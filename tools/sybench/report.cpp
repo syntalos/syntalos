@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include "report.h"
 
 #include <QCoreApplication>
@@ -26,6 +27,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 
+#include "health.h"
 #include "sysinfo.h"
 
 namespace SyBench
@@ -38,6 +40,8 @@ static QJsonObject stepToJson(const StepRecord &s)
     QJsonObject o;
     o.insert(QStringLiteral("level"), s.level);
     o.insert(QStringLiteral("passed"), s.verdict.passed);
+    o.insert(QStringLiteral("source_limited"), s.verdict.sourceLimited);
+    o.insert(QStringLiteral("startup_sec"), s.result.startupSec);
     o.insert(QStringLiteral("summary"), s.verdict.summary);
     o.insert(QStringLiteral("min_rate_fraction"), s.verdict.minRateFraction);
     o.insert(QStringLiteral("max_peak_backlog"), s.verdict.maxPeakBacklog);
@@ -85,11 +89,13 @@ QJsonObject buildReport(const QList<LadderRecord> &ladders, const SessionConfig 
     machine.insert(QStringLiteral("cpu_governor"), sysInfo->cpuGovernor());
     machine.insert(QStringLiteral("syntalos_version"), sysInfo->syntalosVersion());
     root.insert(QStringLiteral("machine"), machine);
+    root.insert(QStringLiteral("health"), healthToJson(collectHealthItems()));
 
     QJsonObject settings;
     settings.insert(QStringLiteral("quick"), config.quick);
     settings.insert(QStringLiteral("warmup"), config.warmup);
     settings.insert(QStringLiteral("step_seconds"), config.stepSeconds);
+    settings.insert(QStringLiteral("data_dir"), config.dataDir);
     root.insert(QStringLiteral("settings"), settings);
 
     QJsonArray results;
@@ -103,6 +109,7 @@ QJsonObject buildReport(const QList<LadderRecord> &ladders, const SessionConfig 
         o.insert(QStringLiteral("sustained"), lr.outcome.sustained);
         o.insert(QStringLiteral("reached_max"), lr.outcome.reachedMax);
         o.insert(QStringLiteral("cancelled"), lr.outcome.cancelled);
+        o.insert(QStringLiteral("source_limit_reached"), lr.outcome.inconclusive);
         QJsonArray steps;
         for (const auto &s : lr.steps)
             steps.append(stepToJson(s));

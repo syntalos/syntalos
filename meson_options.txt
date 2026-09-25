@@ -33,6 +33,11 @@ option('disabled-modules',
        description: 'Explicitly disable modules from the enabled set (subtracted from "modules").'
 )
 
+option('benchmark',
+       type : 'boolean',
+       value : true,
+       description : 'Build the Syntalos benchmark tool'
+)
 option('imgui',
     type : 'boolean',
     value : true,

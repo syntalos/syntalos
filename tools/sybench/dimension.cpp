@@ -16,25 +16,27 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include "dimension.h"
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 
 namespace SyBench
 {
 
-int Dimension::startLevel(int cpuCores) const
+int Dimension::startLevel(int cpuCores, const QString &) const
 {
     return std::max(1, cpuCores / 2);
 }
 
-int Dimension::maxLevel() const
+int Dimension::maxLevel(const QString &) const
 {
     return 512;
 }
 
-bool Dimension::writesData() const
+bool Dimension::writesData(const QString &) const
 {
     return false;
 }
@@ -55,20 +57,46 @@ StepVerdict evaluateRates(const StepResult &result, const QList<RateCheck> &chec
     double maxRate = 0;
     v.minRateFraction = 1.0;
     for (const auto &c : checks) {
-        maxRate = std::max(maxRate, c.expectedRate);
-        const auto m = result.meter(c.meterName);
-        if (!m) {
+        std::optional<qint64> items;
+        for (const auto &mod : stats.modules) {
+            if (mod.name == c.moduleName && mod.moduleStats.contains(c.statKey))
+                items = mod.moduleStats.value(c.statKey).toLongLong();
+        }
+        if (!items) {
             v.minRateFraction = 0;
-            v.summary = QStringLiteral("no statistics from meter '%1'").arg(c.meterName);
+            v.summary = QStringLiteral("no '%1' statistic from '%2'").arg(c.statKey, c.moduleName);
             return v;
         }
         const double expected = c.expectedRate * stats.durationSec;
-        if (expected > 0)
-            v.minRateFraction = std::min(v.minRateFraction, m->items / expected);
+        const double fraction = expected > 0 ? *items / expected : 1.0;
+        if (c.isSource) {
+            if (fraction < minRateFraction) {
+                // a source starved of CPU on a saturated machine is the machine's limit; a source
+                // that falls short on an idle machine is its own limit and nothing downstream can be judged
+                const double load = result.processLoad();
+                const bool overloaded = stats.cpuCoreCount > 0 && load > 0.75 * stats.cpuCoreCount;
+                if (overloaded) {
+                    v.summary = QStringLiteral("overloaded: '%1' produced only %2 % of its rate at a load of %3 cores")
+                                    .arg(c.moduleName)
+                                    .arg(fraction * 100.0, 0, 'f', 1)
+                                    .arg(load, 0, 'f', 1);
+                    return v;
+                }
+                v.sourceLimited = true;
+                v.summary = QStringLiteral("source limit: '%1' produced only %2 % of its rate")
+                                .arg(c.moduleName)
+                                .arg(fraction * 100.0, 0, 'f', 1);
+                return v;
+            }
+            continue;
+        }
+        maxRate = std::max(maxRate, c.expectedRate);
+        v.minRateFraction = std::min(v.minRateFraction, fraction);
     }
 
-    // a backlog of more than half a second of data means the consumer can not keep up
-    const qint64 backlogLimit = std::max<qint64>(4, std::llround(maxRate / 2.0));
+    // short hiccups (encoder start-up, pipeline builds) may queue a second or so of data;
+    // more than two seconds worth means the consumer can not keep up
+    const qint64 backlogLimit = std::max<qint64>(4, std::llround(maxRate * 2.0));
     for (const auto &c : stats.connections) {
         if (c.directIpc)
             continue;
@@ -129,12 +157,182 @@ ModuleSpec flowMeter(const QString &name, const QString &dataType, const QString
     return m;
 }
 
+ModuleSpec dataSourceSignals(
+    const QString &name,
+    int width,
+    int height,
+    int fps,
+    double sampleRate,
+    int channels,
+    bool cameraContent)
+{
+    ModuleSpec m;
+    m.id = QStringLiteral("devel.datasource");
+    m.name = name;
+    m.settings.insert(QStringLiteral("fps"), fps);
+    m.settings.insert(QStringLiteral("frame_width"), width);
+    m.settings.insert(QStringLiteral("frame_height"), height);
+    m.settings.insert(
+        QStringLiteral("frame_content"),
+        cameraContent ? QStringLiteral("camera") : QStringLiteral("testcard"));
+    m.settings.insert(QStringLiteral("color_video"), true);
+    m.settings.insert(QStringLiteral("sample_rate"), sampleRate);
+    m.settings.insert(QStringLiteral("signal_channels"), channels);
+    return m;
+}
+
+ModuleSpec canvas(const QString &name, const QString &srcModule, const QString &srcPort)
+{
+    ModuleSpec m;
+    m.id = QStringLiteral("canvas");
+    m.name = name;
+    m.subscribe(QStringLiteral("frames-in"), srcModule, srcPort);
+    return m;
+}
+
+QString codecTitle(Codec codec)
+{
+    switch (codec) {
+    case Codec::Raw:
+        return QStringLiteral("Raw");
+    case Codec::FFV1:
+        return QStringLiteral("FFV1");
+    case Codec::AV1:
+        return QStringLiteral("AV1");
+    }
+    return QString();
+}
+
+ModuleSpec videoRecorder(const QString &name, Codec codec, const QString &srcModule, const QString &srcPort)
+{
+    // numeric codec ids as persisted by the video recorder module (VideoCodec enum)
+    int codecId = 2;
+    bool lossless = true;
+    int quality = 0;
+    switch (codec) {
+    case Codec::Raw:
+        codecId = 1;
+        break;
+    case Codec::FFV1:
+        codecId = 2;
+        break;
+    case Codec::AV1:
+        codecId = 3;
+        lossless = false;
+        quality = 24;
+        break;
+    }
+
+    ModuleSpec m;
+    m.id = QStringLiteral("videorecorder");
+    m.name = name;
+    m.settings.insert(QStringLiteral("video_codec"), codecId);
+    m.settings.insert(QStringLiteral("video_container"), 1); // Matroska
+    m.settings.insert(QStringLiteral("lossless"), lossless);
+    m.settings.insert(QStringLiteral("exact_colors"), false);
+    m.settings.insert(QStringLiteral("vaapi_enabled"), false);
+    m.settings.insert(QStringLiteral("mode"), QStringLiteral("constant-quality"));
+    m.settings.insert(QStringLiteral("quality"), quality);
+    m.settings.insert(QStringLiteral("video_name_from_source"), true);
+    m.settings.insert(QStringLiteral("save_timestamps"), true);
+    m.settings.insert(QStringLiteral("slices_enabled"), false);
+    m.settings.insert(QStringLiteral("deferred_encode_enabled"), false);
+    m.subscribe(QStringLiteral("frames-in"), srcModule, srcPort);
+    return m;
+}
+
+ModuleSpec signalFilterLowPass(const QString &name, double cutoffHz, const QString &srcModule, const QString &srcPort)
+{
+    ModuleSpec m;
+    m.id = QStringLiteral("signalfilter");
+    m.name = name;
+    m.settings.insert(QStringLiteral("input_type"), QStringLiteral("SignalBlockF32"));
+    m.settings.insert(QStringLiteral("use_all_channels"), true);
+    QVariantHash stage;
+    stage.insert(QStringLiteral("family"), 0);   // Butterworth
+    stage.insert(QStringLiteral("response"), 0); // low-pass
+    stage.insert(QStringLiteral("order"), 4);
+    stage.insert(QStringLiteral("freq1"), cutoffHz);
+    m.settings.insert(QStringLiteral("stages"), QVariantList{stage});
+    m.subscribe(QStringLiteral("signals-in"), srcModule, srcPort);
+    return m;
+}
+
+ModuleSpec zarrWriterSignals(const QString &name, const QString &srcModule, const QString &srcPort)
+{
+    ModuleSpec m;
+    m.id = QStringLiteral("zarrwriter");
+    m.name = name;
+    m.settings.insert(QStringLiteral("input_type"), QStringLiteral("SignalBlockF32"));
+    m.settings.insert(QStringLiteral("use_name_from_source"), true);
+    m.subscribe(QStringLiteral("f32sig-in"), srcModule, srcPort);
+    return m;
+}
+
+static QVariantList framePortList(const QString &id, const QString &title)
+{
+    QVariantHash port;
+    port.insert(QStringLiteral("id"), id);
+    port.insert(QStringLiteral("title"), title);
+    port.insert(QStringLiteral("data_type"), QStringLiteral("Frame"));
+    return QVariantList{port};
+}
+
+ModuleSpec pyScriptFramePassthrough(const QString &name, const QString &srcModule, const QString &srcPort)
+{
+    ModuleSpec m;
+    m.id = QStringLiteral("pyscript");
+    m.name = name;
+    m.settings.insert(
+        QStringLiteral("ports_in"),
+        framePortList(QStringLiteral("frames-in"), QStringLiteral("Frames In")));
+    m.settings.insert(
+        QStringLiteral("ports_out"),
+        framePortList(QStringLiteral("frames-out"), QStringLiteral("Frames Out")));
+    m.extraData = QByteArrayLiteral(
+        "import syntalos_mlink as syl\n"
+        "\n"
+        "iport = syl.get_input_port('frames-in')\n"
+        "oport = syl.get_output_port('frames-out')\n"
+        "\n"
+        "\n"
+        "def on_frame(frame) -> None:\n"
+        "    oport.submit(frame)\n"
+        "\n"
+        "\n"
+        "def prepare() -> bool:\n"
+        "    iport.on_data = on_frame\n"
+        "    oport.set_metadata_value('framerate', iport.metadata['framerate'])\n"
+        "    oport.set_metadata_value_size('size', iport.metadata['size'])\n"
+        "    return True\n"
+        "\n"
+        "\n"
+        "def run():\n"
+        "    while syl.is_running():\n"
+        "        syl.await_data()\n");
+    m.subscribe(QStringLiteral("frames-in"), srcModule, srcPort);
+    return m;
+}
+
+ModuleSpec mlinkExampleFramePassthrough(const QString &name, const QString &srcModule, const QString &srcPort)
+{
+    ModuleSpec m;
+    m.id = QStringLiteral("example-mlink");
+    m.name = name;
+    m.subscribe(QStringLiteral("frames-in"), srcModule, srcPort);
+    return m;
+}
+
 } // namespace Modules
 
 std::vector<std::unique_ptr<Dimension>> createAllDimensions()
 {
     std::vector<std::unique_ptr<Dimension>> dims;
     dims.push_back(createCameraCapacityDimension());
+    dims.push_back(createEncodingDimension());
+    dims.push_back(createDiskWriteDimension());
+    dims.push_back(createSignalProcessingDimension());
+    dims.push_back(createOutOfProcessDimension());
     return dims;
 }
 

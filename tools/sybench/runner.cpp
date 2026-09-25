@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #include "runner.h"
 
 #include <QCoreApplication>
@@ -190,12 +191,22 @@ auto SyntalosRunner::run(const StepRunConfig &cfg) -> std::expected<StepResult, 
     if (!proc.waitForStarted(10000))
         return std::unexpected(QStringLiteral("Unable to start Syntalos: %1").arg(proc.errorString()));
 
+    // the engine logs this line once all modules run; everything before is startup
+    static const QLatin1String startedMarker("all modules are running");
+
+    QElapsedTimer timer;
+    timer.start();
     QStringList outLines;
     const auto collectOutput = [&]() {
         while (proc.canReadLine()) {
             const auto line = QString::fromUtf8(proc.readLine()).trimmed();
             if (line.isEmpty())
                 continue;
+            if (!r.started && line.contains(startedMarker)) {
+                r.started = true;
+                r.startupSec = timer.elapsed() / 1000.0;
+                LOG_INFO(m_log, "All modules running after {:.1f} s", r.startupSec);
+            }
             outLines.append(line);
             if (outLines.size() > 60)
                 outLines.removeFirst();
@@ -204,12 +215,10 @@ auto SyntalosRunner::run(const StepRunConfig &cfg) -> std::expected<StepResult, 
 
     qint64 memoryLimitKiB = cfg.memoryLimitKiB;
     if (memoryLimitKiB <= 0)
-        memoryLimitKiB = readMemInfo().memAvailableKiB * 6 / 10;
+        memoryLimitKiB = std::max<qint64>(readMemInfo().memAvailableKiB - 2LL * 1024 * 1024, 512 * 1024);
     const qint64 pid = proc.processId();
 
-    QElapsedTimer timer;
-    timer.start();
-    const qint64 hardLimitMs = (cfg.durationSec + cfg.startupGraceSec) * 1000LL;
+    // graceful stop first: a healthy but overloaded Syntalos shuts down cleanly on SIGTERM
     qint64 killDeadlineMs = 0;
     const auto stopProcess = [&](int graceMs) {
         if (killDeadlineMs != 0)
@@ -217,28 +226,46 @@ auto SyntalosRunner::run(const StepRunConfig &cfg) -> std::expected<StepResult, 
         proc.terminate();
         killDeadlineMs = timer.elapsed() + graceMs;
     };
+
+    qint64 lastRssKiB = 0;
+    qint64 lastRssMs = 0;
+    double growthMiBPerSec = 0;
     while (!proc.waitForFinished(100)) {
         collectOutput();
         if (proc.state() == QProcess::NotRunning)
             break;
+        const auto nowMs = timer.elapsed();
 
         // An overloaded Syntalos lets its data queues grow without bound and can take the whole
         // machine down with it, so we watch its memory and stop the run before that happens.
         const auto rssKiB = readProcessTreeRssKiB(pid);
         r.observedPeakRssKiB = std::max(r.observedPeakRssKiB, rssKiB);
+        if (nowMs - lastRssMs >= 1000) {
+            if (lastRssMs > 0)
+                growthMiBPerSec = (rssKiB - lastRssKiB) / 1024.0 / ((nowMs - lastRssMs) / 1000.0);
+            lastRssKiB = rssKiB;
+            lastRssMs = nowMs;
+        }
         const auto memAvailableKiB = readMemInfo().memAvailableKiB;
-        if (killDeadlineMs == 0 && (rssKiB > memoryLimitKiB || memAvailableKiB < cfg.systemMemoryFloorKiB)) {
+        const bool systemStarved = memAvailableKiB < cfg.systemMemoryFloorKiB;
+        if (!r.memoryExceeded && (rssKiB > memoryLimitKiB || systemStarved)) {
             r.memoryExceeded = true;
             r.failureReason = QStringLiteral(
-                                  "Memory limit exceeded: Syntalos used %1 MiB (limit %2 MiB, %3 MiB "
-                                  "left on the system). Its data queues were most likely overflowing.")
+                                  "Memory limit exceeded: Syntalos used %1 MiB (limit %2 MiB, %3 MiB left "
+                                  "on the system), growing by %4 MiB/s. Fast growth means its data queues "
+                                  "were overflowing.")
                                   .arg(rssKiB / 1024)
                                   .arg(memoryLimitKiB / 1024)
-                                  .arg(memAvailableKiB / 1024);
-            // no graceful stop here: the engine would keep filling its queues while draining them
-            LOG_WARNING(m_log, "Memory limit exceeded, killing Syntalos ({} MiB used)", rssKiB / 1024);
+                                  .arg(memAvailableKiB / 1024)
+                                  .arg(growthMiBPerSec, 0, 'f', 0);
+            LOG_WARNING(m_log, "Memory limit exceeded ({} MiB used), asking Syntalos to stop...", rssKiB / 1024);
+            stopProcess(5000);
+        }
+        // a stopping process that still eats memory is not going to make it, kill it before the machine suffers
+        if (r.memoryExceeded && systemStarved && killDeadlineMs > nowMs) {
+            LOG_WARNING(m_log, "System memory is running out, killing Syntalos");
             proc.kill();
-            killDeadlineMs = timer.elapsed();
+            killDeadlineMs = nowMs;
         }
 
         if (m_cancel) {
@@ -246,13 +273,23 @@ auto SyntalosRunner::run(const StepRunConfig &cfg) -> std::expected<StepResult, 
                 LOG_INFO(m_log, "Cancelling run, terminating Syntalos...");
             r.cancelled = true;
             stopProcess(15000);
-        } else if (timer.elapsed() > hardLimitMs && killDeadlineMs == 0) {
-            r.failureReason = QStringLiteral("Syntalos did not finish the run in time.");
-            LOG_WARNING(m_log, "Run exceeded its time limit, terminating Syntalos...");
-            stopProcess(15000);
+        } else if (killDeadlineMs == 0) {
+            const bool startupTimedOut = !r.started && nowMs > cfg.startupTimeoutSec * 1000LL;
+            const bool runTimedOut = r.started
+                                     && nowMs > (r.startupSec + cfg.durationSec + cfg.teardownGraceSec) * 1000.0;
+            if (startupTimedOut || runTimedOut) {
+                r.failureReason = startupTimedOut ? QStringLiteral("Syntalos did not start the run within %1 s.")
+                                                        .arg(cfg.startupTimeoutSec)
+                                                  : QStringLiteral("Syntalos did not finish the run in time.");
+                LOG_WARNING(m_log, "{} Terminating...", r.failureReason);
+                stopProcess(15000);
+            }
         }
-        if (killDeadlineMs != 0 && timer.elapsed() > killDeadlineMs)
+        if (killDeadlineMs != 0 && nowMs > killDeadlineMs) {
+            LOG_WARNING(m_log, "Syntalos did not stop in time, killing it");
             proc.kill();
+            killDeadlineMs = nowMs + 3600000; // do not repeat
+        }
     }
     collectOutput();
     proc.readAll();

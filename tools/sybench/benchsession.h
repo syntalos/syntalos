@@ -16,6 +16,7 @@
  * You should have received a copy of the GNU Lesser General Public License
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
+
 #pragma once
 
 #include <QHash>
@@ -42,10 +43,17 @@ struct SessionConfig {
     bool quick = false;
     int stepSeconds = 0;    /// 0 = default for the mode (20 s, 10 s in quick mode)
     int startLevel = 0;     /// 0 = let the dimension decide
+    int maxLevel = 0;       /// 0 = let the dimension decide (developer option, e.g. for single-step runs)
     bool warmup = true;     /// do a discarded run first
     QString workDir;        /// where projects and statistics files are written
+    QString dataDir;        /// where dimensions that record data write to (a real disk, not tmpfs)
     QString syntalosBinary; /// empty = auto-detect
 };
+
+/**
+ * @brief Default location for recorded benchmark data (in the user's cache directory).
+ */
+QString defaultDataDir();
 
 /**
  * @brief One measured step of a ladder

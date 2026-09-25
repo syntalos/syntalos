@@ -1,4 +1,6 @@
 
 subdir('crashreport')
 subdir('metaview')
-subdir('sybench')
+if get_option('benchmark')
+    subdir('sybench')
+endif
