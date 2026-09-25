@@ -370,6 +370,44 @@ bool GlobalConfig::hasStoredSettings() const
     return !m_s->allKeys().isEmpty();
 }
 
+bool GlobalConfig::soundCueEnabled(SoundCue cue) const
+{
+    // all sound cues are disabled by default
+    return m_s->value(QStringLiteral("sounds/cues/%1").arg(soundCueId(cue)), false).toBool();
+}
+
+void GlobalConfig::setSoundCueEnabled(SoundCue cue, bool enabled)
+{
+    m_s->setValue(QStringLiteral("sounds/cues/%1").arg(soundCueId(cue)), enabled);
+}
+
+QByteArray GlobalConfig::soundOutputDeviceId() const
+{
+    // an empty ID means "system default"
+    return m_s->value("sounds/output_device_id", QString()).toString().toUtf8();
+}
+
+QString GlobalConfig::soundOutputDeviceName() const
+{
+    return m_s->value("sounds/output_device_name", QString()).toString();
+}
+
+void GlobalConfig::setSoundOutputDevice(const QByteArray &id, const QString &name)
+{
+    m_s->setValue("sounds/output_device_id", QString::fromUtf8(id));
+    m_s->setValue("sounds/output_device_name", name);
+}
+
+int GlobalConfig::soundVolumePercent() const
+{
+    return std::clamp(m_s->value("sounds/volume", 80).toInt(), 0, 100);
+}
+
+void GlobalConfig::setSoundVolumePercent(int percent)
+{
+    m_s->setValue("sounds/volume", std::clamp(percent, 0, 100));
+}
+
 QString Syntalos::colorModeToString(ColorMode mode)
 {
     switch (mode) {
@@ -389,6 +427,40 @@ ColorMode Syntalos::colorModeFromString(const QString &str)
     if (str == "dark")
         return ColorMode::DARK;
     return ColorMode::SYSTEM;
+}
+
+QString Syntalos::soundCueId(SoundCue cue)
+{
+    switch (cue) {
+    case SoundCue::RunStarted:
+        return QStringLiteral("run-started");
+    case SoundCue::RunFinishedSuccess:
+        return QStringLiteral("run-finished-success");
+    case SoundCue::RunFinishedFailure:
+        return QStringLiteral("run-finished-failure");
+    case SoundCue::ResourceWarning:
+        return QStringLiteral("resource-warning");
+    case SoundCue::ModuleFailed:
+        return QStringLiteral("module-failed");
+    }
+    return QStringLiteral("unknown");
+}
+
+QString Syntalos::soundCueDisplayName(SoundCue cue)
+{
+    switch (cue) {
+    case SoundCue::RunStarted:
+        return QStringLiteral("Experiment run started");
+    case SoundCue::RunFinishedSuccess:
+        return QStringLiteral("Run finished successfully");
+    case SoundCue::RunFinishedFailure:
+        return QStringLiteral("Run failed");
+    case SoundCue::ResourceWarning:
+        return QStringLiteral("Resource warning");
+    case SoundCue::ModuleFailed:
+        return QStringLiteral("Module failed");
+    }
+    return QStringLiteral("Unknown");
 }
 
 void Syntalos::findSyntalosLibraryPaths(QString &pkgConfigPath, QString &ldLibraryPath, QString &includePath)

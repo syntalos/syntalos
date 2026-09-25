@@ -43,6 +43,7 @@ class TimingsDialog;
 class LogViewDialog;
 class GlobalConfig;
 class IntervalRunDialog;
+class SoundCuePlayer;
 } // namespace Syntalos
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 
@@ -146,6 +147,8 @@ private slots:
     void onEnginePreRunPrepare();
     void onEngineRunStarted();
     void onEngineStopped();
+    void onEngineRunFinishedCue();
+    void onEngineModuleFailed(AbstractModule *mod, const QString &message, bool runStopping);
     void onEngineResourceWarningUpdate(Engine::SystemResource kind, bool resolved, const QString &message);
     void onEngineConnectionHeatChanged(VarStreamInputPort *iport, ConnectionHeatLevel hlevel);
     void onElapsedTimeUpdate();
@@ -210,6 +213,7 @@ private:
     QuillLogger *m_log;
 
     Syntalos::GlobalConfig *m_gconf;
+    Syntalos::SoundCuePlayer *m_soundCues;
     QTimer *m_rtElapsedTimer;
     Engine *m_engine;
     QString m_currentProjectFname;

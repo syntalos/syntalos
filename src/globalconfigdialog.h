@@ -29,6 +29,11 @@ namespace Ui
 class GlobalConfigDialog;
 }
 
+namespace Syntalos
+{
+class SoundCuePlayer;
+}
+
 class GlobalConfigDialog : public QDialog
 {
     Q_OBJECT
@@ -48,6 +53,9 @@ private slots:
     void on_leNetHost_textEdited(const QString &text);
     void on_leNetInstanceId_textEdited(const QString &text);
 
+    void on_cbSoundDevice_currentIndexChanged(int index);
+    void on_slSoundVolume_valueChanged(int value);
+
     void on_defaultNicenessSpinBox_valueChanged(int arg1);
     void on_defaultRTPrioSpinBox_valueChanged(int arg1);
     void on_explicitCoreAffinitiesCheckBox_toggled(bool checked);
@@ -63,8 +71,11 @@ signals:
 
 private:
     void updateCreateDevDirButtonState();
+    void setupSoundCueControls();
+    void refreshSoundDeviceList();
 
     Ui::GlobalConfigDialog *ui;
     Syntalos::GlobalConfig *m_gc;
+    Syntalos::SoundCuePlayer *m_soundPlayer;
     bool m_acceptChanges;
 };

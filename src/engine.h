@@ -218,6 +218,13 @@ signals:
     void runFailed(AbstractModule *mod, const QString &message);
     void runStopped();
 
+    /**
+     * Emitted immediately when a module (or the engine itself, if @p mod is null) reports
+     * a failure. Unlike runFailed(), this is never deferred until the run is torn down.
+     * @p runStopping is true if this failure will stop the current run.
+     */
+    void moduleFailed(AbstractModule *mod, const QString &message, bool runStopping);
+
     void resourceWarningUpdate(SystemResource kind, bool resolved, const QString &message);
     void connectionHeatChangedAtPort(VarStreamInputPort *iport, ConnectionHeatLevel hlevel);
 

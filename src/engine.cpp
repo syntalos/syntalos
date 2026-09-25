@@ -3541,6 +3541,9 @@ void Engine::onModuleError(const QString &message)
         d->runFailedReason = message;
     }
 
+    // notify listeners immediately, this must never block or show modal UI
+    Q_EMIT moduleFailed(mod, message, stopOnFailure);
+
     const bool wasRunning = d->running;
     if (stopOnFailure) {
         d->failed = true;

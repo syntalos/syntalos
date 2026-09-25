@@ -37,6 +37,22 @@ enum class ColorMode {
 QString colorModeToString(ColorMode mode);
 ColorMode colorModeFromString(const QString &str);
 
+/**
+ * @brief Sound cues that can be played to alert the experimenter.
+ */
+enum class SoundCue {
+    RunStarted,
+    RunFinishedSuccess,
+    RunFinishedFailure,
+    ResourceWarning,
+    ModuleFailed
+};
+
+/// Stable identifier of a sound cue, used as settings key and sound file name.
+QString soundCueId(SoundCue cue);
+/// Human-readable name of a sound cue.
+QString soundCueDisplayName(SoundCue cue);
+
 void findSyntalosLibraryPaths(QString &pkgConfigPath, QString &ldLibraryPath, QString &includePath);
 QStringList findSyntalosMlinkPyModulePaths();
 
@@ -112,6 +128,16 @@ public:
 
     QString instanceId() const;
     void setInstanceId(const QString &id);
+
+    bool soundCueEnabled(SoundCue cue) const;
+    void setSoundCueEnabled(SoundCue cue, bool enabled);
+
+    QByteArray soundOutputDeviceId() const;
+    QString soundOutputDeviceName() const;
+    void setSoundOutputDevice(const QByteArray &id, const QString &name);
+
+    int soundVolumePercent() const;
+    void setSoundVolumePercent(int percent);
 
     QString lastProjectDir() const;
     void setLastProjectDir(const QString &dir);

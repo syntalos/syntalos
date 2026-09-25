@@ -20,12 +20,18 @@
 #include "globalconfigdialog.h"
 #include "ui_globalconfigdialog.h"
 
-#include <QMessageBox>
-#include <QStandardPaths>
+#include <array>
+#include <tuple>
+#include <QCheckBox>
 #include <QDir>
+#include <QMessageBox>
+#include <QSignalBlocker>
+#include <QStandardPaths>
+#include <QToolButton>
 
 #include "appstyle.h"
 #include "datactl/priv/rtkit.h"
+#include "soundcueplayer.h"
 
 using namespace Syntalos;
 
@@ -61,6 +67,9 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent)
     ui->sbNetFeedbackPort->setValue(m_gc->netFeedbackPort());
     ui->leNetHost->setText(m_gc->netControlHost());
     ui->leNetInstanceId->setText(m_gc->instanceId());
+
+    // sounds section
+    setupSoundCueControls();
 
     // advanced section
     ui->defaultNicenessSpinBox->setMaximum(20);
@@ -150,6 +159,88 @@ void GlobalConfigDialog::on_leNetInstanceId_textEdited(const QString &text)
 {
     if (m_acceptChanges)
         m_gc->setInstanceId(text);
+}
+
+void GlobalConfigDialog::setupSoundCueControls()
+{
+    m_soundPlayer = new SoundCuePlayer(this);
+    connect(m_soundPlayer, &SoundCuePlayer::outputDevicesChanged, this, &GlobalConfigDialog::refreshSoundDeviceList);
+
+    refreshSoundDeviceList();
+    ui->slSoundVolume->setValue(m_gc->soundVolumePercent());
+    ui->lblSoundVolume->setText(QStringLiteral("%1 %").arg(m_gc->soundVolumePercent()));
+
+    const std::array<std::tuple<SoundCue, QCheckBox *, QToolButton *>, 5> cueWidgets = {
+        std::make_tuple(SoundCue::RunStarted, ui->cbCueRunStarted, ui->btnCueRunStarted),
+        std::make_tuple(SoundCue::RunFinishedSuccess, ui->cbCueRunSuccess, ui->btnCueRunSuccess),
+        std::make_tuple(SoundCue::RunFinishedFailure, ui->cbCueRunFailure, ui->btnCueRunFailure),
+        std::make_tuple(SoundCue::ResourceWarning, ui->cbCueResourceWarning, ui->btnCueResourceWarning),
+        std::make_tuple(SoundCue::ModuleFailed, ui->cbCueModuleFailed, ui->btnCueModuleFailed),
+    };
+    for (const auto &[cue, checkBox, previewBtn] : cueWidgets) {
+        checkBox->setChecked(m_gc->soundCueEnabled(cue));
+        connect(checkBox, &QCheckBox::toggled, this, [this, cue](bool checked) {
+            if (m_acceptChanges)
+                m_gc->setSoundCueEnabled(cue, checked);
+        });
+        previewBtn->setToolTip(QStringLiteral("Preview \"%1\"").arg(soundCueDisplayName(cue)));
+        connect(previewBtn, &QToolButton::clicked, this, [this, cue]() {
+            m_soundPlayer->playPreview(cue);
+        });
+    }
+}
+
+void GlobalConfigDialog::refreshSoundDeviceList()
+{
+    // we are only refreshing the view here, don't write anything back
+    const QSignalBlocker blocker(ui->cbSoundDevice);
+    ui->cbSoundDevice->clear();
+
+    // the plain device name is kept in a separate role, so we can store it for display
+    // even if the device is not connected the next time the dialog is opened
+    constexpr int NameRole = Qt::UserRole + 1;
+    ui->cbSoundDevice->addItem(QStringLiteral("System Default"), QByteArray());
+    ui->cbSoundDevice->setItemData(0, QString(), NameRole);
+
+    const auto wantedId = m_gc->soundOutputDeviceId();
+    int selectedIdx = 0;
+    for (const auto &dev : m_soundPlayer->availableOutputDevices()) {
+        ui->cbSoundDevice->addItem(dev.description(), dev.id());
+        ui->cbSoundDevice->setItemData(ui->cbSoundDevice->count() - 1, dev.description(), NameRole);
+        if (!wantedId.isEmpty() && dev.id() == wantedId)
+            selectedIdx = ui->cbSoundDevice->count() - 1;
+    }
+
+    // keep the user's choice visible (and selectable) even if the device is currently absent
+    if (!wantedId.isEmpty() && selectedIdx == 0) {
+        const auto name = m_gc->soundOutputDeviceName();
+        ui->cbSoundDevice->addItem(QStringLiteral("%1 (not connected)").arg(name), wantedId);
+        ui->cbSoundDevice->setItemData(ui->cbSoundDevice->count() - 1, name, NameRole);
+        selectedIdx = ui->cbSoundDevice->count() - 1;
+    }
+
+    ui->cbSoundDevice->setCurrentIndex(selectedIdx);
+}
+
+void GlobalConfigDialog::on_cbSoundDevice_currentIndexChanged(int index)
+{
+    if (!m_acceptChanges || index < 0)
+        return;
+
+    m_gc->setSoundOutputDevice(
+        ui->cbSoundDevice->itemData(index).toByteArray(),
+        ui->cbSoundDevice->itemData(index, Qt::UserRole + 1).toString());
+    m_soundPlayer->reloadSettings();
+}
+
+void GlobalConfigDialog::on_slSoundVolume_valueChanged(int value)
+{
+    ui->lblSoundVolume->setText(QStringLiteral("%1 %").arg(value));
+    if (!m_acceptChanges)
+        return;
+
+    m_gc->setSoundVolumePercent(value);
+    m_soundPlayer->reloadSettings();
 }
 
 void GlobalConfigDialog::on_defaultNicenessSpinBox_valueChanged(int arg1)

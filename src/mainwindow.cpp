@@ -60,6 +60,7 @@
 #include "intervalrundialog.h"
 #include "logviewdialog.h"
 #include "runnoticeswidget.h"
+#include "soundcueplayer.h"
 #include "sysinfodialog.h"
 #include "timingsdialog.h"
 #include "whatsnewdialog.h"
@@ -88,6 +89,7 @@ MainWindow::MainWindow(QWidget *parent)
     // Load settings and set icon theme explicitly
     // (otherwise the application may look ugly or incomplete on GNOME)
     m_gconf = new GlobalConfig(this);
+    m_soundCues = new SoundCuePlayer(this);
 
     // apply our selected style early, before creating the main UI
     // (we can't update icons yet, as not all GUI elements have been created)
@@ -334,6 +336,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_engine, &Engine::preRunPrepare, this, &MainWindow::onEnginePreRunPrepare);
     connect(m_engine, &Engine::runStarted, this, &MainWindow::onEngineRunStarted);
     connect(m_engine, &Engine::runStopped, this, &MainWindow::onEngineStopped);
+    connect(m_engine, &Engine::runStopped, this, &MainWindow::onEngineRunFinishedCue);
+    connect(m_engine, &Engine::moduleFailed, this, &MainWindow::onEngineModuleFailed);
     connect(m_engine, &Engine::resourceWarningUpdate, this, &MainWindow::onEngineResourceWarningUpdate);
     connect(m_engine, &Engine::connectionHeatChangedAtPort, this, &MainWindow::onEngineConnectionHeatChanged);
     connect(m_engine, &Engine::moduleInitStarted, this, [this]() {
@@ -959,10 +963,22 @@ void MainWindow::shutdown(int errorCode)
     // nicer UI wise to remove modules early, is why modules are destroyed a bit earlier and explicitly here.
     m_engine->removeAllModules();
 
-    if (errorCode == 0)
-        qApp->quit();
-    else
-        qApp->exit(errorCode);
+    const auto quitNow = [errorCode]() {
+        if (errorCode == 0)
+            qApp->quit();
+        else
+            qApp->exit(errorCode);
+    };
+
+    // let a cue that is still playing (e.g. "run finished") complete before we exit
+    if (m_soundCues->isPlaying()) {
+        LOG_DEBUG(m_log, "Waiting for sound cue to finish before quitting.");
+        connect(m_soundCues, &SoundCuePlayer::playbackFinished, this, quitNow, Qt::SingleShotConnection);
+        QTimer::singleShot(4000, this, quitNow);
+        return;
+    }
+
+    quitNow();
 }
 
 void MainWindow::showEvent(QShowEvent *event)
@@ -1246,6 +1262,9 @@ void MainWindow::globalConfigActionTriggered()
 
     // show configuration dialog
     gcDlg.exec();
+
+    // sound device or volume may have changed
+    m_soundCues->reloadSettings();
 
     // immediately apply some visual changes
     if (m_gconf->netControlEnabled())
@@ -1552,6 +1571,24 @@ void MainWindow::onEngineRunStarted()
     // therefore the user is permitted to cancel a run
     setRunUiControlStates(true, true);
     showBusyIndicatorRunning();
+
+    m_soundCues->play(SoundCue::RunStarted);
+}
+
+void MainWindow::onEngineRunFinishedCue()
+{
+    // This is deliberately not part of onEngineStopped(), as that one is also
+    // called manually after interval runs and returns early while in interval mode.
+    // The engine's failure state is still valid here, as it is only reset by the next run.
+    m_soundCues->play(m_engine->hasFailed() ? SoundCue::RunFinishedFailure : SoundCue::RunFinishedSuccess);
+}
+
+void MainWindow::onEngineModuleFailed(AbstractModule *, const QString &, bool runStopping)
+{
+    // if the run is stopping because of this failure, the run-failure cue
+    // will be played once the run has been torn down, so we stay silent here
+    if (!runStopping)
+        m_soundCues->play(SoundCue::ModuleFailed);
 }
 
 void MainWindow::onEngineStopped()
@@ -1600,10 +1637,14 @@ void MainWindow::onEngineResourceWarningUpdate(Engine::SystemResource kind, bool
         break;
     }
 
-    if (resolved)
+    if (resolved) {
         ui->runNoticesWidget->resolveNotice(key, message);
-    else
+    } else {
         ui->runNoticesWidget->setNotice(key, severity, message);
+        // the engine only emits a warning once until it is resolved, so this won't spam
+        if (severity != RunNoticesWidget::Severity::Info)
+            m_soundCues->play(SoundCue::ResourceWarning);
+    }
 }
 
 void MainWindow::onEngineConnectionHeatChanged(VarStreamInputPort *iport, ConnectionHeatLevel hlevel)

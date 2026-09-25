@@ -355,6 +355,280 @@
        </item>
       </layout>
      </widget>
+     <widget class="QWidget" name="tabSounds">
+      <attribute name="icon">
+       <iconset theme="audio-volume-high"/>
+      </attribute>
+      <attribute name="title">
+       <string>Sounds</string>
+      </attribute>
+      <layout class="QHBoxLayout" name="horizontalLayoutSounds">
+       <item>
+        <widget class="QWidget" name="widgetSounds" native="true">
+         <layout class="QVBoxLayout" name="verticalLayoutSounds">
+          <property name="leftMargin">
+           <number>0</number>
+          </property>
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <property name="rightMargin">
+           <number>0</number>
+          </property>
+          <property name="bottomMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="QLabel" name="soundsInfoLabel">
+            <property name="text">
+             <string>Sound cues can alert you about the state of an experiment while you are away from the setup.</string>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QGroupBox" name="groupBoxSoundOutput">
+            <property name="title">
+             <string>Output</string>
+            </property>
+            <layout class="QFormLayout" name="formLayoutSoundOutput">
+             <property name="leftMargin">
+              <number>4</number>
+             </property>
+             <property name="topMargin">
+              <number>4</number>
+             </property>
+             <property name="rightMargin">
+              <number>4</number>
+             </property>
+             <property name="bottomMargin">
+              <number>4</number>
+             </property>
+             <item row="0" column="0">
+              <widget class="QLabel" name="soundDeviceLabel">
+               <property name="text">
+                <string>Audio device</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QComboBox" name="cbSoundDevice"/>
+             </item>
+             <item row="1" column="0">
+              <widget class="QLabel" name="soundVolumeLabel">
+               <property name="text">
+                <string>Volume</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <layout class="QHBoxLayout" name="horizontalLayoutVolume">
+               <item>
+                <widget class="QSlider" name="slSoundVolume">
+                 <property name="maximum">
+                  <number>100</number>
+                 </property>
+                 <property name="value">
+                  <number>80</number>
+                 </property>
+                 <property name="orientation">
+                  <enum>Qt::Orientation::Horizontal</enum>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QLabel" name="lblSoundVolume">
+                 <property name="minimumSize">
+                  <size>
+                   <width>44</width>
+                   <height>0</height>
+                  </size>
+                 </property>
+                 <property name="text">
+                  <string>80 %</string>
+                 </property>
+                 <property name="alignment">
+                  <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+                 </property>
+                </widget>
+               </item>
+              </layout>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <widget class="QGroupBox" name="groupBoxSoundCues">
+            <property name="title">
+             <string>Play a sound when</string>
+            </property>
+            <layout class="QGridLayout" name="gridLayoutSoundCues" columnstretch="1,0">
+             <property name="leftMargin">
+              <number>4</number>
+             </property>
+             <property name="topMargin">
+              <number>4</number>
+             </property>
+             <property name="rightMargin">
+              <number>4</number>
+             </property>
+             <property name="bottomMargin">
+              <number>4</number>
+             </property>
+             <item row="0" column="0">
+              <widget class="QCheckBox" name="cbCueRunStarted">
+               <property name="text">
+                <string>Experiment run started</string>
+               </property>
+              </widget>
+             </item>
+             <item row="0" column="1">
+              <widget class="QToolButton" name="btnCueRunStarted">
+               <property name="toolTip">
+                <string>Preview</string>
+               </property>
+               <property name="text">
+                <string>Preview</string>
+               </property>
+               <property name="icon">
+                <iconset theme="media-playback-start"/>
+               </property>
+               <property name="toolButtonStyle">
+                <enum>Qt::ToolButtonStyle::ToolButtonIconOnly</enum>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="0">
+              <widget class="QCheckBox" name="cbCueRunSuccess">
+               <property name="text">
+                <string>Run finished successfully</string>
+               </property>
+              </widget>
+             </item>
+             <item row="1" column="1">
+              <widget class="QToolButton" name="btnCueRunSuccess">
+               <property name="toolTip">
+                <string>Preview</string>
+               </property>
+               <property name="text">
+                <string>Preview</string>
+               </property>
+               <property name="icon">
+                <iconset theme="media-playback-start"/>
+               </property>
+               <property name="toolButtonStyle">
+                <enum>Qt::ToolButtonStyle::ToolButtonIconOnly</enum>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="0">
+              <widget class="QCheckBox" name="cbCueRunFailure">
+               <property name="text">
+                <string>Run failed</string>
+               </property>
+              </widget>
+             </item>
+             <item row="2" column="1">
+              <widget class="QToolButton" name="btnCueRunFailure">
+               <property name="toolTip">
+                <string>Preview</string>
+               </property>
+               <property name="text">
+                <string>Preview</string>
+               </property>
+               <property name="icon">
+                <iconset theme="media-playback-start"/>
+               </property>
+               <property name="toolButtonStyle">
+                <enum>Qt::ToolButtonStyle::ToolButtonIconOnly</enum>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="0">
+              <widget class="QCheckBox" name="cbCueResourceWarning">
+               <property name="text">
+                <string>Resource warning (disk space, memory, stream buffers)</string>
+               </property>
+              </widget>
+             </item>
+             <item row="3" column="1">
+              <widget class="QToolButton" name="btnCueResourceWarning">
+               <property name="toolTip">
+                <string>Preview</string>
+               </property>
+               <property name="text">
+                <string>Preview</string>
+               </property>
+               <property name="icon">
+                <iconset theme="media-playback-start"/>
+               </property>
+               <property name="toolButtonStyle">
+                <enum>Qt::ToolButtonStyle::ToolButtonIconOnly</enum>
+               </property>
+              </widget>
+             </item>
+             <item row="4" column="0">
+              <widget class="QCheckBox" name="cbCueModuleFailed">
+               <property name="text">
+                <string>Module failed (also if its failure does not stop the run)</string>
+               </property>
+              </widget>
+             </item>
+             <item row="4" column="1">
+              <widget class="QToolButton" name="btnCueModuleFailed">
+               <property name="toolTip">
+                <string>Preview</string>
+               </property>
+               <property name="text">
+                <string>Preview</string>
+               </property>
+               <property name="icon">
+                <iconset theme="media-playback-start"/>
+               </property>
+               <property name="toolButtonStyle">
+                <enum>Qt::ToolButtonStyle::ToolButtonIconOnly</enum>
+               </property>
+              </widget>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <spacer name="verticalSpacerSounds">
+            <property name="orientation">
+             <enum>Qt::Orientation::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>398</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <spacer name="horizontalSpacerSounds">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Policy::Expanding</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>500</width>
+           <height>0</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
      <widget class="QWidget" name="tabAdvanced">
       <attribute name="icon">
        <iconset theme="blur"/>

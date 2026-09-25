@@ -76,4 +76,11 @@
         <file>greetings.toml</file>
         <file>whatsnew.toml</file>
     </qresource>
+    <qresource prefix="/sounds">
+        <file alias="run-started.opus">sounds/run-started.opus</file>
+        <file alias="run-finished-success.opus">sounds/run-finished-success.opus</file>
+        <file alias="run-finished-failure.opus">sounds/run-finished-failure.opus</file>
+        <file alias="resource-warning.opus">sounds/resource-warning.opus</file>
+        <file alias="module-failed.opus">sounds/module-failed.opus</file>
+    </qresource>
 </RCC>
