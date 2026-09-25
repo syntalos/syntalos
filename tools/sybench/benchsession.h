@@ -25,6 +25,7 @@
 #include <QString>
 #include <QStringList>
 #include <atomic>
+#include <expected>
 #include <memory>
 
 #include "dimension.h"
@@ -104,7 +105,8 @@ public:
     /**
      * @brief Run a single step of a dimension (used by the self test).
      */
-    StepRecord runSingleStep(const Dimension &dim, const QString &profileId, int level, int durationSec);
+    auto runSingleStep(const Dimension &dim, const QString &profileId, int level, int durationSec)
+        -> std::expected<StepRecord, QString>;
 
 public slots:
     void run();
@@ -120,7 +122,11 @@ signals:
     void stepStarted(const SyBench::LadderRecord &ladder, int level);
     void stepFinished(const SyBench::StepRecord &step);
     void ladderFinished(const SyBench::LadderRecord &ladder);
-    void finished(bool cancelled);
+    /**
+     * @brief The session ended.
+     * @param error Why the session was aborted early, empty if it ran to completion or was cancelled.
+     */
+    void finished(bool cancelled, const QString &error);
 
 private:
     SessionConfig m_config;
@@ -132,7 +138,14 @@ private:
 
     const Dimension *dimension(const QString &id) const;
     void progress(const QString &msg);
-    StepRecord runStep(const Dimension &dim, const QString &profileId, int level, int durationSec);
+    LadderConfig ladderConfig(const Dimension &dim, const QString &profileId) const;
+    void abort(const QString &error);
+
+    /**
+     * @brief Run one step. The error branch is taken when no run can work at all.
+     */
+    auto runStep(const Dimension &dim, const QString &profileId, int level, int durationSec)
+        -> std::expected<StepRecord, QString>;
 };
 
 } // namespace SyBench

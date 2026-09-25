@@ -69,8 +69,6 @@ static QString failureReasonFromExit(const StepResult &r, bool crashed)
         return QStringLiteral("The run failed (no details recorded).");
     case SY_EXIT_TERMINATED:
         return QStringLiteral("Syntalos was asked to stop by something other than the benchmark.");
-    case SY_EXIT_ALREADY_RUNNING:
-        return QStringLiteral("Another Syntalos instance is running. Close it before benchmarking.");
     default:
         return QStringLiteral("Syntalos exited with code %1.").arg(r.exitCode);
     }
@@ -338,6 +336,8 @@ auto SyntalosRunner::run(const StepRunConfig &cfg) -> std::expected<StepResult, 
     r.outputTail = outLines.join(QLatin1Char('\n'));
     const bool crashed = proc.exitStatus() == QProcess::CrashExit;
     r.exitCode = crashed ? -1 : proc.exitCode();
+    if (r.exitCode == SY_EXIT_ALREADY_RUNNING)
+        return std::unexpected(QStringLiteral("Another Syntalos instance is running. Close it before benchmarking."));
 
     if (r.stopCause == StopCause::Cancelled)
         return r;

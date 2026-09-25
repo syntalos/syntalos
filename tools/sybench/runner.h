@@ -127,7 +127,8 @@ public:
      * @brief Run one step synchronously. Blocks for the whole run.
      *
      * A failed, killed or cancelled run is still a result; the error branch is only
-     * taken when Syntalos could not be launched at all.
+     * taken when Syntalos can not run at all (it could not be launched, or another
+     * instance is running), so no other step would succeed either.
      */
     auto run(const StepRunConfig &cfg) -> std::expected<StepResult, QString>;
 

@@ -63,7 +63,7 @@ private slots:
     void onLadderStarted(int index, int total, const SyBench::LadderRecord &ladder);
     void onStepFinished(const SyBench::StepRecord &step);
     void onLadderFinished(const SyBench::LadderRecord &ladder);
-    void onSessionFinished(bool cancelled);
+    void onSessionFinished(bool cancelled, const QString &error);
     void appendLog(const QString &msg);
 
 private:

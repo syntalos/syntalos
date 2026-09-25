@@ -41,10 +41,16 @@ int runHeadless(const SessionConfig &config)
 {
     BenchSession session(config);
     QList<LadderRecord> ladders;
+    QString error;
     QObject::connect(&session, &BenchSession::ladderFinished, [&ladders](const LadderRecord &lr) {
         ladders.append(lr);
     });
+    QObject::connect(&session, &BenchSession::finished, [&error](bool, const QString &err) {
+        error = err;
+    });
     session.run();
+    if (!error.isEmpty())
+        return 1;
 
     const auto reportFile = QDir(config.workDir).filePath(QStringLiteral("report.json"));
     if (const auto res = saveReport(reportFile, ladders, config, session.cpuCores()); !res) {
@@ -59,7 +65,12 @@ int runSelfTest(const SessionConfig &config)
 {
     BenchSession session(config);
     auto dim = createDimension(QStringLiteral("camera-capacity"));
-    const auto rec = session.runSingleStep(*dim, dim->profiles().first().id, 1, 3);
+    const auto step = session.runSingleStep(*dim, dim->profiles().first().id, 1, 3);
+    if (!step) {
+        LOG_ERROR(logRoot, "Self test: FAIL ({})", step.error());
+        return 1;
+    }
+    const auto &rec = *step;
     if (rec.verdict.passed) {
         LOG_INFO(logRoot, "Self test: PASS ({})", rec.verdict.summary);
         return 0;

@@ -161,7 +161,7 @@ void BenchWindow::setRunningState(bool running)
     ui->stopButton->setEnabled(running);
     ui->stopButton->setVisible(running);
     ui->resultsButton->setVisible(!running);
-    ui->resultsButton->setEnabled(!running && m_finished);
+    ui->resultsButton->setEnabled(!running && m_finished && !m_ladders.isEmpty());
     ui->backButton->setEnabled(!running);
     ui->saveButton->setEnabled(!m_ladders.isEmpty());
 }
@@ -224,12 +224,17 @@ void BenchWindow::stopBenchmark()
     m_session->cancel();
 }
 
-void BenchWindow::onSessionFinished(bool cancelled)
+void BenchWindow::onSessionFinished(bool cancelled, const QString &error)
 {
     m_elapsedTimer.stop();
     updateElapsed();
-    ui->progressBar->setValue(cancelled ? ui->progressBar->value() : ui->progressBar->maximum());
-    ui->phaseLabel->setText(cancelled ? QStringLiteral("Benchmark cancelled.") : QStringLiteral("Benchmark finished."));
+    const bool complete = !cancelled && error.isEmpty();
+    ui->progressBar->setValue(complete ? ui->progressBar->maximum() : ui->progressBar->value());
+    if (!error.isEmpty())
+        ui->phaseLabel->setText(QStringLiteral("Benchmark aborted."));
+    else
+        ui->phaseLabel->setText(
+            cancelled ? QStringLiteral("Benchmark cancelled.") : QStringLiteral("Benchmark finished."));
 
     m_thread->quit();
     m_thread->wait();
@@ -241,6 +246,13 @@ void BenchWindow::onSessionFinished(bool cancelled)
     setRunningState(false);
     showHealth();
     showScore();
+
+    if (!error.isEmpty()) {
+        QMessageBox::critical(this, QStringLiteral("Benchmark aborted"), error);
+        // without any result, the log on the run page is the most useful thing to show
+        if (m_ladders.isEmpty())
+            return;
+    }
     showResultsPage();
 }
 

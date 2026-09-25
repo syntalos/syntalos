@@ -88,7 +88,8 @@ const Dimension *BenchSession::dimension(const QString &id) const
     return nullptr;
 }
 
-StepRecord BenchSession::runStep(const Dimension &dim, const QString &profileId, int level, int durationSec)
+auto BenchSession::runStep(const Dimension &dim, const QString &profileId, int level, int durationSec)
+    -> std::expected<StepRecord, QString>
 {
     StepRecord rec;
     rec.dimensionId = dim.id();
@@ -120,28 +121,36 @@ StepRecord BenchSession::runStep(const Dimension &dim, const QString &profileId,
     }
     rec.statsFile = cfg.statsFile;
 
-    if (const auto res = writeProjectFile(spec, cfg.projectFile); !res) {
-        rec.verdict.summary = QStringLiteral("project generation failed: %1").arg(res.error());
-        return rec;
-    }
+    if (const auto res = writeProjectFile(spec, cfg.projectFile); !res)
+        return std::unexpected(QStringLiteral("Unable to generate the benchmark project: %1").arg(res.error()));
 
     auto result = m_runner.run(cfg);
     // recorded data is only there to be measured, do not keep it around
     if (!cfg.ephemeral)
         QDir(cfg.exportDir).removeRecursively();
-    if (!result) {
-        rec.verdict.summary = QStringLiteral("unable to run Syntalos: %1").arg(result.error());
-        return rec;
-    }
+    if (!result)
+        return std::unexpected(result.error());
     rec.result = std::move(*result);
     rec.verdict = dim.evaluate(profileId, level, rec.result);
     return rec;
 }
 
-StepRecord BenchSession::runSingleStep(const Dimension &dim, const QString &profileId, int level, int durationSec)
+auto BenchSession::runSingleStep(const Dimension &dim, const QString &profileId, int level, int durationSec)
+    -> std::expected<StepRecord, QString>
 {
     QDir().mkpath(m_config.workDir);
     return runStep(dim, profileId, level, durationSec);
+}
+
+LadderConfig BenchSession::ladderConfig(const Dimension &dim, const QString &profileId) const
+{
+    LadderConfig lcfg;
+    lcfg.maxLevel = m_config.maxLevel > 0 ? m_config.maxLevel : dim.maxLevel(profileId);
+    lcfg.startLevel = std::min(
+        m_config.startLevel > 0 ? m_config.startLevel : dim.startLevel(m_cpuCores, profileId),
+        lcfg.maxLevel);
+    lcfg.bisections = m_config.quick ? 1 : 2;
+    return lcfg;
 }
 
 void BenchSession::cancel()
@@ -150,20 +159,22 @@ void BenchSession::cancel()
     m_runner.cancel();
 }
 
+void BenchSession::abort(const QString &error)
+{
+    LOG_ERROR(m_log, "Benchmark aborted: {}", error);
+    emit progressMessage(QStringLiteral("Benchmark aborted: %1").arg(error));
+    emit phaseChanged(QStringLiteral("Aborted"));
+    emit finished(false, error);
+}
+
 void BenchSession::run()
 {
     m_cancelled = false;
     m_runner.resetCancel();
-    if (!QDir().mkpath(m_config.workDir)) {
-        progress(QStringLiteral("Unable to create work directory %1").arg(m_config.workDir));
-        emit finished(false);
-        return;
-    }
-    if (m_runner.syntalosBinary().isEmpty()) {
-        progress(QStringLiteral("The syntalos executable was not found."));
-        emit finished(false);
-        return;
-    }
+    if (!QDir().mkpath(m_config.workDir))
+        return abort(QStringLiteral("Unable to create the work directory %1.").arg(m_config.workDir));
+    if (m_runner.syntalosBinary().isEmpty())
+        return abort(QStringLiteral("The syntalos executable was not found."));
 
     QList<LadderRecord> ladders;
     for (const auto &sel : m_config.selections) {
@@ -183,40 +194,37 @@ void BenchSession::run()
         }
         ladders.append(lr);
     }
-    if (ladders.isEmpty()) {
-        progress(QStringLiteral("Nothing selected to run."));
-        emit finished(false);
-        return;
-    }
+    if (ladders.isEmpty())
+        return abort(QStringLiteral("Nothing selected to run."));
 
     progress(QStringLiteral("Syntalos: %1").arg(m_runner.syntalosBinary()));
     progress(QStringLiteral("Work directory: %1").arg(m_config.workDir));
     progress(QStringLiteral("Physical cores: %1, step duration: %2 s").arg(m_cpuCores).arg(stepSeconds()));
 
     // the first launch of Syntalos on a machine is slower (cold caches, Python byte-compilation, ...),
-    // so we do one run and throw its result away
+    // so we do one run and throw its result away; it also tells us early if Syntalos can not run at all
     if (m_config.warmup) {
         emit phaseChanged(QStringLiteral("Warm-up run (not counted)"));
         progress(QStringLiteral("Warm-up run (discarded)..."));
         const auto &first = ladders.first();
         const auto *dim = dimension(first.dimensionId);
-        runStep(*dim, first.profileId, dim->startLevel(m_cpuCores, first.profileId), 5);
+        const auto warmup = runStep(*dim, first.profileId, ladderConfig(*dim, first.profileId).startLevel, 5);
+        if (!warmup)
+            return abort(warmup.error());
+        if (!warmup->result.success && !m_cancelled)
+            progress(QStringLiteral("Warm-up run failed: %1").arg(warmup->verdict.summary));
     }
 
+    QString sessionError;
     int index = 0;
     for (auto &lr : ladders) {
-        if (m_cancelled)
+        if (m_cancelled || !sessionError.isEmpty())
             break;
         const auto *dim = dimension(lr.dimensionId);
         emit ladderStarted(index, ladders.size(), lr);
         progress(QStringLiteral("== %1, %2 ==").arg(lr.dimensionTitle, lr.profileTitle));
 
-        LadderConfig lcfg;
-        lcfg.startLevel = m_config.startLevel > 0 ? m_config.startLevel : dim->startLevel(m_cpuCores, lr.profileId);
-        lcfg.maxLevel = m_config.maxLevel > 0 ? m_config.maxLevel : dim->maxLevel(lr.profileId);
-        lcfg.bisections = m_config.quick ? 1 : 2;
-
-        lr.outcome = runLadder(lcfg, [&](int level) -> LevelResult {
+        lr.outcome = runLadder(ladderConfig(*dim, lr.profileId), [&](int level) -> LevelResult {
             if (m_cancelled)
                 return LevelResult::Cancelled;
             emit stepStarted(lr, level);
@@ -226,7 +234,13 @@ void BenchSession::run()
                                   .arg(lr.levelUnit));
             progress(QStringLiteral("Trying %1 %2...").arg(level).arg(lr.levelUnit));
 
-            auto rec = runStep(*dim, lr.profileId, level, stepSeconds());
+            auto step = runStep(*dim, lr.profileId, level, stepSeconds());
+            if (!step) {
+                // no further run can work, end the ladder like a cancellation
+                sessionError = step.error();
+                return LevelResult::Cancelled;
+            }
+            auto &rec = *step;
             if (rec.result.stopCause == StopCause::Cancelled || m_cancelled)
                 return LevelResult::Cancelled;
             if (rec.result.started)
@@ -253,7 +267,7 @@ void BenchSession::run()
                          .arg(lr.outcome.sustained)
                          .arg(lr.levelUnit));
         } else if (lr.outcome.cancelled) {
-            progress(QStringLiteral("Cancelled, %1 %2 passed so far.").arg(lr.outcome.sustained).arg(lr.levelUnit));
+            progress(QStringLiteral("Stopped, %1 %2 passed so far.").arg(lr.outcome.sustained).arg(lr.levelUnit));
         } else {
             progress(
                 QStringLiteral("Sustained: %1 %2%3")
@@ -265,8 +279,10 @@ void BenchSession::run()
         index++;
     }
 
+    if (!sessionError.isEmpty())
+        return abort(sessionError);
     emit phaseChanged(m_cancelled ? QStringLiteral("Cancelled") : QStringLiteral("Finished"));
-    emit finished(m_cancelled);
+    emit finished(m_cancelled, QString());
 }
 
 } // namespace SyBench
