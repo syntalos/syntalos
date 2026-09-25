@@ -320,6 +320,7 @@ public:
     };
 
     std::vector<SubscriptionBufferWatchData> monitoredSubscriptions;
+    std::vector<SubscriptionBufferWatchData> lastRunSubscriptions; // snapshot of the watch data when monitoring stopped
     QString exportDirPath;
 
     bool diskSpaceWarningEmitted;
@@ -1852,6 +1853,7 @@ void Engine::stopResourceMonitoring()
     d->monitoring->subBufferCheckTimer.stop();
     d->monitoring->subBufferCheckTimer.disconnect(this);
 
+    d->monitoring->lastRunSubscriptions = d->monitoring->monitoredSubscriptions;
     d->monitoring->monitoredSubscriptions.clear();
     d->monitoring->exportDirPath = QString();
 
@@ -2875,7 +2877,7 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
                 }
             }
 
-            LOG_DEBUG(
+            LOG_INFO(
                 d->log,
                 "Startup phase completed, all modules are running. Took additional {} msec",
                 timeDiffToNowMsec(lastPhaseTimepoint).count());
@@ -3461,8 +3463,9 @@ void Engine::collectRunStatistics(const RunStatsCollectInput &in)
     }
 
     // connections
+    // monitoring has been stopped by the time we get here, use its final snapshot
     QHash<VariantStreamSubscription *, const EngineResourceMonitorData::SubscriptionBufferWatchData *> monitored;
-    for (const auto &msd : d->monitoring->monitoredSubscriptions)
+    for (const auto &msd : d->monitoring->lastRunSubscriptions)
         monitored.insert(msd.sub, &msd);
     for (auto mod : in.modOrder.start) {
         const auto mlinkMod = qobject_cast<MLinkModule *>(mod);
