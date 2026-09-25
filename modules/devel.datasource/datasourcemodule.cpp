@@ -27,6 +27,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
+#include <random>
 #include <QFormLayout>
 #include <QSpinBox>
 #include <opencv2/opencv.hpp>
@@ -75,6 +76,8 @@ private:
 
     // channel count of all signal ports, zero selects the default channel layout
     int m_signalChannels;
+    double m_noiseLevel;
+    std::vector<float> m_noiseTable; /// deterministic Gaussian noise, indexed by sample and channel
     ChannelMix m_floatMix;
     ChannelMix m_int32Mix;
     ChannelMix m_int16Mix;
@@ -95,7 +98,8 @@ public:
           m_freqLow(10.0),
           m_freqHigh(300.0),
           m_sampleCount(0),
-          m_signalChannels(0)
+          m_signalChannels(0),
+          m_noiseLevel(0.1)
     {
         m_frameOut = registerOutputPort<Frame>(QStringLiteral("frames-out"), QStringLiteral("Frames"));
         m_rowsOut = registerOutputPort<TableRow>(QStringLiteral("rows-out"), QStringLiteral("Table Rows"));
@@ -166,6 +170,16 @@ public:
         channelsSpin->setValue(m_signalChannels);
         layout->addRow(QStringLiteral("Signal Channels"), channelsSpin);
 
+        auto noiseSpin = new QDoubleSpinBox(&dlg);
+        noiseSpin->setRange(0.0, 1.0);
+        noiseSpin->setSingleStep(0.05);
+        noiseSpin->setDecimals(2);
+        noiseSpin->setToolTip(QStringLiteral(
+            "Gaussian noise added to every signal channel, relative to the signal "
+            "amplitude. Makes the data compress like real recordings."));
+        noiseSpin->setValue(m_noiseLevel);
+        layout->addRow(QStringLiteral("Signal Noise"), noiseSpin);
+
         auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
         connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
         connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -180,6 +194,7 @@ public:
         m_colorVideo = colorCheck->isChecked();
         m_sampleRate = rateSpin->value();
         m_signalChannels = channelsSpin->value();
+        m_noiseLevel = noiseSpin->value();
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
@@ -190,6 +205,7 @@ public:
         settings.insert(QStringLiteral("frame_height"), m_outFrameSize.height());
         settings.insert(QStringLiteral("frame_content"), frameContentToString(m_frameContent));
         settings.insert(QStringLiteral("signal_channels"), m_signalChannels);
+        settings.insert(QStringLiteral("noise_level"), m_noiseLevel);
         settings.insert(QStringLiteral("sample_rate"), m_sampleRate);
         settings.insert(QStringLiteral("test_freq_low"), m_freqLow);
         settings.insert(QStringLiteral("test_freq_high"), m_freqHigh);
@@ -212,6 +228,7 @@ public:
             settings.value(QStringLiteral("sample_rate"), 2000.0).toDouble(),
             1.0,
             kMaxSampleRate);
+        m_noiseLevel = std::clamp(settings.value(QStringLiteral("noise_level"), 0.1).toDouble(), 0.0, 1.0);
         m_freqLow = settings.value(QStringLiteral("test_freq_low"), 10.0).toDouble();
         m_freqHigh = settings.value(QStringLiteral("test_freq_high"), 300.0).toDouble();
 
@@ -351,6 +368,8 @@ public:
             // samples is emitted per loop iteration; the loop is paced to m_fps by
             // the frame sleep above, so the effective rate is ~m_fps*blockLen.
             const int blockLen = std::max(1, static_cast<int>(std::lround(m_sampleRate / m_fps)));
+            if (m_noiseTable.empty())
+                m_noiseTable = createNoiseTable();
 
             VectorXu64 timestamps(blockLen);
             std::vector<double> lo(blockLen);
@@ -363,25 +382,62 @@ public:
                 lo[i] = 0.5 * std::sin(2.0 * M_PI * m_freqLow * t);
                 hi[i] = 0.5 * std::sin(2.0 * M_PI * m_freqHigh * t);
             }
+            const uint64_t blockStart = m_sampleCount;
             m_sampleCount += static_cast<uint64_t>(blockLen);
 
             if (m_floatOut->hasSubscribers())
-                m_floatOut->push(createSignalBlock<SignalBlockF32>(timestamps, lo, hi, m_floatMix, [](double v) {
-                    return static_cast<float>(v);
-                }));
+                m_floatOut->push(
+                    createSignalBlock<SignalBlockF32>(
+                        timestamps,
+                        lo,
+                        hi,
+                        m_floatMix,
+                        m_noiseTable,
+                        m_noiseLevel,
+                        blockStart,
+                        [](double v) {
+                            return static_cast<float>(v);
+                        }));
             if (m_int32Out->hasSubscribers())
-                m_int32Out->push(createSignalBlock<SignalBlockI32>(timestamps, lo, hi, m_int32Mix, [](double v) {
-                    return static_cast<int32_t>(std::lround(1000.0 * v));
-                }));
+                m_int32Out->push(
+                    createSignalBlock<SignalBlockI32>(
+                        timestamps,
+                        lo,
+                        hi,
+                        m_int32Mix,
+                        m_noiseTable,
+                        m_noiseLevel,
+                        blockStart,
+                        [](double v) {
+                            return static_cast<int32_t>(std::lround(1000.0 * v));
+                        }));
             // signed 16-bit: exercise the negative half of the range as well
             if (m_int16Out->hasSubscribers())
-                m_int16Out->push(createSignalBlock<SignalBlockI16>(timestamps, lo, hi, m_int16Mix, [](double v) {
-                    return static_cast<int16_t>(std::lround(1000.0 * v));
-                }));
+                m_int16Out->push(
+                    createSignalBlock<SignalBlockI16>(
+                        timestamps,
+                        lo,
+                        hi,
+                        m_int16Mix,
+                        m_noiseTable,
+                        m_noiseLevel,
+                        blockStart,
+                        [](double v) {
+                            return static_cast<int16_t>(std::lround(1000.0 * v));
+                        }));
             if (m_uint16Out->hasSubscribers())
-                m_uint16Out->push(createSignalBlock<SignalBlockU16>(timestamps, lo, hi, m_uint16Mix, [](double v) {
-                    return static_cast<uint16_t>(std::lround(2000.0 + 1000.0 * v));
-                }));
+                m_uint16Out->push(
+                    createSignalBlock<SignalBlockU16>(
+                        timestamps,
+                        lo,
+                        hi,
+                        m_uint16Mix,
+                        m_noiseTable,
+                        m_noiseLevel,
+                        blockStart,
+                        [](double v) {
+                            return static_cast<uint16_t>(std::lround(2000.0 + 1000.0 * v));
+                        }));
 
             dataIndex++;
         }
@@ -393,7 +449,7 @@ public:
 private:
     static constexpr int kMinFrameEdge = 16;
     static constexpr int kMaxFrameEdge = 8192;
-    static constexpr int kMaxSignalChannels = 4096;
+    static constexpr int kMaxSignalChannels = 32768;
     static constexpr double kMaxSampleRate = 1000000.0;
 
     static QString frameContentToString(FrameContent content)
@@ -434,21 +490,46 @@ private:
         stream->setMetadataValue("signal_names", names);
     }
 
+    static constexpr size_t kNoiseTableSize = 1 << 16;
+
+    /**
+     * A table of standard-normal samples with a fixed seed: the noise is a pure function
+     * of sample index and channel, so runs stay reproducible.
+     */
+    static std::vector<float> createNoiseTable()
+    {
+        std::vector<float> table(kNoiseTableSize);
+        std::mt19937 rng(0x5EED);
+        std::normal_distribution<float> dist(0.0f, 1.0f);
+        for (auto &v : table)
+            v = dist(rng);
+        return table;
+    }
+
     template<typename SB, typename Conv>
     static SB createSignalBlock(
         const VectorXu64 &timestamps,
         const std::vector<double> &lo,
         const std::vector<double> &hi,
         const ChannelMix &mix,
+        const std::vector<float> &noise,
+        double noiseLevel,
+        uint64_t firstSample,
         Conv convert)
     {
         const auto blockLen = lo.size();
         SB sb(blockLen, mix.size());
         sb.timestamps = timestamps;
+        // the signals swing +/- 0.5, the noise level is relative to that amplitude
+        const double noiseGain = noiseLevel * 0.5;
         for (size_t c = 0; c < mix.size(); ++c) {
             const auto [wLo, wHi] = mix[c];
-            for (size_t i = 0; i < blockLen; ++i)
-                sb.data(i, c) = convert(wLo * lo[i] + wHi * hi[i]);
+            // every channel walks the table at a different offset
+            const size_t noiseBase = static_cast<size_t>(firstSample) + c * 7919u;
+            for (size_t i = 0; i < blockLen; ++i) {
+                const double n = noiseGain * noise[(noiseBase + i) & (kNoiseTableSize - 1)];
+                sb.data(i, c) = convert(wLo * lo[i] + wHi * hi[i] + n);
+            }
         }
 
         return sb;
