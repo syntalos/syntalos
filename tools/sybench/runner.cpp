@@ -27,6 +27,7 @@
 #include <QProcess>
 
 #include "executils.h"
+#include "exitcodes.h"
 #include "logging.h"
 #include "utils/resourceinfo.h"
 
@@ -35,9 +36,45 @@ using namespace Syntalos;
 namespace SyBench
 {
 
-// exit codes of the syntalos executable (see src/mainwindow.h)
-static constexpr int SY_EXIT_RUN_FAILED = 5;
-static constexpr int SY_EXIT_ALREADY_RUNNING = 6;
+QString stopCauseToString(StopCause cause)
+{
+    switch (cause) {
+    case StopCause::None:
+        return QStringLiteral("none");
+    case StopCause::Cancelled:
+        return QStringLiteral("cancelled");
+    case StopCause::MemoryLimit:
+        return QStringLiteral("memory-limit");
+    case StopCause::StartupTimeout:
+        return QStringLiteral("startup-timeout");
+    case StopCause::RunTimeout:
+        return QStringLiteral("run-timeout");
+    }
+    return QStringLiteral("unknown");
+}
+
+/**
+ * Explain why a run Syntalos ended by itself did not succeed.
+ */
+static QString failureReasonFromExit(const StepResult &r, bool crashed)
+{
+    if (r.stats && r.stats->failed && !r.stats->failReason.isEmpty())
+        return r.stats->failReason;
+    if (crashed)
+        return QStringLiteral("Syntalos crashed.");
+    switch (r.exitCode) {
+    case SY_EXIT_SUCCESS:
+        return QStringLiteral("Syntalos wrote no run statistics.");
+    case SY_EXIT_RUN_FAILED:
+        return QStringLiteral("The run failed (no details recorded).");
+    case SY_EXIT_TERMINATED:
+        return QStringLiteral("Syntalos was asked to stop by something other than the benchmark.");
+    case SY_EXIT_ALREADY_RUNNING:
+        return QStringLiteral("Another Syntalos instance is running. Close it before benchmarking.");
+    default:
+        return QStringLiteral("Syntalos exited with code %1.").arg(r.exitCode);
+    }
+}
 
 std::optional<MeterStats> MeterStats::fromModule(const ModuleRunStats &mod)
 {
@@ -165,7 +202,7 @@ auto SyntalosRunner::run(const StepRunConfig &cfg) -> std::expected<StepResult, 
 
     StepResult r;
     if (m_cancel) {
-        r.cancelled = true;
+        r.stopCause = StopCause::Cancelled;
         r.failureReason = QStringLiteral("Cancelled.");
         return r;
     }
@@ -218,13 +255,31 @@ auto SyntalosRunner::run(const StepRunConfig &cfg) -> std::expected<StepResult, 
         memoryLimitKiB = std::max<qint64>(readMemInfo().memAvailableKiB - 2LL * 1024 * 1024, 512 * 1024);
     const qint64 pid = proc.processId();
 
-    // graceful stop first: a healthy but overloaded Syntalos shuts down cleanly on SIGTERM
+    // Syntalos stops its run and quits cleanly on SIGTERM, so we ask first and only kill it
+    // if it does not manage to stop within the grace period
+    enum class StopState {
+        Running,
+        Terminating,
+        Killed
+    };
+    auto stopState = StopState::Running;
     qint64 killDeadlineMs = 0;
-    const auto stopProcess = [&](int graceMs) {
-        if (killDeadlineMs != 0)
+    const auto stopProcess = [&](StopCause cause, const QString &reason, int graceMs) {
+        if (r.stopCause == StopCause::None) {
+            r.stopCause = cause;
+            r.failureReason = reason;
+        }
+        if (stopState != StopState::Running)
             return;
+        LOG_WARNING(m_log, "{} Asking Syntalos to stop...", reason);
         proc.terminate();
+        stopState = StopState::Terminating;
         killDeadlineMs = timer.elapsed() + graceMs;
+    };
+    const auto killProcess = [&](const QString &why) {
+        LOG_WARNING(m_log, "{}, killing Syntalos", why);
+        proc.kill();
+        stopState = StopState::Killed;
     };
 
     qint64 lastRssKiB = 0;
@@ -248,84 +303,56 @@ auto SyntalosRunner::run(const StepRunConfig &cfg) -> std::expected<StepResult, 
         }
         const auto memAvailableKiB = readMemInfo().memAvailableKiB;
         const bool systemStarved = memAvailableKiB < cfg.systemMemoryFloorKiB;
-        if (!r.memoryExceeded && (rssKiB > memoryLimitKiB || systemStarved)) {
-            r.memoryExceeded = true;
-            r.failureReason = QStringLiteral(
-                                  "Memory limit exceeded: Syntalos used %1 MiB (limit %2 MiB, %3 MiB left "
-                                  "on the system), growing by %4 MiB/s. Fast growth means its data queues "
-                                  "were overflowing.")
-                                  .arg(rssKiB / 1024)
-                                  .arg(memoryLimitKiB / 1024)
-                                  .arg(memAvailableKiB / 1024)
-                                  .arg(growthMiBPerSec, 0, 'f', 0);
-            LOG_WARNING(m_log, "Memory limit exceeded ({} MiB used), asking Syntalos to stop...", rssKiB / 1024);
-            stopProcess(5000);
-        }
-        // a stopping process that still eats memory is not going to make it, kill it before the machine suffers
-        if (r.memoryExceeded && systemStarved && killDeadlineMs > nowMs) {
-            LOG_WARNING(m_log, "System memory is running out, killing Syntalos");
-            proc.kill();
-            killDeadlineMs = nowMs;
-        }
+        if (rssKiB > memoryLimitKiB || systemStarved)
+            stopProcess(
+                StopCause::MemoryLimit,
+                QStringLiteral(
+                    "Memory limit exceeded: Syntalos used %1 MiB (limit %2 MiB, %3 MiB left "
+                    "on the system), growing by %4 MiB/s. Fast growth means its data queues "
+                    "were overflowing.")
+                    .arg(rssKiB / 1024)
+                    .arg(memoryLimitKiB / 1024)
+                    .arg(memAvailableKiB / 1024)
+                    .arg(growthMiBPerSec, 0, 'f', 0),
+                5000);
+        if (m_cancel)
+            stopProcess(StopCause::Cancelled, QStringLiteral("Cancelled."), 15000);
+        if (!r.started && nowMs > cfg.startupTimeoutSec * 1000LL)
+            stopProcess(
+                StopCause::StartupTimeout,
+                QStringLiteral("Syntalos did not start the run within %1 s.").arg(cfg.startupTimeoutSec),
+                15000);
+        if (r.started && nowMs > (r.startupSec + cfg.durationSec + cfg.teardownGraceSec) * 1000.0)
+            stopProcess(StopCause::RunTimeout, QStringLiteral("Syntalos did not finish the run in time."), 15000);
 
-        if (m_cancel) {
-            if (!r.cancelled)
-                LOG_INFO(m_log, "Cancelling run, terminating Syntalos...");
-            r.cancelled = true;
-            stopProcess(15000);
-        } else if (killDeadlineMs == 0) {
-            const bool startupTimedOut = !r.started && nowMs > cfg.startupTimeoutSec * 1000LL;
-            const bool runTimedOut = r.started
-                                     && nowMs > (r.startupSec + cfg.durationSec + cfg.teardownGraceSec) * 1000.0;
-            if (startupTimedOut || runTimedOut) {
-                r.failureReason = startupTimedOut ? QStringLiteral("Syntalos did not start the run within %1 s.")
-                                                        .arg(cfg.startupTimeoutSec)
-                                                  : QStringLiteral("Syntalos did not finish the run in time.");
-                LOG_WARNING(m_log, "{} Terminating...", r.failureReason);
-                stopProcess(15000);
-            }
-        }
-        if (killDeadlineMs != 0 && nowMs > killDeadlineMs) {
-            LOG_WARNING(m_log, "Syntalos did not stop in time, killing it");
-            proc.kill();
-            killDeadlineMs = nowMs + 3600000; // do not repeat
+        if (stopState == StopState::Terminating) {
+            // a stopping process that still eats memory is not going to make it, kill it before the machine suffers
+            if (systemStarved)
+                killProcess(QStringLiteral("System memory is running out"));
+            else if (nowMs > killDeadlineMs)
+                killProcess(QStringLiteral("Syntalos did not stop in time"));
         }
     }
     collectOutput();
     proc.readAll();
     r.outputTail = outLines.join(QLatin1Char('\n'));
-    r.exitCode = (proc.exitStatus() == QProcess::NormalExit) ? proc.exitCode() : -1;
+    const bool crashed = proc.exitStatus() == QProcess::CrashExit;
+    r.exitCode = crashed ? -1 : proc.exitCode();
 
-    if (r.cancelled) {
-        r.failureReason = QStringLiteral("Cancelled.");
+    if (r.stopCause == StopCause::Cancelled)
         return r;
-    }
 
     if (QFile::exists(cfg.statsFile)) {
-        if (auto stats = RunStatistics::loadJson(cfg.statsFile); stats) {
-            r.success = !stats->failed;
-            if (stats->failed)
-                r.failureReason = stats->failReason;
+        if (auto stats = RunStatistics::loadJson(cfg.statsFile); stats)
             r.stats = std::move(*stats);
-        } else {
+        else
             LOG_WARNING(m_log, "{}", stats.error());
-        }
     }
 
-    if (r.memoryExceeded) {
-        r.success = false;
-    } else if (r.exitCode == SY_EXIT_ALREADY_RUNNING) {
-        r.success = false;
-        r.failureReason = QStringLiteral("Another Syntalos instance is running. Close it before benchmarking.");
-    } else if (r.exitCode != 0 && r.failureReason.isEmpty()) {
-        r.success = false;
-        r.failureReason = (r.exitCode == SY_EXIT_RUN_FAILED)
-                              ? QStringLiteral("The run failed (no details recorded).")
-                              : QStringLiteral("Syntalos exited with code %1.").arg(r.exitCode);
-    } else if (r.exitCode == 0 && !r.stats) {
-        r.success = false;
-        r.failureReason = QStringLiteral("Syntalos wrote no run statistics.");
-    }
+    // a run we had to stop never counts, even if Syntalos managed to write its statistics
+    r.success = r.stopCause == StopCause::None && r.exitCode == SY_EXIT_SUCCESS && r.stats && !r.stats->failed;
+    if (!r.success && r.failureReason.isEmpty())
+        r.failureReason = failureReasonFromExit(r, crashed);
 
     LOG_INFO(
         m_log,

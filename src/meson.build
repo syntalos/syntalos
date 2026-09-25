@@ -19,6 +19,7 @@ syntalos_src = [
     'entitylistmodels.cpp',
     'engine.h',
     'engine.cpp',
+    'exitcodes.h',
     'exportdirutils.h',
     'exportdirutils.cpp',
     'flowgraphview.h',

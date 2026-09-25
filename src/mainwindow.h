@@ -24,6 +24,7 @@
 
 #include "engine.h"
 #include "entitylistmodels.h"
+#include "exitcodes.h"
 #include "moduleapi.h"
 #include "networkcontroller.h"
 #include "utils/misc.h"
@@ -52,16 +53,6 @@ namespace Ui
 {
 class MainWindow;
 }
-
-// Exit codes for the application
-constexpr int SY_EXIT_SUCCESS = 0; /// success
-constexpr int SY_EXIT_FAILURE = 1; /// failure
-constexpr int SY_EXIT_LOAD_ERROR = 2; /// unable to load project/data
-constexpr int SY_EXIT_PERMISSION_ERROR = 3; /// failed due to lack of permission
-constexpr int SY_EXIT_NOT_FOUND = 4;  /// a resource or project or other data could not be found
-constexpr int SY_EXIT_RUN_FAILED = 5; /// failed to run the project
-constexpr int SY_EXIT_TERMINATED = 6; /// stopped cleanly after SIGINT/SIGTERM
-constexpr int SY_EXIT_ALREADY_RUNNING = 7; /// a previous instance was already running
 
 /**
  * @brief Main application window

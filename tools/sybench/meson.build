@@ -28,6 +28,7 @@ sybench_core_lib = static_library('sybench-core',
         kfarchive_dep,
         toml_dep,
     ],
+    include_directories: [include_directories('../../src')],
 )
 
 sybench_core_dep = declare_dependency(

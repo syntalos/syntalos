@@ -227,7 +227,7 @@ void BenchSession::run()
             progress(QStringLiteral("Trying %1 %2...").arg(level).arg(lr.levelUnit));
 
             auto rec = runStep(*dim, lr.profileId, level, stepSeconds());
-            if (rec.result.cancelled || m_cancelled)
+            if (rec.result.stopCause == StopCause::Cancelled || m_cancelled)
                 return LevelResult::Cancelled;
             if (rec.result.started)
                 rec.verdict.summary += QStringLiteral(" [startup %1 s]").arg(rec.result.startupSec, 0, 'f', 1);

@@ -69,14 +69,26 @@ struct MeterStats {
 };
 
 /**
+ * @brief Why the runner stopped Syntalos before it ended the run on its own
+ */
+enum class StopCause {
+    None,           /// Syntalos was not stopped by us
+    Cancelled,      /// the benchmark was cancelled
+    MemoryLimit,    /// Syntalos used too much memory
+    StartupTimeout, /// the modules did not all start in time
+    RunTimeout      /// the run did not finish in time
+};
+
+QString stopCauseToString(StopCause cause);
+
+/**
  * @brief Everything we learned from one Syntalos run
  */
 struct StepResult {
     bool success = false; /// the run completed without error
-    bool cancelled = false;
-    bool memoryExceeded = false; /// the run was stopped for using too much memory
-    bool started = false;        /// Syntalos reported that all modules were running
-    double startupSec = 0;       /// time from launch until all modules were running
+    StopCause stopCause = StopCause::None;
+    bool started = false;  /// Syntalos reported that all modules were running
+    double startupSec = 0; /// time from launch until all modules were running
     QString failureReason;
     int exitCode = -1;
     qint64 observedPeakRssKiB = 0; /// sampled by the runner, also available if the run was killed
