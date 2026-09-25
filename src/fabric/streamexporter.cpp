@@ -91,7 +91,7 @@ StreamExporter::StreamExporter(const QString &threadName, QObject *parent)
     // Setting up the IPC node may fail (e.g. iceoryx2 node creation errors); flag the
     // exporter as failed instead of letting the exception escape and abort the engine.
     try {
-        d->node.emplace(makeIoxNode("syntalos-stream-exporter"));
+        d->node.emplace(makeIoxNode("syntalos-stream-exporter", iox2::SignalHandlingMode::Disabled));
     } catch (const std::exception &e) {
         d->failed = true;
         LOG_CRITICAL(d->log, "Failed to set up stream exporter IPC node: {}", e.what());

@@ -50,6 +50,17 @@ void findAndCleanupDeadNodes()
     }).value();
 }
 
+void initIoxSignalHandlers()
+{
+    // iceoryx2 registers its handlers once, on the first check for a termination request.
+    // A process-local node creates no shared resources, and a zero wait does exactly that check.
+    auto node = iox2::NodeBuilder()
+                    .signal_handling_mode(iox2::SignalHandlingMode::HandleTerminationRequests)
+                    .create<iox2::ServiceType::Local>();
+    if (node.has_value())
+        IOX2_DISCARD_RESULT(node.value().wait(iox2::bb::Duration::zero()));
+}
+
 const iox2::Config &ioxDefaultConfig()
 {
     static const auto config = [] {

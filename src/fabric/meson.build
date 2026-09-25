@@ -33,6 +33,8 @@ syntalos_fabric_src = [
     'rangeslider.cpp',
     'subscriptionwatcher.h',
     'subscriptionwatcher.cpp',
+    'termsignalwatcher.h',
+    'termsignalwatcher.cpp',
     'streamexporter.h',
     'streamexporter.cpp',
     'sysinfo.h',

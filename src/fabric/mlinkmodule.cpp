@@ -27,6 +27,7 @@
 #include <QFileInfo>
 #include <QCoreApplication>
 #include <iox2/iceoryx2.hpp>
+#include <unistd.h>
 
 #include "mlink/ipc-types-private.h"
 #include "mlink/ipc-iox-private.h"
@@ -540,6 +541,11 @@ MLinkModule::MLinkModule(QObject *parent)
       d(new MLinkModule::Private(m_log))
 {
     d->proc = new QProcess(this);
+    // Run the worker in its own process group, so a Ctrl+C in the terminal only reaches Syntalos,
+    // which then stops its workers in an orderly fashion. If Syntalos dies, PDEATHSIG ends them.
+    d->proc->setChildProcessModifier([]() {
+        setpgid(0, 0);
+    });
     d->workerMode = ModuleWorkerMode::PERSISTENT;
     d->portChangesAllowed = true;
 
@@ -827,7 +833,8 @@ void MLinkModule::resetConnection()
     d->clientId = QStringLiteral("%1_%2").arg(id()).arg(index()).toStdString();
 
     // create a fresh node for this module connection
-    d->node.emplace(makeIoxNode("syntalos-master-" + d->clientId));
+    // SIGINT/SIGTERM are handled by Syntalos itself (see termsignalwatcher.h), not by iceoryx2
+    d->node.emplace(makeIoxNode("syntalos-master-" + d->clientId, iox2::SignalHandlingMode::Disabled));
 
     // ensure the old connections are gone before we are trying to create new ones
     d->subError.reset();
@@ -1584,7 +1591,7 @@ void MLinkModule::runThread(OptionalWaitCondition *startWaitCondition)
 
     // create waitset and attach control guard
     auto waitSet = iox2::WaitSetBuilder()
-                       .signal_handling_mode(iox2::SignalHandlingMode::HandleTerminationRequests)
+                       .signal_handling_mode(iox2::SignalHandlingMode::Disabled)
                        .create<iox2::ServiceType::Ipc>()
                        .value();
     auto waitSetCtlGuard = waitSet.attach_notification(*d->workerCtlEventListener).value();

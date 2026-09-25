@@ -88,9 +88,24 @@ void findAndCleanupDeadNodes();
 const iox2::Config &ioxDefaultConfig();
 
 /**
- * Create a node with Syntalos' default configuration.
+ * Make iceoryx2 install its process-wide signal handlers now.
+ *
+ * iceoryx2 lazily installs flag-only handlers for SIGINT, SIGTERM and several other signals
+ * the first time anything in the process needs them, replacing whatever handler was set before.
+ * A process that wants its own SIGINT/SIGTERM handlers calls this first and installs them after,
+ * so iceoryx2 never replaces them later.
  */
-inline auto makeIoxNode(const std::string &nodeName)
+void initIoxSignalHandlers();
+
+/**
+ * Create a node with Syntalos' default configuration.
+ *
+ * Worker processes let iceoryx2 handle termination requests. The main Syntalos process
+ * handles SIGINT/SIGTERM itself and passes SignalHandlingMode::Disabled.
+ */
+inline auto makeIoxNode(
+    const std::string &nodeName,
+    iox2::SignalHandlingMode signalMode = iox2::SignalHandlingMode::HandleTerminationRequests)
 {
     auto maybeName = iox2::NodeName::create(nodeName.c_str());
     if (!maybeName.has_value())
@@ -99,7 +114,7 @@ inline auto makeIoxNode(const std::string &nodeName)
     auto maybeNode = iox2::NodeBuilder()
                          .config(ioxDefaultConfig())
                          .name(maybeName.value())
-                         .signal_handling_mode(iox2::SignalHandlingMode::HandleTerminationRequests)
+                         .signal_handling_mode(signalMode)
                          .create<iox2::ServiceType::Ipc>();
     if (!maybeNode.has_value())
         throw std::runtime_error(

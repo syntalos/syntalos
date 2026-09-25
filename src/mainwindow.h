@@ -44,6 +44,7 @@ class LogViewDialog;
 class GlobalConfig;
 class IntervalRunDialog;
 class SoundCuePlayer;
+class TermSignalWatcher;
 } // namespace Syntalos
 #endif // DOXYGEN_SHOULD_SKIP_THIS
 
@@ -53,13 +54,14 @@ class MainWindow;
 }
 
 // Exit codes for the application
-constexpr int SY_EXIT_SUCCESS = 0;
-constexpr int SY_EXIT_FAILURE = 1;
-constexpr int SY_EXIT_LOAD_ERROR = 2;
-constexpr int SY_EXIT_PERMISSION_ERROR = 3;
-constexpr int SY_EXIT_NOT_FOUND = 4;
-constexpr int SY_EXIT_RUN_FAILED = 5;
-constexpr int SY_EXIT_ALREADY_RUNNING = 6;
+constexpr int SY_EXIT_SUCCESS = 0; /// success
+constexpr int SY_EXIT_FAILURE = 1; /// failure
+constexpr int SY_EXIT_LOAD_ERROR = 2; /// unable to load project/data
+constexpr int SY_EXIT_PERMISSION_ERROR = 3; /// failed due to lack of permission
+constexpr int SY_EXIT_NOT_FOUND = 4;  /// a resource or project or other data could not be found
+constexpr int SY_EXIT_RUN_FAILED = 5; /// failed to run the project
+constexpr int SY_EXIT_TERMINATED = 6; /// stopped cleanly after SIGINT/SIGTERM
+constexpr int SY_EXIT_ALREADY_RUNNING = 7; /// a previous instance was already running
 
 /**
  * @brief Main application window
@@ -152,6 +154,7 @@ private slots:
     void onEngineResourceWarningUpdate(Engine::SystemResource kind, bool resolved, const QString &message);
     void onEngineConnectionHeatChanged(VarStreamInputPort *iport, ConnectionHeatLevel hlevel);
     void onElapsedTimeUpdate();
+    void onTerminationRequested(int signum);
 
     void statusMessageChanged(const QString &message);
 
@@ -183,6 +186,7 @@ private:
     void applySelectedAppStyle(bool updateIcons = true);
     void updateIconStyles();
     void shutdown(int errorCode = 0);
+    void closeOnTerminationRequest();
     void setCurrentProjectFile(const QString &fileName);
     void setDataExportBaseDir(const QString &dir);
     void updateExportDirDisplay();
@@ -214,6 +218,8 @@ private:
 
     Syntalos::GlobalConfig *m_gconf;
     Syntalos::SoundCuePlayer *m_soundCues;
+    Syntalos::TermSignalWatcher *m_termSignalWatcher;
+    int m_terminationSignal{0};
     QTimer *m_rtElapsedTimer;
     Engine *m_engine;
     QString m_currentProjectFname;

@@ -67,6 +67,7 @@
 
 #include "executils.h"
 #include "projectfile.h"
+#include "termsignalwatcher.h"
 #include "utils/tomlutils.h"
 
 // keys of the notices shown in the run info panel
@@ -90,6 +91,10 @@ MainWindow::MainWindow(QWidget *parent)
     // (otherwise the application may look ugly or incomplete on GNOME)
     m_gconf = new GlobalConfig(this);
     m_soundCues = new SoundCuePlayer(this);
+
+    // stop cleanly on SIGINT/SIGTERM instead of dying mid-run
+    m_termSignalWatcher = new TermSignalWatcher(this);
+    connect(m_termSignalWatcher, &TermSignalWatcher::terminationRequested, this, &MainWindow::onTerminationRequested);
 
     // apply our selected style early, before creating the main UI
     // (we can't update icons yet, as not all GUI elements have been created)
@@ -954,6 +959,10 @@ void MainWindow::updateIconStyles()
 
 void MainWindow::shutdown(int errorCode)
 {
+    // a run that was stopped because we were asked to terminate did not complete
+    if (m_terminationSignal != 0 && errorCode == SY_EXIT_SUCCESS)
+        errorCode = SY_EXIT_TERMINATED;
+
     if (errorCode != 0)
         LOG_WARNING(m_log, "Shutting down with error code: {}", errorCode);
 
@@ -979,6 +988,31 @@ void MainWindow::shutdown(int errorCode)
     }
 
     quitNow();
+}
+
+void MainWindow::onTerminationRequested(int signum)
+{
+    if (m_terminationSignal != 0) {
+        LOG_INFO(m_log, "Received SIG{} again, still shutting down.", sigabbrev_np(signum));
+        return;
+    }
+    m_terminationSignal = signum;
+    LOG_INFO(m_log, "Received SIG{}, stopping and shutting down.", sigabbrev_np(signum));
+    closeOnTerminationRequest();
+}
+
+void MainWindow::closeOnTerminationRequest()
+{
+    // modules must not be torn down while a project is still being loaded
+    if (m_configLoadInProgress) {
+        QTimer::singleShot(100, this, &MainWindow::closeOnTerminationRequest);
+        return;
+    }
+
+    // Qt would quit with exit code 0 once the window is gone, but we exit with our own code
+    // after the run has stopped
+    qApp->setQuitOnLastWindowClosed(false);
+    close();
 }
 
 void MainWindow::showEvent(QShowEvent *event)
@@ -1567,6 +1601,10 @@ void MainWindow::onEnginePreRunPrepare()
 
 void MainWindow::onEngineRunStarted()
 {
+    // a library we loaded may have replaced our signal handlers, in which case a
+    // termination request would no longer stop the run cleanly
+    m_termSignalWatcher->ensureHandlersInstalled();
+
     // we passed preflight and are actually running now,
     // therefore the user is permitted to cancel a run
     setRunUiControlStates(true, true);
