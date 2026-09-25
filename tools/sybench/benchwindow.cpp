@@ -55,7 +55,6 @@ BenchWindow::BenchWindow(QWidget *parent)
     ui->stepsTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
     ui->stepsTable->horizontalHeader()->setSectionResizeMode(4, QHeaderView::Stretch);
 
-    m_workDir = QDir::temp().filePath(QStringLiteral("syntalos-bench-%1").arg(QCoreApplication::applicationPid()));
     setSyntalosBinary(SyntalosRunner::findSyntalosBinary());
     populateDimensions();
 
@@ -195,7 +194,6 @@ void BenchWindow::startBenchmark()
     m_thread->setObjectName(QStringLiteral("session"));
 
     m_session = new BenchSession(m_config);
-    m_cpuCores = m_session->cpuCores();
     m_stepsPerLadder = m_session->estimatedStepsPerLadder();
     ui->progressBar->setRange(0, m_config.selections.size() * m_stepsPerLadder);
     m_session->moveToThread(m_thread);
@@ -312,7 +310,7 @@ void BenchWindow::saveReport()
         QStringLiteral("JSON report (*.json)"));
     if (fileName.isEmpty())
         return;
-    if (const auto res = SyBench::saveReport(fileName, m_ladders, m_config, m_cpuCores); !res)
+    if (const auto res = SyBench::saveReport(fileName, m_ladders, m_config); !res)
         QMessageBox::critical(this, QStringLiteral("Unable to save report"), res.error());
 }
 

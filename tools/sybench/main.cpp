@@ -20,6 +20,8 @@
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDir>
+#include <QTemporaryDir>
+#include <optional>
 
 #include "appstyle.h"
 #include "benchsession.h"
@@ -53,7 +55,7 @@ int runHeadless(const SessionConfig &config)
         return 1;
 
     const auto reportFile = QDir(config.workDir).filePath(QStringLiteral("report.json"));
-    if (const auto res = saveReport(reportFile, ladders, config, session.cpuCores()); !res) {
+    if (const auto res = saveReport(reportFile, ladders, config); !res) {
         LOG_ERROR(logRoot, "{}", res.error());
         return 1;
     }
@@ -157,10 +159,15 @@ int main(int argc, char *argv[])
     SessionConfig config;
     config.syntalosBinary = parser.value(optSyBin);
     config.dataDir = parser.isSet(optDataDir) ? parser.value(optDataDir) : defaultDataDir();
-    config.workDir = parser.isSet(optWorkDir)
-                         ? parser.value(optWorkDir)
-                         : QDir::temp().filePath(
-                               QStringLiteral("syntalos-bench-%1").arg(QCoreApplication::applicationPid()));
+    // without an explicit work directory, generated projects and statistics go into a temporary
+    // directory that is removed on exit; headless runs keep their report there, so they need one
+    std::optional<QTemporaryDir> tmpWorkDir;
+    if (parser.isSet(optWorkDir)) {
+        config.workDir = parser.value(optWorkDir);
+    } else {
+        tmpWorkDir.emplace(QDir::temp().filePath(QStringLiteral("syntalos-bench-XXXXXX")));
+        config.workDir = tmpWorkDir->path();
+    }
     config.quick = parser.isSet(optQuick);
     config.warmup = !parser.isSet(optNoWarmup);
     if (parser.isSet(optStepSecs))
@@ -175,7 +182,10 @@ int main(int argc, char *argv[])
         ret = runSelfTest(config);
     } else if (parser.isSet(optDimension)) {
         auto dim = createDimension(parser.value(optDimension));
-        if (!dim) {
+        if (!parser.isSet(optWorkDir)) {
+            LOG_ERROR(logRoot, "Headless runs need --work-dir, the report is written there.");
+            ret = 2;
+        } else if (!dim) {
             LOG_ERROR(logRoot, "Unknown dimension '{}'.", parser.value(optDimension));
             ret = 2;
         } else {

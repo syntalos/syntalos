@@ -72,7 +72,7 @@ static QJsonObject stepToJson(const StepRecord &s)
     return o;
 }
 
-QJsonObject buildReport(const QList<LadderRecord> &ladders, const SessionConfig &config, int cpuCores)
+QJsonObject buildReport(const QList<LadderRecord> &ladders, const SessionConfig &config)
 {
     auto *sysInfo = Syntalos::SysInfo::get();
 
@@ -86,7 +86,7 @@ QJsonObject buildReport(const QList<LadderRecord> &ladders, const SessionConfig 
     machine.insert(QStringLiteral("os"), sysInfo->prettyOSName());
     machine.insert(QStringLiteral("kernel"), sysInfo->kernelInfo());
     machine.insert(QStringLiteral("cpu"), sysInfo->cpu0ModelName());
-    machine.insert(QStringLiteral("cpu_physical_cores"), cpuCores);
+    machine.insert(QStringLiteral("cpu_physical_cores"), sysInfo->cpuPhysicalCoreCount());
     machine.insert(QStringLiteral("cpu_logical"), sysInfo->cpuCount());
     machine.insert(QStringLiteral("cpu_governor"), sysInfo->cpuGovernor());
     machine.insert(QStringLiteral("syntalos_version"), sysInfo->syntalosVersion());
@@ -97,7 +97,7 @@ QJsonObject buildReport(const QList<LadderRecord> &ladders, const SessionConfig 
     QJsonObject settings;
     settings.insert(QStringLiteral("quick"), config.quick);
     settings.insert(QStringLiteral("warmup"), config.warmup);
-    settings.insert(QStringLiteral("step_seconds"), config.stepSeconds);
+    settings.insert(QStringLiteral("step_seconds"), config.effectiveStepSeconds());
     settings.insert(QStringLiteral("data_dir"), config.dataDir);
     root.insert(QStringLiteral("settings"), settings);
 
@@ -123,13 +123,13 @@ QJsonObject buildReport(const QList<LadderRecord> &ladders, const SessionConfig 
     return root;
 }
 
-auto saveReport(const QString &fileName, const QList<LadderRecord> &ladders, const SessionConfig &config, int cpuCores)
+auto saveReport(const QString &fileName, const QList<LadderRecord> &ladders, const SessionConfig &config)
     -> std::expected<void, QString>
 {
     QFile f(fileName);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate))
         return std::unexpected(QStringLiteral("Unable to write %1: %2").arg(fileName, f.errorString()));
-    f.write(QJsonDocument(buildReport(ladders, config, cpuCores)).toJson(QJsonDocument::Indented));
+    f.write(QJsonDocument(buildReport(ladders, config)).toJson(QJsonDocument::Indented));
     f.close();
 
     // keep the raw per-step statistics next to the report, for anyone who wants to dig deeper

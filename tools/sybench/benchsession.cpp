@@ -55,22 +55,17 @@ QString BenchSession::syntalosBinary() const
     return m_runner.syntalosBinary();
 }
 
-int BenchSession::cpuCores() const
-{
-    return m_cpuCores;
-}
-
 int BenchSession::estimatedStepsPerLadder() const
 {
     // a few doubling steps plus the refinement steps, a rough guess for the progress display
     return 3 + (m_config.quick ? 1 : 2);
 }
 
-int BenchSession::stepSeconds() const
+int SessionConfig::effectiveStepSeconds() const
 {
-    if (m_config.stepSeconds > 0)
-        return m_config.stepSeconds;
-    return m_config.quick ? 10 : 20;
+    if (stepSeconds > 0)
+        return stepSeconds;
+    return quick ? 10 : 20;
 }
 
 void BenchSession::progress(const QString &msg)
@@ -199,7 +194,8 @@ void BenchSession::run()
 
     progress(QStringLiteral("Syntalos: %1").arg(m_runner.syntalosBinary()));
     progress(QStringLiteral("Work directory: %1").arg(m_config.workDir));
-    progress(QStringLiteral("Physical cores: %1, step duration: %2 s").arg(m_cpuCores).arg(stepSeconds()));
+    progress(
+        QStringLiteral("Physical cores: %1, step duration: %2 s").arg(m_cpuCores).arg(m_config.effectiveStepSeconds()));
 
     // the first launch of Syntalos on a machine is slower (cold caches, Python byte-compilation, ...),
     // so we do one run and throw its result away; it also tells us early if Syntalos can not run at all
@@ -234,7 +230,7 @@ void BenchSession::run()
                                   .arg(lr.levelUnit));
             progress(QStringLiteral("Trying %1 %2...").arg(level).arg(lr.levelUnit));
 
-            auto step = runStep(*dim, lr.profileId, level, stepSeconds());
+            auto step = runStep(*dim, lr.profileId, level, m_config.effectiveStepSeconds());
             if (!step) {
                 // no further run can work, end the ladder like a cancellation
                 sessionError = step.error();

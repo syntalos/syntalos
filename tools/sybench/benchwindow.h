@@ -77,7 +77,6 @@ private:
     QList<LadderRecord> m_ladders;
     QElapsedTimer m_elapsed;
     QTimer m_elapsedTimer;
-    int m_cpuCores = 0;
     bool m_finished = false;
     int m_stepsPerLadder = 1;
     int m_ladderIndex = 0;

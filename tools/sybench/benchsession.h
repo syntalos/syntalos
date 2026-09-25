@@ -49,6 +49,11 @@ struct SessionConfig {
     QString workDir;        /// where projects and statistics files are written
     QString dataDir;        /// where dimensions that record data write to (a real disk, not tmpfs)
     QString syntalosBinary; /// empty = auto-detect
+
+    /**
+     * @brief Duration of each run, with the mode's default applied.
+     */
+    [[nodiscard]] int effectiveStepSeconds() const;
 };
 
 /**
@@ -98,8 +103,6 @@ public:
     ~BenchSession() override;
 
     QString syntalosBinary() const;
-    int cpuCores() const;
-    int stepSeconds() const;
     int estimatedStepsPerLadder() const;
 
     /**
