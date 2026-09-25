@@ -18,6 +18,7 @@ sybench_core_src = [
     'ladder.cpp',
     'projectgen.cpp',
     'runner.cpp',
+    'score.cpp',
 ]
 
 sybench_core_lib = static_library('sybench-core',

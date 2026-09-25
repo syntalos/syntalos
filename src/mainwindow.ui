@@ -1216,6 +1216,7 @@
     <addaction name="actionHelpDiscuss"/>
     <addaction name="actionReportIssue"/>
     <addaction name="actionOpenCrashCollector"/>
+    <addaction name="actionBenchmark"/>
     <addaction name="actionAbout"/>
    </widget>
    <widget class="QMenu" name="menuFile">
@@ -1459,6 +1460,17 @@
    </property>
    <property name="text">
     <string>Timings</string>
+   </property>
+  </action>
+  <action name="actionBenchmark">
+   <property name="icon">
+    <iconset theme="speedometer"/>
+   </property>
+   <property name="text">
+    <string>Benchmark</string>
+   </property>
+   <property name="toolTip">
+    <string>Measure how much this computer can sustain when running Syntalos</string>
    </property>
   </action>
   <action name="actionShowLog">

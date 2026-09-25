@@ -21,6 +21,7 @@
 
 #include <QFile>
 #include <QApplication>
+#include <QCoreApplication>
 #include <QFileInfo>
 #include <QProcess>
 #include <QStandardPaths>
@@ -72,13 +73,6 @@ QString findHostExecutable(const QString &exe)
     return QStandardPaths::findExecutable(exe);
 }
 
-/**
- * @brief Run command on the host
- * @param exe The program to run
- * @param args Program arguments
- * @param waitForFinished Wait for the command to finish
- * @return Exit status of the program (if waiting for finished)
- */
 int runHostExecutable(const QString &exe, const QStringList &args, bool waitForFinished)
 {
     auto sysInfo = SysInfo::get();
@@ -105,6 +99,22 @@ int runHostExecutable(const QString &exe, const QStringList &args, bool waitForF
     } else {
         return 0;
     }
+}
+
+QString findToolExecutable(const QString &buildTreeRelPath, const QString &installedPath)
+{
+    // running from the build tree? (an installed Syntalos lives below /usr)
+    const auto appDir = QCoreApplication::applicationDirPath();
+    if (!appDir.startsWith(QLatin1String("/usr/"))) {
+        const QFileInfo devFi(QStringLiteral("%1/../%2").arg(appDir, buildTreeRelPath));
+        if (devFi.isFile() && devFi.isExecutable())
+            return devFi.canonicalFilePath();
+    }
+
+    const QFileInfo instFi(installedPath);
+    if (instFi.isFile() && instFi.isExecutable())
+        return instFi.absoluteFilePath();
+    return QString();
 }
 
 int runInTerminal(const QString &cmd, const QStringList &args, const QString &wdir, const QString &title)

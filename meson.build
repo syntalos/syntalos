@@ -419,6 +419,7 @@ conf.set('SY_MICRO_VERSION_CONF', sy_micro_version)
 conf.set_quoted('PROJECT_VERSION', sy_version)
 conf.set('HAVE_SIGDESCR_NP', have_sigdescr_np)
 conf.set('SY_PREFER_WAYLAND', prefer_wayland)
+conf.set('SY_HAVE_BENCHMARK_TOOL', get_option('benchmark'))
 conf.set_quoted('LIBEXECDIR',
                 join_paths(get_option('prefix'),
                            get_option('libexecdir')))

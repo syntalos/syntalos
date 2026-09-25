@@ -29,6 +29,7 @@
 
 #include "health.h"
 #include "report.h"
+#include "score.h"
 #include "utils/misc.h"
 
 namespace SyBench
@@ -44,6 +45,9 @@ BenchWindow::BenchWindow(QWidget *parent)
     ui->stopButton->setIcon(QIcon::fromTheme(QStringLiteral("media-playback-stop")));
     ui->saveButton->setIcon(QIcon::fromTheme(QStringLiteral("document-save-as")));
     ui->backButton->setIcon(QIcon::fromTheme(QStringLiteral("go-previous")));
+    ui->resultsButton->setIcon(QIcon::fromTheme(QStringLiteral("go-next")));
+    ui->stepsButton->setIcon(QIcon::fromTheme(QStringLiteral("go-previous")));
+    ui->newButton->setIcon(QIcon::fromTheme(QStringLiteral("view-refresh")));
 
     ui->summaryTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
     ui->healthTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
@@ -59,6 +63,9 @@ BenchWindow::BenchWindow(QWidget *parent)
     connect(ui->stopButton, &QPushButton::clicked, this, &BenchWindow::stopBenchmark);
     connect(ui->saveButton, &QPushButton::clicked, this, &BenchWindow::saveReport);
     connect(ui->backButton, &QPushButton::clicked, this, &BenchWindow::backToStart);
+    connect(ui->resultsButton, &QPushButton::clicked, this, &BenchWindow::showResultsPage);
+    connect(ui->stepsButton, &QPushButton::clicked, this, &BenchWindow::showRunPage);
+    connect(ui->newButton, &QPushButton::clicked, this, &BenchWindow::backToStart);
     connect(ui->dataDirButton, &QPushButton::clicked, this, &BenchWindow::chooseDataDir);
     ui->dataDirEdit->setText(defaultDataDir());
 
@@ -153,9 +160,10 @@ void BenchWindow::setRunningState(bool running)
 {
     ui->stopButton->setEnabled(running);
     ui->stopButton->setVisible(running);
-    ui->saveButton->setVisible(!running);
-    ui->saveButton->setEnabled(!running && !m_ladders.isEmpty());
+    ui->resultsButton->setVisible(!running);
+    ui->resultsButton->setEnabled(!running && m_finished);
     ui->backButton->setEnabled(!running);
+    ui->saveButton->setEnabled(!m_ladders.isEmpty());
 }
 
 void BenchWindow::startBenchmark()
@@ -172,16 +180,20 @@ void BenchWindow::startBenchmark()
     }
 
     m_ladders.clear();
+    m_finished = false;
     ui->summaryTable->setRowCount(0);
     ui->stepsTable->setRowCount(0);
     ui->logView->clear();
-    ui->healthLabel->setVisible(false);
-    ui->healthTable->setVisible(false);
+    ui->scoreLabel->clear();
+    ui->scoreDetailLabel->clear();
     ui->progressBar->setValue(0);
     ui->phaseLabel->setText(QStringLiteral("Starting..."));
     ui->pages->setCurrentWidget(ui->runPage);
 
     m_thread = new QThread(this);
+    // set the OS thread name
+    m_thread->setObjectName(QStringLiteral("session"));
+
     m_session = new BenchSession(m_config);
     m_cpuCores = m_session->cpuCores();
     m_stepsPerLadder = m_session->estimatedStepsPerLadder();
@@ -225,8 +237,35 @@ void BenchWindow::onSessionFinished(bool cancelled)
     m_session = nullptr;
     m_thread->deleteLater();
     m_thread = nullptr;
+    m_finished = true;
     setRunningState(false);
     showHealth();
+    showScore();
+    showResultsPage();
+}
+
+void BenchWindow::showResultsPage()
+{
+    ui->pages->setCurrentWidget(ui->resultsPage);
+}
+
+void BenchWindow::showRunPage()
+{
+    ui->pages->setCurrentWidget(ui->runPage);
+}
+
+void BenchWindow::showScore()
+{
+    const auto score = computeScore(m_ladders, m_config);
+    ui->scoreLabel->setText(scoreHeadline(score));
+    if (!score.valid()) {
+        ui->scoreDetailLabel->setText(QStringLiteral("No scored dimension completed."));
+        return;
+    }
+    QStringList parts;
+    for (const auto &d : score.dimensions)
+        parts.append(QStringLiteral("%1 %2").arg(d.title).arg(d.score));
+    ui->scoreDetailLabel->setText(parts.join(QStringLiteral("  ·  ")));
 }
 
 void BenchWindow::showHealth()
@@ -245,8 +284,6 @@ void BenchWindow::showHealth()
             status->setForeground(QColor(244, 119, 80));
         ui->healthTable->setItem(row, 2, status);
     }
-    ui->healthLabel->setVisible(true);
-    ui->healthTable->setVisible(true);
 }
 
 void BenchWindow::saveReport()

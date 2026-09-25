@@ -30,7 +30,26 @@ namespace Syntalos
 QString shellQuote(const QString &str);
 
 QString findHostExecutable(const QString &exe);
+
+/**
+ * @brief Run command on the host
+ * @param exe The program to run
+ * @param args Program arguments
+ * @param waitForFinished Wait for the command to finish
+ * @return Exit status of the program (if waiting for finished)
+ */
 int runHostExecutable(const QString &exe, const QStringList &args, bool waitForFinished);
+
+/**
+ * @brief Find one of Syntalos' own helper executables.
+ *
+ * When Syntalos runs from its build tree, the tool is looked up relative to the
+ * build directory (e.g. "tools/crashreport/syntalos-crashreport"), otherwise at
+ * its installed location.
+ *
+ * @return The absolute path of the executable, or an empty string if it is not available.
+ */
+QString findToolExecutable(const QString &buildTreeRelPath, const QString &installedPath);
 
 int runInTerminal(
     const QString &cmd,

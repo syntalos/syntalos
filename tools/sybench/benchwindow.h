@@ -54,6 +54,8 @@ private slots:
     void stopBenchmark();
     void saveReport();
     void backToStart();
+    void showResultsPage();
+    void showRunPage();
     void chooseDataDir();
     void updateElapsed();
 
@@ -76,6 +78,7 @@ private:
     QElapsedTimer m_elapsed;
     QTimer m_elapsedTimer;
     int m_cpuCores = 0;
+    bool m_finished = false;
     int m_stepsPerLadder = 1;
     int m_ladderIndex = 0;
     int m_ladderSteps = 0;
@@ -84,6 +87,7 @@ private:
     SessionConfig collectConfig() const;
     void setRunningState(bool running);
     void showHealth();
+    void showScore();
     bool isRunning() const;
 };
 

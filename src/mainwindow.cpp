@@ -320,6 +320,12 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::aboutActionTriggered);
     connect(ui->actionGlobalConfig, &QAction::triggered, this, &MainWindow::globalConfigActionTriggered);
 
+    // the benchmark tool is optional, only offer it if it was built
+    ui->actionBenchmark->setVisible(false);
+#ifdef SY_HAVE_BENCHMARK_TOOL
+    ui->actionBenchmark->setVisible(true);
+#endif
+
     // get a reference to the current engine
     m_engine = ui->graphForm->engine();
     connect(m_engine, &Engine::runFailed, this, &MainWindow::moduleErrorReceived);
@@ -1841,12 +1847,50 @@ void MainWindow::on_actionHelpDiscuss_triggered()
     QDesktopServices::openUrl(QUrl("https://github.com/syntalos/syntalos/discussions", QUrl::TolerantMode));
 }
 
+void MainWindow::on_actionBenchmark_triggered()
+{
+    const auto benchExe = findToolExecutable(
+        QStringLiteral("tools/sybench/syntalos-benchmark"),
+        QStringLiteral(BINDIR "/syntalos-benchmark"));
+    if (benchExe.isEmpty()) {
+        QMessageBox::warning(
+            this,
+            QStringLiteral("Benchmark unavailable"),
+            QStringLiteral("The system benchmark tool was not found. Syntalos may have been built without it."));
+        return;
+    }
+
+    // only one Syntalos instance is allowed simultaneously
+    const auto reply = QMessageBox::question(
+        this,
+        QStringLiteral("Run System Benchmark"),
+        QStringLiteral(
+            "The benchmark launches Syntalos repeatedly on generated projects, so this "
+            "instance has to close first.\n\nClose Syntalos and start the benchmark now?"),
+        QMessageBox::Yes | QMessageBox::No,
+        QMessageBox::No);
+    if (reply != QMessageBox::Yes)
+        return;
+
+    QProcess proc;
+    proc.setProgram(benchExe);
+    proc.setArguments({QStringLiteral("--syntalos-bin"), QCoreApplication::applicationFilePath()});
+    if (!proc.startDetached()) {
+        QMessageBox::critical(
+            this,
+            QStringLiteral("Benchmark unavailable"),
+            QStringLiteral("Unable to start %1").arg(benchExe));
+        return;
+    }
+    close();
+}
+
 void MainWindow::on_actionOpenCrashCollector_triggered()
 {
-    auto crashReportExe = QStringLiteral("%1/../tools/crashreport/syntalos-crashreport")
-                              .arg(QCoreApplication::applicationDirPath());
-    QFileInfo checkBin(crashReportExe);
-    if (crashReportExe.startsWith("/usr/") || !checkBin.exists())
+    auto crashReportExe = findToolExecutable(
+        QStringLiteral("tools/crashreport/syntalos-crashreport"),
+        QStringLiteral(LIBEXECDIR "/syntalos-crashreport"));
+    if (crashReportExe.isEmpty())
         crashReportExe = QStringLiteral(LIBEXECDIR "/syntalos-crashreport");
 
     QProcess proc;

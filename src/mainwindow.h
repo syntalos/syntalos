@@ -162,6 +162,7 @@ private slots:
     void on_actionSubjectsSave_triggered();
     void on_actionTimings_triggered();
     void on_actionSystemInfo_triggered();
+    void on_actionBenchmark_triggered();
     void on_actionUsbDevices_triggered();
     void on_actionShowLog_triggered();
     void on_actionIntervalRunConfig_triggered();

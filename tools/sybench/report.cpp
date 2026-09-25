@@ -28,6 +28,7 @@
 #include <QJsonDocument>
 
 #include "health.h"
+#include "score.h"
 #include "sysinfo.h"
 
 namespace SyBench
@@ -90,6 +91,7 @@ QJsonObject buildReport(const QList<LadderRecord> &ladders, const SessionConfig 
     machine.insert(QStringLiteral("syntalos_version"), sysInfo->syntalosVersion());
     root.insert(QStringLiteral("machine"), machine);
     root.insert(QStringLiteral("health"), healthToJson(collectHealthItems()));
+    root.insert(QStringLiteral("score"), scoreToJson(computeScore(ladders, config)));
 
     QJsonObject settings;
     settings.insert(QStringLiteral("quick"), config.quick);

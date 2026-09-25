@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>900</width>
-    <height>640</height>
+    <width>840</width>
+    <height>680</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -168,88 +168,6 @@ Close Syntalos and other demanding applications before starting. Each step runs 
          </layout>
         </item>
         <item>
-         <widget class="QLabel" name="summaryLabel">
-          <property name="text">
-           <string>Results</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QTableWidget" name="summaryTable">
-          <property name="maximumSize">
-           <size>
-            <width>16777215</width>
-            <height>140</height>
-           </size>
-          </property>
-          <property name="editTriggers">
-           <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
-          </property>
-          <property name="selectionMode">
-           <enum>QAbstractItemView::SelectionMode::NoSelection</enum>
-          </property>
-          <attribute name="verticalHeaderVisible">
-           <bool>false</bool>
-          </attribute>
-          <column>
-           <property name="text">
-            <string>Dimension</string>
-           </property>
-          </column>
-          <column>
-           <property name="text">
-            <string>Profile</string>
-           </property>
-          </column>
-          <column>
-           <property name="text">
-            <string>Sustained</string>
-           </property>
-          </column>
-         </widget>
-        </item>
-        <item>
-         <widget class="QLabel" name="healthLabel">
-          <property name="text">
-           <string>System Health</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QTableWidget" name="healthTable">
-          <property name="maximumSize">
-           <size>
-            <width>16777215</width>
-            <height>230</height>
-           </size>
-          </property>
-          <property name="editTriggers">
-           <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
-          </property>
-          <property name="selectionMode">
-           <enum>QAbstractItemView::SelectionMode::NoSelection</enum>
-          </property>
-          <attribute name="verticalHeaderVisible">
-           <bool>false</bool>
-          </attribute>
-          <column>
-           <property name="text">
-            <string>Check</string>
-           </property>
-          </column>
-          <column>
-           <property name="text">
-            <string>Value</string>
-           </property>
-          </column>
-          <column>
-           <property name="text">
-            <string>Status</string>
-           </property>
-          </column>
-         </widget>
-        </item>
-        <item>
          <widget class="QLabel" name="stepsLabel">
           <property name="text">
            <string>Steps</string>
@@ -340,9 +258,9 @@ Close Syntalos and other demanding applications before starting. Each step runs 
            </spacer>
           </item>
           <item>
-           <widget class="QPushButton" name="saveButton">
+           <widget class="QPushButton" name="resultsButton">
             <property name="text">
-             <string>Save Report...</string>
+             <string>Results</string>
             </property>
            </widget>
           </item>
@@ -350,6 +268,147 @@ Close Syntalos and other demanding applications before starting. Each step runs 
            <widget class="QPushButton" name="stopButton">
             <property name="text">
              <string>Stop</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </widget>
+      <widget class="QWidget" name="resultsPage">
+       <layout class="QVBoxLayout" name="resultsLayout">
+        <item>
+         <widget class="QLabel" name="scoreLabel">
+          <property name="font">
+           <font>
+            <pointsize>18</pointsize>
+            <bold>true</bold>
+           </font>
+          </property>
+          <property name="text">
+           <string notr="true"/>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignmentFlag::AlignCenter</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="scoreDetailLabel">
+          <property name="text">
+           <string notr="true"/>
+          </property>
+          <property name="alignment">
+           <set>Qt::AlignmentFlag::AlignCenter</set>
+          </property>
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="summaryLabel">
+          <property name="text">
+           <string>Results</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTableWidget" name="summaryTable">
+          <property name="editTriggers">
+           <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+          </property>
+          <property name="selectionMode">
+           <enum>QAbstractItemView::SelectionMode::NoSelection</enum>
+          </property>
+          <attribute name="verticalHeaderVisible">
+           <bool>false</bool>
+          </attribute>
+          <column>
+           <property name="text">
+            <string>Dimension</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Profile</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Sustained</string>
+           </property>
+          </column>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="healthLabel">
+          <property name="text">
+           <string>System Health</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QTableWidget" name="healthTable">
+          <property name="editTriggers">
+           <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+          </property>
+          <property name="selectionMode">
+           <enum>QAbstractItemView::SelectionMode::NoSelection</enum>
+          </property>
+          <attribute name="verticalHeaderVisible">
+           <bool>false</bool>
+          </attribute>
+          <column>
+           <property name="text">
+            <string>Check</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Value</string>
+           </property>
+          </column>
+          <column>
+           <property name="text">
+            <string>Status</string>
+           </property>
+          </column>
+         </widget>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="resultsButtonLayout">
+          <item>
+           <widget class="QPushButton" name="stepsButton">
+            <property name="text">
+             <string>Steps</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="resultsSpacer">
+            <property name="orientation">
+             <enum>Qt::Orientation::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="saveButton">
+            <property name="text">
+             <string>Save Report...</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="newButton">
+            <property name="text">
+             <string>New Benchmark</string>
             </property>
            </widget>
           </item>

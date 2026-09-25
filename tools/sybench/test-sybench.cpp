@@ -27,6 +27,7 @@
 #include "ladder.h"
 #include "projectgen.h"
 #include "runner.h"
+#include "score.h"
 #include "utils/tomlutils.h"
 
 using namespace SyBench;
@@ -356,6 +357,77 @@ private slots:
         QCOMPARE(loaded->connections.first().peakPending, 4u);
 
         QVERIFY(!Syntalos::RunStatistics::fromJson(QJsonObject()).has_value());
+    }
+
+    static LadderRecord ladderResult(const QString &dim, const QString &profile, int sustained)
+    {
+        LadderRecord lr;
+        lr.dimensionId = dim;
+        lr.profileId = profile;
+        lr.outcome.sustained = sustained;
+        return lr;
+    }
+
+    void scoreComputation()
+    {
+        SessionConfig cfg;
+        // the reference machine scores 1000 on every profile
+        QList<LadderRecord> ref;
+        for (const auto &dim : createAllDimensions()) {
+            for (const auto &p : dim->profiles()) {
+                QVERIFY2(referenceLevel(dim->id(), p.id) > 0, qPrintable(dim->id() + QStringLiteral("/") + p.id));
+                ref.append(ladderResult(dim->id(), p.id, referenceLevel(dim->id(), p.id)));
+            }
+        }
+        auto score = computeScore(ref, cfg);
+        QVERIFY(score.valid());
+        QCOMPARE(score.overall, 1000);
+        QVERIFY(!score.partial);
+        QVERIFY(!score.quick);
+        QCOMPARE(score.profilesScored, score.profilesTotal);
+        QCOMPARE(scoreHeadline(score), QStringLiteral("1000 points"));
+        for (const auto &d : score.dimensions)
+            QCOMPARE(d.score, 1000);
+
+        // twice the capacity everywhere doubles the score
+        QList<LadderRecord> twice;
+        for (auto lr : ref) {
+            lr.outcome.sustained *= 2;
+            twice.append(lr);
+        }
+        QCOMPARE(computeScore(twice, cfg).overall, 2000);
+
+        // half the cameras, everything else at reference: the geometric mean drops accordingly
+        QList<LadderRecord> weakCams = ref;
+        for (auto &lr : weakCams) {
+            if (lr.dimensionId == QLatin1String("camera-capacity"))
+                lr.outcome.sustained /= 2;
+        }
+        score = computeScore(weakCams, cfg);
+        QVERIFY(score.overall < 1000 && score.overall > 800);
+        for (const auto &d : score.dimensions) {
+            if (d.dimensionId == QLatin1String("camera-capacity"))
+                QVERIFY(d.score >= 470 && d.score <= 510); // integer halving of 21 streams lands below 500
+            else
+                QCOMPARE(d.score, 1000);
+        }
+
+        // a partial quick run is marked as such, cancelled ladders are ignored
+        cfg.quick = true;
+        QList<LadderRecord> partial = {ladderResult(QStringLiteral("camera-capacity"), QStringLiteral("1080p30"), 36)};
+        auto cancelled = ladderResult(QStringLiteral("encoding"), QStringLiteral("1080p30-av1"), 1);
+        cancelled.outcome.cancelled = true;
+        partial.append(cancelled);
+        score = computeScore(partial, cfg);
+        QCOMPARE(score.overall, 1000);
+        QVERIFY(score.partial);
+        QVERIFY(score.quick);
+        QCOMPARE(score.profilesScored, 1);
+        QVERIFY(scoreHeadline(score).startsWith(QStringLiteral("~ 1000 points (quick mode, partial run")));
+
+        // nothing scored
+        QVERIFY(!computeScore({}, cfg).valid());
+        QCOMPARE(scoreHeadline(computeScore({}, cfg)), QStringLiteral("No score"));
     }
 
     static QList<int> levelsOf(const LadderOutcome &o)
