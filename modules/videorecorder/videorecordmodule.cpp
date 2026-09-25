@@ -53,6 +53,8 @@ private:
     bool m_recording;
     std::atomic_bool m_initDone;
     std::atomic_bool m_recordingFinished;
+    qint64 m_framesReceived = 0;
+    qint64 m_framesEncoded = 0;
     bool m_startStopped;
     std::shared_ptr<EDLDataset> m_vidDataset;
     std::unique_ptr<VideoWriter> m_videoWriter;
@@ -162,6 +164,8 @@ public:
         m_recording = false;
         m_initDone = false;
         m_recordingFinished = true;
+        m_framesReceived = 0;
+        m_framesEncoded = 0;
         m_startStopped = m_settingsDialog->startStopped();
         m_inSub.reset();
         m_ctlSub.reset();
@@ -304,6 +308,7 @@ public:
             if (!maybeFrame.has_value())
                 break;
             const auto &frame = maybeFrame.value();
+            m_framesReceived++;
 
             if (m_checkCommands && m_ctlSub->hasPending()) {
                 // process control commands - we only do this when we also have got a frame,
@@ -448,6 +453,7 @@ public:
                 m_recordingFinished = true;
                 break;
             }
+            m_framesEncoded++;
         }
 
         m_recordingFinished = true;
@@ -597,6 +603,9 @@ public:
 
         statusMessage(QStringLiteral("Recording stopped."));
         m_videoWriter.reset(nullptr);
+
+        setRunStatistic(QStringLiteral("frames_received"), m_framesReceived);
+        setRunStatistic(QStringLiteral("frames_encoded"), m_framesEncoded);
 
         if (finalizeOk && m_settingsDialog->deferredEncoding())
             enqueueVideosForDeferredEncoding();

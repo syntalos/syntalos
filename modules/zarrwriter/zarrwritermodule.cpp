@@ -200,6 +200,7 @@ private:
 
     bool m_lineEvents; // input is a sparse LineReading event stream, not signal blocks
     bool m_writeData;
+    qint64 m_itemsWritten = 0;
     int m_expectedChannels; // 0 = not advertised by upstream, skip channel count validation
     int64_t m_chunkCount;
 
@@ -274,6 +275,7 @@ public:
 
     bool prepare(const RunInfo &info) override
     {
+        m_itemsWritten = 0;
         clearDataReceivedEventRegistrations();
         m_settingsDlg->setRunning(true);
 
@@ -383,6 +385,7 @@ public:
     void stop() override
     {
         m_settingsDlg->setRunning(false);
+        setRunStatistic(QStringLiteral("items_written"), m_itemsWritten);
 
         if (!m_writeData)
             return;
@@ -579,6 +582,8 @@ private:
                 visitSignalBlock(data, [this](auto &block) {
                     writeSignalBlock(block);
                 });
+            if (m_writeData)
+                m_itemsWritten++;
         };
         while (m_sub->callIfNextVar(processItem)) {
         }
