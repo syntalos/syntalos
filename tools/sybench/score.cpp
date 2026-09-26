@@ -35,21 +35,21 @@ struct ReferenceEntry {
 };
 
 /*
- * Reference machine (1000 points): development workstation, benchmark run of 2026-09-25.
- * AMD Ryzen 9 7900X (12 cores), 30 GiB RAM, NVMe SSD.
+ * Reference approximated from a few runs on my machine under various system loads
+ * (AMD Ryzen 9 7900X (12 cores), 30 GiB RAM, NVMe SSD).
  */
 constexpr ReferenceEntry kReference[] = {
-    {"camera-capacity",   "1080p30",      36    },
-    {"camera-capacity",   "720p120",      20    },
-    {"encoding",          "1080p30-ffv1", 9     },
-    {"encoding",          "1080p30-av1",  8     },
-    {"disk-write",        "raw1080p30",   18    },
-    {"disk-write",        "zarr-30khz",   5120  },
+    {"camera-capacity",   "1080p30",      40    },
+    {"camera-capacity",   "720p120",      24    },
+    {"encoding",          "1080p30-ffv1", 8     },
+    {"encoding",          "1080p30-av1",  6     },
+    {"disk-write",        "raw1080p30",   20    },
+    {"disk-write",        "zarr-30khz",   5942  },
     {"signal-processing", "30khz-filter", 4096  },
-    {"ipc-workers",       "cpp-frames",   600   },
-    {"ipc-workers",       "python-rows",  448000},
-    {"ipc-workers",       "cpp-rows",     640000},
-    {"mixed-tasks",       "mixed-chain",  62    },
+    {"ipc-workers",       "cpp-frames",   714   },
+    {"ipc-workers",       "python-rows",  426000},
+    {"ipc-workers",       "cpp-rows",     740000},
+    {"mixed-tasks",       "mixed-chain",  60    },
 };
 
 int geometricMeanScore(const QList<double> &ratios)
