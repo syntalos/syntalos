@@ -434,27 +434,31 @@ static qint64 readProcessRssKiB(qint64 pid)
 
 qint64 readProcessTreeRssKiB(qint64 pid)
 {
-    qint64 total = readProcessRssKiB(pid);
+    qint64 total = 0;
+    for (const auto tpid : readProcessTree(pid))
+        total += readProcessRssKiB(tpid);
+    return total;
+}
 
-    // find direct children by looking at the parent pid of every process
-    const auto entries = QDir(QStringLiteral("/proc")).entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-    for (const auto &entry : entries) {
-        bool isPid = false;
-        const qint64 childPid = entry.toLongLong(&isPid);
-        if (!isPid || childPid == pid)
+static qint64 readProcessPssKiB(qint64 pid)
+{
+    // smaps_rollup is small, but procfs files do not report their size, so we read all of it
+    QFile f(QStringLiteral("/proc/%1/smaps_rollup").arg(pid));
+    if (!f.open(QIODevice::ReadOnly))
+        return readProcessRssKiB(pid);
+    for (const auto &line : f.readAll().split('\n')) {
+        if (!line.startsWith("Pss:"))
             continue;
-        QFile f(QStringLiteral("/proc/%1/stat").arg(childPid));
-        if (!f.open(QIODevice::ReadOnly))
-            continue;
-        const auto stat = f.readAll();
-        // the parent pid is the first field after the parenthesized command name
-        const int nameEnd = stat.lastIndexOf(')');
-        if (nameEnd < 0)
-            continue;
-        const auto fields = stat.mid(nameEnd + 2).split(' ');
-        if (fields.size() >= 2 && fields[1].toLongLong() == pid)
-            total += readProcessTreeRssKiB(childPid);
+        return line.mid(4).trimmed().split(' ').first().toLongLong();
     }
+    return readProcessRssKiB(pid);
+}
+
+qint64 readProcessTreePssKiB(qint64 pid)
+{
+    qint64 total = 0;
+    for (const auto tpid : readProcessTree(pid))
+        total += readProcessPssKiB(tpid);
     return total;
 }
 

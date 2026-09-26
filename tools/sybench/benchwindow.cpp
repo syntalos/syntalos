@@ -366,7 +366,7 @@ void BenchWindow::onStepFinished(const StepRecord &step)
         5,
         step.result.success ? QStringLiteral("%1 cores").arg(step.result.processLoad(), 0, 'f', 1)
                             : QStringLiteral("-"));
-    setCell(6, Syntalos::formatByteSize(step.result.peakRssKiB() * 1024));
+    setCell(6, Syntalos::formatByteSize(step.result.peakPssKiB * 1024));
     ui->stepsTable->scrollToBottom();
 }
 

@@ -125,10 +125,17 @@ std::optional<ThreadUsageStats> readProcessUsage(qint64 pid);
 
 /**
  * @brief Current resident memory of a process and all of its descendants, in KiB.
- *
- * Useful to watch a process that spawns workers. Returns 0 if the process does not exist.
  */
 qint64 readProcessTreeRssKiB(qint64 pid);
+
+/**
+ * @brief Proportional memory of a process and all of its descendants, in KiB.
+ *
+ * Shared memory is split between the processes using it, so the sum is what the tree really costs.
+ * Reading it walks all memory mappings, which takes milliseconds for large processes.
+ * Falls back to the resident size where the kernel does not provide it.
+ */
+qint64 readProcessTreePssKiB(qint64 pid);
 
 /**
  * @brief Strongest scheduling priority found among all threads of a process.

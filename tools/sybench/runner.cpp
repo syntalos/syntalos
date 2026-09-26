@@ -108,11 +108,6 @@ double StepResult::processLoad() const
     return processCpuSec() / stats->usageWindowSec;
 }
 
-qint64 StepResult::peakRssKiB() const
-{
-    return std::max(stats ? stats->peakRssKiB : 0, observedPeakRssKiB);
-}
-
 int StepResult::threadsTotal() const
 {
     return stats ? stats->threadsTotal : 0;
@@ -291,13 +286,16 @@ auto SyntalosRunner::run(const StepRunConfig &cfg) -> std::expected<StepResult, 
 
         // An overloaded Syntalos lets its data queues grow without bound and can take the whole
         // machine down with it, so we watch its memory and stop the run before that happens.
+        // The guard uses the resident size, which is cheap to read but counts shared memory once
+        // per process and so errs on the safe side. The reported peak is the exact proportional
+        // size, which is expensive to read, so we only sample it once per second.
         const auto rssKiB = readProcessTreeRssKiB(pid);
-        r.observedPeakRssKiB = std::max(r.observedPeakRssKiB, rssKiB);
         if (nowMs - lastRssMs >= 1000) {
             if (lastRssMs > 0)
                 growthMiBPerSec = (rssKiB - lastRssKiB) / 1024.0 / ((nowMs - lastRssMs) / 1000.0);
             lastRssKiB = rssKiB;
             lastRssMs = nowMs;
+            r.peakPssKiB = std::max(r.peakPssKiB, readProcessTreePssKiB(pid));
         }
         const auto memAvailableKiB = readMemInfo().memAvailableKiB;
         const bool systemStarved = memAvailableKiB < cfg.systemMemoryFloorKiB;

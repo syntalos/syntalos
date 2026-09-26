@@ -55,7 +55,7 @@ static QJsonObject stepToJson(const StepRecord &s)
     o.insert(QStringLiteral("process_cpu_sec"), s.result.processCpuSec());
     o.insert(QStringLiteral("threads_total"), s.result.threadsTotal());
     o.insert(QStringLiteral("threads_elevated"), s.result.threadsElevated());
-    o.insert(QStringLiteral("peak_rss_kib"), s.result.peakRssKiB());
+    o.insert(QStringLiteral("peak_pss_kib"), s.result.peakPssKiB);
     o.insert(QStringLiteral("stats_file"), QFileInfo(s.statsFile).fileName());
 
     QJsonArray meters;

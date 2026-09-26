@@ -91,15 +91,14 @@ struct StepResult {
     double startupSec = 0; /// time from launch until all modules were running
     QString failureReason;
     int exitCode = -1;
-    qint64 observedPeakRssKiB = 0; /// sampled by the runner, also available if the run was killed
-    QString outputTail;            /// last lines of the Syntalos output, for diagnostics
+    qint64 peakPssKiB = 0; /// peak proportional memory of Syntalos and its workers, sampled every second
+    QString outputTail;    /// last lines of the Syntalos output, for diagnostics
 
     std::optional<Syntalos::RunStatistics> stats; /// what Syntalos reported, if it got that far
 
     [[nodiscard]] double durationSec() const;
     [[nodiscard]] double processCpuSec() const;
     [[nodiscard]] double processLoad() const; /// CPU seconds per wall-clock second in the usage window
-    [[nodiscard]] qint64 peakRssKiB() const;  /// the larger of the reported and the observed peak
     [[nodiscard]] int threadsTotal() const;
     [[nodiscard]] int threadsElevated() const;
     [[nodiscard]] QList<MeterStats> meters() const;
