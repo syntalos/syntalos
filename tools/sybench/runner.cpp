@@ -468,14 +468,10 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
             return failStep(QStringLiteral("Setting the export directory failed: %1").arg(res.error()));
     }
     // what the instance holds with the project loaded, to see later how much the run left behind
-    const auto rssBeforeRunKiB = readProcessTreeRssKiB(pid);
+    const auto pssBeforeRunKiB = readProcessTreePssKiB(pid);
 
     if (stop.stop_requested())
         return cancelled();
-
-    qint64 memoryLimitKiB = cfg.memoryLimitKiB;
-    if (memoryLimitKiB <= 0)
-        memoryLimitKiB = std::max<qint64>(readMemInfo().memAvailableKiB - kMemoryReserveKiB, 512 * 1024);
 
     if (const auto res = requestSyntalos(QStringLiteral("StartRun"), {cfg.ephemeral, cfg.durationSec}, 10000); !res)
         return failStep(QStringLiteral("Starting the run failed: %1").arg(res.error()));
@@ -511,8 +507,9 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
         stopState = StopState::Killed;
     };
 
-    qint64 lastRssKiB = 0;
-    qint64 lastRssMs = 0;
+    qint64 lastAvailableKiB = 0;
+    qint64 lastSampleMs = 0;
+    qint64 pssKiB = 0;
     double growthMiBPerSec = 0;
     while (true) {
         pollWait(proc, 100);
@@ -529,32 +526,34 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
             break;
 
         // An overloaded Syntalos lets its data queues grow without bound and can take the whole
-        // machine down with it, so we watch its memory and stop the run before that happens.
-        // The guard uses the resident size, which is cheap to read but counts shared memory once
-        // per process and so errs on the safe side. The reported peak is the exact proportional
-        // size, which is expensive to read, so we only sample it once per second.
-        const auto rssKiB = readProcessTreeRssKiB(pid);
-        if (nowMs - lastRssMs >= 1000) {
-            if (lastRssMs > 0)
-                growthMiBPerSec = (rssKiB - lastRssKiB) / 1024.0 / ((nowMs - lastRssMs) / 1000.0);
-            lastRssKiB = rssKiB;
-            lastRssMs = nowMs;
-            r.peakPssKiB = std::max(r.peakPssKiB, readProcessTreePssKiB(pid));
-        }
+        // machine down with it, so we watch the memory left on the system and stop the run before
+        // that happens. What Syntalos and its workers use is the proportional size, which is
+        // expensive to read for many processes, so we only sample it once per second.
         const auto memAvailableKiB = readMemInfo().memAvailableKiB;
+        if (nowMs - lastSampleMs >= 1000) {
+            if (lastSampleMs > 0)
+                growthMiBPerSec = (lastAvailableKiB - memAvailableKiB) / 1024.0 / ((nowMs - lastSampleMs) / 1000.0);
+            lastAvailableKiB = memAvailableKiB;
+            lastSampleMs = nowMs;
+            pssKiB = readProcessTreePssKiB(pid);
+            r.peakPssKiB = std::max(r.peakPssKiB, pssKiB);
+        }
         const bool systemStarved = memAvailableKiB < cfg.systemMemoryFloorKiB;
-        if ((rssKiB > memoryLimitKiB || systemStarved) && stopState == StopState::Running) {
+        const bool memoryShort = memAvailableKiB < cfg.systemMemoryReserveKiB;
+        const bool overLimit = cfg.memoryLimitKiB > 0 && pssKiB > cfg.memoryLimitKiB;
+        if ((memoryShort || overLimit) && stopState == StopState::Running) {
             // the spike that triggered the stop is what the report should show as peak
-            r.peakPssKiB = std::max(r.peakPssKiB, readProcessTreePssKiB(pid));
+            pssKiB = readProcessTreePssKiB(pid);
+            r.peakPssKiB = std::max(r.peakPssKiB, pssKiB);
             stopProcess(
                 StopCause::MemoryLimit,
                 QStringLiteral(
-                    "Memory limit exceeded: Syntalos used %1 MiB (limit %2 MiB, %3 MiB left "
-                    "on the system), growing by %4 MiB/s. Fast growth means its data queues "
-                    "were overflowing.")
-                    .arg(rssKiB / 1024)
-                    .arg(memoryLimitKiB / 1024)
+                    "Memory limit exceeded: Syntalos used %1 MiB with %2 MiB left on the system "
+                    "(reserve %3 MiB), memory use growing by %4 MiB/s. Fast growth means its data "
+                    "queues were overflowing.")
+                    .arg(pssKiB / 1024)
                     .arg(memAvailableKiB / 1024)
+                    .arg((overLimit ? cfg.memoryLimitKiB : cfg.systemMemoryReserveKiB) / 1024)
                     .arg(growthMiBPerSec, 0, 'f', 0),
                 5000,
                 cfg.teardownGraceSec * 1000);
@@ -616,7 +615,7 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
         }
 
         // memory the run left behind adds to everything measured later, so we do not let it pile up
-        const auto retainedKiB = readProcessTreeRssKiB(pid) - rssBeforeRunKiB;
+        const auto retainedKiB = readProcessTreePssKiB(pid) - pssBeforeRunKiB;
         if (cfg.retainedMemoryRestartKiB > 0 && retainedKiB > cfg.retainedMemoryRestartKiB)
             markForRelaunch(QStringLiteral("Syntalos kept %1 MiB after the run.").arg(retainedKiB / 1024));
     }

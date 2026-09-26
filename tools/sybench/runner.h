@@ -32,6 +32,9 @@
 namespace SyBench
 {
 
+/// memory the default system reserve leaves to the rest of the system
+constexpr qint64 kMemoryReserveKiB = 2LL * 1024 * 1024;
+
 /**
  * @brief How to run one benchmark step
  */
@@ -48,12 +51,14 @@ struct StepRunConfig {
     /// time allowed for a freshly launched Syntalos to answer on D-Bus
     int launchTimeoutSec = 60;
     /// Relaunch Syntalos before the next step when it kept more memory than this after a run
-    /// (compared to before the run started), so retained heap does not leak into later measurements.
-    qint64 retainedMemoryRestartKiB = 1024 * 1024;
+    /// (compared to before the run started), so a leaking instance does not distort later measurements.
+    qint64 retainedMemoryRestartKiB = 4LL * 1024 * 1024;
 
-    /// Stop the run when Syntalos (and its workers) use more resident memory than this.
-    /// 0 = automatic: the memory available when the run starts, minus 2 GiB of headroom.
+    /// Stop the run when Syntalos (and its workers) use more proportional memory than this, 0 = no limit.
+    /// The system reserve below applies in any case.
     qint64 memoryLimitKiB = 0;
+    /// Stop the run when the whole system has less memory available than this (default 2 GiB).
+    qint64 systemMemoryReserveKiB = kMemoryReserveKiB;
     /// Kill the run when the whole system has less memory available than this (default 1 GiB).
     qint64 systemMemoryFloorKiB = 1024 * 1024;
 };
@@ -74,9 +79,6 @@ QString stopCauseToString(StopCause cause);
 /**
  * @brief Everything we learned from one Syntalos run
  */
-/// memory the default memory limit leaves to the rest of the system
-constexpr qint64 kMemoryReserveKiB = 2LL * 1024 * 1024;
-
 struct StepResult {
     bool success = false; /// the run completed without error
     StopCause stopCause = StopCause::None;

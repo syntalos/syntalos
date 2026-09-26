@@ -31,7 +31,7 @@ namespace SyBench
  * (table rows) show the per-item overhead of the IPC and the worker runtime. Frames only
  * go through the C++ worker: the copy chain is the limit, a Python worker measured the same.
  */
-class OutOfProcessDimension : public Dimension
+class IPCDimension : public Dimension
 {
 public:
     enum class Language {
@@ -82,12 +82,12 @@ public:
 
     QString id() const override
     {
-        return QStringLiteral("out-of-process");
+        return QStringLiteral("ipc-workers");
     }
 
     QString title() const override
     {
-        return QStringLiteral("Out-of-Process Modules");
+        return QStringLiteral("IPC Modules");
     }
 
     QString description() const override
@@ -199,7 +199,7 @@ public:
 
 std::unique_ptr<Dimension> createOutOfProcessDimension()
 {
-    return std::make_unique<OutOfProcessDimension>();
+    return std::make_unique<IPCDimension>();
 }
 
 } // namespace SyBench
