@@ -21,6 +21,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <expected>
 
 #include "engine.h"
 #include "entitylistmodels.h"
@@ -68,14 +69,46 @@ public:
     void setStatusText(const QString &msg);
 
     /**
-     * @brief Load a project file and apply its configuration.
+     * @brief Load a project file synchronously, for automation.
      *
-     * This will load the project file, apply all settings, and prepare the engine for a run,
-     * but it will not start the run.
-     *
-     * @param fname The project file to load.
+     * This will load the project file, apply all settings, and prepare the engine for a run.
      */
-    void loadProjectFilename(const QString &fname);
+    auto loadProject(const QString &fname) -> std::expected<void, QString>;
+
+    /**
+     * @brief Load a project file as the user would, reporting errors to them.
+     */
+    void openProjectFile(const QString &fileName);
+
+    /**
+     * @brief Change the data export base directory of the loaded project, for automation.
+     *
+     * The directory is created if it does not exist yet. Loading another project
+     * replaces this setting with the one stored in that project.
+     */
+    auto setExportDirectory(const QString &dir) -> std::expected<void, QString>;
+
+    /**
+     * @brief Start a run of the currently loaded project, for automation.
+     *
+     * This blocks until the run has finished. If @p maxDurationSec is greater than zero,
+     * the run is stopped automatically after that many seconds.
+     */
+    auto startRun(bool ephemeral, int maxDurationSec) -> std::expected<void, QString>;
+
+    /**
+     * @brief Stop the current run, if there is one.
+     */
+    void stopRun();
+
+    /**
+     * @brief Stop any active run and quit the application.
+     */
+    void requestQuit();
+
+    bool isProjectLoadInProgress() const;
+
+    Engine *engine() const;
 
     /**
      * @brief Schedule running a project file autonomously.
@@ -85,16 +118,11 @@ public:
      * the application, without any user interaction.
      *
      * @param projectFname       The project file to load and run.
-     * @param ephemeral          If true, the run will be ephemeral, meaning that
-     * @param noninteractive     If true, try to reduce GUI interactions.
+     * @param ephemeral          If true, the run will be ephemeral, meaning that no data is stored.
      * @param runDurationSec     If > 0, stop the run automatically after this
-     *                           many seconds and quit.  Implies @p autoRun.
+     *                           many seconds and quit.
      */
-    void scheduleProjectAutorun(
-        const QString &projectFname,
-        bool ephemeral,
-        bool noninteractive,
-        int runDurationSec = 0);
+    void scheduleProjectAutorun(const QString &projectFname, bool ephemeral, int runDurationSec = 0);
 
     void setNetPortOverrides(int controlPort, int feedbackPort);
 
@@ -179,7 +207,7 @@ private:
     void shutdown(int errorCode = 0);
     void closeOnTerminationRequest();
     void setCurrentProjectFile(const QString &fileName);
-    void setDataExportBaseDir(const QString &dir);
+    void setExportDirSafe(const QString &dir);
     void updateExportDirDisplay();
     void updateIntervalRunMessage();
     [[nodiscard]] QByteArray loadBusyAnimation(const QString &name) const;
@@ -198,8 +226,7 @@ private:
     void setExperimenterSelectVisible(bool visible);
 
     bool saveConfiguration(const QString &fileName);
-    bool loadConfiguration(const QString &fileName);
-    void openProjectFile(const QString &fileName);
+    auto loadConfiguration(const QString &fileName) -> std::expected<void, QString>;
 
     NetworkControlConfig buildNetControlConfig() const;
     void applyNetControllerConfig();

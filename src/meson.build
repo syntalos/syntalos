@@ -15,6 +15,9 @@ syntalos_src = [
     'chiporderwidget.cpp',
     'commentdialog.h',
     'commentdialog.cpp',
+    'dbuscontrol-defs.h',
+    'dbuscontrol.h',
+    'dbuscontrol.cpp',
     'entitylistmodels.h',
     'entitylistmodels.cpp',
     'engine.h',
@@ -61,6 +64,8 @@ syntalos_src = [
     'sysinfodialog.cpp',
     'timingsdialog.h',
     'timingsdialog.cpp',
+    'uiprompts.h',
+    'uiprompts.cpp',
     'whatsnewdialog.h',
     'whatsnewdialog.cpp',
 ]
@@ -132,7 +137,6 @@ syntalos_exe = executable('syntalos',
         qt_multimedia_dep,
         winpos_dep,
 
-        kfdbusaddons_dep,
         kfarchive_dep,
         kfconfigwidgets_dep,
 

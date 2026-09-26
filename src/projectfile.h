@@ -20,6 +20,7 @@
 #pragma once
 
 #include <QString>
+#include <expected>
 
 #include "entitylistmodels.h"
 #include "exportdirutils.h"
@@ -62,7 +63,13 @@ bool saveProjectConfiguration(
     const QString &fileName,
     StatusMessageFn statusFn = {});
 
-bool loadProjectConfigurationInteractive(
+/**
+ * @brief Load a project configuration into the engine.
+ *
+ * Questions are asked via modal prompts in interactive mode, and answered conservatively
+ * in non-interactive mode. Errors are not shown to the user, but returned to the caller.
+ */
+auto loadProjectConfiguration(
     Engine *engine,
     FlowGraphView *graphView,
     TestSubjectListModel *subjectList,
@@ -71,6 +78,6 @@ bool loadProjectConfigurationInteractive(
     const QString &fileName,
     QWidget *parent = nullptr,
     std::function<void(void)> preLoadFn = {},
-    StatusMessageFn statusFn = {});
+    StatusMessageFn statusFn = {}) -> std::expected<void, QString>;
 
 } // namespace Syntalos

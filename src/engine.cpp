@@ -44,20 +44,27 @@
 #include <QDBusUnixFileDescriptor>
 #include <QDateTime>
 #include <QElapsedTimer>
-#include <QMessageBox>
 #include <QSet>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QThread>
 #include <QTimer>
 #include <QVector>
+#include <QWidget>
 #include <algorithm>
 #include <memory>
 #include <functional>
 #include <libusb.h>
 #include <pthread.h>
 
-#include "logging.h"
+#include "fabric/logging.h"
+#include "datactl/syclock.h"
+#include "datactl/edlstorage.h"
+#include "datactl/priv/cpuaffinity.h"
+#include "datactl/priv/rtkit.h"
+#include "utils/misc.h"
+#include "utils/tomlutils.h"
+#include "utils/resourceinfo.h"
 
 #include "globalconfig.h"
 #include "moduleeventthread.h"
@@ -68,13 +75,7 @@
 #include "mlinkmodule.h"
 #include "sysinfo.h"
 #include "syscopeguard.h"
-#include "datactl/syclock.h"
-#include "datactl/edlstorage.h"
-#include "datactl/priv/cpuaffinity.h"
-#include "datactl/priv/rtkit.h"
-#include "utils/misc.h"
-#include "utils/tomlutils.h"
-#include "utils/resourceinfo.h"
+#include "uiprompts.h"
 
 static_assert(
     std::is_same<std::thread::native_handle_type, pthread_t>::value,
@@ -833,12 +834,11 @@ AbstractModule *Engine::createModule(const QString &id, const QString &name)
     mod->setState(ModuleState::INITIALIZING);
     qApp->processEvents();
     if (!mod->initialize()) {
-        QMessageBox::critical(
+        reportCriticalError(
             d->parentWidget,
             QStringLiteral("Module initialization failed"),
             QStringLiteral("Failed to initialize module '%1', it can not be added. %2")
-                .arg(mod->id(), mod->lastError()),
-            QMessageBox::Ok);
+                .arg(mod->id(), mod->lastError()));
         removeModule(mod);
         emit moduleInitDone();
         return nullptr;
@@ -943,7 +943,7 @@ QString Engine::readRunComment(const QString &runExportDir) const
     QString parseError;
     auto attrs = parseTomlFile(QStringLiteral("%1/attributes.toml").arg(runExportDir), parseError);
     if (!parseError.isEmpty()) {
-        QMessageBox::critical(
+        reportCriticalError(
             d->parentWidget,
             QStringLiteral("Can not read comment"),
             QStringLiteral("Unable to parse EDL metadata in %1:\n%2").arg(runExportDir, parseError));
@@ -964,7 +964,7 @@ void Engine::setRunComment(const QString &comment, const QString &runExportDir)
     const auto attrsFname = QStringLiteral("%1/attributes.toml").arg(runExportDir);
     auto attrs = parseTomlFile(attrsFname, parseError);
     if (!parseError.isEmpty()) {
-        QMessageBox::critical(
+        reportCriticalError(
             d->parentWidget,
             QStringLiteral("Can not save comment"),
             QStringLiteral("Unable to parse EDL metadata in %1:\n%2").arg(runExportDir, parseError));
@@ -1039,7 +1039,7 @@ bool Engine::makeDirectory(const QString &dir)
 {
     if (!QDir().mkpath(dir)) {
         const auto message = QStringLiteral("Unable to create directory '%1'.").arg(dir);
-        QMessageBox::critical(d->parentWidget, QStringLiteral("Error"), message);
+        reportCriticalError(d->parentWidget, QStringLiteral("Error"), message);
         emitStatusMessage("OS error.");
         return false;
     }
@@ -1320,7 +1320,7 @@ bool Engine::run(const Uuid &recordIdOverride)
     d->runIsEphemeral = false; // not a volatile run
 
     if (d->presentModules.isEmpty()) {
-        QMessageBox::warning(
+        reportWarning(
             d->parentWidget,
             QStringLiteral("Configuration error"),
             QStringLiteral(
@@ -1329,7 +1329,7 @@ bool Engine::run(const Uuid &recordIdOverride)
     }
 
     if (!exportDirIsValid() || d->exportBaseDir.isEmpty() || d->exportDir.isEmpty()) {
-        QMessageBox::critical(
+        reportCriticalError(
             d->parentWidget,
             QStringLiteral("Configuration error"),
             QStringLiteral("Data export directory was not properly set. Can not continue."));
@@ -1372,20 +1372,19 @@ bool Engine::run(const Uuid &recordIdOverride)
                               .arg(formatByteSize(minFreeBytes));
             }
 
-            auto reply = QMessageBox::question(
+            const bool continueAnyway = askYesNoQuestion(
                 d->parentWidget,
                 QStringLiteral("Disk is almost full - Continue anyway?"),
                 QStringLiteral(
                     "The disk '%1' is located on has only %2 of space available. %3\n\n"
                     "If this run generates more data than we have space for, it will fail (possibly "
                     "corrupting data). Continue anyway?")
-                    .arg(d->exportBaseDir, formatByteSize(available), details),
-                QMessageBox::Yes | QMessageBox::No);
-            if (reply == QMessageBox::No)
+                    .arg(d->exportBaseDir, formatByteSize(available), details));
+            if (!continueAnyway)
                 return false;
         }
     } else {
-        QMessageBox::critical(
+        reportCriticalError(
             d->parentWidget,
             QStringLiteral("Disk not ready"),
             QStringLiteral(
@@ -1402,15 +1401,14 @@ bool Engine::run(const Uuid &recordIdOverride)
     QDir deDir(d->exportDir);
     if (deDir.exists()) {
         if (!d->alwaysOverrideExportDir) {
-            auto reply = QMessageBox::question(
+            const bool deleteData = askYesNoQuestion(
                 d->parentWidget,
                 QStringLiteral("Existing data found - Continue anyway?"),
                 QStringLiteral(
                     "The directory '%1' already contains data (likely from a previous run). "
                     "If you continue, the old data will be deleted. Continue and delete data?")
-                    .arg(d->exportDir),
-                QMessageBox::Yes | QMessageBox::No);
-            if (reply == QMessageBox::No)
+                    .arg(d->exportDir));
+            if (!deleteData)
                 return false;
         } else {
             LOG_WARNING(
@@ -1435,7 +1433,7 @@ bool Engine::runEphemeral()
 
     d->failed = true; // if we exit before this is reset, initialization has failed
     if (d->presentModules.isEmpty()) {
-        QMessageBox::warning(
+        reportWarning(
             d->parentWidget,
             QStringLiteral("Configuration error"),
             QStringLiteral(
@@ -1446,7 +1444,7 @@ bool Engine::runEphemeral()
     QTemporaryDir tempDir(QStringLiteral("%1/syntalos-tmprun-XXXXXX").arg(tempDirLargeRoot()));
     LOG_INFO(d->log, "Storing temporary data in: {}", tempDir.path());
     if (!tempDir.isValid()) {
-        QMessageBox::warning(
+        reportWarning(
             d->parentWidget,
             QStringLiteral("Unable to run"),
             QStringLiteral("Unable to perform ephemeral run: Temporary data storage could not be created. %s")
@@ -1929,7 +1927,7 @@ bool Engine::finalizeExperimentMetadata(
 
     auto res = storageCollection->save();
     if (!res.has_value()) {
-        QMessageBox::critical(
+        reportCriticalError(
             d->parentWidget,
             QStringLiteral("Unable to finish recording"),
             QStringLiteral("Unable to save experiment metadata: %1").arg(qstr(res.error())));
@@ -2237,7 +2235,7 @@ bool Engine::validateModuleNames(const ModuleRunOrder &modOrder)
 
         const auto uniqName = simplifyStrForFileBasename(mod->name(), true);
         if (modNameSet.contains(uniqName)) {
-            QMessageBox::critical(
+            reportCriticalError(
                 d->parentWidget,
                 QStringLiteral("Can not run this board"),
                 QStringLiteral(
@@ -2322,7 +2320,7 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
 
     QDir edlDir(exportDirPath);
     if (edlDir.exists()) {
-        QMessageBox::critical(
+        reportCriticalError(
             d->parentWidget,
             QStringLiteral("Internal Error"),
             QStringLiteral(
@@ -3142,7 +3140,7 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
 
             emitStatusMessage(QStringLiteral("Unable to recover stalled module '%1' (⚠️ application may deadlock now)")
                                   .arg(mod->name()));
-            QMessageBox::critical(
+            reportCriticalError(
                 d->parentWidget,
                 QStringLiteral("Critical failure"),
                 QStringLiteral(

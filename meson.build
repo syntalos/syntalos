@@ -277,7 +277,6 @@ gobject_dep = dependency('gobject-2.0', version: '>=2.58')
 gio_dep = dependency('gio-2.0', version: '>= 2.62')
 
 kfarchive_dep = dependency('KF6Archive')
-kfdbusaddons_dep = dependency('KF6DBusAddons')
 kfconfigwidgets_dep = dependency('KF6ConfigWidgets')
 kftexteditor_dep = dependency('KF6TextEditor')
 kfwidgetsaddons_dep = dependency('KF6WidgetsAddons')

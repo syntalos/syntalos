@@ -24,13 +24,11 @@
 #include <mimalloc-new-delete.h>
 #endif
 
-#include <KDBusService>
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDBusConnection>
-#include <QDBusConnectionInterface>
 #include <QDir>
-#include <QMessageBox>
+#include <QTimer>
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
 #include <gst/gst.h>
@@ -43,6 +41,8 @@
 #include "qmeta.h"
 #include "logging.h"
 #include "mainwindow.h"
+#include "dbuscontrol.h"
+#include "uiprompts.h"
 #include "utils/misc.h"
 
 #include <random>
@@ -120,7 +120,8 @@ int main(int argc, char *argv[])
     QCommandLineOption optnNonInteractive(
         QStringList() << "n" << "non-interactive",
         QStringLiteral(
-            "Try to reduce GUI user interactions when auto-running a project file, print to stderr instead."));
+            "Do not show modal dialogs that require user interaction, log errors instead and answer "
+            "questions conservatively. Useful when auto-running a project file or when remote-controlling Syntalos."));
     parser.addOption(optnNonInteractive);
 
     QCommandLineOption optnStatsOut(
@@ -142,6 +143,7 @@ int main(int argc, char *argv[])
     parser.addOption(optnNetFeedbackPort);
 
     parser.process(app);
+    Syntalos::setNonInteractiveMode(parser.isSet(optnNonInteractive));
 
     // fetch project filename to open
     const auto positionalArgs = parser.positionalArguments();
@@ -151,19 +153,16 @@ int main(int argc, char *argv[])
     const int runForSecs = parser.isSet(optnRunFor) ? parser.value(optnRunFor).toInt() : -1;
     const bool autoRun = parser.isSet(optnAutoRun) || runForSecs > 0;
 
-    // ensure we only ever run one instance of the application
-    // KDBusService just exits the second instance with 0 (and forwards arguments),
-    // so we check for the service name ourselves first to give the caller a clear reason and exit code.
-    const auto instanceServiceName = QStringLiteral("local.") + QCoreApplication::applicationName();
+    // ensure we only ever run one instance of the application, by claiming our
+    // well-known D-Bus name (which also hosts the D-Bus control interface)
     {
-        const auto bus = QDBusConnection::sessionBus();
-        if (bus.isConnected() && bus.interface()->isServiceRegistered(instanceServiceName)) {
+        auto bus = QDBusConnection::sessionBus();
+        if (bus.isConnected() && !bus.registerService(QString::fromLatin1(SY_DBUS_SERVICE_NAME))) {
             qCritical().noquote() << "Another instance of Syntalos is already running. "
                                      "Only one instance may run at a time, please close it first.";
             return SY_EXIT_ALREADY_RUNNING;
         }
     }
-    KDBusService service(KDBusService::Unique);
 
     // at this point, we have all startup information and can launch the logging system
     // before anything tries to log using it.
@@ -189,13 +188,15 @@ int main(int argc, char *argv[])
     if (parser.isSet(optnStatsOut))
         w->setRunStatisticsOutputFile(parser.value(optnStatsOut));
 
+    // allow other local applications to control this instance
+    Syntalos::DBusControlAdaptor::registerOnSessionBus(w.get());
+
     // we can show the main window now
     w->show();
 
     if (autoRun) {
         // automation-specific options
         const auto overrideExportDir = parser.value(optnExportDir);
-        const bool nonInteractive = parser.isSet(optnNonInteractive);
         const bool ephemeralRun = parser.isSet(optnEphemeralRun);
 
         if (projectFname.isEmpty()) {
@@ -205,13 +206,16 @@ int main(int argc, char *argv[])
         }
         if (!overrideExportDir.isEmpty())
             w->setExportDirOverride(overrideExportDir);
-        w->scheduleProjectAutorun(projectFname, ephemeralRun, nonInteractive, runForSecs);
+        w->scheduleProjectAutorun(projectFname, ephemeralRun, runForSecs);
     } else {
         if (!projectFname.isEmpty()) {
             const auto overrideExportDir = parser.value(optnExportDir);
             if (!overrideExportDir.isEmpty())
                 w->setExportDirOverride(overrideExportDir);
-            w->loadProjectFilename(projectFname);
+
+            QTimer::singleShot(0, w.get(), [win = w.get(), projectFname]() {
+                win->openProjectFile(projectFname);
+            });
         }
     }
 

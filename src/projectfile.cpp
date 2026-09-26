@@ -22,7 +22,6 @@
 #include <KTar>
 #include <QDir>
 #include <QTemporaryFile>
-#include <QMessageBox>
 #include <utility>
 #include <cerrno>
 #include <cstring>
@@ -33,6 +32,7 @@
 
 #include "utils/tomlutils.h"
 #include "utils/misc.h"
+#include "uiprompts.h"
 
 namespace Syntalos
 {
@@ -231,7 +231,7 @@ bool saveProjectConfiguration(
     return true;
 }
 
-bool loadProjectConfigurationInteractive(
+auto loadProjectConfiguration(
     Engine *engine,
     FlowGraphView *graphView,
     TestSubjectListModel *subjectList,
@@ -240,53 +240,45 @@ bool loadProjectConfigurationInteractive(
     const QString &fileName,
     QWidget *parent,
     std::function<void(void)> preLoadFn,
-    StatusMessageFn statusFn)
+    StatusMessageFn statusFn) -> std::expected<void, QString>
 {
     auto log = getLogger("board.load");
 
     KTar tar(fileName);
-    if (!tar.open(QIODevice::ReadOnly)) {
-        LOG_ERROR(log, "Unable to open settings file for reading: {}", tar.errorString());
-        return false;
-    }
+    if (!tar.open(QIODevice::ReadOnly))
+        return std::unexpected(QStringLiteral("Unable to open project file for reading: %1").arg(tar.errorString()));
 
     auto rootDir = tar.directory();
 
     // load main settings
     auto globalSettingsFile = rootDir->file("main.toml");
     if (globalSettingsFile == nullptr) {
-        QMessageBox::critical(
-            parent,
-            QStringLiteral("Can not load settings"),
-            QStringLiteral("The settings file is damaged or is no valid Syntalos configuration bundle."));
         setStatusText(statusFn, "");
-        return false;
+        return std::unexpected(
+            QStringLiteral("The settings file is damaged or is no valid Syntalos configuration bundle."));
     }
 
     QString parseError;
     const auto rootObj = parseTomlData(globalSettingsFile->data(), parseError);
     if (!parseError.isEmpty()) {
-        QMessageBox::critical(
-            parent,
-            QStringLiteral("Can not load settings"),
+        setStatusText(statusFn, "");
+        return std::unexpected(
             QStringLiteral("The settings file is damaged or is no valid Syntalos configuration file. %1")
                 .arg(parseError));
-        setStatusText(statusFn, "");
-        return false;
     }
 
     if (rootObj.value("version_format").toString() != CONFIG_FILE_FORMAT_VERSION) {
-        auto reply = QMessageBox::question(
+        const bool loadAnyway = askYesNoQuestion(
             parent,
-            "Incompatible configuration",
+            QStringLiteral("Incompatible configuration"),
             QStringLiteral(
                 "The settings file you want to load was created with a different, possibly older version of "
                 "Syntalos and may not work correctly in this version.\n"
-                "Should we attempt to load it anyway? (This may result in unexpected behavior)"),
-            QMessageBox::Yes | QMessageBox::No);
-        if (reply == QMessageBox::No) {
+                "Should we attempt to load it anyway? (This may result in unexpected behavior)"));
+        if (!loadAnyway) {
             setStatusText(statusFn, "Aborted configuration loading.");
-            return true;
+            return std::unexpected(
+                QStringLiteral("Aborted loading of a project file created with an incompatible Syntalos version."));
         }
     }
 
@@ -403,27 +395,21 @@ bool loadProjectConfigurationInteractive(
         setStatusText(statusFn, QStringLiteral("Instantiating module: %1(%2)").arg(modId, modName));
         auto mod = engine->createModule(modId, modName);
         if (mod == nullptr) {
-            QMessageBox::critical(
-                parent,
-                QStringLiteral("Can not load settings"),
-                QStringLiteral(
-                    "Unable to find module '%1' - please install the module first, then "
-                    "attempt to load this configuration again.")
-                    .arg(modId));
             setStatusText(statusFn, "Failed to load settings.");
-
-            const auto reply = QMessageBox::question(
+            const bool loadAnyway = askYesNoQuestion(
                 parent,
                 QStringLiteral("Ignore missing module?"),
                 QStringLiteral(
+                    "Unable to find module '%1' - please install the module first, then "
+                    "attempt to load this configuration again.\n"
                     "While installing the missing module is the right solution to load this board, "
-                    "you can also enforce loading it. Please be aware that loading may fail. Load anyway?"),
-                QMessageBox::Yes | QMessageBox::No);
-            if (reply == QMessageBox::Yes) {
+                    "you can also enforce loading it. Please be aware that loading may fail. Load anyway?")
+                    .arg(modId));
+            if (loadAnyway) {
                 LOG_WARNING(log, "Module {}[{}] was missing, but trying to load board anyway.", modId, modName);
                 continue;
             }
-            return false;
+            return std::unexpected(QStringLiteral("Module '%1' is not available.").arg(modId));
         }
 
         // load module modifiers
@@ -466,17 +452,15 @@ bool loadProjectConfigurationInteractive(
         const auto settings = pair.second;
         setStatusText(statusFn, QStringLiteral("Loading settings for module: %1(%2)").arg(mod->id()).arg(mod->name()));
         if (!mod->loadSettings(confBaseDir.absolutePath(), settings.first, settings.second)) {
-            auto ret = QMessageBox::critical(
+            setStatusText(statusFn, QStringLiteral("Failed to load settings for '%1'").arg(mod->name()));
+            const bool loadAnyway = askYesNoQuestion(
                 parent,
                 QStringLiteral("Can not load settings"),
                 QStringLiteral("Unable to load module settings for '%1'. Continue loading this project anyway?")
-                    .arg(mod->name()),
-                QMessageBox::Yes | QMessageBox::No);
-            setStatusText(statusFn, QStringLiteral("Failed to load settings for '%1'").arg(mod->name()));
-
-            if (ret != QMessageBox::Yes) {
+                    .arg(mod->name()));
+            if (!loadAnyway) {
                 setStatusText(statusFn, "Failed to load project settings.");
-                return false;
+                return std::unexpected(QStringLiteral("Unable to load module settings for '%1'.").arg(mod->name()));
             }
         }
     }
@@ -533,7 +517,7 @@ bool loadProjectConfigurationInteractive(
 
     // we are ready now
     setStatusText(statusFn, "Board successfully loaded from file.");
-    return true;
+    return {};
 }
 
 } // namespace Syntalos

@@ -67,6 +67,7 @@
 
 #include "executils.h"
 #include "projectfile.h"
+#include "uiprompts.h"
 #include "termsignalwatcher.h"
 #include "utils/tomlutils.h"
 
@@ -408,7 +409,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // initialize engine and load modules
     if (!m_engine->initialize()) {
-        QMessageBox::critical(
+        reportCriticalError(
             this,
             QStringLiteral("Initialization failed"),
             QStringLiteral("Unable to initialize the Syntalos engine. Can not continue. Please report this issue!"));
@@ -569,7 +570,7 @@ void MainWindow::runActionTriggered(const Uuid &recordIdOverride)
 
         // we must have replaceables, otherwise we can't launch another run (as that would have the same name)
         if (!m_engine->hasExperimentIdReplaceables()) {
-            QMessageBox::critical(
+            reportCriticalError(
                 this,
                 QStringLiteral("Can not start interval run"),
                 QStringLiteral(
@@ -760,7 +761,7 @@ bool MainWindow::saveConfiguration(const QString &fileName)
         });
 
     if (!res) {
-        QMessageBox::critical(
+        reportCriticalError(
             this,
             QStringLiteral("Error saving project"),
             QStringLiteral(
@@ -773,7 +774,7 @@ bool MainWindow::saveConfiguration(const QString &fileName)
     return res;
 }
 
-bool MainWindow::loadConfiguration(const QString &fileName)
+auto MainWindow::loadConfiguration(const QString &fileName) -> std::expected<void, QString>
 {
     // prevent any start/stop/modify action while loading the board
     setConfigModifyAllowed(false);
@@ -787,7 +788,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     });
 
     ProjectSettings ps;
-    auto res = loadProjectConfigurationInteractive(
+    const auto res = loadProjectConfiguration(
         m_engine,
         ui->graphForm->graphView(),
         m_subjectList,
@@ -807,7 +808,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
         });
 
     if (!res)
-        return false;
+        return res;
 
     // project was loaded successfully!
     setCurrentProjectFile(fileName);
@@ -821,7 +822,7 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     m_engine->setExportBaseDir(ps.exportBaseDir);
     // Apply any export-dir override that was registered before this project loaded
     if (!m_exportDirOverride.isEmpty())
-        setDataExportBaseDir(m_exportDirOverride);
+        setExportDirSafe(m_exportDirOverride);
     updateExportDirDisplay();
     ui->expIdEdit->setText(ps.experimentId);
 
@@ -844,6 +845,8 @@ bool MainWindow::loadConfiguration(const QString &fileName)
     if (!m_experimenterList->isEmpty()) {
         if (m_experimenterList->rowCount() == 1) {
             changeExperimenter(m_experimenterList->person(0));
+        } else if (isNonInteractive()) {
+            LOG_INFO(m_log, "Multiple experimenters are registered for this board, none was selected.");
         } else {
             // we have many people registered for this board, ask user to choose one!
             showExperimenterSelector(QStringLiteral(
@@ -857,16 +860,15 @@ bool MainWindow::loadConfiguration(const QString &fileName)
                 QStringLiteral("Welcome %1! – Board loaded successfully.").arg(qstr(m_engine->experimenter().name)));
     }
 
-    return res;
+    return {};
 }
 
-void MainWindow::setDataExportBaseDir(const QString &dir)
+void MainWindow::setExportDirSafe(const QString &dir)
 {
     if (dir.isEmpty())
         return;
-
-    m_engine->setExportBaseDir(dir);
-    updateExportDirDisplay();
+    if (auto res = setExportDirectory(dir); !res)
+        LOG_ERROR(m_log, "Rejected export directory change: {}", res.error());
 }
 
 void MainWindow::openDataExportDirectory()
@@ -876,7 +878,7 @@ void MainWindow::openDataExportDirectory()
         "Select Directory",
         QStandardPaths::writableLocation(QStandardPaths::HomeLocation),
         QFileDialog::ShowDirsOnly);
-    setDataExportBaseDir(dir);
+    setExportDirSafe(dir);
 }
 
 void MainWindow::showExperimenterSelector(const QString &message)
@@ -1066,6 +1068,8 @@ void MainWindow::showEvent(QShowEvent *event)
                 lastSeen = QStringLiteral("0.0");
             if (lastSeen != current) {
                 m_gconf->setLastSeenAppVersion(current);
+                if (isNonInteractive())
+                    return;
                 QTimer::singleShot(0, this, [this, lastSeen, current]() {
                     WhatsNewDialog dlg(lastSeen, current, this);
                     dlg.exec();
@@ -1201,15 +1205,8 @@ void MainWindow::projectSaveActionTriggered()
 
 void MainWindow::openProjectFile(const QString &fileName)
 {
-    setStatusText("Loading settings...");
-
-    if (!loadConfiguration(fileName)) {
-        QMessageBox::critical(
-            this,
-            QStringLiteral("Can not load configuration"),
-            QStringLiteral("Failed to load configuration."));
-        m_engine->removeAllModules();
-    }
+    if (const auto res = loadProject(fileName); !res)
+        reportCriticalError(this, QStringLiteral("Can not load configuration"), res.error());
     m_gconf->setLastProjectDir(QFileInfo(fileName).absoluteDir().absolutePath());
 }
 
@@ -1442,11 +1439,78 @@ void MainWindow::setStatusText(const QString &msg)
     QApplication::processEvents();
 }
 
-void MainWindow::loadProjectFilename(const QString &fname)
+auto MainWindow::loadProject(const QString &fname) -> std::expected<void, QString>
 {
-    QTimer::singleShot(0, [&]() {
-        loadConfiguration(fname);
-    });
+    if (m_configLoadInProgress)
+        return std::unexpected(QStringLiteral("Another project is currently being loaded."));
+    if (m_engine->isActive())
+        return std::unexpected(QStringLiteral("A run is active, can not load a project now."));
+
+    setStatusText("Loading settings...");
+    if (const auto res = loadConfiguration(fname); !res) {
+        m_engine->removeAllModules();
+        return res;
+    }
+    return {};
+}
+
+auto MainWindow::setExportDirectory(const QString &dir) -> std::expected<void, QString>
+{
+    if (dir.isEmpty())
+        return std::unexpected(QStringLiteral("No export directory given."));
+    if (m_configLoadInProgress)
+        return std::unexpected(QStringLiteral("A project is currently being loaded, can not change its settings."));
+    if (m_engine->isActive())
+        return std::unexpected(QStringLiteral("A run is active, can not change the export directory now."));
+    if (!QDir().mkpath(dir))
+        return std::unexpected(QStringLiteral("Unable to create export directory '%1'.").arg(dir));
+
+    m_engine->setExportBaseDir(dir);
+    updateExportDirDisplay();
+    updateManualRunPossible();
+    return {};
+}
+
+auto MainWindow::startRun(bool ephemeral, int maxDurationSec) -> std::expected<void, QString>
+{
+    if (m_configLoadInProgress)
+        return std::unexpected(QStringLiteral("A project is currently being loaded, can not start a run."));
+    if (m_engine->isActive())
+        return std::unexpected(QStringLiteral("A run is already active."));
+    if (m_engine->presentModules().isEmpty())
+        return std::unexpected(QStringLiteral("No modules are present, there is nothing to run."));
+    if (!ephemeral && !m_engine->exportDirIsValid())
+        return std::unexpected(QStringLiteral("The data export directory is not valid."));
+
+    m_runMaxDuration = seconds_t(std::max(maxDurationSec, 0));
+    if (ephemeral)
+        temporaryRunActionTriggered();
+    else
+        runActionTriggered();
+    m_runMaxDuration = seconds_t(0);
+
+    return {};
+}
+
+void MainWindow::stopRun()
+{
+    if (m_engine->isActive())
+        stopActionTriggered();
+}
+
+void MainWindow::requestQuit()
+{
+    closeOnTerminationRequest();
+}
+
+bool MainWindow::isProjectLoadInProgress() const
+{
+    return m_configLoadInProgress;
+}
+
+Engine *MainWindow::engine() const
+{
+    return m_engine;
 }
 
 void MainWindow::setNetPortOverrides(int controlPort, int feedbackPort)
@@ -1484,44 +1548,28 @@ void MainWindow::applyNetControllerConfig()
     m_engine->netController()->applyConfig(buildNetControlConfig());
 }
 
-void MainWindow::scheduleProjectAutorun(
-    const QString &projectFname,
-    bool ephemeral,
-    bool noninteractive,
-    int runDurationSec)
+void MainWindow::scheduleProjectAutorun(const QString &projectFname, bool ephemeral, int runDurationSec)
 {
     // set run time limit
-    if (runDurationSec > 0)
+    const bool quitAfterRun = runDurationSec > 0;
+    if (quitAfterRun)
         m_runMaxDuration = seconds_t(runDurationSec);
 
     // defer until the main application has loaded.
-    QTimer::singleShot(0, [this, projectFname, ephemeral, noninteractive]() {
+    QTimer::singleShot(0, this, [this, projectFname, ephemeral, quitAfterRun]() {
         // load requested project file
-        if (!loadConfiguration(projectFname)) {
+        if (const auto res = loadConfiguration(projectFname); !res) {
+            LOG_ERROR(m_log, "Failed to load project '{}': {}", projectFname, res.error());
             shutdown(SY_EXIT_LOAD_ERROR);
             return;
         }
         qApp->processEvents();
 
         // check if we can actually run
-        if (!m_engine->exportDirIsValid() && noninteractive) {
+        if (!m_engine->exportDirIsValid() && isNonInteractive()) {
             LOG_ERROR(m_log, "Export directory is not valid, cannot start run.");
             shutdown(SY_EXIT_NOT_FOUND);
             return;
-        }
-
-        // print message on error, instead of showing a message box which would require user interaction
-        if (noninteractive) {
-            LOG_INFO(
-                m_log,
-                "Running in non-interactive mode, will print run errors on the command-line and avoid GUI dialogs.");
-            disconnect(m_engine, &Engine::runFailed, this, nullptr);
-            connect(m_engine, &Engine::runFailed, this, [this](AbstractModule *mod, const QString &message) {
-                if (mod != nullptr)
-                    LOG_ERROR(m_log, "Run failed in '{}': {}", mod->name(), message);
-                else
-                    LOG_ERROR(m_log, "Run failed: {}", message);
-            });
         }
 
         // quit cleanly once the run has finished
@@ -1529,21 +1577,20 @@ void MainWindow::scheduleProjectAutorun(
             m_engine,
             &Engine::runStopped,
             this,
-            [this]() {
-                if (m_runMaxDuration.count() > 0) {
+            [this, quitAfterRun]() {
+                if (quitAfterRun) {
                     QTimer::singleShot(0, this, [this]() {
                         shutdown(m_engine->hasFailed() ? SY_EXIT_RUN_FAILED : SY_EXIT_SUCCESS);
                     });
                 }
 
-                m_runMaxDuration = seconds_t(0);
                 m_engine->setAlwaysOverrideExportDir(false);
             },
             Qt::SingleShotConnection);
 
         // override existing data if we run in non-interactive mode, to avoid asking the user about it
         // (This is dangerous, which is why this option should only be used for testing, or in well-designed automation)
-        if (noninteractive)
+        if (isNonInteractive())
             m_engine->setAlwaysOverrideExportDir(true);
 
         // trigger the actual run
@@ -1553,14 +1600,10 @@ void MainWindow::scheduleProjectAutorun(
         else
             runActionTriggered();
 
-        // if we disconnected the failure event before in noninteractive mode, reconnect it again
-        if (noninteractive)
-            connect(m_engine, &Engine::runFailed, this, &MainWindow::moduleErrorReceived);
-
         // If the run failed before it could start (e.g. network prepare timeout), the
         // runStopped signal is never emitted, so the SingleShotConnection above will not
         // fire and the process would hang.  Detect this and shut down explicitly.
-        if (!m_engine->isRunning() && !m_engine->isActive() && m_engine->hasFailed() && m_runMaxDuration.count() > 0) {
+        if (!m_engine->isRunning() && !m_engine->isActive() && m_engine->hasFailed() && quitAfterRun) {
             QTimer::singleShot(0, this, [this]() {
                 shutdown(SY_EXIT_RUN_FAILED);
             });
@@ -1574,7 +1617,7 @@ void MainWindow::moduleErrorReceived(AbstractModule *mod, const QString &message
     auto errorTitle = QStringLiteral("Run Failed");
     if (mod != nullptr)
         errorTitle = QStringLiteral("Error in: %1").arg(mod->name());
-    QMessageBox::critical(this, errorTitle, message);
+    reportCriticalError(this, errorTitle, message);
 }
 
 void MainWindow::onEnginePreRunPrepare()
@@ -1640,6 +1683,7 @@ void MainWindow::onEngineStopped()
 
     // reset everything so we can start again
     m_rtElapsedTimer->stop();
+    m_runMaxDuration = seconds_t(0);
     hideBusyIndicator();
     setRunPossible(true);
     setRunUiControlStates(false, false);
