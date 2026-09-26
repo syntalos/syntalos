@@ -17,7 +17,7 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "dimension.h"
+#include "dimensions-common.h"
 
 namespace SyBench
 {
@@ -86,28 +86,19 @@ public:
     ProjectSpec buildProject(const QString &profileId, int level) const override
     {
         ProjectSpec spec;
-        spec.experimentId = QStringLiteral("bench-%1-%2-%3").arg(id(), profileId).arg(level);
         const int fps = pairFps(level);
         for (int i = 1; i <= pairCount(level); ++i) {
             const auto cam = QStringLiteral("Camera %1").arg(i);
             const auto worker = QStringLiteral("Worker %1").arg(i);
             spec.addModule(Modules::dataSourceCamera(cam, 1920, 1080, fps));
             spec.addModule(
-                Modules::flowMeter(
-                    QStringLiteral("Source Meter %1").arg(i),
-                    QStringLiteral("Frame"),
-                    cam,
-                    QStringLiteral("frames-out")));
+                Modules::flowMeter(sourceMeterName(i), QStringLiteral("Frame"), cam, QStringLiteral("frames-out")));
             if (profileId == QLatin1String("cpp"))
                 spec.addModule(Modules::mlinkExampleFramePassthrough(worker, cam, QStringLiteral("frames-out")));
             else
                 spec.addModule(Modules::pyScriptFramePassthrough(worker, cam, QStringLiteral("frames-out")));
             spec.addModule(
-                Modules::flowMeter(
-                    QStringLiteral("Meter %1").arg(i),
-                    QStringLiteral("Frame"),
-                    worker,
-                    QStringLiteral("frames-out")));
+                Modules::flowMeter(meterName(i), QStringLiteral("Frame"), worker, QStringLiteral("frames-out")));
         }
         // the IPC path applies backpressure to its source, so a free-running camera
         // tells whether a source could deliver the rate at all
@@ -128,8 +119,8 @@ public:
         checks.append(
             RateCheck{.moduleName = QStringLiteral("Reference Meter"), .expectedRate = rate, .isSource = true});
         for (int i = 1; i <= pairCount(level); ++i) {
-            checks.append(RateCheck{.moduleName = QStringLiteral("Source Meter %1").arg(i), .expectedRate = rate});
-            checks.append(RateCheck{.moduleName = QStringLiteral("Meter %1").arg(i), .expectedRate = rate});
+            checks.append(RateCheck{.moduleName = sourceMeterName(i), .expectedRate = rate});
+            checks.append(RateCheck{.moduleName = meterName(i), .expectedRate = rate});
         }
         return evaluateRates(result, checks);
     }

@@ -17,28 +17,20 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "dimension.h"
-
-#include <algorithm>
+#include "dimensions-common.h"
 
 namespace SyBench
 {
 
 /**
- * @brief How many electrophysiology channels can be filtered and stored at 30 kHz.
+ * @brief How many electrophysiology channels can be filtered at 30 kHz.
  *
- * One source emits float signal blocks at 100 blocks per second which are filtered,
- * written to a Zarr store and counted by a flow meter.
+ * The channels come from amplifiers of up to 1024 channels each, emitting float signal
+ * blocks at 100 blocks per second which are filtered and counted by a flow meter.
  */
 class SignalProcessingDimension : public Dimension
 {
 public:
-    static constexpr int kSampleRate = 30000;
-    static constexpr int kBlocksPerSec = 100;
-    /// channels per amplifier; more channels are spread over parallel amplifiers,
-    /// so the data generator never limits the measurement
-    static constexpr int kChannelsPerSource = 1024;
-
     QString id() const override
     {
         return QStringLiteral("signal-processing");
@@ -78,32 +70,16 @@ public:
         return 65536;
     }
 
-    static int sourceCount(int level)
-    {
-        return (level + kChannelsPerSource - 1) / kChannelsPerSource;
-    }
-
-    ProjectSpec buildProject(const QString &profileId, int level) const override
+    ProjectSpec buildProject(const QString &, int level) const override
     {
         ProjectSpec spec;
-        spec.experimentId = QStringLiteral("bench-%1-%2-%3").arg(id(), profileId).arg(level);
-        int remaining = level;
-        for (int i = 1; i <= sourceCount(level); ++i) {
-            const int channels = std::min(remaining, kChannelsPerSource);
-            remaining -= channels;
-            const auto amp = QStringLiteral("Amplifier %1").arg(i);
+        const auto amps = Signals::addAmplifiers(spec, level);
+        for (int i = 1; i <= amps.size(); ++i) {
             const auto filt = QStringLiteral("Filter %1").arg(i);
-            spec.addModule(Modules::dataSourceSignals(amp, 320, 240, kBlocksPerSec, kSampleRate, channels));
+            spec.addModule(Modules::signalFilterLowPass(filt, 6000.0, amps[i - 1], QStringLiteral("float-out")));
             spec.addModule(
                 Modules::flowMeter(
-                    QStringLiteral("Source Meter %1").arg(i),
-                    QStringLiteral("SignalBlockF32"),
-                    amp,
-                    QStringLiteral("float-out")));
-            spec.addModule(Modules::signalFilterLowPass(filt, 6000.0, amp, QStringLiteral("float-out")));
-            spec.addModule(
-                Modules::flowMeter(
-                    QStringLiteral("Meter %1").arg(i),
+                    meterName(i),
                     QStringLiteral("SignalBlockF32"),
                     filt,
                     QStringLiteral("signals-out")));
@@ -113,15 +89,9 @@ public:
 
     StepVerdict evaluate(const QString &, int level, const StepResult &result) const override
     {
-        QList<RateCheck> checks;
-        for (int i = 1; i <= sourceCount(level); ++i) {
-            checks.append(
-                RateCheck{
-                    .moduleName = QStringLiteral("Source Meter %1").arg(i),
-                    .expectedRate = kBlocksPerSec,
-                    .isSource = true});
-            checks.append(RateCheck{.moduleName = QStringLiteral("Meter %1").arg(i), .expectedRate = kBlocksPerSec});
-        }
+        auto checks = Signals::amplifierSourceChecks(level);
+        for (int i = 1; i <= Signals::amplifierCount(level); ++i)
+            checks.append(RateCheck{.moduleName = meterName(i), .expectedRate = Signals::kBlocksPerSec});
         return evaluateRates(result, checks);
     }
 };

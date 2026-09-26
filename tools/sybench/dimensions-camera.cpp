@@ -17,7 +17,7 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "dimension.h"
+#include "dimensions-common.h"
 
 namespace SyBench
 {
@@ -25,36 +25,19 @@ namespace SyBench
 /**
  * @brief How many camera streams can be received, transformed and handed on at full rate.
  *
- * Each stream is a camera-like data source, scaled down by a video transform module
- * and counted by a flow meter.
+ * Each stream is a camera-like data source, scaled down by a video transform module,
+ * shown on a canvas and counted by a flow meter.
  */
-class CameraCapacityDimension : public Dimension
+class CameraCapacityDimension : public VideoDimension
 {
 public:
-    struct Profile {
-        QString id;
-        QString title;
-        int width;
-        int height;
-        int fps;
-    };
-
-    static const QList<Profile> &profileList()
+    const QList<VideoProfile> &videoProfiles() const override
     {
-        static const QList<Profile> profiles = {
+        static const QList<VideoProfile> profiles = {
             {QStringLiteral("1080p30"), QStringLiteral("1080p @ 30 fps"), 1920, 1080, 30 },
             {QStringLiteral("720p120"), QStringLiteral("720p @ 120 fps"), 1280, 720,  120},
         };
         return profiles;
-    }
-
-    static const Profile &profile(const QString &id)
-    {
-        for (const auto &p : profileList()) {
-            if (p.id == id)
-                return p;
-        }
-        return profileList().first();
     }
 
     QString id() const override
@@ -79,29 +62,10 @@ public:
         return QStringLiteral("streams");
     }
 
-    QList<DimensionProfile> profiles() const override
-    {
-        QList<DimensionProfile> res;
-        for (const auto &p : profileList())
-            res.append(DimensionProfile{p.id, p.title});
-        return res;
-    }
-
-    static QString meterName(int i)
-    {
-        return QStringLiteral("Meter %1").arg(i);
-    }
-
-    static QString sourceMeterName(int i)
-    {
-        return QStringLiteral("Source Meter %1").arg(i);
-    }
-
     ProjectSpec buildProject(const QString &profileId, int level) const override
     {
-        const auto &p = profile(profileId);
+        const auto &p = videoProfile(profileId);
         ProjectSpec spec;
-        spec.experimentId = QStringLiteral("bench-%1-%2-%3").arg(id(), p.id).arg(level);
         for (int i = 1; i <= level; ++i) {
             const auto camName = QStringLiteral("Camera %1").arg(i);
             const auto tfName = QStringLiteral("Scale %1").arg(i);
@@ -118,15 +82,11 @@ public:
 
     StepVerdict evaluate(const QString &profileId, int level, const StepResult &result) const override
     {
-        const auto &p = profile(profileId);
+        const double fps = videoProfile(profileId).fps;
         QList<RateCheck> checks;
         for (int i = 1; i <= level; ++i) {
-            checks.append(
-                RateCheck{
-                    .moduleName = sourceMeterName(i),
-                    .expectedRate = static_cast<double>(p.fps),
-                    .isSource = true});
-            checks.append(RateCheck{.moduleName = meterName(i), .expectedRate = static_cast<double>(p.fps)});
+            checks.append(RateCheck{.moduleName = sourceMeterName(i), .expectedRate = fps, .isSource = true});
+            checks.append(RateCheck{.moduleName = meterName(i), .expectedRate = fps});
         }
         return evaluateRates(result, checks);
     }

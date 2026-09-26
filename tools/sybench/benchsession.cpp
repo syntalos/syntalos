@@ -100,6 +100,7 @@ auto BenchSession::runStep(const Dimension &dim, const QString &profileId, int l
     QDir workDir(m_config.workDir);
     const auto baseName = QStringLiteral("%1-%2-L%3").arg(dim.id(), profileId).arg(level);
     auto spec = dim.buildProject(profileId, level);
+    spec.experimentId = QStringLiteral("bench-%1-%2-%3").arg(dim.id(), profileId).arg(level);
     // Syntalos refuses to start non-interactive runs without a valid export directory,
     // even ephemeral ones which never write there
     spec.exportBaseDir = workDir.absolutePath();

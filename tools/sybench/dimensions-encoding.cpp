@@ -17,11 +17,11 @@
  * along with this library.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "dimension.h"
+#include "dimensions-common.h"
+
+#include <cmath>
 
 #include "utils/misc.h"
-
-#include <algorithm>
 
 namespace SyBench
 {
@@ -29,29 +29,9 @@ namespace SyBench
 /**
  * Camera-like sources recorded by video recorder modules, shared by the encoding and the disk dimension.
  */
-class RecordingDimensionBase : public Dimension
+class RecordingDimensionBase : public VideoDimension
 {
 public:
-    struct Profile {
-        QString id;
-        QString title;
-        int width;
-        int height;
-        int fps;
-        Modules::Codec codec;
-    };
-
-    virtual const QList<Profile> &profileList() const = 0;
-
-    const Profile &profile(const QString &id) const
-    {
-        for (const auto &p : profileList()) {
-            if (p.id == id)
-                return p;
-        }
-        return profileList().first();
-    }
-
     QString levelUnit(const QString &) const override
     {
         return QStringLiteral("streams");
@@ -62,29 +42,15 @@ public:
         return true;
     }
 
-    QList<DimensionProfile> profiles() const override
-    {
-        QList<DimensionProfile> res;
-        for (const auto &p : profileList())
-            res.append(DimensionProfile{p.id, p.title});
-        return res;
-    }
-
     static QString recorderName(int i)
     {
         return QStringLiteral("Recorder %1").arg(i);
     }
 
-    static QString sourceMeterName(int i)
-    {
-        return QStringLiteral("Source Meter %1").arg(i);
-    }
-
     ProjectSpec buildProject(const QString &profileId, int level) const override
     {
-        const auto &p = profile(profileId);
+        const auto &p = videoProfile(profileId);
         ProjectSpec spec;
-        spec.experimentId = QStringLiteral("bench-%1-%2-%3").arg(id(), p.id).arg(level);
         for (int i = 1; i <= level; ++i) {
             const auto camName = QStringLiteral("Camera %1").arg(i);
             spec.addModule(Modules::dataSourceCamera(camName, p.width, p.height, p.fps));
@@ -97,18 +63,14 @@ public:
 
     StepVerdict evaluate(const QString &profileId, int level, const StepResult &result) const override
     {
-        const auto &p = profile(profileId);
+        const double fps = videoProfile(profileId).fps;
         QList<RateCheck> checks;
         for (int i = 1; i <= level; ++i) {
-            checks.append(
-                RateCheck{
-                    .moduleName = sourceMeterName(i),
-                    .expectedRate = static_cast<double>(p.fps),
-                    .isSource = true});
+            checks.append(RateCheck{.moduleName = sourceMeterName(i), .expectedRate = fps, .isSource = true});
             checks.append(
                 RateCheck{
                     .moduleName = recorderName(i),
-                    .expectedRate = static_cast<double>(p.fps),
+                    .expectedRate = fps,
                     .statKey = QStringLiteral("frames_encoded")});
         }
         return evaluateRates(result, checks);
@@ -121,19 +83,14 @@ public:
 class EncodingDimension : public RecordingDimensionBase
 {
 public:
-    const QList<Profile> &profileList() const override
+    const QList<VideoProfile> &videoProfiles() const override
     {
-        static const QList<Profile> profiles = {
-            {QStringLiteral("1080p30-ffv1"),
-             QStringLiteral("1080p @ 30 fps, FFV1"),
-             1920,                                                                        1080,
-             30,                                                                                     Modules::Codec::FFV1},
-            {QStringLiteral("1080p30-av1"),  QStringLiteral("1080p @ 30 fps, AV1"), 1920, 1080, 30,  Modules::Codec::AV1 },
-            {QStringLiteral("720p120-ffv1"),
-             QStringLiteral("720p @ 120 fps, FFV1"),
-             1280,                                                                        720,
-             120,                                                                                    Modules::Codec::FFV1},
-            {QStringLiteral("720p120-av1"),  QStringLiteral("720p @ 120 fps, AV1"), 1280, 720,  120, Modules::Codec::AV1 },
+        using Modules::Codec;
+        static const QList<VideoProfile> profiles = {
+            {QStringLiteral("1080p30-ffv1"), QStringLiteral("1080p @ 30 fps, FFV1"), 1920, 1080, 30,  Codec::FFV1},
+            {QStringLiteral("1080p30-av1"),  QStringLiteral("1080p @ 30 fps, AV1"),  1920, 1080, 30,  Codec::AV1 },
+            {QStringLiteral("720p120-ffv1"), QStringLiteral("720p @ 120 fps, FFV1"), 1280, 720,  120, Codec::FFV1},
+            {QStringLiteral("720p120-av1"),  QStringLiteral("720p @ 120 fps, AV1"),  1280, 720,  120, Codec::AV1 },
         };
         return profiles;
     }
@@ -163,18 +120,15 @@ public:
 class DiskWriteDimension : public RecordingDimensionBase
 {
 public:
-    static constexpr int kSampleRate = 30000;
-    static constexpr int kBlocksPerSec = 100;
-    static constexpr int kChannelsPerSource = 1024;
     static const QString &zarrProfileId()
     {
         static const QString id = QStringLiteral("zarr-30khz");
         return id;
     }
 
-    const QList<Profile> &profileList() const override
+    const QList<VideoProfile> &videoProfiles() const override
     {
-        static const QList<Profile> profiles = {
+        static const QList<VideoProfile> profiles = {
             {QStringLiteral("raw1080p30"),
              QStringLiteral("Raw 1080p @ 30 fps video"),
              1920, 1080,
@@ -222,9 +176,9 @@ public:
         return profileId == zarrProfileId() ? 65536 : RecordingDimensionBase::maxLevel(profileId);
     }
 
-    static int sourceCount(int channels)
+    static QString zarrWriterName(int i)
     {
-        return (channels + kChannelsPerSource - 1) / kChannelsPerSource;
+        return QStringLiteral("Zarr Writer %1").arg(i);
     }
 
     ProjectSpec buildProject(const QString &profileId, int level) const override
@@ -233,22 +187,9 @@ public:
             return RecordingDimensionBase::buildProject(profileId, level);
 
         ProjectSpec spec;
-        spec.experimentId = QStringLiteral("bench-%1-%2-%3").arg(id(), profileId).arg(level);
-        int remaining = level;
-        for (int i = 1; i <= sourceCount(level); ++i) {
-            const int channels = std::min(remaining, kChannelsPerSource);
-            remaining -= channels;
-            const auto amp = QStringLiteral("Amplifier %1").arg(i);
-            spec.addModule(Modules::dataSourceSignals(amp, 320, 240, kBlocksPerSec, kSampleRate, channels));
-            spec.addModule(
-                Modules::flowMeter(
-                    QStringLiteral("Source Meter %1").arg(i),
-                    QStringLiteral("SignalBlockF32"),
-                    amp,
-                    QStringLiteral("float-out")));
-            spec.addModule(
-                Modules::zarrWriterSignals(QStringLiteral("Zarr Writer %1").arg(i), amp, QStringLiteral("float-out")));
-        }
+        const auto amps = Signals::addAmplifiers(spec, level);
+        for (int i = 1; i <= amps.size(); ++i)
+            spec.addModule(Modules::zarrWriterSignals(zarrWriterName(i), amps[i - 1], QStringLiteral("float-out")));
         return spec;
     }
 
@@ -258,19 +199,13 @@ public:
         if (profileId != zarrProfileId()) {
             v = RecordingDimensionBase::evaluate(profileId, level, result);
         } else {
-            QList<RateCheck> checks;
-            for (int i = 1; i <= sourceCount(level); ++i) {
+            auto checks = Signals::amplifierSourceChecks(level);
+            for (int i = 1; i <= Signals::amplifierCount(level); ++i)
                 checks.append(
                     RateCheck{
-                        .moduleName = QStringLiteral("Source Meter %1").arg(i),
-                        .expectedRate = kBlocksPerSec,
-                        .isSource = true});
-                checks.append(
-                    RateCheck{
-                        .moduleName = QStringLiteral("Zarr Writer %1").arg(i),
-                        .expectedRate = kBlocksPerSec,
+                        .moduleName = zarrWriterName(i),
+                        .expectedRate = Signals::kBlocksPerSec,
                         .statKey = QStringLiteral("items_written")});
-            }
             v = evaluateRates(result, checks);
         }
         if (result.stats && result.stats->bytesWritten > 0 && result.stats->durationSec > 0) {
