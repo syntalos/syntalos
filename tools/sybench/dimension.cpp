@@ -38,7 +38,7 @@ int Dimension::startLevel(int cpuCores, const QString &) const
     return std::max(1, cpuCores / 2);
 }
 
-int Dimension::maxLevel(const QString &) const
+int Dimension::maxLevel(int, const QString &) const
 {
     return 512;
 }
@@ -111,6 +111,7 @@ StepVerdict evaluateRates(const StepResult &result, const QList<RateCheck> &chec
         v.maxBacklogAtStop = std::max<qint64>(v.maxBacklogAtStop, c.pendingAtStop);
     }
 
+    v.backlogUse = static_cast<double>(v.maxPeakBacklog) / static_cast<double>(backlogLimit);
     const bool rateOk = v.minRateFraction >= minRateFraction;
     const bool backlogOk = v.maxPeakBacklog <= backlogLimit && v.maxBacklogAtStop <= 2;
     v.passed = rateOk && backlogOk;
@@ -281,11 +282,13 @@ static QVariantList portList(const QString &id, const QString &title, const QStr
     return QVariantList{port};
 }
 
-static ModuleSpec pyScriptPassthrough(
+/// Python script with one input and one output port, subscribed to the given source
+static ModuleSpec pyScript(
     const QString &name,
-    const QString &dataType,
     const QString &inPort,
+    const QString &inDataType,
     const QString &outPort,
+    const QString &outDataType,
     const QByteArray &script,
     const QString &srcModule,
     const QString &srcPort)
@@ -293,8 +296,8 @@ static ModuleSpec pyScriptPassthrough(
     ModuleSpec m;
     m.id = QStringLiteral("pyscript");
     m.name = name;
-    m.settings.insert(QStringLiteral("ports_in"), portList(inPort, QStringLiteral("In"), dataType));
-    m.settings.insert(QStringLiteral("ports_out"), portList(outPort, QStringLiteral("Out"), dataType));
+    m.settings.insert(QStringLiteral("ports_in"), portList(inPort, QStringLiteral("In"), inDataType));
+    m.settings.insert(QStringLiteral("ports_out"), portList(outPort, QStringLiteral("Out"), outDataType));
     m.extraData = script;
     m.subscribe(inPort, srcModule, srcPort);
     return m;
@@ -302,11 +305,12 @@ static ModuleSpec pyScriptPassthrough(
 
 ModuleSpec pyScriptRowPassthrough(const QString &name, const QString &srcModule, const QString &srcPort)
 {
-    return pyScriptPassthrough(
+    return pyScript(
         name,
-        QStringLiteral("TableRow"),
         QStringLiteral("rows-in"),
+        QStringLiteral("TableRow"),
         QStringLiteral("rows-out"),
+        QStringLiteral("TableRow"),
         QByteArrayLiteral(
             "import syntalos_mlink as syl\n"
             "\n"
@@ -321,6 +325,53 @@ ModuleSpec pyScriptRowPassthrough(const QString &name, const QString &srcModule,
             "def prepare() -> bool:\n"
             "    iport.on_data = on_row\n"
             "    oport.set_metadata_value('table_header', iport.metadata['table_header'])\n"
+            "    return True\n"
+            "\n"
+            "\n"
+            "def run():\n"
+            "    while syl.is_running():\n"
+            "        syl.await_data()\n"),
+        srcModule,
+        srcPort);
+}
+
+ModuleSpec pyScriptFrameTracker(const QString &name, const QString &srcModule, const QString &srcPort)
+{
+    // a light but realistic tracker: a running-average background model, and the centroid
+    // of whatever differs from it
+    return pyScript(
+        name,
+        QStringLiteral("frames-in"),
+        QStringLiteral("Frame"),
+        QStringLiteral("rows-out"),
+        QStringLiteral("TableRow"),
+        QByteArrayLiteral(
+            "import numpy as np\n"
+            "import syntalos_mlink as syl\n"
+            "\n"
+            "iport = syl.get_input_port('frames-in')\n"
+            "oport = syl.get_output_port('rows-out')\n"
+            "background = None\n"
+            "\n"
+            "\n"
+            "def on_frame(frame) -> None:\n"
+            "    global background\n"
+            "    mat = frame.mat\n"
+            "    gray = (mat if mat.ndim == 2 else mat[:, :, 1]).astype(np.float32)\n"
+            "    if background is None:\n"
+            "        background = gray.copy()\n"
+            "    diff = np.abs(gray - background)\n"
+            "    background += (gray - background) * 0.05\n"
+            "    ys, xs = np.nonzero(diff > 24)\n"
+            "    if xs.size > 0:\n"
+            "        oport.submit([frame.index, float(xs.mean()), float(ys.mean()), int(xs.size)])\n"
+            "    else:\n"
+            "        oport.submit([frame.index, -1.0, -1.0, 0])\n"
+            "\n"
+            "\n"
+            "def prepare() -> bool:\n"
+            "    iport.on_data = on_frame\n"
+            "    oport.set_metadata_value('table_header', ['Frame', 'X', 'Y', 'Area'])\n"
             "    return True\n"
             "\n"
             "\n"
@@ -364,6 +415,7 @@ std::vector<std::unique_ptr<Dimension>> createAllDimensions()
     dims.push_back(createDiskWriteDimension());
     dims.push_back(createSignalProcessingDimension());
     dims.push_back(createOutOfProcessDimension());
+    dims.push_back(createMixedTasksDimension());
     return dims;
 }
 

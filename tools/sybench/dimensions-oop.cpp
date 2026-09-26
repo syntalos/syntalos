@@ -118,7 +118,7 @@ public:
         return profile(profileId).workload == Workload::Frames ? 30 : 16000;
     }
 
-    int maxLevel(const QString &profileId) const override
+    int maxLevel(int, const QString &profileId) const override
     {
         // the row limit is what the data source can emit per tick
         return profile(profileId).workload == Workload::Frames ? 15360 : 10000000;

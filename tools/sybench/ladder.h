@@ -50,10 +50,35 @@ enum class LevelResult {
     Cancelled
 };
 
-using TryLevelFn = std::function<LevelResult(int level)>;
+/**
+ * @brief What trying one level yielded, with a hint at how close to the limit it was
+ */
+struct LevelOutcome {
+    LevelResult result;
+    /// share of the allowed backlog the step used up (0 = none, 1 = at the limit); a step
+    /// that needed part of its allowance is close to the limit, and the search slows down
+    double backlogUse = 0;
+
+    LevelOutcome(LevelResult r, double use = 0)
+        : result(r),
+          backlogUse(use)
+    {
+    }
+};
+
+using TryLevelFn = std::function<LevelOutcome(int level)>;
 
 /**
- * @brief Run a doubling search from the start level, then bisect between the last
+ * @brief Level to try after the given one passed with the given share of its backlog allowance used.
+ *
+ * A step with no backlog doubles the level; the more of the allowance a step used, the smaller
+ * the next increase, down to a single unit. This keeps the first failure close to the limit,
+ * instead of overshooting into a level that overwhelms the machine.
+ */
+int nextLadderLevel(int level, double backlogUse);
+
+/**
+ * @brief Run a growing search from the start level, then bisect between the last
  * pass and the first failure.
  *
  * If the start level already fails, the level is halved until one passes (or level 1 fails).

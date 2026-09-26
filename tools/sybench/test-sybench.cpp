@@ -159,7 +159,7 @@ private slots:
         QTemporaryDir tmpDir;
         QVERIFY(tmpDir.isValid());
         const auto dims = createAllDimensions();
-        QCOMPARE(dims.size(), 5u);
+        QCOMPARE(dims.size(), 6u);
         for (const auto &dim : dims) {
             QVERIFY(!dim->profiles().isEmpty());
             for (const auto &profile : dim->profiles()) {
@@ -269,6 +269,46 @@ private slots:
             QStringLiteral("TableRow"));
         const auto pyRows = oop->buildProject(QStringLiteral("python-rows"), 1000);
         QVERIFY(pyRows.module(QStringLiteral("Worker 1"))->extraData.contains("get_input_port('rows-in')"));
+    }
+
+    void mixedTasksProject()
+    {
+        auto dim = createDimension(QStringLiteral("mixed-tasks"));
+        QVERIFY(dim != nullptr);
+        QCOMPARE(dim->profiles().size(), 1);
+        QCOMPARE(dim->levelUnit(QStringLiteral("mixed-chain")), QStringLiteral("chains"));
+        QCOMPARE(dim->startLevel(16, QStringLiteral("mixed-chain")), 8);
+        // every chain is a worker process, the ladder must not pile up hundreds of them
+        QCOMPARE(dim->maxLevel(16, QStringLiteral("mixed-chain")), 128);
+        QVERIFY(!dim->writesData(QStringLiteral("mixed-chain")));
+
+        const auto spec = dim->buildProject(QStringLiteral("mixed-chain"), 3);
+        // 7 modules per chain plus the reference source and its meter
+        QCOMPARE(spec.modules.size(), 3 * 7 + 2);
+        QVERIFY(spec.hasModule(QStringLiteral("Reference Source")));
+        QVERIFY(!spec.hasModule(QStringLiteral("Source 4")));
+        const auto *src = spec.module(QStringLiteral("Source 2"));
+        QVERIFY(src != nullptr);
+        QCOMPARE(src->settings.value(QStringLiteral("fps")).toInt(), 30);
+        QCOMPARE(src->settings.value(QStringLiteral("frame_width")).toInt(), 1280);
+        QCOMPARE(src->settings.value(QStringLiteral("signal_channels")).toInt(), 128);
+        QCOMPARE(
+            spec.module(QStringLiteral("Scale 2"))->subscriptions.value(QStringLiteral("frames-in")).srcModuleName,
+            QStringLiteral("Source 2"));
+        const auto *tracker = spec.module(QStringLiteral("Tracker 2"));
+        QVERIFY(tracker != nullptr);
+        QCOMPARE(tracker->id, QStringLiteral("pyscript"));
+        QVERIFY(tracker->extraData.contains("background"));
+        QCOMPARE(tracker->subscriptions.value(QStringLiteral("frames-in")).srcModuleName, QStringLiteral("Scale 2"));
+        const auto *meter = spec.module(QStringLiteral("Meter 2"));
+        QCOMPARE(meter->settings.value(QStringLiteral("data_type")).toString(), QStringLiteral("TableRow"));
+        QCOMPARE(meter->subscriptions.value(QStringLiteral("data-in")).srcModuleName, QStringLiteral("Tracker 2"));
+        QCOMPARE(
+            spec.module(QStringLiteral("Filter 2"))->subscriptions.value(QStringLiteral("signals-in")).srcPortId,
+            QStringLiteral("float-out"));
+        QCOMPARE(
+            spec.module(QStringLiteral("Filter Meter 2"))->subscriptions.value(QStringLiteral("data-in")).srcModuleName,
+            QStringLiteral("Filter 2"));
     }
 
     static StepResult makeResult(qint64 items, qint64 peakPending, qint64 pendingAtStop)
@@ -468,12 +508,20 @@ private slots:
         };
         const auto recording = [&tried](auto fn) {
             return [&tried, fn](int level) {
-                const auto res = fn(level);
-                if (res != LevelResult::Cancelled)
+                const LevelOutcome res = fn(level);
+                if (res.result != LevelResult::Cancelled)
                     tried.append(level);
                 return res;
             };
         };
+
+        // the step grows with the headroom a passed level had left
+        QCOMPARE(nextLadderLevel(10, 0.0), 20);
+        QCOMPARE(nextLadderLevel(10, 0.1), 15);
+        QCOMPARE(nextLadderLevel(10, 0.2), 12);
+        QCOMPARE(nextLadderLevel(10, 0.5), 11);
+        QCOMPARE(nextLadderLevel(10, 1.0), 11);
+        QCOMPARE(nextLadderLevel(46, 0.2), 56);
 
         // machine sustains 11 units
         auto o = runLadder(cfg, recording([](int level) {
@@ -527,6 +575,16 @@ private slots:
         QVERIFY(!o.cancelled);
         QCOMPARE(takeTried(), (QList<int>{4, 8, 16, 12, 14}));
         QCOMPARE(o.sustained, 14);
+
+        // a level that already needed half of its backlog allowance is close to the limit:
+        // the search creeps up from there instead of doubling
+        o = runLadder(cfg, recording([](int level) -> LevelOutcome {
+                          if (level > 8)
+                              return LevelResult::Failed;
+                          return {LevelResult::Passed, level == 8 ? 0.5 : 0.0};
+                      }));
+        QCOMPARE(takeTried(), (QList<int>{4, 8, 9}));
+        QCOMPARE(o.sustained, 8);
 
         // a real failure below the source-limited levels bounds the result, so it is not source-limited
         o = runLadder(cfg, recording([](int level) {

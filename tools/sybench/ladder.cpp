@@ -20,9 +20,20 @@
 #include "ladder.h"
 
 #include <algorithm>
+#include <cmath>
 
 namespace SyBench
 {
+
+int nextLadderLevel(int level, double backlogUse)
+{
+    // a little backlog is noise, a growing one means the limit is near: a step that used half
+    // of its allowance only creeps up by one unit, and the increase shrinks with the cube of
+    // the used share on the way there (a tenth used still grows by 51 %, a fifth by 22 %)
+    const double headroom = std::clamp(1.0 - 2.0 * backlogUse, 0.0, 1.0);
+    const auto next = static_cast<int>(std::lround(level * (1.0 + headroom * headroom * headroom)));
+    return std::max(next, level + 1);
+}
 
 LadderOutcome runLadder(const LadderConfig &cfg, const TryLevelFn &tryLevel)
 {
@@ -33,8 +44,11 @@ LadderOutcome runLadder(const LadderConfig &cfg, const TryLevelFn &tryLevel)
     int lowestFailed = 0; // lowest level that failed for real (not source-limited)
 
     // returns false if the search has to stop
+    double backlogUse = 0;
     const auto attempt = [&](int level, bool &passed) {
-        const auto res = tryLevel(level);
+        const auto outcome = tryLevel(level);
+        const auto res = outcome.result;
+        backlogUse = outcome.backlogUse;
         if (res == LevelResult::Cancelled) {
             out.cancelled = true;
             out.sustained = lo;
@@ -55,7 +69,7 @@ LadderOutcome runLadder(const LadderConfig &cfg, const TryLevelFn &tryLevel)
         return true;
     };
 
-    // doubling phase
+    // growing phase
     int level = std::clamp(cfg.startLevel, 1, maxLevel);
     while (true) {
         bool passed = false;
@@ -67,7 +81,7 @@ LadderOutcome runLadder(const LadderConfig &cfg, const TryLevelFn &tryLevel)
             out.reachedMax = true;
             break;
         }
-        level = std::min(level * 2, maxLevel);
+        level = std::min(nextLadderLevel(level, backlogUse), maxLevel);
     }
 
     // halving phase, if even the start level failed

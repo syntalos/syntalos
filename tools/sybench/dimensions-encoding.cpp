@@ -169,9 +169,9 @@ public:
         return profileId == zarrProfileId() ? 64 : RecordingDimensionBase::startLevel(cpuCores, profileId);
     }
 
-    int maxLevel(const QString &profileId) const override
+    int maxLevel(int cpuCores, const QString &profileId) const override
     {
-        return profileId == zarrProfileId() ? 65536 : RecordingDimensionBase::maxLevel(profileId);
+        return profileId == zarrProfileId() ? 65536 : RecordingDimensionBase::maxLevel(cpuCores, profileId);
     }
 
     static QString zarrWriterName(int i)

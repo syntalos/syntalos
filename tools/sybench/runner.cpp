@@ -190,7 +190,7 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
 
     qint64 memoryLimitKiB = cfg.memoryLimitKiB;
     if (memoryLimitKiB <= 0)
-        memoryLimitKiB = std::max<qint64>(readMemInfo().memAvailableKiB - 2LL * 1024 * 1024, 512 * 1024);
+        memoryLimitKiB = std::max<qint64>(readMemInfo().memAvailableKiB - kMemoryReserveKiB, 512 * 1024);
     const qint64 pid = proc.processId();
 
     // Syntalos stops its run and quits cleanly on SIGTERM, so we ask first and only kill it

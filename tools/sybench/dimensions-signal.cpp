@@ -65,7 +65,7 @@ public:
         return 64;
     }
 
-    int maxLevel(const QString &) const override
+    int maxLevel(int, const QString &) const override
     {
         return 65536;
     }

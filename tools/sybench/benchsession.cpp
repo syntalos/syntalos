@@ -137,7 +137,7 @@ auto BenchSession::runStep(const Dimension &dim, const QString &profileId, int l
 LadderConfig BenchSession::ladderConfig(const Dimension &dim, const QString &profileId) const
 {
     LadderConfig lcfg;
-    lcfg.maxLevel = m_config.maxLevel > 0 ? m_config.maxLevel : dim.maxLevel(profileId);
+    lcfg.maxLevel = m_config.maxLevel > 0 ? m_config.maxLevel : dim.maxLevel(m_cpuCores, profileId);
     lcfg.startLevel = std::min(
         m_config.startLevel > 0 ? m_config.startLevel : dim.startLevel(m_cpuCores, profileId),
         lcfg.maxLevel);
@@ -205,7 +205,7 @@ void BenchSession::run()
         emit ladderStarted(index, ladders.size(), lr);
         progress(QStringLiteral("== %1, %2 ==").arg(lr.dimensionTitle, lr.profileTitle));
 
-        lr.outcome = runLadder(ladderConfig(*dim, lr.profileId), [&](int level) -> LevelResult {
+        lr.outcome = runLadder(ladderConfig(*dim, lr.profileId), [&](int level) -> LevelOutcome {
             if (m_stop.stop_requested())
                 return LevelResult::Cancelled;
             emit stepStarted(lr, level);
@@ -240,7 +240,7 @@ void BenchSession::run()
             emit stepFinished(rec);
             if (rec.verdict.sourceLimited)
                 return LevelResult::Inconclusive;
-            return rec.verdict.passed ? LevelResult::Passed : LevelResult::Failed;
+            return {rec.verdict.passed ? LevelResult::Passed : LevelResult::Failed, rec.verdict.backlogUse};
         });
 
         if (lr.outcome.inconclusive) {

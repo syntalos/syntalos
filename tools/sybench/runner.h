@@ -67,6 +67,9 @@ QString stopCauseToString(StopCause cause);
 /**
  * @brief Everything we learned from one Syntalos run
  */
+/// memory the default memory limit leaves to the rest of the system
+constexpr qint64 kMemoryReserveKiB = 2LL * 1024 * 1024;
+
 struct StepResult {
     bool success = false; /// the run completed without error
     StopCause stopCause = StopCause::None;

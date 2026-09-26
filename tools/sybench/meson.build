@@ -14,6 +14,7 @@ sybench_core_src = [
     'dimensions-camera.cpp',
     'dimensions-common.cpp',
     'dimensions-encoding.cpp',
+    'dimensions-mixed.cpp',
     'dimensions-oop.cpp',
     'dimensions-signal.cpp',
     'health.cpp',

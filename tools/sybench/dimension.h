@@ -44,6 +44,7 @@ struct StepVerdict {
     QString summary;            /// short human-readable reason, e.g. "min rate 97.1 %, backlog at stop 40"
     double minRateFraction = 0; /// worst checked rate relative to the expected rate
     qint64 maxPeakBacklog = 0;
+    double backlogUse = 0; /// peak backlog relative to what a step may have before it fails
     qint64 maxBacklogAtStop = 0;
 };
 
@@ -77,7 +78,7 @@ public:
      * @brief Level to start the ladder from, on a machine with the given number of physical cores.
      */
     virtual int startLevel(int cpuCores, const QString &profileId) const;
-    virtual int maxLevel(const QString &profileId) const;
+    virtual int maxLevel(int cpuCores, const QString &profileId) const;
 
     /**
      * @brief Whether runs of this profile need a real export directory (they record data).
@@ -132,6 +133,9 @@ ModuleSpec signalFilterLowPass(const QString &name, double cutoffHz, const QStri
 ModuleSpec zarrWriterSignals(const QString &name, const QString &srcModule, const QString &srcPort);
 /// Python script forwarding table rows unchanged, ports rows-in / rows-out
 ModuleSpec pyScriptRowPassthrough(const QString &name, const QString &srcModule, const QString &srcPort);
+/// Python script tracking what moves against a running-average background with numpy and
+/// emitting the centroid as a table row, ports frames-in / rows-out
+ModuleSpec pyScriptFrameTracker(const QString &name, const QString &srcModule, const QString &srcPort);
 /// the C++ MLink example module forwarding frames, ports frames-in / frames-out
 ModuleSpec mlinkExampleFramePassthrough(const QString &name, const QString &srcModule, const QString &srcPort);
 /// the C++ MLink example module forwarding table rows, ports table-in / table-out
@@ -143,6 +147,7 @@ std::unique_ptr<Dimension> createEncodingDimension();
 std::unique_ptr<Dimension> createDiskWriteDimension();
 std::unique_ptr<Dimension> createSignalProcessingDimension();
 std::unique_ptr<Dimension> createOutOfProcessDimension();
+std::unique_ptr<Dimension> createMixedTasksDimension();
 
 std::vector<std::unique_ptr<Dimension>> createAllDimensions();
 std::unique_ptr<Dimension> createDimension(const QString &id);
