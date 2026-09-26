@@ -46,9 +46,9 @@ constexpr ReferenceEntry kReference[] = {
     {"disk-write",        "raw1080p30",   18    },
     {"disk-write",        "zarr-30khz",   5120  },
     {"signal-processing", "30khz-filter", 4096  },
-    {"out-of-process",    "cpp-frames",   600   },
-    {"out-of-process",    "python-rows",  448000},
-    {"out-of-process",    "cpp-rows",     640000},
+    {"ipc-workers",       "cpp-frames",   600   },
+    {"ipc-workers",       "python-rows",  448000},
+    {"ipc-workers",       "cpp-rows",     640000},
     {"mixed-tasks",       "mixed-chain",  62    },
 };
 

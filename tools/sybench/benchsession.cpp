@@ -219,6 +219,11 @@ void BenchSession::run()
             progress(QStringLiteral("Trying %1 %2...").arg(level).arg(lr.levelUnit));
 
             auto step = runStep(*dim, lr.profileId, level, m_config.effectiveStepSeconds());
+            if (step && step->verdict.sourceLimited && !m_stop.stop_requested()) {
+                // a data source falling short may be a one-off stall, only a repeat counts
+                progress(QStringLiteral("-> INCONCLUSIVE: %1, retrying this level once").arg(step->verdict.summary));
+                step = runStep(*dim, lr.profileId, level, m_config.effectiveStepSeconds());
+            }
             if (!step) {
                 // no further run can work, end the ladder like a cancellation
                 sessionError = step.error();
@@ -238,6 +243,8 @@ void BenchSession::run()
                              : rec.verdict.sourceLimited ? QStringLiteral("INCONCLUSIVE")
                                                          : QStringLiteral("FAIL"),
                              rec.verdict.summary));
+            if (!rec.result.relaunchReason.isEmpty())
+                progress(QStringLiteral("Syntalos will be relaunched: %1").arg(rec.result.relaunchReason));
             if (!rec.result.success && !rec.result.outputTail.isEmpty()) {
                 // the last lines of what Syntalos printed usually explain a failed run
                 LOG_INFO(m_log, "Syntalos output:\n{}", rec.result.outputTail.section(QLatin1Char('\n'), -8));

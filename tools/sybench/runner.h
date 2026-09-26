@@ -50,15 +50,18 @@ struct StepRunConfig {
     int teardownGraceSec = 60;
     /// time allowed for a freshly launched Syntalos to answer on D-Bus
     int launchTimeoutSec = 60;
-    /// Relaunch Syntalos before the next step when it kept more memory than this after a run
-    /// (compared to before the run started), so a leaking instance does not distort later measurements.
+    /// Relaunch Syntalos when it still holds more memory than this from the previous step
+    /// (compared to before that step's run), so a leaking instance does not distort later measurements.
     qint64 retainedMemoryRestartKiB = 4LL * 1024 * 1024;
 
     /// Stop the run when Syntalos (and its workers) use more proportional memory than this, 0 = no limit.
     /// The system reserve below applies in any case.
     qint64 memoryLimitKiB = 0;
-    /// Stop the run when the whole system has less memory available than this (default 2 GiB).
+    /// Stop the run when the whole system has less memory available than this (default 2 GiB),
+    /// plus what the current growth would eat while the stop takes effect.
     qint64 systemMemoryReserveKiB = kMemoryReserveKiB;
+    /// how long a stop request is given to take effect when computing that growth allowance
+    double stopLeadSec = 2.0;
     /// Kill the run when the whole system has less memory available than this (default 1 GiB).
     qint64 systemMemoryFloorKiB = 1024 * 1024;
 };
@@ -87,8 +90,9 @@ struct StepResult {
     double startupSec = 0;      /// time from the start request until all modules were running
     bool freshInstance = false; /// Syntalos was launched for this step, so it ran with cold caches
     QString failureReason;
-    qint64 peakPssKiB = 0; /// peak proportional memory of Syntalos and its workers, sampled every second
-    QString outputTail;    /// last lines of the Syntalos output, for diagnostics
+    QString relaunchReason; /// why Syntalos will be relaunched for the next step, empty if it will not
+    qint64 peakPssKiB = 0;  /// peak proportional memory of Syntalos and its workers, sampled every second
+    QString outputTail;     /// last lines of the Syntalos output, for diagnostics
 
     std::optional<Syntalos::RunStatistics> stats; /// what Syntalos reported, if it got that far
 
@@ -99,6 +103,9 @@ struct StepResult {
     [[nodiscard]] double processLoad() const;
     /// the load as a share of the machine's logical CPUs, 0 if unknown
     [[nodiscard]] double loadPercent() const;
+    /// CPU-seconds per second the machine can sustain: its physical cores plus half of their
+    /// SMT siblings, which typically add a quarter to a third of throughput; 0 if unknown
+    [[nodiscard]] double sustainableLoad() const;
     [[nodiscard]] int threadsTotal() const;
     [[nodiscard]] int threadsElevated() const;
 };
@@ -147,6 +154,8 @@ private:
 
     /// Launch Syntalos if no usable instance is running, and wait until it answers on D-Bus.
     auto ensureStarted(const StepRunConfig &cfg, std::stop_token stop) -> std::expected<void, QString>;
+    /// Mark the instance for relaunch if it still holds too much memory from its previous run.
+    void checkRetainedMemory(const StepRunConfig &cfg);
     bool isAlive() const;
     void markForRelaunch(const QString &reason);
 

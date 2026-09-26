@@ -123,6 +123,7 @@ struct SyntalosRunner::Instance {
     qint64 pid = 0;
     QStringList outLines;
     RunSignalSink sink;
+    qint64 pssBeforeRunKiB = 0; /// what the instance held before its last run, with that project loaded
 
     void collectOutput()
     {
@@ -205,6 +206,15 @@ double StepResult::loadPercent() const
     if (!stats || stats->cpuCoreCount <= 0)
         return 0;
     return 100.0 * processLoad() / stats->cpuCoreCount;
+}
+
+double StepResult::sustainableLoad() const
+{
+    if (!stats || stats->cpuCoreCount <= 0)
+        return 0;
+    const int logical = stats->cpuCoreCount;
+    const int physical = stats->cpuPhysicalCoreCount > 0 ? stats->cpuPhysicalCoreCount : logical;
+    return physical + (logical - physical) / 2.0;
 }
 
 int StepResult::threadsTotal() const
@@ -302,6 +312,17 @@ auto SyntalosRunner::readState() -> std::expected<QString, QString>
     if (reply.arguments().isEmpty())
         return std::unexpected(QStringLiteral("Empty reply."));
     return qvariant_cast<QDBusVariant>(reply.arguments().first()).variant().toString();
+}
+
+void SyntalosRunner::checkRetainedMemory(const StepRunConfig &cfg)
+{
+    if (!isAlive() || m_inst->pssBeforeRunKiB <= 0 || cfg.retainedMemoryRestartKiB <= 0)
+        return;
+    // Measured now rather than right after the run, so Syntalos had time to return what it freed.
+    // The project of the previous step is still loaded, so this compares like with like.
+    const auto retainedKiB = readProcessTreePssKiB(m_inst->pid) - m_inst->pssBeforeRunKiB;
+    if (retainedKiB > cfg.retainedMemoryRestartKiB)
+        markForRelaunch(QStringLiteral("Syntalos kept %1 MiB after its last run.").arg(retainedKiB / 1024));
 }
 
 auto SyntalosRunner::ensureStarted(const StepRunConfig &cfg, std::stop_token stop) -> std::expected<void, QString>
@@ -427,6 +448,7 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
     if (stop.stop_requested())
         return cancelled();
 
+    checkRetainedMemory(cfg);
     const bool hadInstance = isAlive();
     if (const auto res = ensureStarted(cfg, stop); !res) {
         if (stop.stop_requested())
@@ -448,6 +470,7 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
 
     const auto failStep = [&](const QString &reason) {
         r.failureReason = reason;
+        r.relaunchReason = m_relaunchReason;
         LOG_WARNING(m_log, "{}", reason);
         inst.collectOutput();
         r.outputTail = inst.outLines.join(QLatin1Char('\n'));
@@ -468,7 +491,7 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
             return failStep(QStringLiteral("Setting the export directory failed: %1").arg(res.error()));
     }
     // what the instance holds with the project loaded, to see later how much the run left behind
-    const auto pssBeforeRunKiB = readProcessTreePssKiB(pid);
+    inst.pssBeforeRunKiB = readProcessTreePssKiB(pid);
 
     if (stop.stop_requested())
         return cancelled();
@@ -538,8 +561,11 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
             pssKiB = readProcessTreePssKiB(pid);
             r.peakPssKiB = std::max(r.peakPssKiB, pssKiB);
         }
+        // a stop takes a moment to take effect, so fast growth needs a larger reserve
+        const auto reserveKiB = cfg.systemMemoryReserveKiB
+                                + static_cast<qint64>(std::max(growthMiBPerSec, 0.0) * cfg.stopLeadSec * 1024);
         const bool systemStarved = memAvailableKiB < cfg.systemMemoryFloorKiB;
-        const bool memoryShort = memAvailableKiB < cfg.systemMemoryReserveKiB;
+        const bool memoryShort = memAvailableKiB < reserveKiB;
         const bool overLimit = cfg.memoryLimitKiB > 0 && pssKiB > cfg.memoryLimitKiB;
         if ((memoryShort || overLimit) && stopState == StopState::Running) {
             // the spike that triggered the stop is what the report should show as peak
@@ -553,7 +579,7 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
                     "queues were overflowing.")
                     .arg(pssKiB / 1024)
                     .arg(memAvailableKiB / 1024)
-                    .arg((overLimit ? cfg.memoryLimitKiB : cfg.systemMemoryReserveKiB) / 1024)
+                    .arg((overLimit ? cfg.memoryLimitKiB : reserveKiB) / 1024)
                     .arg(growthMiBPerSec, 0, 'f', 0),
                 5000,
                 cfg.teardownGraceSec * 1000);
@@ -613,11 +639,6 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
             else
                 LOG_WARNING(m_log, "{}", stats.error());
         }
-
-        // memory the run left behind adds to everything measured later, so we do not let it pile up
-        const auto retainedKiB = readProcessTreePssKiB(pid) - pssBeforeRunKiB;
-        if (cfg.retainedMemoryRestartKiB > 0 && retainedKiB > cfg.retainedMemoryRestartKiB)
-            markForRelaunch(QStringLiteral("Syntalos kept %1 MiB after the run.").arg(retainedKiB / 1024));
     }
 
     // a run we had to stop never counts, even if Syntalos managed to report its statistics
@@ -625,9 +646,8 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
     if (!r.success && r.failureReason.isEmpty())
         r.failureReason = failureReasonFromOutcome(r, proc, inst.sink.runMessage);
 
+    r.relaunchReason = m_relaunchReason;
     LOG_INFO(m_log, "Run finished: {}", r.success ? QStringLiteral("success") : r.failureReason);
-    if (!m_relaunchReason.isEmpty())
-        LOG_INFO(m_log, "Syntalos will be relaunched for the next step: {}", m_relaunchReason);
     return r;
 }
 

@@ -193,6 +193,10 @@ private slots:
         const auto *rawRec = raw.module(QStringLiteral("Recorder 1"));
         QVERIFY(rawRec != nullptr);
         QCOMPARE(rawRec->settings.value(QStringLiteral("video_codec")).toInt(), 1);
+        // raw writes do not care about the content, so the cheap source is used
+        const auto *rawCam = raw.module(QStringLiteral("Camera 1"));
+        QVERIFY(rawCam != nullptr);
+        QCOMPARE(rawCam->settings.value(QStringLiteral("frame_content")).toString(), QStringLiteral("testcard"));
     }
 
     void signalAndOopProjects()
@@ -229,7 +233,7 @@ private slots:
                 .srcModuleName,
             QStringLiteral("Amplifier 3"));
 
-        auto oop = createDimension(QStringLiteral("out-of-process"));
+        auto oop = createDimension(QStringLiteral("ipc-workers"));
         QCOMPARE(oop->profiles().size(), 3);
         QCOMPARE(oop->startLevel(16, QStringLiteral("cpp-frames")), 30);
         QCOMPARE(oop->levelUnit(QStringLiteral("cpp-frames")), QStringLiteral("fps"));
@@ -382,6 +386,26 @@ private slots:
         QVERIFY(!v.passed);
         QVERIFY(!v.sourceLimited);
         QVERIFY(v.summary.contains(QStringLiteral("overloaded")));
+
+        // the sustainable load counts physical cores plus half of their SMT siblings:
+        // 7.5 busy cores on 4 cores / 8 threads (sustainable 6) is an overload as well...
+        starved.stats->cpuPhysicalCoreCount = 4;
+        QCOMPARE(starved.sustainableLoad(), 6.0);
+        v = evaluateRates(
+            starved,
+            {
+                RateCheck{.moduleName = QStringLiteral("Meter 1"), .expectedRate = 30.0, .isSource = true}
+        });
+        QVERIFY(!v.sourceLimited);
+        // ...while 4 busy cores on that machine leave room, so the source is its own limit
+        busy.userTimeSec = 5.0;
+        starved.stats->process = busy;
+        v = evaluateRates(
+            starved,
+            {
+                RateCheck{.moduleName = QStringLiteral("Meter 1"), .expectedRate = 30.0, .isSource = true}
+        });
+        QVERIFY(v.sourceLimited);
 
         // a source that misses its own rate makes the step inconclusive rather than a failure
         v = evaluateRates(

@@ -43,6 +43,9 @@ int Dimension::maxLevel(int, const QString &) const
     return 512;
 }
 
+/// share of the sustainable CPU load above which a starved source counts as machine overload
+constexpr double kOverloadShare = 0.9;
+
 bool Dimension::writesData(const QString &) const
 {
     return false;
@@ -80,12 +83,16 @@ StepVerdict evaluateRates(const StepResult &result, const QList<RateCheck> &chec
             if (fraction < minRateFraction) {
                 // a source starved of CPU on a saturated machine is the machine's limit; a source
                 // that falls short on an idle machine is its own limit and nothing downstream can be judged
-                const double loadPercent = result.loadPercent();
-                if (loadPercent > 75.0) {
-                    v.summary = QStringLiteral("overloaded: '%1' produced only %2 % of its rate at %3 % CPU load")
+                const double sustainable = result.sustainableLoad();
+                const double loadShare = sustainable > 0 ? result.processLoad() / sustainable : 0.0;
+                if (loadShare >= kOverloadShare) {
+                    v.summary = QStringLiteral(
+                                    "overloaded: '%1' produced only %2 % of its rate with %3 of %4 sustainable "
+                                    "CPU cores busy")
                                     .arg(c.moduleName)
                                     .arg(fraction * 100.0, 0, 'f', 1)
-                                    .arg(loadPercent, 0, 'f', 0);
+                                    .arg(result.processLoad(), 0, 'f', 1)
+                                    .arg(sustainable, 0, 'f', 1);
                     return v;
                 }
                 v.sourceLimited = true;

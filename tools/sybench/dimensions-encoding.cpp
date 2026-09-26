@@ -53,7 +53,12 @@ public:
         ProjectSpec spec;
         for (int i = 1; i <= level; ++i) {
             const auto camName = QStringLiteral("Camera %1").arg(i);
-            spec.addModule(Modules::dataSourceCamera(camName, p.width, p.height, p.fps));
+            // encoders care about the content, raw writes do not, so they get the cheapest source
+            // available and the machine's capacity is not spent on generating camera-like noise
+            if (p.codec == Modules::Codec::Raw)
+                spec.addModule(Modules::dataSourceTestCard(camName, p.width, p.height, p.fps));
+            else
+                spec.addModule(Modules::dataSourceCamera(camName, p.width, p.height, p.fps));
             spec.addModule(
                 Modules::flowMeter(sourceMeterName(i), QStringLiteral("Frame"), camName, QStringLiteral("frames-out")));
             spec.addModule(Modules::videoRecorder(recorderName(i), p.codec, camName, QStringLiteral("frames-out")));
