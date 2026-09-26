@@ -26,6 +26,13 @@
 namespace SyBench
 {
 
+QString Dimension::profileTitle(const QString &profileId) const
+{
+    const auto list = profiles();
+    const auto it = std::ranges::find(list, profileId, &DimensionProfile::id);
+    return it != list.end() ? it->title : QString();
+}
+
 int Dimension::startLevel(int cpuCores, const QString &) const
 {
     return std::max(1, cpuCores / 2);

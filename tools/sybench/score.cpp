@@ -22,8 +22,6 @@
 #include <QJsonArray>
 #include <cmath>
 
-#include "dimension.h"
-
 namespace SyBench
 {
 
@@ -83,6 +81,7 @@ BenchmarkScore computeScore(const QList<LadderRecord> &ladders, const SessionCon
     // ratios per dimension, in the order of the reference table
     QList<QString> dimOrder;
     QHash<QString, QList<double>> ratiosByDim;
+    QHash<QString, QString> titleByDim;
     QHash<QString, int> totalByDim;
     for (const auto &e : kReference) {
         const auto dim = QString::fromLatin1(e.dimensionId);
@@ -101,6 +100,7 @@ BenchmarkScore computeScore(const QList<LadderRecord> &ladders, const SessionCon
         // a machine that sustains nothing still needs a finite ratio
         const double ratio = std::max(static_cast<double>(lr.outcome.sustained), 0.5) / ref;
         ratiosByDim[lr.dimensionId].append(ratio);
+        titleByDim[lr.dimensionId] = lr.dimensionTitle;
         allRatios.append(ratio);
     }
 
@@ -109,16 +109,12 @@ BenchmarkScore computeScore(const QList<LadderRecord> &ladders, const SessionCon
     score.partial = score.profilesScored < score.profilesTotal;
     score.overall = geometricMeanScore(allRatios);
 
-    const auto dims = createAllDimensions();
     for (const auto &dimId : dimOrder) {
         if (!ratiosByDim.contains(dimId))
             continue;
         DimensionScore ds;
         ds.dimensionId = dimId;
-        for (const auto &d : dims) {
-            if (d->id() == dimId)
-                ds.title = d->title();
-        }
+        ds.title = titleByDim.value(dimId);
         ds.profilesScored = ratiosByDim[dimId].size();
         ds.profilesTotal = totalByDim[dimId];
         ds.score = geometricMeanScore(ratiosByDim[dimId]);

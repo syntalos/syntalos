@@ -21,9 +21,9 @@
 
 #include <QList>
 #include <QString>
-#include <atomic>
 #include <expected>
 #include <optional>
+#include <stop_token>
 
 #include "fabric/runstatistics.h"
 #include "logging.h"
@@ -128,20 +128,13 @@ public:
      * A failed, killed or cancelled run is still a result; the error branch is only
      * taken when Syntalos can not run at all (it could not be launched, or another
      * instance is running), so no other step would succeed either.
+     * A stop requested through the token (from any thread) cancels the run.
      */
-    auto run(const StepRunConfig &cfg) -> std::expected<StepResult, QString>;
-
-    /**
-     * @brief Abort a running step from another thread.
-     */
-    void cancel();
-    bool isCancelled() const;
-    void resetCancel();
+    auto run(const StepRunConfig &cfg, std::stop_token stop = {}) -> std::expected<StepResult, QString>;
 
 private:
     QString m_bin;
     quill::Logger *m_log;
-    std::atomic_bool m_cancel{false};
 };
 
 } // namespace SyBench

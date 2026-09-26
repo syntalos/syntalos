@@ -24,9 +24,9 @@
 #include <QObject>
 #include <QString>
 #include <QStringList>
-#include <atomic>
 #include <expected>
 #include <memory>
+#include <stop_token>
 
 #include "dimension.h"
 #include "ladder.h"
@@ -62,14 +62,22 @@ struct SessionConfig {
 QString defaultDataDir();
 
 /**
- * @brief One measured step of a ladder
+ * @brief Which dimension profile a record belongs to
  */
-struct StepRecord {
+struct ProfileRef {
     QString dimensionId;
     QString dimensionTitle;
     QString profileId;
     QString profileTitle;
     QString levelUnit;
+
+    static ProfileRef of(const Dimension &dim, const QString &profileId);
+};
+
+/**
+ * @brief One measured step of a ladder
+ */
+struct StepRecord : ProfileRef {
     int level = 0;
     StepVerdict verdict;
     StepResult result;
@@ -79,12 +87,7 @@ struct StepRecord {
 /**
  * @brief The outcome of one dimension/profile ladder
  */
-struct LadderRecord {
-    QString dimensionId;
-    QString dimensionTitle;
-    QString profileId;
-    QString profileTitle;
-    QString levelUnit;
+struct LadderRecord : ProfileRef {
     LadderOutcome outcome;
     QList<StepRecord> steps;
 };
@@ -137,10 +140,11 @@ private:
     std::vector<std::unique_ptr<Dimension>> m_dimensions;
     quill::Logger *m_log;
     int m_cpuCores;
-    std::atomic_bool m_cancelled{false};
+    std::stop_source m_stop;
 
     const Dimension *dimension(const QString &id) const;
     void progress(const QString &msg);
+    int bisections() const;
     LadderConfig ladderConfig(const Dimension &dim, const QString &profileId) const;
     void abort(const QString &error);
 

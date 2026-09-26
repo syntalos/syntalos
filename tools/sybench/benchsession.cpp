@@ -55,10 +55,25 @@ QString BenchSession::syntalosBinary() const
     return m_runner.syntalosBinary();
 }
 
+ProfileRef ProfileRef::of(const Dimension &dim, const QString &profileId)
+{
+    return ProfileRef{
+        .dimensionId = dim.id(),
+        .dimensionTitle = dim.title(),
+        .profileId = profileId,
+        .profileTitle = dim.profileTitle(profileId),
+        .levelUnit = dim.levelUnit(profileId)};
+}
+
+int BenchSession::bisections() const
+{
+    return m_config.quick ? 1 : 2;
+}
+
 int BenchSession::estimatedStepsPerLadder() const
 {
     // a few doubling steps plus the refinement steps, a rough guess for the progress display
-    return 3 + (m_config.quick ? 1 : 2);
+    return 3 + bisections();
 }
 
 int SessionConfig::effectiveStepSeconds() const
@@ -86,16 +101,8 @@ const Dimension *BenchSession::dimension(const QString &id) const
 auto BenchSession::runStep(const Dimension &dim, const QString &profileId, int level, int durationSec)
     -> std::expected<StepRecord, QString>
 {
-    StepRecord rec;
-    rec.dimensionId = dim.id();
-    rec.dimensionTitle = dim.title();
-    rec.profileId = profileId;
-    rec.levelUnit = dim.levelUnit(profileId);
+    StepRecord rec{ProfileRef::of(dim, profileId)};
     rec.level = level;
-    for (const auto &p : dim.profiles()) {
-        if (p.id == profileId)
-            rec.profileTitle = p.title;
-    }
 
     QDir workDir(m_config.workDir);
     const auto baseName = QStringLiteral("%1-%2-L%3").arg(dim.id(), profileId).arg(level);
@@ -120,7 +127,7 @@ auto BenchSession::runStep(const Dimension &dim, const QString &profileId, int l
     if (const auto res = writeProjectFile(spec, cfg.projectFile); !res)
         return std::unexpected(QStringLiteral("Unable to generate the benchmark project: %1").arg(res.error()));
 
-    auto result = m_runner.run(cfg);
+    auto result = m_runner.run(cfg, m_stop.get_token());
     // recorded data is only there to be measured, do not keep it around
     if (!cfg.ephemeral)
         QDir(cfg.exportDir).removeRecursively();
@@ -145,14 +152,13 @@ LadderConfig BenchSession::ladderConfig(const Dimension &dim, const QString &pro
     lcfg.startLevel = std::min(
         m_config.startLevel > 0 ? m_config.startLevel : dim.startLevel(m_cpuCores, profileId),
         lcfg.maxLevel);
-    lcfg.bisections = m_config.quick ? 1 : 2;
+    lcfg.bisections = bisections();
     return lcfg;
 }
 
 void BenchSession::cancel()
 {
-    m_cancelled = true;
-    m_runner.cancel();
+    m_stop.request_stop();
 }
 
 void BenchSession::abort(const QString &error)
@@ -165,8 +171,6 @@ void BenchSession::abort(const QString &error)
 
 void BenchSession::run()
 {
-    m_cancelled = false;
-    m_runner.resetCancel();
     if (!QDir().mkpath(m_config.workDir))
         return abort(QStringLiteral("Unable to create the work directory %1.").arg(m_config.workDir));
     if (m_runner.syntalosBinary().isEmpty())
@@ -179,16 +183,7 @@ void BenchSession::run()
             progress(QStringLiteral("Unknown dimension '%1' skipped.").arg(sel.first));
             continue;
         }
-        LadderRecord lr;
-        lr.dimensionId = dim->id();
-        lr.dimensionTitle = dim->title();
-        lr.profileId = sel.second;
-        lr.levelUnit = dim->levelUnit(sel.second);
-        for (const auto &p : dim->profiles()) {
-            if (p.id == sel.second)
-                lr.profileTitle = p.title;
-        }
-        ladders.append(lr);
+        ladders.append(LadderRecord{ProfileRef::of(*dim, sel.second)});
     }
     if (ladders.isEmpty())
         return abort(QStringLiteral("Nothing selected to run."));
@@ -208,21 +203,21 @@ void BenchSession::run()
         const auto warmup = runStep(*dim, first.profileId, ladderConfig(*dim, first.profileId).startLevel, 5);
         if (!warmup)
             return abort(warmup.error());
-        if (!warmup->result.success && !m_cancelled)
+        if (!warmup->result.success && !m_stop.stop_requested())
             progress(QStringLiteral("Warm-up run failed: %1").arg(warmup->verdict.summary));
     }
 
     QString sessionError;
     int index = 0;
     for (auto &lr : ladders) {
-        if (m_cancelled || !sessionError.isEmpty())
+        if (m_stop.stop_requested() || !sessionError.isEmpty())
             break;
         const auto *dim = dimension(lr.dimensionId);
         emit ladderStarted(index, ladders.size(), lr);
         progress(QStringLiteral("== %1, %2 ==").arg(lr.dimensionTitle, lr.profileTitle));
 
         lr.outcome = runLadder(ladderConfig(*dim, lr.profileId), [&](int level) -> LevelResult {
-            if (m_cancelled)
+            if (m_stop.stop_requested())
                 return LevelResult::Cancelled;
             emit stepStarted(lr, level);
             emit phaseChanged(QStringLiteral("%1, %2: trying %3 %4")
@@ -238,7 +233,7 @@ void BenchSession::run()
                 return LevelResult::Cancelled;
             }
             auto &rec = *step;
-            if (rec.result.stopCause == StopCause::Cancelled || m_cancelled)
+            if (rec.result.stopCause == StopCause::Cancelled || m_stop.stop_requested())
                 return LevelResult::Cancelled;
             if (rec.result.started)
                 rec.verdict.summary += QStringLiteral(" [startup %1 s]").arg(rec.result.startupSec, 0, 'f', 1);
@@ -278,8 +273,9 @@ void BenchSession::run()
 
     if (!sessionError.isEmpty())
         return abort(sessionError);
-    emit phaseChanged(m_cancelled ? QStringLiteral("Cancelled") : QStringLiteral("Finished"));
-    emit finished(m_cancelled, QString());
+    const bool cancelled = m_stop.stop_requested();
+    emit phaseChanged(cancelled ? QStringLiteral("Cancelled") : QStringLiteral("Finished"));
+    emit finished(cancelled, QString());
 }
 
 } // namespace SyBench

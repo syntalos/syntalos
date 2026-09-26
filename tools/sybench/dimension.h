@@ -71,6 +71,7 @@ public:
     virtual QString levelUnit(const QString &profileId) const = 0; /// e.g. "streams", "channels"
 
     virtual QList<DimensionProfile> profiles() const = 0;
+    QString profileTitle(const QString &profileId) const;
 
     /**
      * @brief Level to start the ladder from, on a machine with the given number of physical cores.

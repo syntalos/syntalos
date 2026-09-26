@@ -173,28 +173,13 @@ QString SyntalosRunner::syntalosBinary() const
     return m_bin;
 }
 
-void SyntalosRunner::cancel()
-{
-    m_cancel = true;
-}
-
-bool SyntalosRunner::isCancelled() const
-{
-    return m_cancel;
-}
-
-void SyntalosRunner::resetCancel()
-{
-    m_cancel = false;
-}
-
-auto SyntalosRunner::run(const StepRunConfig &cfg) -> std::expected<StepResult, QString>
+auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std::expected<StepResult, QString>
 {
     if (m_bin.isEmpty())
         return std::unexpected(QStringLiteral("The syntalos executable was not found."));
 
     StepResult r;
-    if (m_cancel) {
+    if (stop.stop_requested()) {
         r.stopCause = StopCause::Cancelled;
         r.failureReason = QStringLiteral("Cancelled.");
         return r;
@@ -311,7 +296,7 @@ auto SyntalosRunner::run(const StepRunConfig &cfg) -> std::expected<StepResult, 
                     .arg(memAvailableKiB / 1024)
                     .arg(growthMiBPerSec, 0, 'f', 0),
                 5000);
-        if (m_cancel)
+        if (stop.stop_requested())
             stopProcess(StopCause::Cancelled, QStringLiteral("Cancelled."), 15000);
         if (!r.started && nowMs > cfg.startupTimeoutSec * 1000LL)
             stopProcess(
