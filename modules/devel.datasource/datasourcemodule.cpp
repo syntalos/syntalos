@@ -62,6 +62,7 @@ private:
     QSize m_outFrameSize;
     bool m_colorVideo;
     FrameContent m_frameContent;
+    cv::Mat m_testCard;
     cv::Mat m_scene;
     std::vector<cv::Mat> m_noise;
     microseconds_t m_prevFrameTime;
@@ -241,10 +242,15 @@ public:
         m_frameOut->setMetadataValue("size", MetaSize(m_outFrameSize.width(), m_outFrameSize.height()));
         m_frameOut->start();
         m_prevFrameTime = microseconds_t(0);
+        m_testCard.release();
         m_scene.release();
         m_noise.clear();
-        if (m_frameContent == FrameContent::CAMERA && m_frameOut->hasSubscribers())
-            createCameraScene();
+        if (m_frameOut->hasSubscribers()) {
+            if (m_frameContent == FrameContent::CAMERA)
+                createCameraScene();
+            else
+                createTestCard();
+        }
 
         m_rowsOut->setSuggestedDataName(QStringLiteral("table-%1/testvalues").arg(datasetNameSuggestion()));
         m_rowsOut->setMetadataValue("table_header", MetaArray{"Time", "Tag", "Value"});
@@ -442,6 +448,7 @@ public:
             dataIndex++;
         }
 
+        m_testCard.release();
         m_scene.release();
         m_noise.clear();
     }
@@ -624,19 +631,12 @@ private:
             return frame;
         }
 
-        // empty image with blue background
-        cv::Mat image(height, width, CV_8UC3, cv::Scalar(67, 42, 30));
-
-        // green rectangle
-        cv::rectangle(image, cv::Point(10, 10), cv::Point(width - 10, height - 10), cv::Scalar(96, 174, 40), 4);
-
-        // vertical and horizontal orange lines
-        cv::line(image, cv::Point(width / 2, 0), cv::Point(width / 2, height), cv::Scalar(0, 116, 247), 4);
-        cv::line(image, cv::Point(0, height / 2), cv::Point(width, height / 2), cv::Scalar(0, 116, 247), 4);
-
-        // add text with frame index
+        // every frame needs its own pixel buffer, as consumers may hold on to the previous one
+        Frame frame(index);
+        frame.time = frameTime;
+        frame.mat = m_testCard.clone();
         cv::putText(
-            image,
+            frame.mat,
             "Frame: " + numToString(index),
             cv::Point(24, 240),
             cv::FONT_HERSHEY_SIMPLEX,
@@ -645,15 +645,30 @@ private:
             2,
             cv::LINE_AA);
 
-        // create black/white video if needed
-        if (!m_colorVideo)
-            cv::cvtColor(image, image, cv::COLOR_BGR2GRAY);
-
-        Frame frame(index);
-        frame.time = frameTime;
-        frame.mat = image;
-
         return frame;
+    }
+
+    /**
+     * Pre-render the static part of the test card once; frames are stamped copies of it,
+     * which is far cheaper than drawing the card for every frame.
+     */
+    void createTestCard()
+    {
+        const auto width = m_outFrameSize.width();
+        const auto height = m_outFrameSize.height();
+
+        // blue background
+        m_testCard = cv::Mat(height, width, CV_8UC3, cv::Scalar(67, 42, 30));
+
+        // green rectangle
+        cv::rectangle(m_testCard, cv::Point(10, 10), cv::Point(width - 10, height - 10), cv::Scalar(96, 174, 40), 4);
+
+        // vertical and horizontal orange lines
+        cv::line(m_testCard, cv::Point(width / 2, 0), cv::Point(width / 2, height), cv::Scalar(0, 116, 247), 4);
+        cv::line(m_testCard, cv::Point(0, height / 2), cv::Point(width, height / 2), cv::Scalar(0, 116, 247), 4);
+
+        if (!m_colorVideo)
+            cv::cvtColor(m_testCard, m_testCard, cv::COLOR_BGR2GRAY);
     }
 
     std::optional<TableRow> createTablerow()

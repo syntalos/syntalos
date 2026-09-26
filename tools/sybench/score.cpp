@@ -48,8 +48,8 @@ constexpr ReferenceEntry kReference[] = {
     {"disk-write",        "raw1080p30",   18  },
     {"disk-write",        "zarr-30khz",   5120},
     {"signal-processing", "30khz-filter", 4096},
-    {"out-of-process",    "python",       480 },
-    {"out-of-process",    "cpp",          480 },
+    {"out-of-process",    "python",       600 },
+    {"out-of-process",    "cpp",          600 },
 };
 
 int geometricMeanScore(const QList<double> &ratios)

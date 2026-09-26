@@ -28,8 +28,8 @@ namespace SyBench
 class OutOfProcessDimension : public Dimension
 {
 public:
-    /// frames per second one camera source can comfortably deliver at 1080p; higher rates
-    /// are spread over several camera/worker pairs so the sources never limit the measurement
+    /// frames per second one test card source can comfortably deliver at 1080p; higher rates
+    /// are spread over several source/worker pairs so the sources never limit the measurement
     static constexpr int kMaxFpsPerSource = 480;
 
     QString id() const override
@@ -70,7 +70,7 @@ public:
 
     int maxLevel(const QString &) const override
     {
-        return 3840;
+        return 15360;
     }
 
     static int pairCount(int level)
@@ -90,7 +90,7 @@ public:
         for (int i = 1; i <= pairCount(level); ++i) {
             const auto cam = QStringLiteral("Camera %1").arg(i);
             const auto worker = QStringLiteral("Worker %1").arg(i);
-            spec.addModule(Modules::dataSourceCamera(cam, 1920, 1080, fps));
+            spec.addModule(Modules::dataSourceTestCard(cam, 1920, 1080, fps));
             spec.addModule(
                 Modules::flowMeter(sourceMeterName(i), QStringLiteral("Frame"), cam, QStringLiteral("frames-out")));
             if (profileId == QLatin1String("cpp"))
@@ -102,7 +102,7 @@ public:
         }
         // the IPC path applies backpressure to its source, so a free-running camera
         // tells whether a source could deliver the rate at all
-        spec.addModule(Modules::dataSourceCamera(QStringLiteral("Reference Camera"), 1920, 1080, fps));
+        spec.addModule(Modules::dataSourceTestCard(QStringLiteral("Reference Camera"), 1920, 1080, fps));
         spec.addModule(
             Modules::flowMeter(
                 QStringLiteral("Reference Meter"),

@@ -102,6 +102,8 @@ namespace Modules
 {
 /// data source producing camera-like frames (its signal ports stay unconnected)
 ModuleSpec dataSourceCamera(const QString &name, int width, int height, int fps);
+/// data source producing test card frames, which are much cheaper to generate than camera-like ones
+ModuleSpec dataSourceTestCard(const QString &name, int width, int height, int fps);
 /// data source producing test card frames and signals with the given channel count;
 /// one signal block per frame tick, so the block rate equals fps
 ModuleSpec dataSourceSignals(const QString &name, int width, int height, int fps, double sampleRate, int channels);

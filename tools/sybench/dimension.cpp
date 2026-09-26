@@ -124,7 +124,7 @@ StepVerdict evaluateRates(const StepResult &result, const QList<RateCheck> &chec
 namespace Modules
 {
 
-ModuleSpec dataSourceCamera(const QString &name, int width, int height, int fps)
+static ModuleSpec dataSourceFrames(const QString &name, int width, int height, int fps, const QString &content)
 {
     ModuleSpec m;
     m.id = QStringLiteral("devel.datasource");
@@ -132,9 +132,19 @@ ModuleSpec dataSourceCamera(const QString &name, int width, int height, int fps)
     m.settings.insert(QStringLiteral("fps"), fps);
     m.settings.insert(QStringLiteral("frame_width"), width);
     m.settings.insert(QStringLiteral("frame_height"), height);
-    m.settings.insert(QStringLiteral("frame_content"), QStringLiteral("camera"));
+    m.settings.insert(QStringLiteral("frame_content"), content);
     m.settings.insert(QStringLiteral("color_video"), true);
     return m;
+}
+
+ModuleSpec dataSourceCamera(const QString &name, int width, int height, int fps)
+{
+    return dataSourceFrames(name, width, height, fps, QStringLiteral("camera"));
+}
+
+ModuleSpec dataSourceTestCard(const QString &name, int width, int height, int fps)
+{
+    return dataSourceFrames(name, width, height, fps, QStringLiteral("testcard"));
 }
 
 ModuleSpec videoTransformScale(

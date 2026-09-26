@@ -238,7 +238,10 @@ private slots:
         QCOMPARE(worker->id, QStringLiteral("pyscript"));
         QVERIFY(worker->extraData.contains("oport.submit(frame)"));
         QCOMPARE(py.module(QStringLiteral("Camera 1"))->settings.value(QStringLiteral("fps")).toInt(), 60);
-        // high rates are spread over several camera/worker pairs
+        QCOMPARE(
+            py.module(QStringLiteral("Camera 1"))->settings.value(QStringLiteral("frame_content")).toString(),
+            QStringLiteral("testcard"));
+        // high rates are spread over several source/worker pairs
         const auto fast = oop->buildProject(QStringLiteral("python"), 960);
         QVERIFY(fast.hasModule(QStringLiteral("Worker 2")));
         QVERIFY(!fast.hasModule(QStringLiteral("Worker 3")));
