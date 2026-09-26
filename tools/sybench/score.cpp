@@ -39,19 +39,16 @@ struct ReferenceEntry {
  * AMD Ryzen 9 7900X (12 cores), 30 GiB RAM, NVMe SSD.
  */
 constexpr ReferenceEntry kReference[] = {
-    {"camera-capacity",   "1080p30",       36    },
-    {"camera-capacity",   "720p120",       20    },
-    {"encoding",          "1080p30-ffv1",  9     },
-    {"encoding",          "1080p30-av1",   8     },
-    {"encoding",          "720p120-ffv1",  4     },
-    {"encoding",          "720p120-av1",   4     },
-    {"disk-write",        "raw1080p30",    18    },
-    {"disk-write",        "zarr-30khz",    5120  },
-    {"signal-processing", "30khz-filter",  4096  },
-    {"out-of-process",    "python-frames", 600   },
-    {"out-of-process",    "cpp-frames",    600   },
-    {"out-of-process",    "python-rows",   448000},
-    {"out-of-process",    "cpp-rows",      640000},
+    {"camera-capacity",   "1080p30",      36    },
+    {"camera-capacity",   "720p120",      20    },
+    {"encoding",          "1080p30-ffv1", 9     },
+    {"encoding",          "1080p30-av1",  8     },
+    {"disk-write",        "raw1080p30",   18    },
+    {"disk-write",        "zarr-30khz",   5120  },
+    {"signal-processing", "30khz-filter", 4096  },
+    {"out-of-process",    "cpp-frames",   600   },
+    {"out-of-process",    "python-rows",  448000},
+    {"out-of-process",    "cpp-rows",     640000},
 };
 
 int geometricMeanScore(const QList<double> &ratios)

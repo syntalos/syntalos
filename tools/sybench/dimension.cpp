@@ -300,38 +300,6 @@ static ModuleSpec pyScriptPassthrough(
     return m;
 }
 
-ModuleSpec pyScriptFramePassthrough(const QString &name, const QString &srcModule, const QString &srcPort)
-{
-    return pyScriptPassthrough(
-        name,
-        QStringLiteral("Frame"),
-        QStringLiteral("frames-in"),
-        QStringLiteral("frames-out"),
-        QByteArrayLiteral(
-            "import syntalos_mlink as syl\n"
-            "\n"
-            "iport = syl.get_input_port('frames-in')\n"
-            "oport = syl.get_output_port('frames-out')\n"
-            "\n"
-            "\n"
-            "def on_frame(frame) -> None:\n"
-            "    oport.submit(frame)\n"
-            "\n"
-            "\n"
-            "def prepare() -> bool:\n"
-            "    iport.on_data = on_frame\n"
-            "    oport.set_metadata_value('framerate', iport.metadata['framerate'])\n"
-            "    oport.set_metadata_value_size('size', iport.metadata['size'])\n"
-            "    return True\n"
-            "\n"
-            "\n"
-            "def run():\n"
-            "    while syl.is_running():\n"
-            "        syl.await_data()\n"),
-        srcModule,
-        srcPort);
-}
-
 ModuleSpec pyScriptRowPassthrough(const QString &name, const QString &srcModule, const QString &srcPort)
 {
     return pyScriptPassthrough(

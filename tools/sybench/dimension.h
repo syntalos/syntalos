@@ -130,8 +130,6 @@ ModuleSpec videoRecorder(const QString &name, Codec codec, const QString &srcMod
 ModuleSpec signalFilterLowPass(const QString &name, double cutoffHz, const QString &srcModule, const QString &srcPort);
 /// Zarr writer for float signal blocks, input port f32sig-in
 ModuleSpec zarrWriterSignals(const QString &name, const QString &srcModule, const QString &srcPort);
-/// Python script forwarding frames unchanged, ports frames-in / frames-out
-ModuleSpec pyScriptFramePassthrough(const QString &name, const QString &srcModule, const QString &srcPort);
 /// Python script forwarding table rows unchanged, ports rows-in / rows-out
 ModuleSpec pyScriptRowPassthrough(const QString &name, const QString &srcModule, const QString &srcPort);
 /// the C++ MLink example module forwarding frames, ports frames-in / frames-out

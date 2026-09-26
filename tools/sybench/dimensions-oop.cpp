@@ -28,7 +28,8 @@ namespace SyBench
  * @brief How much data can be passed through an out-of-process module and back.
  *
  * Large items (1080p frames) show the bandwidth of the shared-memory path, small items
- * (table rows) show the per-item overhead of the IPC and the worker runtime.
+ * (table rows) show the per-item overhead of the IPC and the worker runtime. Frames only
+ * go through the C++ worker: the copy chain is the limit, a Python worker measured the same.
  */
 class OutOfProcessDimension : public Dimension
 {
@@ -59,19 +60,15 @@ public:
     static const QList<Profile> &profileList()
     {
         static const QList<Profile> profiles = {
-            {QStringLiteral("python-frames"),
-             QStringLiteral("Python script, 1080p frames"),
-             Language::Python,
-             Workload::Frames                                                                                              },
             {QStringLiteral("cpp-frames"),
              QStringLiteral("C++ MLink module, 1080p frames"),
              Language::Cpp,
-             Workload::Frames                                                                                              },
+             Workload::Frames                                                                                            },
             {QStringLiteral("python-rows"),
              QStringLiteral("Python script, table rows"),
              Language::Python,
-             Workload::Rows                                                                                                },
-            {QStringLiteral("cpp-rows"),      QStringLiteral("C++ MLink module, table rows"), Language::Cpp, Workload::Rows},
+             Workload::Rows                                                                                              },
+            {QStringLiteral("cpp-rows"),    QStringLiteral("C++ MLink module, table rows"), Language::Cpp, Workload::Rows},
         };
         return profiles;
     }
@@ -96,9 +93,10 @@ public:
     QString description() const override
     {
         return QStringLiteral(
-            "Rate at which data can be handed to Python scripts or C++ worker processes and back "
-            "without loss: 1080p frames for the bandwidth of the shared-memory path, spread over "
-            "several workers, and small table rows through a single worker for the per-item overhead. "
+            "Rate at which data can be handed to worker processes and back without loss: "
+            "1080p frames through C++ workers for the aggregate bandwidth of the shared-memory path, "
+            "spread over several workers as no single source can saturate it, and small table rows "
+            "through a single Python or C++ worker for the per-item overhead. "
             "A worker that falls behind slows down its source through backpressure.");
     }
 
@@ -167,10 +165,8 @@ public:
                            : Modules::mlinkExampleRowPassthrough(worker, src, sourcePort));
                 workerPort = frames ? QStringLiteral("frames-out") : QStringLiteral("table-out");
             } else {
-                spec.addModule(
-                    frames ? Modules::pyScriptFramePassthrough(worker, src, sourcePort)
-                           : Modules::pyScriptRowPassthrough(worker, src, sourcePort));
-                workerPort = frames ? QStringLiteral("frames-out") : QStringLiteral("rows-out");
+                spec.addModule(Modules::pyScriptRowPassthrough(worker, src, sourcePort));
+                workerPort = QStringLiteral("rows-out");
             }
             spec.addModule(Modules::flowMeter(meterName(i), dataType, worker, workerPort));
         }

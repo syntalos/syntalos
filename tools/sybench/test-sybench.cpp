@@ -230,27 +230,24 @@ private slots:
             QStringLiteral("Amplifier 3"));
 
         auto oop = createDimension(QStringLiteral("out-of-process"));
-        QCOMPARE(oop->profiles().size(), 4);
-        QCOMPARE(oop->startLevel(16, QStringLiteral("python-frames")), 30);
-        QCOMPARE(oop->levelUnit(QStringLiteral("python-frames")), QStringLiteral("fps"));
-        const auto py = oop->buildProject(QStringLiteral("python-frames"), 60);
-        QVERIFY(py.hasModule(QStringLiteral("Reference Source")));
-        const auto *worker = py.module(QStringLiteral("Worker 1"));
+        QCOMPARE(oop->profiles().size(), 3);
+        QCOMPARE(oop->startLevel(16, QStringLiteral("cpp-frames")), 30);
+        QCOMPARE(oop->levelUnit(QStringLiteral("cpp-frames")), QStringLiteral("fps"));
+        const auto cpp = oop->buildProject(QStringLiteral("cpp-frames"), 60);
+        QVERIFY(cpp.hasModule(QStringLiteral("Reference Source")));
+        const auto *worker = cpp.module(QStringLiteral("Worker 1"));
         QVERIFY(worker != nullptr);
-        QCOMPARE(worker->id, QStringLiteral("pyscript"));
-        QVERIFY(worker->extraData.contains("oport.submit(frame)"));
+        QCOMPARE(worker->id, QStringLiteral("example-mlink"));
         QCOMPARE(worker->subscriptions.value(QStringLiteral("frames-in")).srcModuleName, QStringLiteral("Source 1"));
-        const auto *cam = py.module(QStringLiteral("Source 1"));
+        const auto *cam = cpp.module(QStringLiteral("Source 1"));
         QCOMPARE(cam->settings.value(QStringLiteral("fps")).toInt(), 60);
         QCOMPARE(cam->settings.value(QStringLiteral("frame_content")).toString(), QStringLiteral("testcard"));
         QVERIFY(!cam->settings.contains(QStringLiteral("rows_per_tick")));
         // high rates are spread over several source/worker pairs
-        const auto fast = oop->buildProject(QStringLiteral("python-frames"), 960);
+        const auto fast = oop->buildProject(QStringLiteral("cpp-frames"), 960);
         QVERIFY(fast.hasModule(QStringLiteral("Worker 2")));
         QVERIFY(!fast.hasModule(QStringLiteral("Worker 3")));
         QCOMPARE(fast.module(QStringLiteral("Source 2"))->settings.value(QStringLiteral("fps")).toInt(), 480);
-        const auto cpp = oop->buildProject(QStringLiteral("cpp-frames"), 60);
-        QCOMPARE(cpp.module(QStringLiteral("Worker 1"))->id, QStringLiteral("example-mlink"));
 
         // rows: bursts on a 1 kHz tick, always through a single worker
         QCOMPARE(oop->startLevel(16, QStringLiteral("cpp-rows")), 16000);

@@ -87,10 +87,8 @@ public:
     {
         using Modules::Codec;
         static const QList<VideoProfile> profiles = {
-            {QStringLiteral("1080p30-ffv1"), QStringLiteral("1080p @ 30 fps, FFV1"), 1920, 1080, 30,  Codec::FFV1},
-            {QStringLiteral("1080p30-av1"),  QStringLiteral("1080p @ 30 fps, AV1"),  1920, 1080, 30,  Codec::AV1 },
-            {QStringLiteral("720p120-ffv1"), QStringLiteral("720p @ 120 fps, FFV1"), 1280, 720,  120, Codec::FFV1},
-            {QStringLiteral("720p120-av1"),  QStringLiteral("720p @ 120 fps, AV1"),  1280, 720,  120, Codec::AV1 },
+            {QStringLiteral("1080p30-ffv1"), QStringLiteral("1080p @ 30 fps, FFV1"), 1920, 1080, 30, Codec::FFV1},
+            {QStringLiteral("1080p30-av1"),  QStringLiteral("1080p @ 30 fps, AV1"),  1920, 1080, 30, Codec::AV1 },
         };
         return profiles;
     }
@@ -108,7 +106,7 @@ public:
     QString description() const override
     {
         return QStringLiteral(
-            "Number of camera streams that can be encoded live at their full frame rate, "
+            "Number of 1080p camera streams that can be encoded live at their full frame rate, "
             "with the lossless FFV1 codec and with AV1.");
     }
 };
