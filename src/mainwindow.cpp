@@ -821,8 +821,9 @@ auto MainWindow::loadConfiguration(const QString &fileName) -> std::expected<voi
     changeExportDirLayout(ps.exportDirLayout);
     m_engine->setExportBaseDir(ps.exportBaseDir);
     // Apply any export-dir override that was registered before this project loaded
+    // (directly, as we are still loading and the guarded setter would refuse the change)
     if (!m_exportDirOverride.isEmpty())
-        setExportDirSafe(m_exportDirOverride);
+        m_engine->setExportBaseDir(m_exportDirOverride);
     updateExportDirDisplay();
     ui->expIdEdit->setText(ps.experimentId);
 
