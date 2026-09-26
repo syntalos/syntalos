@@ -50,4 +50,13 @@ std::pmr::memory_resource *setDefaultPmrMemResourceMimalloc() noexcept;
  */
 void configureMimallocDefaultAllocator() noexcept;
 
+/**
+ * Hand memory that was freed but is still held in allocator pools back to the OS.
+ *
+ * Call this at a quiet moment, e.g. after a run has been torn down: the next run will
+ * fault the pages it needs back in, which is cheap compared to keeping gigabytes of a
+ * finished run resident.
+ */
+void releaseUnusedMemory() noexcept;
+
 } // namespace Syntalos

@@ -76,6 +76,7 @@
 #include "sysinfo.h"
 #include "syscopeguard.h"
 #include "uiprompts.h"
+#include "symemopt.h"
 
 static_assert(
     std::is_same<std::thread::native_handle_type, pthread_t>::value,
@@ -3270,6 +3271,10 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
 
     // broadcast stop to network listeners
     d->netCtl->broadcastStop(storageCollection->collectionId(), !d->failed);
+
+    // hand memory this run freed back to the OS, so a large backlog or working set does
+    // not stay resident now that the recording is over (all module threads are joined)
+    releaseUnusedMemory();
 
     // tell listeners that we are stopped now
     Q_EMIT runStopped();

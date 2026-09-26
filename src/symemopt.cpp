@@ -212,3 +212,11 @@ void Syntalos::configureMimallocDefaultAllocator() noexcept
     setDefaultPmrMemResourceMimalloc();
     setCvMiMatAllocator();
 }
+
+void Syntalos::releaseUnusedMemory() noexcept
+{
+    // collect all mimalloc heaps, including those abandoned by threads that have exited
+    mi_collect(true);
+    // the glibc heap is still used by libraries with their own allocation paths
+    malloc_trim(0);
+}
