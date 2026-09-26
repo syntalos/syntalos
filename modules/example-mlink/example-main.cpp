@@ -19,7 +19,7 @@ private:
     std::shared_ptr<OutputPortLink<Frame>> m_frameOut;
 
     std::shared_ptr<EDLDataset> m_dataset;
-    fs::path m_logFilePath;
+    std::ofstream m_logFile;
     int m_rowCount{0};
     int m_frameCount{0};
 
@@ -65,7 +65,8 @@ public:
         m_dataset->insertAttribute("module_generator", std::string("example-mlink"));
         m_dataset->setDataScanPattern("rows*.tsv", "Received table rows");
 
-        m_logFilePath = m_dataset->setDataFile("rows.tsv", "Example data");
+        // the file stays open for the whole run: opening it for every row would be far too slow
+        m_logFile.open(m_dataset->setDataFile("rows.tsv", "Example data"));
         m_rowCount = 0;
         m_frameCount = 0;
 
@@ -87,14 +88,13 @@ public:
         m_rowCount++;
 
         // Write each received row to the log file
-        if (m_dataset) {
-            std::ofstream f(m_logFilePath, std::ios::app);
+        if (m_logFile.is_open()) {
             for (size_t i = 0; i < row.data.size(); ++i) {
                 if (i > 0)
-                    f << '\t';
-                f << row.data[i];
+                    m_logFile << '\t';
+                m_logFile << row.data[i];
             }
-            f << '\n';
+            m_logFile << '\n';
         }
     }
 
@@ -108,6 +108,8 @@ public:
 
     void stop() override
     {
+        m_logFile.close();
+
         // Write a short summary attribute at the end of the run
         if (m_dataset) {
             m_dataset->insertAttribute("row_count", m_rowCount);

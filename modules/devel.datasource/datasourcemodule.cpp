@@ -68,6 +68,7 @@ private:
     microseconds_t m_prevFrameTime;
 
     time_t m_prevRowTime;
+    int m_rowsPerTick; /// table rows emitted per frame tick, 0 = one row every two seconds
 
     // sample-rate driven, deterministic signal generation
     double m_sampleRate;
@@ -95,6 +96,7 @@ public:
           m_outFrameSize(QSize(960, 600)),
           m_colorVideo(true),
           m_frameContent(FrameContent::TEST_CARD),
+          m_rowsPerTick(0),
           m_sampleRate(2000.0),
           m_freqLow(10.0),
           m_freqHigh(300.0),
@@ -181,6 +183,14 @@ public:
         noiseSpin->setValue(m_noiseLevel);
         layout->addRow(QStringLiteral("Signal Noise"), noiseSpin);
 
+        auto rowsSpin = new QSpinBox(&dlg);
+        rowsSpin->setRange(0, kMaxRowsPerTick);
+        rowsSpin->setSpecialValueText(QStringLiteral("One every 2 s"));
+        rowsSpin->setToolTip(
+            QStringLiteral("Table rows emitted on every video frame tick, to generate many small items."));
+        rowsSpin->setValue(m_rowsPerTick);
+        layout->addRow(QStringLiteral("Table Rows per Tick"), rowsSpin);
+
         auto buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
         connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
         connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
@@ -196,6 +206,7 @@ public:
         m_sampleRate = rateSpin->value();
         m_signalChannels = channelsSpin->value();
         m_noiseLevel = noiseSpin->value();
+        m_rowsPerTick = rowsSpin->value();
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
@@ -210,6 +221,7 @@ public:
         settings.insert(QStringLiteral("sample_rate"), m_sampleRate);
         settings.insert(QStringLiteral("test_freq_low"), m_freqLow);
         settings.insert(QStringLiteral("test_freq_high"), m_freqHigh);
+        settings.insert(QStringLiteral("rows_per_tick"), m_rowsPerTick);
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
@@ -232,6 +244,7 @@ public:
         m_noiseLevel = std::clamp(settings.value(QStringLiteral("noise_level"), 0.1).toDouble(), 0.0, 1.0);
         m_freqLow = settings.value(QStringLiteral("test_freq_low"), 10.0).toDouble();
         m_freqHigh = settings.value(QStringLiteral("test_freq_high"), 300.0).toDouble();
+        m_rowsPerTick = std::clamp(settings.value(QStringLiteral("rows_per_tick"), 0).toInt(), 0, kMaxRowsPerTick);
 
         return true;
     }
@@ -333,9 +346,12 @@ public:
             if (m_frameOut->hasSubscribers())
                 m_frameOut->push(createFrame(dataIndex, frameTime));
 
-            auto row = createTablerow();
-            if (row.has_value())
+            if (m_rowsPerTick > 0) {
+                for (int i = 0; i < m_rowsPerTick; ++i)
+                    m_rowsOut->push(createTablerow(dataIndex * m_rowsPerTick + i));
+            } else if (auto row = createTablerow()) {
                 m_rowsOut->push(row.value());
+            }
 
             const auto msec = m_syTimer->timeSinceStartMsec().count();
             if (((msec / 1000) % 3) == 0) {
@@ -457,6 +473,7 @@ private:
     static constexpr int kMinFrameEdge = 16;
     static constexpr int kMaxFrameEdge = 8192;
     static constexpr int kMaxSignalChannels = 32768;
+    static constexpr int kMaxRowsPerTick = 1000;
     static constexpr double kMaxSampleRate = 1000000.0;
 
     static QString frameContentToString(FrameContent content)
@@ -671,6 +688,9 @@ private:
             cv::cvtColor(m_testCard, m_testCard, cv::COLOR_BGR2GRAY);
     }
 
+    /**
+     * A row every two seconds, with a random value.
+     */
     std::optional<TableRow> createTablerow()
     {
         const auto msec = m_syTimer->timeSinceStartMsec().count();
@@ -684,6 +704,20 @@ private:
         row.append((msec % 2) ? std::string("beta") : std::string("alpha"));
         row.append(createRandomString(14).toStdString());
 
+        return row;
+    }
+
+    /**
+     * The n-th row of a high-rate stream. The value is derived from the row number,
+     * so creating it is cheap and the stream is reproducible.
+     */
+    TableRow createTablerow(size_t rowNumber)
+    {
+        TableRow row;
+        row.reserve(3);
+        row.append(numToString(m_syTimer->timeSinceStartMsec().count()));
+        row.append((rowNumber % 2) ? std::string("beta") : std::string("alpha"));
+        row.append(numToString(rowNumber));
         return row;
     }
 };
