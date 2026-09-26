@@ -525,12 +525,23 @@ private slots:
         };
 
         // the step grows with the headroom a passed level had left
-        QCOMPARE(nextLadderLevel(10, 0.0), 20);
-        QCOMPARE(nextLadderLevel(10, 0.1), 15);
-        QCOMPARE(nextLadderLevel(10, 0.2), 12);
-        QCOMPARE(nextLadderLevel(10, 0.5), 11);
-        QCOMPARE(nextLadderLevel(10, 1.0), 11);
-        QCOMPARE(nextLadderLevel(46, 0.2), 56);
+        using P = LevelOutcome;
+        const auto passed = LevelResult::Passed;
+        QCOMPARE(nextLadderLevel(10, P(passed, 0.0)), 20);
+        QCOMPARE(nextLadderLevel(10, P(passed, 0.1)), 15);
+        QCOMPARE(nextLadderLevel(10, P(passed, 0.2)), 12);
+        QCOMPARE(nextLadderLevel(10, P(passed, 0.5)), 11);
+        QCOMPARE(nextLadderLevel(10, P(passed, 1.0)), 11);
+        QCOMPARE(nextLadderLevel(46, P(passed, 0.2)), 56);
+        // the load is extrapolated to what the machine can sustain, no matter how empty the
+        // queues were; memory is extrapolated the same way, and the tightest cap wins
+        QCOMPARE(nextLadderLevel(43, P(passed, 0.0, 13.9 / 18.0)), 56);
+        QCOMPARE(nextLadderLevel(10, P(passed, 0.0, 0.4)), 20);
+        QCOMPARE(nextLadderLevel(10, P(passed, 0.0, 0.0, 0.5)), 16);
+        QCOMPARE(nextLadderLevel(10, P(passed, 0.2, 0.8, 0.5)), 12);
+        // a limit that is already reached still moves the search on, by a tenth at least
+        QCOMPARE(nextLadderLevel(10, P(passed, 0.0, 2.0)), 11);
+        QCOMPARE(nextLadderLevel(55, P(passed, 0.7, 0.9)), 60);
 
         // machine sustains 11 units
         auto o = runLadder(cfg, recording([](int level) {

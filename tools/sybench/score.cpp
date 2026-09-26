@@ -49,7 +49,7 @@ constexpr ReferenceEntry kReference[] = {
     {"out-of-process",    "cpp-frames",   600   },
     {"out-of-process",    "python-rows",  448000},
     {"out-of-process",    "cpp-rows",     640000},
-    {"mixed-tasks",       "mixed-chain",  50    },
+    {"mixed-tasks",       "mixed-chain",  62    },
 };
 
 int geometricMeanScore(const QList<double> &ratios)

@@ -139,6 +139,9 @@ private:
     std::vector<std::unique_ptr<Dimension>> m_dimensions;
     quill::Logger *m_log;
     int m_cpuCores;
+    /// CPU-seconds per second the machine can be expected to sustain: the physical cores plus
+    /// half of their SMT siblings, which typically add a quarter to a third of throughput
+    double m_sustainableLoad;
     std::stop_source m_stop;
 
     const Dimension *dimension(const QString &id) const;

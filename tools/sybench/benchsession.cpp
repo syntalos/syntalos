@@ -25,6 +25,7 @@
 #include "logging.h"
 #include "projectgen.h"
 #include "sysinfo.h"
+#include "utils/resourceinfo.h"
 
 namespace SyBench
 {
@@ -39,7 +40,8 @@ BenchSession::BenchSession(const SessionConfig &config, QObject *parent)
       m_config(config),
       m_dimensions(createAllDimensions()),
       m_log(Syntalos::getLogger("bench")),
-      m_cpuCores(Syntalos::SysInfo::get()->cpuPhysicalCoreCount())
+      m_cpuCores(Syntalos::SysInfo::get()->cpuPhysicalCoreCount()),
+      m_sustainableLoad(m_cpuCores + (Syntalos::SysInfo::get()->cpuCount() - m_cpuCores) / 2.0)
 {
     qRegisterMetaType<StepRecord>();
     qRegisterMetaType<LadderRecord>();
@@ -240,7 +242,15 @@ void BenchSession::run()
             emit stepFinished(rec);
             if (rec.verdict.sourceLimited)
                 return LevelResult::Inconclusive;
-            return {rec.verdict.passed ? LevelResult::Passed : LevelResult::Failed, rec.verdict.backlogUse};
+            // how close this step came to the machine's limits decides how far the next one goes
+            const auto availableKiB = Syntalos::readMemInfo().memAvailableKiB - kMemoryReserveKiB;
+            const double cpuUse = m_sustainableLoad > 0 ? rec.result.processLoad() / m_sustainableLoad : 0.0;
+            const double memoryUse = availableKiB > 0 ? static_cast<double>(rec.result.peakPssKiB) / availableKiB : 0.0;
+            return {
+                rec.verdict.passed ? LevelResult::Passed : LevelResult::Failed,
+                rec.verdict.backlogUse,
+                cpuUse,
+                memoryUse};
         });
 
         if (lr.outcome.inconclusive) {
