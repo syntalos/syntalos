@@ -107,8 +107,8 @@ auto BenchSession::runStep(const Dimension &dim, const QString &profileId, int l
     const auto baseName = QStringLiteral("%1-%2-L%3").arg(dim.id(), profileId).arg(level);
     auto spec = dim.buildProject(profileId, level);
     spec.experimentId = QStringLiteral("bench-%1-%2-%3").arg(dim.id(), profileId).arg(level);
-    // Syntalos refuses to start non-interactive runs without a valid export directory,
-    // even ephemeral ones which never write there
+    // Syntalos wants a valid export directory even for ephemeral runs which never write there;
+    // runs that do record data get their directory set by the runner
     spec.exportBaseDir = workDir.absolutePath();
 
     StepRunConfig cfg;
@@ -154,6 +154,7 @@ void BenchSession::cancel()
 
 void BenchSession::abort(const QString &error)
 {
+    m_runner.shutdown();
     LOG_ERROR(m_log, "Benchmark aborted: {}", error);
     emit progressMessage(QStringLiteral("Benchmark aborted: %1").arg(error));
     emit phaseChanged(QStringLiteral("Aborted"));
@@ -187,8 +188,8 @@ void BenchSession::run()
     // the first launch of Syntalos on a machine is slower (cold caches, Python byte-compilation, ...),
     // so we do one run and throw its result away; it also tells us early if Syntalos can not run at all
     if (m_config.warmup) {
-        emit phaseChanged(QStringLiteral("Warm-up run (not counted)"));
-        progress(QStringLiteral("Warm-up run (discarded)..."));
+        emit phaseChanged(QStringLiteral("Warm-up run"));
+        progress(QStringLiteral("Warm-up run..."));
         const auto &first = ladders.first();
         const auto *dim = dimension(first.dimensionId);
         const auto warmup = runStep(*dim, first.profileId, ladderConfig(*dim, first.profileId).startLevel, 5);
@@ -227,7 +228,9 @@ void BenchSession::run()
             if (rec.result.stopCause == StopCause::Cancelled || m_stop.stop_requested())
                 return LevelResult::Cancelled;
             if (rec.result.started)
-                rec.verdict.summary += QStringLiteral(" [startup %1 s]").arg(rec.result.startupSec, 0, 'f', 1);
+                rec.verdict.summary += QStringLiteral(" [load %1 s, startup %2 s]")
+                                           .arg(rec.result.loadSec, 0, 'f', 1)
+                                           .arg(rec.result.startupSec, 0, 'f', 1);
             lr.steps.append(rec);
             progress(QStringLiteral("-> %1: %2")
                          .arg(
@@ -272,6 +275,8 @@ void BenchSession::run()
 
     if (!sessionError.isEmpty())
         return abort(sessionError);
+    // the Syntalos instance served all steps, we do not need it anymore
+    m_runner.shutdown();
     const bool cancelled = m_stop.stop_requested();
     emit phaseChanged(cancelled ? QStringLiteral("Cancelled") : QStringLiteral("Finished"));
     emit finished(cancelled, QString());

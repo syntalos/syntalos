@@ -20,7 +20,9 @@
 #pragma once
 
 #include <QString>
+#include <QVariantList>
 #include <expected>
+#include <memory>
 #include <optional>
 #include <stop_token>
 
@@ -38,11 +40,16 @@ struct StepRunConfig {
     int durationSec = 20;
     bool ephemeral = true; /// ephemeral runs store nothing permanently; set false for disk-write tests
     QString exportDir;     /// export directory override for non-ephemeral runs
-    QString statsFile;     /// where Syntalos should write its run statistics JSON
-    /// time allowed until Syntalos reports that all modules are running (project loading, module startup)
+    QString statsFile;     /// where the run statistics JSON of the step is stored
+    /// time allowed for loading the project, and again until Syntalos reports that all modules are running
     int startupTimeoutSec = 300;
     /// extra time allowed after the run duration for stopping and teardown
     int teardownGraceSec = 60;
+    /// time allowed for a freshly launched Syntalos to answer on D-Bus
+    int launchTimeoutSec = 60;
+    /// Relaunch Syntalos before the next step when it kept more memory than this after a run
+    /// (compared to before the run started), so retained heap does not leak into later measurements.
+    qint64 retainedMemoryRestartKiB = 1024 * 1024;
 
     /// Stop the run when Syntalos (and its workers) use more resident memory than this.
     /// 0 = automatic: the memory available when the run starts, minus 2 GiB of headroom.
@@ -73,10 +80,11 @@ constexpr qint64 kMemoryReserveKiB = 2LL * 1024 * 1024;
 struct StepResult {
     bool success = false; /// the run completed without error
     StopCause stopCause = StopCause::None;
-    bool started = false;  /// Syntalos reported that all modules were running
-    double startupSec = 0; /// time from launch until all modules were running
+    bool started = false;       /// Syntalos reported that all modules were running
+    double loadSec = 0;         /// time Syntalos took to load the project
+    double startupSec = 0;      /// time from the start request until all modules were running
+    bool freshInstance = false; /// Syntalos was launched for this step, so it ran with cold caches
     QString failureReason;
-    int exitCode = -1;
     qint64 peakPssKiB = 0; /// peak proportional memory of Syntalos and its workers, sampled every second
     QString outputTail;    /// last lines of the Syntalos output, for diagnostics
 
@@ -95,11 +103,16 @@ struct StepResult {
 
 /**
  * @brief Runs Syntalos on generated projects and collects the run statistics
+ *
+ * One Syntalos instance is launched and then driven over D-Bus for step after step,
+ * so no window pops up for every run and the process stays warm. It is only relaunched
+ * when it died, had to be killed, or kept too much memory after a run.
  */
 class SyntalosRunner
 {
 public:
     SyntalosRunner();
+    ~SyntalosRunner();
 
     /**
      * @brief Find the syntalos executable next to our own binary, in the build tree or in PATH.
@@ -120,9 +133,33 @@ public:
      */
     auto run(const StepRunConfig &cfg, std::stop_token stop = {}) -> std::expected<StepResult, QString>;
 
+    /**
+     * @brief Ask the Syntalos instance to quit, and kill it if it does not.
+     *
+     * Must be called from the thread that ran the steps.
+     */
+    void shutdown();
+
 private:
+    struct Instance;
+
+    /// Launch Syntalos if no usable instance is running, and wait until it answers on D-Bus.
+    auto ensureStarted(const StepRunConfig &cfg, std::stop_token stop) -> std::expected<void, QString>;
+    bool isAlive() const;
+    void markForRelaunch(const QString &reason);
+
+    /// Call a method of the control interface; a failed call marks the instance for relaunch.
+    auto callSyntalos(const QString &method, const QVariantList &args, int timeoutMs)
+        -> std::expected<QVariantList, QString>;
+    /// Call a method that answers with an error message, or an empty string on success.
+    auto requestSyntalos(const QString &method, const QVariantList &args, int timeoutMs)
+        -> std::expected<void, QString>;
+    auto readState() -> std::expected<QString, QString>;
+
     QString m_bin;
     quill::Logger *m_log;
+    std::unique_ptr<Instance> m_inst;
+    QString m_relaunchReason; /// why the next step needs a fresh instance, empty if it does not
 };
 
 } // namespace SyBench

@@ -130,7 +130,9 @@ static QJsonObject stepToJson(const StepRecord &s)
     o.insert(QStringLiteral("level"), s.level);
     o.insert(QStringLiteral("passed"), s.verdict.passed);
     o.insert(QStringLiteral("source_limited"), s.verdict.sourceLimited);
+    o.insert(QStringLiteral("load_sec"), s.result.loadSec);
     o.insert(QStringLiteral("startup_sec"), s.result.startupSec);
+    o.insert(QStringLiteral("fresh_instance"), s.result.freshInstance);
     o.insert(QStringLiteral("summary"), s.verdict.summary);
     o.insert(QStringLiteral("min_rate_fraction"), s.verdict.minRateFraction);
     o.insert(QStringLiteral("max_peak_backlog"), s.verdict.maxPeakBacklog);

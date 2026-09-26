@@ -24,10 +24,16 @@ sybench_core_src = [
     'score.cpp',
 ]
 
+sybench_core_moc = qt.compile_moc(
+    sources: ['runner.cpp'],
+    dependencies: [qt_core_dep, qt_dbus_dep],
+)
+
 sybench_core_lib = static_library('sybench-core',
-    [sybench_core_hdr, sybench_core_src],
+    [sybench_core_hdr, sybench_core_src, sybench_core_moc],
     dependencies: [
         syntalos_fabric_dep,
+        qt_dbus_dep,
         kfarchive_dep,
         toml_dep,
     ],
@@ -38,6 +44,7 @@ sybench_core_dep = declare_dependency(
     link_with: sybench_core_lib,
     dependencies: [
         syntalos_fabric_dep,
+        qt_dbus_dep,
         kfarchive_dep,
         toml_dep,
     ],
