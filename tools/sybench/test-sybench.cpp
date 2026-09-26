@@ -358,13 +358,22 @@ private slots:
         QVERIFY(!v.passed);
         QCOMPARE(v.summary, QStringLiteral("boom"));
 
-        // a source starved on a saturated machine is an overload failure, not a source limit
+        // a source starved on a saturated machine is an overload failure, not a source limit;
+        // the load counts the worker processes along with Syntalos itself
         auto starved = makeResult(250, 0, 0);
         starved.stats->cpuCoreCount = 8;
         starved.stats->usageWindowSec = 10.0;
         Syntalos::ThreadUsageStats busy;
-        busy.userTimeSec = 75.0;
+        busy.userTimeSec = 40.0;
         starved.stats->process = busy;
+        Syntalos::ModuleRunStats worker;
+        worker.name = QStringLiteral("Worker 1");
+        worker.outOfProcess = true;
+        Syntalos::ThreadUsageStats workerUsage;
+        workerUsage.userTimeSec = 35.0;
+        worker.worker = workerUsage;
+        starved.stats->modules.append(worker);
+        QCOMPARE(qRound(starved.loadPercent()), 94);
         v = evaluateRates(
             starved,
             {

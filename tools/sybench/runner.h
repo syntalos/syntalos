@@ -83,8 +83,12 @@ struct StepResult {
     std::optional<Syntalos::RunStatistics> stats; /// what Syntalos reported, if it got that far
 
     [[nodiscard]] double durationSec() const;
+    /// CPU time of Syntalos and its worker processes over the usage window
     [[nodiscard]] double processCpuSec() const;
-    [[nodiscard]] double processLoad() const; /// CPU seconds per wall-clock second in the usage window
+    /// CPU seconds per wall-clock second in the usage window, an average over the run
+    [[nodiscard]] double processLoad() const;
+    /// the load as a share of the machine's logical CPUs, 0 if unknown
+    [[nodiscard]] double loadPercent() const;
     [[nodiscard]] int threadsTotal() const;
     [[nodiscard]] int threadsElevated() const;
 };

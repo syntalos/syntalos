@@ -81,7 +81,15 @@ double StepResult::durationSec() const
 
 double StepResult::processCpuSec() const
 {
-    return (stats && stats->process) ? stats->process->cpuTimeSec() : 0.0;
+    if (!stats)
+        return 0.0;
+    // the process figure covers all threads of Syntalos itself, the workers are separate processes
+    double cpuSec = stats->process ? stats->process->cpuTimeSec() : 0.0;
+    for (const auto &m : stats->modules) {
+        if (m.worker)
+            cpuSec += m.worker->cpuTimeSec();
+    }
+    return cpuSec;
 }
 
 double StepResult::processLoad() const
@@ -89,6 +97,13 @@ double StepResult::processLoad() const
     if (!stats || stats->usageWindowSec <= 0)
         return 0;
     return processCpuSec() / stats->usageWindowSec;
+}
+
+double StepResult::loadPercent() const
+{
+    if (!stats || stats->cpuCoreCount <= 0)
+        return 0;
+    return 100.0 * processLoad() / stats->cpuCoreCount;
 }
 
 int StepResult::threadsTotal() const

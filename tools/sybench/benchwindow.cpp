@@ -365,10 +365,16 @@ void BenchWindow::onStepFinished(const StepRecord &step)
             : step.verdict.sourceLimited ? QStringLiteral("emblem-warning")
                                          : QStringLiteral("emblem-error")));
     setCell(4, step.verdict.summary);
-    setCell(
+    auto *loadItem = setCell(
         5,
-        step.result.success ? QStringLiteral("%1 cores").arg(step.result.processLoad(), 0, 'f', 1)
-                            : QStringLiteral("-"));
+        step.result.success ? QStringLiteral("%1 %").arg(step.result.loadPercent(), 0, 'f', 0) : QStringLiteral("-"));
+    if (step.result.success && step.result.stats) {
+        loadItem->setToolTip(QStringLiteral(
+                                 "%1 CPU-seconds per second on %2 logical CPUs, Syntalos and its workers, "
+                                 "averaged over the run")
+                                 .arg(step.result.processLoad(), 0, 'f', 1)
+                                 .arg(step.result.stats->cpuCoreCount));
+    }
     setCell(6, Syntalos::formatByteSize(step.result.peakPssKiB * 1024));
     ui->stepsTable->scrollToBottom();
 }

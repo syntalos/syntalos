@@ -80,13 +80,12 @@ StepVerdict evaluateRates(const StepResult &result, const QList<RateCheck> &chec
             if (fraction < minRateFraction) {
                 // a source starved of CPU on a saturated machine is the machine's limit; a source
                 // that falls short on an idle machine is its own limit and nothing downstream can be judged
-                const double load = result.processLoad();
-                const bool overloaded = stats.cpuCoreCount > 0 && load > 0.75 * stats.cpuCoreCount;
-                if (overloaded) {
-                    v.summary = QStringLiteral("overloaded: '%1' produced only %2 % of its rate at a load of %3 cores")
+                const double loadPercent = result.loadPercent();
+                if (loadPercent > 75.0) {
+                    v.summary = QStringLiteral("overloaded: '%1' produced only %2 % of its rate at %3 % CPU load")
                                     .arg(c.moduleName)
                                     .arg(fraction * 100.0, 0, 'f', 1)
-                                    .arg(load, 0, 'f', 1);
+                                    .arg(loadPercent, 0, 'f', 0);
                     return v;
                 }
                 v.sourceLimited = true;
