@@ -117,10 +117,11 @@ struct RunStatistics {
     double usageWindowSec = 0.0; /// wall-clock length of the window the usage deltas were measured over
     qint64 bytesWritten = -1;
 
-    int cpuCoreCount = 0;
-    uint priorityBudget = 0; /// RtKit elevation budget the engine distributed
-    int threadsElevated = 0; /// threads and worker processes running with raised priority (realtime or nice < 0)
-    int threadsTotal = 0;    /// dedicated module threads + event threads
+    int cpuCoreCount = 0;         /// logical CPUs
+    int cpuPhysicalCoreCount = 0; /// physical cores, 0 if unknown
+    uint priorityBudget = 0;      /// RtKit elevation budget the engine distributed
+    int threadsElevated = 0;      /// threads and worker processes running with raised priority (realtime or nice < 0)
+    int threadsTotal = 0;         /// dedicated module threads + event threads
 
     std::optional<ThreadUsageStats> mainThread; /// usage delta of the engine (GUI) thread over the run
     std::optional<ThreadUsageStats> process;    /// usage delta of the whole Syntalos process over the run

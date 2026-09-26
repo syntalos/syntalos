@@ -444,6 +444,7 @@ struct Engine::RunStatsCollectInput {
     long long finishTimestampMsec;
     std::optional<qint64> bytesWritten;
     int cpuCoreCount;
+    int cpuPhysicalCoreCount;
 };
 
 Engine::Engine(QWidget *parentWidget)
@@ -3237,6 +3238,7 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
             .finishTimestampMsec = finishTimestamp,
             .bytesWritten = bytesWritten,
             .cpuCoreCount = cpuCoreCount,
+            .cpuPhysicalCoreCount = SysInfo::get()->cpuPhysicalCoreCount(),
         });
 
     // ensure main thread CPU affinity is cleared
@@ -3348,6 +3350,7 @@ void Engine::collectRunStatistics(const RunStatsCollectInput &in)
     if (haveBaseline)
         stats->usageWindowSec = static_cast<double>(timeDiffToNowMsec(in.baseline.monotonicTime).count()) / 1000.0;
     stats->cpuCoreCount = in.cpuCoreCount;
+    stats->cpuPhysicalCoreCount = in.cpuPhysicalCoreCount;
     stats->priorityBudget = d->gconf->defaultRtKitThreadsMax();
     if (in.bytesWritten.has_value())
         stats->bytesWritten = in.bytesWritten.value();

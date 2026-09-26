@@ -91,6 +91,7 @@ QJsonObject RunStatistics::toJson() const
     run.insert(QStringLiteral("export_dir"), exportDir);
     run.insert(QStringLiteral("bytes_written"), bytesWritten);
     run.insert(QStringLiteral("cpu_cores"), cpuCoreCount);
+    run.insert(QStringLiteral("cpu_physical_cores"), cpuPhysicalCoreCount);
     run.insert(QStringLiteral("priority_budget"), static_cast<int>(priorityBudget));
     run.insert(QStringLiteral("threads_total"), threadsTotal);
     run.insert(QStringLiteral("threads_elevated"), threadsElevated);
@@ -277,6 +278,7 @@ auto RunStatistics::fromJson(const QJsonObject &root) -> std::expected<RunStatis
     stats.exportDir = run.value(QStringLiteral("export_dir")).toString();
     stats.bytesWritten = run.value(QStringLiteral("bytes_written")).toInteger(-1);
     stats.cpuCoreCount = run.value(QStringLiteral("cpu_cores")).toInt();
+    stats.cpuPhysicalCoreCount = run.value(QStringLiteral("cpu_physical_cores")).toInt();
     stats.priorityBudget = static_cast<uint>(run.value(QStringLiteral("priority_budget")).toInt());
     stats.threadsTotal = run.value(QStringLiteral("threads_total")).toInt();
     stats.threadsElevated = run.value(QStringLiteral("threads_elevated")).toInt();
