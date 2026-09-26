@@ -53,22 +53,6 @@ struct StepRunConfig {
 };
 
 /**
- * @brief Counts a flow meter module collected, taken from its module statistics
- */
-struct MeterStats {
-    QString moduleName;
-    qint64 items = 0;
-    qint64 intervalMeanUs = 0;
-    qint64 intervalMaxUs = 0;
-    qint64 ageP50Us = 0;
-    qint64 ageP95Us = 0;
-    qint64 ageP99Us = 0;
-    qint64 ageMaxUs = 0;
-
-    static std::optional<MeterStats> fromModule(const Syntalos::ModuleRunStats &mod);
-};
-
-/**
  * @brief Why the runner stopped Syntalos before it ended the run on its own
  */
 enum class StopCause {
@@ -101,8 +85,6 @@ struct StepResult {
     [[nodiscard]] double processLoad() const; /// CPU seconds per wall-clock second in the usage window
     [[nodiscard]] int threadsTotal() const;
     [[nodiscard]] int threadsElevated() const;
-    [[nodiscard]] QList<MeterStats> meters() const;
-    [[nodiscard]] std::optional<MeterStats> meter(const QString &moduleName) const;
 };
 
 /**

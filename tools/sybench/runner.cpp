@@ -74,23 +74,6 @@ static QString failureReasonFromExit(const StepResult &r, bool crashed)
     }
 }
 
-std::optional<MeterStats> MeterStats::fromModule(const ModuleRunStats &mod)
-{
-    if (mod.id != QLatin1String("flowmeter") || mod.moduleStats.isEmpty())
-        return std::nullopt;
-    const auto &ms = mod.moduleStats;
-    MeterStats m;
-    m.moduleName = mod.name;
-    m.items = ms.value(QStringLiteral("items")).toLongLong();
-    m.intervalMeanUs = ms.value(QStringLiteral("interval_mean_us")).toLongLong();
-    m.intervalMaxUs = ms.value(QStringLiteral("interval_max_us")).toLongLong();
-    m.ageP50Us = ms.value(QStringLiteral("age_p50_us")).toLongLong();
-    m.ageP95Us = ms.value(QStringLiteral("age_p95_us")).toLongLong();
-    m.ageP99Us = ms.value(QStringLiteral("age_p99_us")).toLongLong();
-    m.ageMaxUs = ms.value(QStringLiteral("age_max_us")).toLongLong();
-    return m;
-}
-
 double StepResult::durationSec() const
 {
     return stats ? stats->durationSec : 0.0;
@@ -116,29 +99,6 @@ int StepResult::threadsTotal() const
 int StepResult::threadsElevated() const
 {
     return stats ? stats->threadsElevated : 0;
-}
-
-QList<MeterStats> StepResult::meters() const
-{
-    QList<MeterStats> res;
-    if (!stats)
-        return res;
-    for (const auto &mod : stats->modules) {
-        if (const auto m = MeterStats::fromModule(mod))
-            res.append(*m);
-    }
-    return res;
-}
-
-std::optional<MeterStats> StepResult::meter(const QString &moduleName) const
-{
-    if (!stats)
-        return std::nullopt;
-    for (const auto &mod : stats->modules) {
-        if (mod.name == moduleName)
-            return MeterStats::fromModule(mod);
-    }
-    return std::nullopt;
 }
 
 SyntalosRunner::SyntalosRunner()

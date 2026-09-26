@@ -24,6 +24,7 @@
 #include <QTimer>
 
 #include "benchsession.h"
+#include "health.h"
 
 namespace Ui
 {
@@ -75,6 +76,7 @@ private:
     BenchSession *m_session = nullptr;
     SessionConfig m_config;
     QList<LadderRecord> m_ladders;
+    QList<HealthItem> m_health; /// system checks as they were when the benchmark finished
     QElapsedTimer m_elapsed;
     QTimer m_elapsedTimer;
     bool m_finished = false;

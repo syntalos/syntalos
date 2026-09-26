@@ -430,14 +430,6 @@ private slots:
         QCOMPARE(scoreHeadline(computeScore({}, cfg)), QStringLiteral("No score"));
     }
 
-    static QList<int> levelsOf(const LadderOutcome &o)
-    {
-        QList<int> res;
-        for (const auto &s : o.steps)
-            res.append(s.level);
-        return res;
-    }
-
     void ladderSearch()
     {
         LadderConfig cfg;
@@ -445,66 +437,80 @@ private slots:
         cfg.maxLevel = 1024;
         cfg.bisections = 2;
 
+        // levels the search tried, in order (a cancelled attempt does not count)
+        QList<int> tried;
+        const auto takeTried = [&tried]() {
+            return std::exchange(tried, {});
+        };
+        const auto recording = [&tried](auto fn) {
+            return [&tried, fn](int level) {
+                const auto res = fn(level);
+                if (res != LevelResult::Cancelled)
+                    tried.append(level);
+                return res;
+            };
+        };
+
         // machine sustains 11 units
-        auto o = runLadder(cfg, [](int level) {
-            return level <= 11 ? LevelResult::Passed : LevelResult::Failed;
-        });
-        QCOMPARE(levelsOf(o), (QList<int>{4, 8, 16, 12, 10}));
+        auto o = runLadder(cfg, recording([](int level) {
+                               return level <= 11 ? LevelResult::Passed : LevelResult::Failed;
+                           }));
+        QCOMPARE(takeTried(), (QList<int>{4, 8, 16, 12, 10}));
         QCOMPARE(o.sustained, 10);
         QVERIFY(!o.reachedMax);
         QVERIFY(!o.cancelled);
 
         // even the start level fails: halve until something passes, then refine
-        o = runLadder(cfg, [](int level) {
-            return level <= 3 ? LevelResult::Passed : LevelResult::Failed;
-        });
-        QCOMPARE(levelsOf(o), (QList<int>{4, 2, 3}));
+        o = runLadder(cfg, recording([](int level) {
+                          return level <= 3 ? LevelResult::Passed : LevelResult::Failed;
+                      }));
+        QCOMPARE(takeTried(), (QList<int>{4, 2, 3}));
         QCOMPARE(o.sustained, 3);
 
         // nothing works at all
-        o = runLadder(cfg, [](int) {
-            return LevelResult::Failed;
-        });
-        QCOMPARE(levelsOf(o), (QList<int>{4, 2, 1}));
+        o = runLadder(cfg, recording([](int) {
+                          return LevelResult::Failed;
+                      }));
+        QCOMPARE(takeTried(), (QList<int>{4, 2, 1}));
         QCOMPARE(o.sustained, 0);
 
         // the maximum level passes
         cfg.maxLevel = 16;
-        o = runLadder(cfg, [](int) {
-            return LevelResult::Passed;
-        });
-        QCOMPARE(levelsOf(o), (QList<int>{4, 8, 16}));
+        o = runLadder(cfg, recording([](int) {
+                          return LevelResult::Passed;
+                      }));
+        QCOMPARE(takeTried(), (QList<int>{4, 8, 16}));
         QCOMPARE(o.sustained, 16);
         QVERIFY(o.reachedMax);
 
         // cancellation stops the search
         int calls = 0;
-        o = runLadder(cfg, [&calls](int) {
-            if (++calls == 2)
-                return LevelResult::Cancelled;
-            return LevelResult::Passed;
-        });
+        o = runLadder(cfg, recording([&calls](int) {
+                          if (++calls == 2)
+                              return LevelResult::Cancelled;
+                          return LevelResult::Passed;
+                      }));
         QVERIFY(o.cancelled);
-        QCOMPARE(o.steps.size(), 1);
+        QCOMPARE(takeTried(), (QList<int>{4}));
         QCOMPARE(o.sustained, 4);
 
         // a source limit bounds the search from above, the refinement still runs below it
         cfg.maxLevel = 1024;
-        o = runLadder(cfg, [](int level) {
-            return level >= 16 ? LevelResult::Inconclusive : LevelResult::Passed;
-        });
+        o = runLadder(cfg, recording([](int level) {
+                          return level >= 16 ? LevelResult::Inconclusive : LevelResult::Passed;
+                      }));
         QVERIFY(o.inconclusive);
         QVERIFY(!o.cancelled);
-        QCOMPARE(levelsOf(o), (QList<int>{4, 8, 16, 12, 14}));
+        QCOMPARE(takeTried(), (QList<int>{4, 8, 16, 12, 14}));
         QCOMPARE(o.sustained, 14);
 
         // a real failure below the source-limited levels bounds the result, so it is not source-limited
-        o = runLadder(cfg, [](int level) {
-            if (level >= 16)
-                return LevelResult::Inconclusive;
-            return level > 10 ? LevelResult::Failed : LevelResult::Passed;
-        });
-        QCOMPARE(levelsOf(o), (QList<int>{4, 8, 16, 12, 10}));
+        o = runLadder(cfg, recording([](int level) {
+                          if (level >= 16)
+                              return LevelResult::Inconclusive;
+                          return level > 10 ? LevelResult::Failed : LevelResult::Passed;
+                      }));
+        QCOMPARE(takeTried(), (QList<int>{4, 8, 16, 12, 10}));
         QCOMPARE(o.sustained, 10);
         QVERIFY(!o.inconclusive);
     }

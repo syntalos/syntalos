@@ -102,16 +102,9 @@ namespace Modules
 {
 /// data source producing camera-like frames (its signal ports stay unconnected)
 ModuleSpec dataSourceCamera(const QString &name, int width, int height, int fps);
-/// data source producing frames (test card, or camera-like) and signals with the given channel count;
+/// data source producing test card frames and signals with the given channel count;
 /// one signal block per frame tick, so the block rate equals fps
-ModuleSpec dataSourceSignals(
-    const QString &name,
-    int width,
-    int height,
-    int fps,
-    double sampleRate,
-    int channels,
-    bool cameraContent = false);
+ModuleSpec dataSourceSignals(const QString &name, int width, int height, int fps, double sampleRate, int channels);
 /// canvas display module, input port frames-in
 ModuleSpec canvas(const QString &name, const QString &srcModule, const QString &srcPort);
 ModuleSpec videoTransformScale(
@@ -126,7 +119,6 @@ enum class Codec {
     FFV1,
     AV1
 };
-QString codecTitle(Codec codec);
 /// video recorder encoding live (no deferred encoding), input port frames-in
 ModuleSpec videoRecorder(const QString &name, Codec codec, const QString &srcModule, const QString &srcPort);
 /// signal filter with one Butterworth low-pass stage on all channels, ports signals-in / signals-out

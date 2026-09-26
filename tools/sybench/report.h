@@ -25,19 +25,27 @@
 #include <expected>
 
 #include "benchsession.h"
+#include "health.h"
 
 namespace SyBench
 {
 
 /**
  * @brief Build the benchmark report document
+ * @param health The system checks as they were when the benchmark finished.
  */
-QJsonObject buildReport(const QList<LadderRecord> &ladders, const SessionConfig &config);
+QJsonObject buildReport(
+    const QList<LadderRecord> &ladders,
+    const SessionConfig &config,
+    const QList<HealthItem> &health);
 
 /**
  * @brief Save the report as JSON file, with the per-step run statistics in a folder next to it.
  */
-auto saveReport(const QString &fileName, const QList<LadderRecord> &ladders, const SessionConfig &config)
-    -> std::expected<void, QString>;
+auto saveReport(
+    const QString &fileName,
+    const QList<LadderRecord> &ladders,
+    const SessionConfig &config,
+    const QList<HealthItem> &health) -> std::expected<void, QString>;
 
 } // namespace SyBench

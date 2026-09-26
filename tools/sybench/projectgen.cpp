@@ -145,22 +145,25 @@ auto writeProjectFile(const ProjectSpec &spec, const QString &fileName) -> std::
     netSettings.insert(QStringLiteral("timeout_ms"), 6000);
     settings.insert(QStringLiteral("network"), netSettings);
 
-    if (!writeEntry(QStringLiteral("main.toml"), qVariantHashToTomlData(settings)))
-        return std::unexpected(QStringLiteral("Failed to write main.toml"));
-    writeEntry(QStringLiteral("subjects.toml"), QByteArray());
-    writeEntry(QStringLiteral("experimenters.toml"), QByteArray());
-    writeEntry(QStringLiteral("graph.toml"), qVariantHashToTomlData(makeGraphSettings(spec)));
+    const auto writeFailed = [&fileName]() {
+        return std::unexpected(QStringLiteral("Failed to write to '%1'.").arg(fileName));
+    };
+    if (!writeEntry(QStringLiteral("main.toml"), qVariantHashToTomlData(settings))
+        || !writeEntry(QStringLiteral("subjects.toml"), QByteArray())
+        || !writeEntry(QStringLiteral("experimenters.toml"), QByteArray())
+        || !writeEntry(QStringLiteral("graph.toml"), qVariantHashToTomlData(makeGraphSettings(spec))))
+        return writeFailed();
 
     int modIndex = 0;
     for (const auto &m : spec.modules) {
         const auto dirEntryId = QStringLiteral("%1-%2").arg(modIndex, 3, 10, QChar('0')).arg(m.id);
         if (!writeDirEntry(dirEntryId))
-            return std::unexpected(QStringLiteral("Failed to write directory entry for '%1'").arg(m.name));
-
-        if (!m.settings.isEmpty())
-            writeEntry(QStringLiteral("%1/%2.toml").arg(dirEntryId, m.id), qVariantHashToTomlData(m.settings));
-        if (!m.extraData.isEmpty())
-            writeEntry(QStringLiteral("%1/%2.dat").arg(dirEntryId, m.id), m.extraData);
+            return writeFailed();
+        if (!m.settings.isEmpty()
+            && !writeEntry(QStringLiteral("%1/%2.toml").arg(dirEntryId, m.id), qVariantHashToTomlData(m.settings)))
+            return writeFailed();
+        if (!m.extraData.isEmpty() && !writeEntry(QStringLiteral("%1/%2.dat").arg(dirEntryId, m.id), m.extraData))
+            return writeFailed();
 
         QVariantHash modSubs;
         for (auto it = m.subscriptions.cbegin(); it != m.subscriptions.cend(); ++it)
@@ -172,7 +175,8 @@ auto writeProjectFile(const ProjectSpec &spec, const QString &fileName) -> std::
         modInfo.insert(QStringLiteral("enabled"), true);
         modInfo.insert(QStringLiteral("stop_on_failure"), true);
         modInfo.insert(QStringLiteral("subscriptions"), modSubs);
-        writeEntry(QStringLiteral("%1/info.toml").arg(dirEntryId), qVariantHashToTomlData(modInfo));
+        if (!writeEntry(QStringLiteral("%1/info.toml").arg(dirEntryId), qVariantHashToTomlData(modInfo)))
+            return writeFailed();
 
         modIndex++;
     }

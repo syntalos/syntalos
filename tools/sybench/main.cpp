@@ -55,7 +55,7 @@ int runHeadless(const SessionConfig &config)
         return 1;
 
     const auto reportFile = QDir(config.workDir).filePath(QStringLiteral("report.json"));
-    if (const auto res = saveReport(reportFile, ladders, config); !res) {
+    if (const auto res = saveReport(reportFile, ladders, config, collectHealthItems()); !res) {
         LOG_ERROR(logRoot, "{}", res.error());
         return 1;
     }

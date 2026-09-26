@@ -50,11 +50,6 @@ BenchSession::BenchSession(const SessionConfig &config, QObject *parent)
 
 BenchSession::~BenchSession() = default;
 
-QString BenchSession::syntalosBinary() const
-{
-    return m_runner.syntalosBinary();
-}
-
 ProfileRef ProfileRef::of(const Dimension &dim, const QString &profileId)
 {
     return ProfileRef{

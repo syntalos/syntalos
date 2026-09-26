@@ -164,14 +164,7 @@ ModuleSpec flowMeter(const QString &name, const QString &dataType, const QString
     return m;
 }
 
-ModuleSpec dataSourceSignals(
-    const QString &name,
-    int width,
-    int height,
-    int fps,
-    double sampleRate,
-    int channels,
-    bool cameraContent)
+ModuleSpec dataSourceSignals(const QString &name, int width, int height, int fps, double sampleRate, int channels)
 {
     ModuleSpec m;
     m.id = QStringLiteral("devel.datasource");
@@ -179,9 +172,7 @@ ModuleSpec dataSourceSignals(
     m.settings.insert(QStringLiteral("fps"), fps);
     m.settings.insert(QStringLiteral("frame_width"), width);
     m.settings.insert(QStringLiteral("frame_height"), height);
-    m.settings.insert(
-        QStringLiteral("frame_content"),
-        cameraContent ? QStringLiteral("camera") : QStringLiteral("testcard"));
+    m.settings.insert(QStringLiteral("frame_content"), QStringLiteral("testcard"));
     m.settings.insert(QStringLiteral("color_video"), true);
     m.settings.insert(QStringLiteral("sample_rate"), sampleRate);
     m.settings.insert(QStringLiteral("signal_channels"), channels);
@@ -195,19 +186,6 @@ ModuleSpec canvas(const QString &name, const QString &srcModule, const QString &
     m.name = name;
     m.subscribe(QStringLiteral("frames-in"), srcModule, srcPort);
     return m;
-}
-
-QString codecTitle(Codec codec)
-{
-    switch (codec) {
-    case Codec::Raw:
-        return QStringLiteral("Raw");
-    case Codec::FFV1:
-        return QStringLiteral("FFV1");
-    case Codec::AV1:
-        return QStringLiteral("AV1");
-    }
-    return QString();
 }
 
 ModuleSpec videoRecorder(const QString &name, Codec codec, const QString &srcModule, const QString &srcPort)

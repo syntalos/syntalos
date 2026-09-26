@@ -281,7 +281,8 @@ void BenchWindow::showScore()
 void BenchWindow::showHealth()
 {
     ui->healthTable->setRowCount(0);
-    for (const auto &item : collectHealthItems()) {
+    m_health = collectHealthItems();
+    for (const auto &item : m_health) {
         const int row = ui->healthTable->rowCount();
         ui->healthTable->insertRow(row);
         ui->healthTable->setItem(row, 0, new QTableWidgetItem(item.name));
@@ -310,7 +311,7 @@ void BenchWindow::saveReport()
         QStringLiteral("JSON report (*.json)"));
     if (fileName.isEmpty())
         return;
-    if (const auto res = SyBench::saveReport(fileName, m_ladders, m_config); !res)
+    if (const auto res = SyBench::saveReport(fileName, m_ladders, m_config, m_health); !res)
         QMessageBox::critical(this, QStringLiteral("Unable to save report"), res.error());
 }
 
@@ -360,7 +361,10 @@ void BenchWindow::onStepFinished(const StepRecord &step)
         : step.verdict.sourceLimited ? QStringLiteral("Inconclusive")
                                      : QStringLiteral("Fail"));
     resItem->setIcon(
-        QIcon::fromTheme(step.verdict.passed ? QStringLiteral("emblem-checked") : QStringLiteral("emblem-error")));
+        QIcon::fromTheme(
+            step.verdict.passed          ? QStringLiteral("emblem-checked")
+            : step.verdict.sourceLimited ? QStringLiteral("emblem-warning")
+                                         : QStringLiteral("emblem-error")));
     setCell(4, step.verdict.summary);
     setCell(
         5,

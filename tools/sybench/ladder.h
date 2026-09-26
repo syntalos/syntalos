@@ -19,7 +19,6 @@
 
 #pragma once
 
-#include <QList>
 #include <functional>
 
 namespace SyBench
@@ -34,17 +33,11 @@ struct LadderConfig {
     int bisections = 2; /// refinement steps between the last pass and the first failure
 };
 
-struct LadderStep {
-    int level = 0;
-    bool passed = false;
-};
-
 struct LadderOutcome {
     int sustained = 0; /// highest level that passed, 0 if even the lowest tried level failed (partial if cancelled)
     bool cancelled = false;
     bool inconclusive = false; /// the boundary was a source limit, not a failure: the result is a lower bound
     bool reachedMax = false;   /// the maximum level passed, the true limit is higher
-    QList<LadderStep> steps;
 };
 
 /**

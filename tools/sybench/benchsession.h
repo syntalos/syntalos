@@ -105,7 +105,6 @@ public:
     explicit BenchSession(const SessionConfig &config, QObject *parent = nullptr);
     ~BenchSession() override;
 
-    QString syntalosBinary() const;
     int estimatedStepsPerLadder() const;
 
     /**

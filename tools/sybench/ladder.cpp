@@ -43,7 +43,6 @@ LadderOutcome runLadder(const LadderConfig &cfg, const TryLevelFn &tryLevel)
         // an inconclusive step (the data source itself could not keep up) bounds the search
         // from above like a failure, so we still refine towards the highest level that works
         passed = res == LevelResult::Passed;
-        out.steps.append(LadderStep{level, passed});
         if (passed) {
             lo = std::max(lo, level);
         } else {

@@ -26,8 +26,8 @@
 #include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QSaveFile>
 
-#include "health.h"
 #include "score.h"
 #include "sysinfo.h"
 
@@ -58,21 +58,25 @@ static QJsonObject stepToJson(const StepRecord &s)
     o.insert(QStringLiteral("peak_pss_kib"), s.result.peakPssKiB);
     o.insert(QStringLiteral("stats_file"), QFileInfo(s.statsFile).fileName());
 
+    // everything the flow meters measured, keyed as they report it
     QJsonArray meters;
-    for (const auto &m : s.result.meters()) {
-        QJsonObject mo;
-        mo.insert(QStringLiteral("module"), m.moduleName);
-        mo.insert(QStringLiteral("items"), m.items);
-        mo.insert(QStringLiteral("interval_max_us"), m.intervalMaxUs);
-        mo.insert(QStringLiteral("age_p50_us"), m.ageP50Us);
-        mo.insert(QStringLiteral("age_p99_us"), m.ageP99Us);
-        meters.append(mo);
+    if (s.result.stats) {
+        for (const auto &mod : s.result.stats->modules) {
+            if (mod.id != QLatin1String("flowmeter") || mod.moduleStats.isEmpty())
+                continue;
+            auto mo = QJsonObject::fromVariantHash(mod.moduleStats);
+            mo.insert(QStringLiteral("module"), mod.name);
+            meters.append(mo);
+        }
     }
     o.insert(QStringLiteral("meters"), meters);
     return o;
 }
 
-QJsonObject buildReport(const QList<LadderRecord> &ladders, const SessionConfig &config)
+QJsonObject buildReport(
+    const QList<LadderRecord> &ladders,
+    const SessionConfig &config,
+    const QList<HealthItem> &health)
 {
     auto *sysInfo = Syntalos::SysInfo::get();
 
@@ -91,7 +95,7 @@ QJsonObject buildReport(const QList<LadderRecord> &ladders, const SessionConfig 
     machine.insert(QStringLiteral("cpu_governor"), sysInfo->cpuGovernor());
     machine.insert(QStringLiteral("syntalos_version"), sysInfo->syntalosVersion());
     root.insert(QStringLiteral("machine"), machine);
-    root.insert(QStringLiteral("health"), healthToJson(collectHealthItems()));
+    root.insert(QStringLiteral("health"), healthToJson(health));
     root.insert(QStringLiteral("score"), scoreToJson(computeScore(ladders, config)));
 
     QJsonObject settings;
@@ -123,14 +127,18 @@ QJsonObject buildReport(const QList<LadderRecord> &ladders, const SessionConfig 
     return root;
 }
 
-auto saveReport(const QString &fileName, const QList<LadderRecord> &ladders, const SessionConfig &config)
-    -> std::expected<void, QString>
+auto saveReport(
+    const QString &fileName,
+    const QList<LadderRecord> &ladders,
+    const SessionConfig &config,
+    const QList<HealthItem> &health) -> std::expected<void, QString>
 {
-    QFile f(fileName);
-    if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate))
+    QSaveFile f(fileName);
+    if (!f.open(QIODevice::WriteOnly))
         return std::unexpected(QStringLiteral("Unable to write %1: %2").arg(fileName, f.errorString()));
-    f.write(QJsonDocument(buildReport(ladders, config)).toJson(QJsonDocument::Indented));
-    f.close();
+    f.write(QJsonDocument(buildReport(ladders, config, health)).toJson(QJsonDocument::Indented));
+    if (!f.commit())
+        return std::unexpected(QStringLiteral("Unable to write %1: %2").arg(fileName, f.errorString()));
 
     // keep the raw per-step statistics next to the report, for anyone who wants to dig deeper
     const QFileInfo fi(fileName);
@@ -143,7 +151,10 @@ auto saveReport(const QString &fileName, const QList<LadderRecord> &ladders, con
                 continue;
             const auto dest = stepsDir.filePath(QFileInfo(s.statsFile).fileName());
             QFile::remove(dest);
-            QFile::copy(s.statsFile, dest);
+            if (!QFile::copy(s.statsFile, dest))
+                return std::unexpected(
+                    QStringLiteral("The report was saved, but the run statistics could not be copied to %1.")
+                        .arg(stepsDir.absolutePath()));
         }
     }
     return {};
