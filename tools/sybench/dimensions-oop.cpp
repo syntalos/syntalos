@@ -19,18 +19,69 @@
 
 #include "dimensions-common.h"
 
+#include <algorithm>
+
 namespace SyBench
 {
 
 /**
- * @brief At which frame rate 1080p frames can be passed through an out-of-process module.
+ * @brief How much data can be passed through an out-of-process module and back.
+ *
+ * Large items (1080p frames) show the bandwidth of the shared-memory path, small items
+ * (table rows) show the per-item overhead of the IPC and the worker runtime.
  */
 class OutOfProcessDimension : public Dimension
 {
 public:
-    /// frames per second one test card source can comfortably deliver at 1080p; higher rates
-    /// are spread over several source/worker pairs so the sources never limit the measurement
+    enum class Language {
+        Python,
+        Cpp
+    };
+    enum class Workload {
+        Frames, /// 1080p test card frames, level is the total frame rate
+        Rows    /// three-column table rows, level is the total row rate
+    };
+
+    struct Profile {
+        QString id;
+        QString title;
+        Language language;
+        Workload workload;
+    };
+
+    /// frames per second one source can comfortably deliver; higher rates are spread over
+    /// several source/worker pairs so the sources never limit the measurement
     static constexpr int kMaxFpsPerSource = 480;
+    /// rows always go through a single worker, as the per-item overhead is what is measured;
+    /// they are emitted in bursts on a fixed tick, so row rates are multiples of this
+    static constexpr int kRowTicksPerSec = 1000;
+
+    static const QList<Profile> &profileList()
+    {
+        static const QList<Profile> profiles = {
+            {QStringLiteral("python-frames"),
+             QStringLiteral("Python script, 1080p frames"),
+             Language::Python,
+             Workload::Frames                                                                                              },
+            {QStringLiteral("cpp-frames"),
+             QStringLiteral("C++ MLink module, 1080p frames"),
+             Language::Cpp,
+             Workload::Frames                                                                                              },
+            {QStringLiteral("python-rows"),
+             QStringLiteral("Python script, table rows"),
+             Language::Python,
+             Workload::Rows                                                                                                },
+            {QStringLiteral("cpp-rows"),      QStringLiteral("C++ MLink module, table rows"), Language::Cpp, Workload::Rows},
+        };
+        return profiles;
+    }
+
+    static const Profile &profile(const QString &id)
+    {
+        const auto &list = profileList();
+        const auto it = std::ranges::find(list, id, &Profile::id);
+        return it != list.end() ? *it : list.first();
+    }
 
     QString id() const override
     {
@@ -45,80 +96,104 @@ public:
     QString description() const override
     {
         return QStringLiteral(
-            "Total frame rate of 1080p frames that can be handed to Python scripts or C++ worker processes "
-            "and back without loss, in streams of up to 480 fps each. A worker that falls behind slows "
-            "down its source through backpressure.");
+            "Rate at which data can be handed to Python scripts or C++ worker processes and back "
+            "without loss: 1080p frames for the bandwidth of the shared-memory path, spread over "
+            "several workers, and small table rows through a single worker for the per-item overhead. "
+            "A worker that falls behind slows down its source through backpressure.");
     }
 
-    QString levelUnit(const QString &) const override
+    QString levelUnit(const QString &profileId) const override
     {
-        return QStringLiteral("fps");
+        return profile(profileId).workload == Workload::Frames ? QStringLiteral("fps") : QStringLiteral("rows/s");
     }
 
     QList<DimensionProfile> profiles() const override
     {
-        return {
-            DimensionProfile{QStringLiteral("python"), QStringLiteral("Python script")   },
-            DimensionProfile{QStringLiteral("cpp"),    QStringLiteral("C++ MLink module")},
-        };
+        QList<DimensionProfile> res;
+        for (const auto &p : profileList())
+            res.append(DimensionProfile{p.id, p.title});
+        return res;
     }
 
-    int startLevel(int, const QString &) const override
+    int startLevel(int, const QString &profileId) const override
     {
-        return 30;
+        return profile(profileId).workload == Workload::Frames ? 30 : 16000;
     }
 
-    int maxLevel(const QString &) const override
+    int maxLevel(const QString &profileId) const override
     {
-        return 15360;
+        // the row limit is what the data source can emit per tick
+        return profile(profileId).workload == Workload::Frames ? 15360 : 10000000;
     }
 
-    static int pairCount(int level)
+    static int pairCount(Workload workload, int level)
     {
+        if (workload == Workload::Rows)
+            return 1;
         return (level + kMaxFpsPerSource - 1) / kMaxFpsPerSource;
     }
 
-    static int pairFps(int level)
+    /// items per second of each source, row rates rounded down to whole rows per tick
+    static int pairRate(Workload workload, int level)
     {
-        return level / pairCount(level);
+        const int rate = level / pairCount(workload, level);
+        if (workload == Workload::Frames)
+            return rate;
+        return std::max(rate / kRowTicksPerSec, 1) * kRowTicksPerSec;
     }
 
     ProjectSpec buildProject(const QString &profileId, int level) const override
     {
+        const auto &p = profile(profileId);
+        const bool frames = p.workload == Workload::Frames;
+        const auto dataType = frames ? QStringLiteral("Frame") : QStringLiteral("TableRow");
+        const auto sourcePort = frames ? QStringLiteral("frames-out") : QStringLiteral("rows-out");
+        const int rate = pairRate(p.workload, level);
+
         ProjectSpec spec;
-        const int fps = pairFps(level);
-        for (int i = 1; i <= pairCount(level); ++i) {
-            const auto cam = QStringLiteral("Camera %1").arg(i);
+        const auto source = [&](const QString &name) {
+            return frames ? Modules::dataSourceTestCard(name, 1920, 1080, rate)
+                          : Modules::dataSourceRows(name, kRowTicksPerSec, rate / kRowTicksPerSec);
+        };
+        for (int i = 1; i <= pairCount(p.workload, level); ++i) {
+            const auto src = QStringLiteral("Source %1").arg(i);
             const auto worker = QStringLiteral("Worker %1").arg(i);
-            spec.addModule(Modules::dataSourceTestCard(cam, 1920, 1080, fps));
-            spec.addModule(
-                Modules::flowMeter(sourceMeterName(i), QStringLiteral("Frame"), cam, QStringLiteral("frames-out")));
-            if (profileId == QLatin1String("cpp"))
-                spec.addModule(Modules::mlinkExampleFramePassthrough(worker, cam, QStringLiteral("frames-out")));
-            else
-                spec.addModule(Modules::pyScriptFramePassthrough(worker, cam, QStringLiteral("frames-out")));
-            spec.addModule(
-                Modules::flowMeter(meterName(i), QStringLiteral("Frame"), worker, QStringLiteral("frames-out")));
+            spec.addModule(source(src));
+            spec.addModule(Modules::flowMeter(sourceMeterName(i), dataType, src, sourcePort));
+            QString workerPort;
+            if (p.language == Language::Cpp) {
+                spec.addModule(
+                    frames ? Modules::mlinkExampleFramePassthrough(worker, src, sourcePort)
+                           : Modules::mlinkExampleRowPassthrough(worker, src, sourcePort));
+                workerPort = frames ? QStringLiteral("frames-out") : QStringLiteral("table-out");
+            } else {
+                spec.addModule(
+                    frames ? Modules::pyScriptFramePassthrough(worker, src, sourcePort)
+                           : Modules::pyScriptRowPassthrough(worker, src, sourcePort));
+                workerPort = frames ? QStringLiteral("frames-out") : QStringLiteral("rows-out");
+            }
+            spec.addModule(Modules::flowMeter(meterName(i), dataType, worker, workerPort));
         }
-        // the IPC path applies backpressure to its source, so a free-running camera
+        // the IPC path applies backpressure to its source, so a free-running source
         // tells whether a source could deliver the rate at all
-        spec.addModule(Modules::dataSourceTestCard(QStringLiteral("Reference Camera"), 1920, 1080, fps));
+        spec.addModule(source(QStringLiteral("Reference Source")));
         spec.addModule(
             Modules::flowMeter(
                 QStringLiteral("Reference Meter"),
-                QStringLiteral("Frame"),
-                QStringLiteral("Reference Camera"),
-                QStringLiteral("frames-out")));
+                dataType,
+                QStringLiteral("Reference Source"),
+                sourcePort));
         return spec;
     }
 
-    StepVerdict evaluate(const QString &, int level, const StepResult &result) const override
+    StepVerdict evaluate(const QString &profileId, int level, const StepResult &result) const override
     {
-        const auto rate = static_cast<double>(pairFps(level));
+        const auto &p = profile(profileId);
+        const auto rate = static_cast<double>(pairRate(p.workload, level));
         QList<RateCheck> checks;
         checks.append(
             RateCheck{.moduleName = QStringLiteral("Reference Meter"), .expectedRate = rate, .isSource = true});
-        for (int i = 1; i <= pairCount(level); ++i) {
+        for (int i = 1; i <= pairCount(p.workload, level); ++i) {
             checks.append(RateCheck{.moduleName = sourceMeterName(i), .expectedRate = rate});
             checks.append(RateCheck{.moduleName = meterName(i), .expectedRate = rate});
         }

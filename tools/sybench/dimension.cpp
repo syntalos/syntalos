@@ -147,6 +147,14 @@ ModuleSpec dataSourceTestCard(const QString &name, int width, int height, int fp
     return dataSourceFrames(name, width, height, fps, QStringLiteral("testcard"));
 }
 
+ModuleSpec dataSourceRows(const QString &name, int ticksPerSec, int rowsPerTick)
+{
+    // the source ticks at the frame rate, whether or not frames are wanted
+    auto m = dataSourceFrames(name, 64, 64, ticksPerSec, QStringLiteral("testcard"));
+    m.settings.insert(QStringLiteral("rows_per_tick"), rowsPerTick);
+    return m;
+}
+
 ModuleSpec videoTransformScale(
     const QString &name,
     double scaleFactor,
@@ -264,58 +272,118 @@ ModuleSpec zarrWriterSignals(const QString &name, const QString &srcModule, cons
     return m;
 }
 
-static QVariantList framePortList(const QString &id, const QString &title)
+static QVariantList portList(const QString &id, const QString &title, const QString &dataType)
 {
     QVariantHash port;
     port.insert(QStringLiteral("id"), id);
     port.insert(QStringLiteral("title"), title);
-    port.insert(QStringLiteral("data_type"), QStringLiteral("Frame"));
+    port.insert(QStringLiteral("data_type"), dataType);
     return QVariantList{port};
 }
 
-ModuleSpec pyScriptFramePassthrough(const QString &name, const QString &srcModule, const QString &srcPort)
+static ModuleSpec pyScriptPassthrough(
+    const QString &name,
+    const QString &dataType,
+    const QString &inPort,
+    const QString &outPort,
+    const QByteArray &script,
+    const QString &srcModule,
+    const QString &srcPort)
 {
     ModuleSpec m;
     m.id = QStringLiteral("pyscript");
     m.name = name;
-    m.settings.insert(
-        QStringLiteral("ports_in"),
-        framePortList(QStringLiteral("frames-in"), QStringLiteral("Frames In")));
-    m.settings.insert(
-        QStringLiteral("ports_out"),
-        framePortList(QStringLiteral("frames-out"), QStringLiteral("Frames Out")));
-    m.extraData = QByteArrayLiteral(
-        "import syntalos_mlink as syl\n"
-        "\n"
-        "iport = syl.get_input_port('frames-in')\n"
-        "oport = syl.get_output_port('frames-out')\n"
-        "\n"
-        "\n"
-        "def on_frame(frame) -> None:\n"
-        "    oport.submit(frame)\n"
-        "\n"
-        "\n"
-        "def prepare() -> bool:\n"
-        "    iport.on_data = on_frame\n"
-        "    oport.set_metadata_value('framerate', iport.metadata['framerate'])\n"
-        "    oport.set_metadata_value_size('size', iport.metadata['size'])\n"
-        "    return True\n"
-        "\n"
-        "\n"
-        "def run():\n"
-        "    while syl.is_running():\n"
-        "        syl.await_data()\n");
-    m.subscribe(QStringLiteral("frames-in"), srcModule, srcPort);
+    m.settings.insert(QStringLiteral("ports_in"), portList(inPort, QStringLiteral("In"), dataType));
+    m.settings.insert(QStringLiteral("ports_out"), portList(outPort, QStringLiteral("Out"), dataType));
+    m.extraData = script;
+    m.subscribe(inPort, srcModule, srcPort);
+    return m;
+}
+
+ModuleSpec pyScriptFramePassthrough(const QString &name, const QString &srcModule, const QString &srcPort)
+{
+    return pyScriptPassthrough(
+        name,
+        QStringLiteral("Frame"),
+        QStringLiteral("frames-in"),
+        QStringLiteral("frames-out"),
+        QByteArrayLiteral(
+            "import syntalos_mlink as syl\n"
+            "\n"
+            "iport = syl.get_input_port('frames-in')\n"
+            "oport = syl.get_output_port('frames-out')\n"
+            "\n"
+            "\n"
+            "def on_frame(frame) -> None:\n"
+            "    oport.submit(frame)\n"
+            "\n"
+            "\n"
+            "def prepare() -> bool:\n"
+            "    iport.on_data = on_frame\n"
+            "    oport.set_metadata_value('framerate', iport.metadata['framerate'])\n"
+            "    oport.set_metadata_value_size('size', iport.metadata['size'])\n"
+            "    return True\n"
+            "\n"
+            "\n"
+            "def run():\n"
+            "    while syl.is_running():\n"
+            "        syl.await_data()\n"),
+        srcModule,
+        srcPort);
+}
+
+ModuleSpec pyScriptRowPassthrough(const QString &name, const QString &srcModule, const QString &srcPort)
+{
+    return pyScriptPassthrough(
+        name,
+        QStringLiteral("TableRow"),
+        QStringLiteral("rows-in"),
+        QStringLiteral("rows-out"),
+        QByteArrayLiteral(
+            "import syntalos_mlink as syl\n"
+            "\n"
+            "iport = syl.get_input_port('rows-in')\n"
+            "oport = syl.get_output_port('rows-out')\n"
+            "\n"
+            "\n"
+            "def on_row(row) -> None:\n"
+            "    oport.submit(row)\n"
+            "\n"
+            "\n"
+            "def prepare() -> bool:\n"
+            "    iport.on_data = on_row\n"
+            "    oport.set_metadata_value('table_header', iport.metadata['table_header'])\n"
+            "    return True\n"
+            "\n"
+            "\n"
+            "def run():\n"
+            "    while syl.is_running():\n"
+            "        syl.await_data()\n"),
+        srcModule,
+        srcPort);
+}
+
+static ModuleSpec mlinkExample(
+    const QString &name,
+    const QString &inPort,
+    const QString &srcModule,
+    const QString &srcPort)
+{
+    ModuleSpec m;
+    m.id = QStringLiteral("example-mlink");
+    m.name = name;
+    m.subscribe(inPort, srcModule, srcPort);
     return m;
 }
 
 ModuleSpec mlinkExampleFramePassthrough(const QString &name, const QString &srcModule, const QString &srcPort)
 {
-    ModuleSpec m;
-    m.id = QStringLiteral("example-mlink");
-    m.name = name;
-    m.subscribe(QStringLiteral("frames-in"), srcModule, srcPort);
-    return m;
+    return mlinkExample(name, QStringLiteral("frames-in"), srcModule, srcPort);
+}
+
+ModuleSpec mlinkExampleRowPassthrough(const QString &name, const QString &srcModule, const QString &srcPort)
+{
+    return mlinkExample(name, QStringLiteral("table-in"), srcModule, srcPort);
 }
 
 } // namespace Modules

@@ -104,6 +104,9 @@ namespace Modules
 ModuleSpec dataSourceCamera(const QString &name, int width, int height, int fps);
 /// data source producing test card frames, which are much cheaper to generate than camera-like ones
 ModuleSpec dataSourceTestCard(const QString &name, int width, int height, int fps);
+/// data source producing small table rows on port rows-out, rowsPerTick of them on every tick
+/// (its frame port stays unconnected)
+ModuleSpec dataSourceRows(const QString &name, int ticksPerSec, int rowsPerTick);
 /// data source producing test card frames and signals with the given channel count;
 /// one signal block per frame tick, so the block rate equals fps
 ModuleSpec dataSourceSignals(const QString &name, int width, int height, int fps, double sampleRate, int channels);
@@ -129,8 +132,12 @@ ModuleSpec signalFilterLowPass(const QString &name, double cutoffHz, const QStri
 ModuleSpec zarrWriterSignals(const QString &name, const QString &srcModule, const QString &srcPort);
 /// Python script forwarding frames unchanged, ports frames-in / frames-out
 ModuleSpec pyScriptFramePassthrough(const QString &name, const QString &srcModule, const QString &srcPort);
+/// Python script forwarding table rows unchanged, ports rows-in / rows-out
+ModuleSpec pyScriptRowPassthrough(const QString &name, const QString &srcModule, const QString &srcPort);
 /// the C++ MLink example module forwarding frames, ports frames-in / frames-out
 ModuleSpec mlinkExampleFramePassthrough(const QString &name, const QString &srcModule, const QString &srcPort);
+/// the C++ MLink example module forwarding table rows, ports table-in / table-out
+ModuleSpec mlinkExampleRowPassthrough(const QString &name, const QString &srcModule, const QString &srcPort);
 } // namespace Modules
 
 std::unique_ptr<Dimension> createCameraCapacityDimension();

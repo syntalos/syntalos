@@ -473,7 +473,7 @@ private:
     static constexpr int kMinFrameEdge = 16;
     static constexpr int kMaxFrameEdge = 8192;
     static constexpr int kMaxSignalChannels = 32768;
-    static constexpr int kMaxRowsPerTick = 1000;
+    static constexpr int kMaxRowsPerTick = 10000;
     static constexpr double kMaxSampleRate = 1000000.0;
 
     static QString frameContentToString(FrameContent content)

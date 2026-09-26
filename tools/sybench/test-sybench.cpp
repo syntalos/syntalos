@@ -230,24 +230,48 @@ private slots:
             QStringLiteral("Amplifier 3"));
 
         auto oop = createDimension(QStringLiteral("out-of-process"));
-        QCOMPARE(oop->startLevel(16, QStringLiteral("python")), 30);
-        const auto py = oop->buildProject(QStringLiteral("python"), 60);
-        QVERIFY(py.hasModule(QStringLiteral("Reference Camera")));
+        QCOMPARE(oop->profiles().size(), 4);
+        QCOMPARE(oop->startLevel(16, QStringLiteral("python-frames")), 30);
+        QCOMPARE(oop->levelUnit(QStringLiteral("python-frames")), QStringLiteral("fps"));
+        const auto py = oop->buildProject(QStringLiteral("python-frames"), 60);
+        QVERIFY(py.hasModule(QStringLiteral("Reference Source")));
         const auto *worker = py.module(QStringLiteral("Worker 1"));
         QVERIFY(worker != nullptr);
         QCOMPARE(worker->id, QStringLiteral("pyscript"));
         QVERIFY(worker->extraData.contains("oport.submit(frame)"));
-        QCOMPARE(py.module(QStringLiteral("Camera 1"))->settings.value(QStringLiteral("fps")).toInt(), 60);
-        QCOMPARE(
-            py.module(QStringLiteral("Camera 1"))->settings.value(QStringLiteral("frame_content")).toString(),
-            QStringLiteral("testcard"));
+        QCOMPARE(worker->subscriptions.value(QStringLiteral("frames-in")).srcModuleName, QStringLiteral("Source 1"));
+        const auto *cam = py.module(QStringLiteral("Source 1"));
+        QCOMPARE(cam->settings.value(QStringLiteral("fps")).toInt(), 60);
+        QCOMPARE(cam->settings.value(QStringLiteral("frame_content")).toString(), QStringLiteral("testcard"));
+        QVERIFY(!cam->settings.contains(QStringLiteral("rows_per_tick")));
         // high rates are spread over several source/worker pairs
-        const auto fast = oop->buildProject(QStringLiteral("python"), 960);
+        const auto fast = oop->buildProject(QStringLiteral("python-frames"), 960);
         QVERIFY(fast.hasModule(QStringLiteral("Worker 2")));
         QVERIFY(!fast.hasModule(QStringLiteral("Worker 3")));
-        QCOMPARE(fast.module(QStringLiteral("Camera 2"))->settings.value(QStringLiteral("fps")).toInt(), 480);
-        const auto cpp = oop->buildProject(QStringLiteral("cpp"), 60);
+        QCOMPARE(fast.module(QStringLiteral("Source 2"))->settings.value(QStringLiteral("fps")).toInt(), 480);
+        const auto cpp = oop->buildProject(QStringLiteral("cpp-frames"), 60);
         QCOMPARE(cpp.module(QStringLiteral("Worker 1"))->id, QStringLiteral("example-mlink"));
+
+        // rows: bursts on a 1 kHz tick, always through a single worker
+        QCOMPARE(oop->startLevel(16, QStringLiteral("cpp-rows")), 16000);
+        QCOMPARE(oop->levelUnit(QStringLiteral("cpp-rows")), QStringLiteral("rows/s"));
+        const auto rows = oop->buildProject(QStringLiteral("cpp-rows"), 6000000);
+        QVERIFY(rows.hasModule(QStringLiteral("Worker 1")));
+        QVERIFY(!rows.hasModule(QStringLiteral("Worker 2")));
+        const auto *rowSrc = rows.module(QStringLiteral("Source 1"));
+        QCOMPARE(rowSrc->settings.value(QStringLiteral("fps")).toInt(), 1000);
+        QCOMPARE(rowSrc->settings.value(QStringLiteral("rows_per_tick")).toInt(), 6000);
+        const auto *rowWorker = rows.module(QStringLiteral("Worker 1"));
+        QCOMPARE(rowWorker->id, QStringLiteral("example-mlink"));
+        QCOMPARE(rowWorker->subscriptions.value(QStringLiteral("table-in")).srcPortId, QStringLiteral("rows-out"));
+        QCOMPARE(
+            rows.module(QStringLiteral("Meter 1"))->subscriptions.value(QStringLiteral("data-in")).srcPortId,
+            QStringLiteral("table-out"));
+        QCOMPARE(
+            rows.module(QStringLiteral("Meter 1"))->settings.value(QStringLiteral("data_type")).toString(),
+            QStringLiteral("TableRow"));
+        const auto pyRows = oop->buildProject(QStringLiteral("python-rows"), 1000);
+        QVERIFY(pyRows.module(QStringLiteral("Worker 1"))->extraData.contains("get_input_port('rows-in')"));
     }
 
     static StepResult makeResult(qint64 items, qint64 peakPending, qint64 pendingAtStop)
