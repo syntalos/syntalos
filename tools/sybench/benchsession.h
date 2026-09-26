@@ -81,7 +81,6 @@ struct StepRecord : ProfileRef {
     int level = 0;
     StepVerdict verdict;
     StepResult result;
-    QString statsFile;
 };
 
 /**

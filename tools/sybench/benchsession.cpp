@@ -117,7 +117,6 @@ auto BenchSession::runStep(const Dimension &dim, const QString &profileId, int l
                             .filePath(QStringLiteral("syntalos-benchmark-run"));
         QDir().mkpath(cfg.exportDir);
     }
-    rec.statsFile = cfg.statsFile;
 
     if (const auto res = writeProjectFile(spec, cfg.projectFile); !res)
         return std::unexpected(QStringLiteral("Unable to generate the benchmark project: %1").arg(res.error()));

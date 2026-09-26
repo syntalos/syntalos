@@ -21,12 +21,11 @@
 
 #include <QCoreApplication>
 #include <QDateTime>
-#include <QDir>
-#include <QFile>
-#include <QFileInfo>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QSaveFile>
+#include <algorithm>
+#include <cmath>
 
 #include "score.h"
 #include "sysinfo.h"
@@ -35,6 +34,95 @@ namespace SyBench
 {
 
 static const int ReportFormatVersion = 1;
+
+/**
+ * A brief digest of the run statistics, enough to see where a step hit its limit.
+ */
+static QJsonObject diagnosticsToJson(const Syntalos::RunStatistics &stats)
+{
+    using namespace Syntalos;
+    const double window = stats.usageWindowSec;
+
+    struct ThreadLoad {
+        QJsonObject info;
+        double load;
+    };
+    QList<ThreadLoad> threads;
+    const auto addThread = [&](QJsonObject info, const std::optional<ThreadUsageStats> &usage) {
+        if (!usage || window <= 0)
+            return;
+        const double load = usage->cpuTimeSec() / window;
+        if (load < 0.05)
+            return;
+        info.insert(QStringLiteral("load"), std::round(load * 100.0) / 100.0);
+        info.insert(QStringLiteral("involuntary_ctx_switches"), static_cast<qint64>(usage->involuntaryCtxSwitches));
+        threads.append({info, load});
+    };
+    addThread(
+        {
+            {QStringLiteral("name"), QStringLiteral("main")},
+            {QStringLiteral("kind"), QStringLiteral("main")}
+    },
+        stats.mainThread);
+    for (const auto &et : stats.eventThreads)
+        addThread(
+            {
+                {QStringLiteral("name"),    et.key                        },
+                {QStringLiteral("kind"),    QStringLiteral("event-thread")},
+                {QStringLiteral("modules"), et.moduleNames.size()         }
+        },
+            et.thread);
+
+    QJsonArray failedModules;
+    QJsonObject moduleStats;
+    for (const auto &mod : stats.modules) {
+        addThread(
+            {
+                {QStringLiteral("name"), mod.name                },
+                {QStringLiteral("kind"), QStringLiteral("module")}
+        },
+            mod.thread);
+        addThread(
+            {
+                {QStringLiteral("name"), mod.name                },
+                {QStringLiteral("kind"), QStringLiteral("worker")}
+        },
+            mod.worker);
+        if (mod.finalState == ModuleState::ERROR || !mod.errorMessage.isEmpty())
+            failedModules.append(
+                QJsonObject{
+                    {QStringLiteral("name"),  mod.name        },
+                    {QStringLiteral("error"), mod.errorMessage}
+            });
+        // flow meter statistics are already part of the step's meters
+        if (mod.id != QLatin1String("flowmeter") && !mod.moduleStats.isEmpty())
+            moduleStats.insert(mod.name, QJsonObject::fromVariantHash(mod.moduleStats));
+    }
+    std::ranges::sort(threads, std::ranges::greater{}, &ThreadLoad::load);
+    QJsonArray busiest;
+    for (const auto &t : threads.first(std::min<qsizetype>(threads.size(), 5)))
+        busiest.append(t.info);
+
+    QJsonArray backlogged;
+    for (const auto &c : stats.connections) {
+        if (c.peakPending <= 2 && c.pendingAtStop <= 2)
+            continue;
+        backlogged.append(
+            QJsonObject{
+                {QStringLiteral("from"), QStringLiteral("%1/%2").arg(c.srcModule, c.srcPort)},
+                {QStringLiteral("to"), QStringLiteral("%1/%2").arg(c.dstModule, c.dstPort)},
+                {QStringLiteral("peak_pending"), static_cast<qint64>(c.peakPending)},
+                {QStringLiteral("pending_at_stop"), static_cast<qint64>(c.pendingAtStop)}
+        });
+    }
+
+    QJsonObject o;
+    o.insert(QStringLiteral("busiest_threads"), busiest);
+    o.insert(QStringLiteral("backlogged_connections"), backlogged);
+    o.insert(QStringLiteral("module_stats"), moduleStats);
+    o.insert(QStringLiteral("failed_modules"), failedModules);
+    return o;
+}
 
 static QJsonObject stepToJson(const StepRecord &s)
 {
@@ -56,7 +144,6 @@ static QJsonObject stepToJson(const StepRecord &s)
     o.insert(QStringLiteral("threads_total"), s.result.threadsTotal());
     o.insert(QStringLiteral("threads_elevated"), s.result.threadsElevated());
     o.insert(QStringLiteral("peak_pss_kib"), s.result.peakPssKiB);
-    o.insert(QStringLiteral("stats_file"), QFileInfo(s.statsFile).fileName());
 
     // everything the flow meters measured, keyed as they report it
     QJsonArray meters;
@@ -70,6 +157,8 @@ static QJsonObject stepToJson(const StepRecord &s)
         }
     }
     o.insert(QStringLiteral("meters"), meters);
+    if (s.result.stats)
+        o.insert(QStringLiteral("diagnostics"), diagnosticsToJson(*s.result.stats));
     return o;
 }
 
@@ -139,24 +228,6 @@ auto saveReport(
     f.write(QJsonDocument(buildReport(ladders, config, health)).toJson(QJsonDocument::Indented));
     if (!f.commit())
         return std::unexpected(QStringLiteral("Unable to write %1: %2").arg(fileName, f.errorString()));
-
-    // keep the raw per-step statistics next to the report, for anyone who wants to dig deeper
-    const QFileInfo fi(fileName);
-    QDir stepsDir(fi.dir().filePath(fi.completeBaseName() + QStringLiteral("-steps")));
-    if (!stepsDir.mkpath(QStringLiteral(".")))
-        return std::unexpected(QStringLiteral("Unable to create %1").arg(stepsDir.absolutePath()));
-    for (const auto &lr : ladders) {
-        for (const auto &s : lr.steps) {
-            if (s.statsFile.isEmpty() || !QFile::exists(s.statsFile))
-                continue;
-            const auto dest = stepsDir.filePath(QFileInfo(s.statsFile).fileName());
-            QFile::remove(dest);
-            if (!QFile::copy(s.statsFile, dest))
-                return std::unexpected(
-                    QStringLiteral("The report was saved, but the run statistics could not be copied to %1.")
-                        .arg(stepsDir.absolutePath()));
-        }
-    }
     return {};
 }
 

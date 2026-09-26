@@ -40,7 +40,7 @@ QJsonObject buildReport(
     const QList<HealthItem> &health);
 
 /**
- * @brief Save the report as JSON file, with the per-step run statistics in a folder next to it.
+ * @brief Save the report as JSON file.
  */
 auto saveReport(
     const QString &fileName,
