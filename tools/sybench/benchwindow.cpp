@@ -27,7 +27,6 @@
 #include <QMessageBox>
 #include <QThread>
 
-#include "health.h"
 #include "report.h"
 #include "score.h"
 #include "utils/misc.h"

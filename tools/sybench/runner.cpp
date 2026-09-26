@@ -203,12 +203,10 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
     auto stopState = StopState::Running;
     qint64 killDeadlineMs = 0;
     const auto stopProcess = [&](StopCause cause, const QString &reason, int graceMs) {
-        if (r.stopCause == StopCause::None) {
-            r.stopCause = cause;
-            r.failureReason = reason;
-        }
         if (stopState != StopState::Running)
             return;
+        r.stopCause = cause;
+        r.failureReason = reason;
         LOG_WARNING(m_log, "{} Asking Syntalos to stop...", reason);
         proc.terminate();
         stopState = StopState::Terminating;
@@ -244,7 +242,9 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
         }
         const auto memAvailableKiB = readMemInfo().memAvailableKiB;
         const bool systemStarved = memAvailableKiB < cfg.systemMemoryFloorKiB;
-        if (rssKiB > memoryLimitKiB || systemStarved)
+        if ((rssKiB > memoryLimitKiB || systemStarved) && stopState == StopState::Running) {
+            // the spike that triggered the stop is what the report should show as peak
+            r.peakPssKiB = std::max(r.peakPssKiB, readProcessTreePssKiB(pid));
             stopProcess(
                 StopCause::MemoryLimit,
                 QStringLiteral(
@@ -256,6 +256,7 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
                     .arg(memAvailableKiB / 1024)
                     .arg(growthMiBPerSec, 0, 'f', 0),
                 5000);
+        }
         if (stop.stop_requested())
             stopProcess(StopCause::Cancelled, QStringLiteral("Cancelled."), 15000);
         if (!r.started && nowMs > cfg.startupTimeoutSec * 1000LL)

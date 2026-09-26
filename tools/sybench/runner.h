@@ -19,7 +19,6 @@
 
 #pragma once
 
-#include <QList>
 #include <QString>
 #include <expected>
 #include <optional>

@@ -19,11 +19,9 @@
 
 #pragma once
 
-#include <QHash>
 #include <QList>
 #include <QObject>
 #include <QString>
-#include <QStringList>
 #include <expected>
 #include <memory>
 #include <stop_token>
@@ -95,7 +93,8 @@ struct LadderRecord : ProfileRef {
  * @brief Runs the selected ladders one after another.
  *
  * Meant to live in its own thread: run() blocks until everything is done or cancelled,
- * progress is reported through signals.
+ * progress is reported through signals. A session runs once: after cancel() it stays
+ * cancelled, so create a new one for another run.
  */
 class BenchSession : public QObject
 {
@@ -107,9 +106,11 @@ public:
     int estimatedStepsPerLadder() const;
 
     /**
-     * @brief Run a single step of a dimension (used by the self test).
+     * @brief Run one step of a dimension. Blocks for the whole run.
+     *
+     * The error branch is taken when no run can work at all.
      */
-    auto runSingleStep(const Dimension &dim, const QString &profileId, int level, int durationSec)
+    auto runStep(const Dimension &dim, const QString &profileId, int level, int durationSec)
         -> std::expected<StepRecord, QString>;
 
 public slots:
@@ -145,12 +146,6 @@ private:
     int bisections() const;
     LadderConfig ladderConfig(const Dimension &dim, const QString &profileId) const;
     void abort(const QString &error);
-
-    /**
-     * @brief Run one step. The error branch is taken when no run can work at all.
-     */
-    auto runStep(const Dimension &dim, const QString &profileId, int level, int durationSec)
-        -> std::expected<StepRecord, QString>;
 };
 
 } // namespace SyBench

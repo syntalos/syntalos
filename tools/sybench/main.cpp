@@ -67,7 +67,7 @@ int runSelfTest(const SessionConfig &config)
 {
     BenchSession session(config);
     auto dim = createDimension(QStringLiteral("camera-capacity"));
-    const auto step = session.runSingleStep(*dim, dim->profiles().first().id, 1, 3);
+    const auto step = session.runStep(*dim, dim->profiles().first().id, 1, 3);
     if (!step) {
         LOG_ERROR(logRoot, "Self test: FAIL ({})", step.error());
         return 1;
@@ -166,6 +166,10 @@ int main(int argc, char *argv[])
         config.workDir = parser.value(optWorkDir);
     } else {
         tmpWorkDir.emplace(QDir::temp().filePath(QStringLiteral("syntalos-bench-XXXXXX")));
+        if (!tmpWorkDir->isValid()) {
+            LOG_ERROR(logRoot, "Unable to create a temporary work directory: {}", tmpWorkDir->errorString());
+            return 1;
+        }
         config.workDir = tmpWorkDir->path();
     }
     config.quick = parser.isSet(optQuick);

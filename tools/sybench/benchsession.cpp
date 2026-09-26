@@ -100,6 +100,8 @@ auto BenchSession::runStep(const Dimension &dim, const QString &profileId, int l
     rec.level = level;
 
     QDir workDir(m_config.workDir);
+    if (!workDir.mkpath(QStringLiteral(".")))
+        return std::unexpected(QStringLiteral("Unable to create the work directory %1.").arg(m_config.workDir));
     const auto baseName = QStringLiteral("%1-%2-L%3").arg(dim.id(), profileId).arg(level);
     auto spec = dim.buildProject(profileId, level);
     spec.experimentId = QStringLiteral("bench-%1-%2-%3").arg(dim.id(), profileId).arg(level);
@@ -130,13 +132,6 @@ auto BenchSession::runStep(const Dimension &dim, const QString &profileId, int l
     rec.result = std::move(*result);
     rec.verdict = dim.evaluate(profileId, level, rec.result);
     return rec;
-}
-
-auto BenchSession::runSingleStep(const Dimension &dim, const QString &profileId, int level, int durationSec)
-    -> std::expected<StepRecord, QString>
-{
-    QDir().mkpath(m_config.workDir);
-    return runStep(dim, profileId, level, durationSec);
 }
 
 LadderConfig BenchSession::ladderConfig(const Dimension &dim, const QString &profileId) const

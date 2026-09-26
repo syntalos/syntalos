@@ -136,7 +136,6 @@ static QJsonObject stepToJson(const StepRecord &s)
     o.insert(QStringLiteral("max_peak_backlog"), s.verdict.maxPeakBacklog);
     o.insert(QStringLiteral("max_backlog_at_stop"), s.verdict.maxBacklogAtStop);
     o.insert(QStringLiteral("run_success"), s.result.success);
-    o.insert(QStringLiteral("memory_exceeded"), s.result.stopCause == StopCause::MemoryLimit);
     o.insert(QStringLiteral("stop_cause"), stopCauseToString(s.result.stopCause));
     o.insert(QStringLiteral("duration_sec"), s.result.durationSec());
     o.insert(QStringLiteral("process_load"), s.result.processLoad());
