@@ -30,7 +30,8 @@ namespace SyBench
 struct LadderConfig {
     int startLevel = 1;
     int maxLevel = 4096;
-    int bisections = 2; /// refinement steps between the last pass and the first failure
+    int bisections = 4;      /// at most this many refinement steps between the last pass and the first failure
+    double targetGap = 0.05; /// stop refining once the first failure is within this share above the last pass
 };
 
 struct LadderOutcome {

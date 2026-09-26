@@ -504,14 +504,17 @@ private slots:
         QVERIFY(score.overall < 1000 && score.overall > 800);
         for (const auto &d : score.dimensions) {
             if (d.dimensionId == QLatin1String("camera-capacity"))
-                QVERIFY(d.score >= 470 && d.score <= 510); // integer halving of 21 streams lands below 500
+                QVERIFY(d.score >= 470 && d.score <= 510); // integer halving may land slightly below 500
             else
                 QCOMPARE(d.score, 1000);
         }
 
         // a partial quick run is marked as such, cancelled ladders are ignored
         cfg.quick = true;
-        QList<LadderRecord> partial = {ladderResult(QStringLiteral("camera-capacity"), QStringLiteral("1080p30"), 36)};
+        QList<LadderRecord> partial = {ladderResult(
+            QStringLiteral("camera-capacity"),
+            QStringLiteral("1080p30"),
+            referenceLevel(QStringLiteral("camera-capacity"), QStringLiteral("1080p30")))};
         auto cancelled = ladderResult(QStringLiteral("encoding"), QStringLiteral("1080p30-av1"), 1);
         cancelled.outcome.cancelled = true;
         partial.append(cancelled);
@@ -628,6 +631,19 @@ private slots:
                           return {LevelResult::Passed, level == 8 ? 0.5 : 0.0};
                       }));
         QCOMPARE(takeTried(), (QList<int>{4, 8, 9}));
+
+        // refinement ends once the failure is within 5 % of the last pass, before the budget is spent
+        {
+            LadderConfig big = cfg;
+            big.startLevel = 4000;
+            big.maxLevel = 100000;
+            big.bisections = 4;
+            auto res = runLadder(big, recording([](int level) {
+                                     return level <= 5900 ? P(passed, 0.0) : P(LevelResult::Failed);
+                                 }));
+            QCOMPARE(res.sustained, 5750);
+            QCOMPARE(takeTried(), (QList<int>{4000, 8000, 6000, 5000, 5500, 5750}));
+        }
         QCOMPARE(o.sustained, 8);
 
         // a real failure below the source-limited levels bounds the result, so it is not source-limited

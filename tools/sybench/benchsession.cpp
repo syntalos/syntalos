@@ -64,13 +64,13 @@ ProfileRef ProfileRef::of(const Dimension &dim, const QString &profileId)
 
 int BenchSession::bisections() const
 {
-    return m_config.quick ? 1 : 2;
+    return m_config.quick ? 2 : 4;
 }
 
 int BenchSession::estimatedStepsPerLadder() const
 {
-    // a few doubling steps plus the refinement steps, a rough guess for the progress display
-    return 3 + bisections();
+    // a few doubling steps plus some refinement steps, a rough guess for the progress display
+    return 3 + bisections() / 2;
 }
 
 int SessionConfig::effectiveStepSeconds() const

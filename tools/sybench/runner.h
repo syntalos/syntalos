@@ -62,6 +62,8 @@ struct StepRunConfig {
     qint64 systemMemoryReserveKiB = kMemoryReserveKiB;
     /// how long a stop request is given to take effect when computing that growth allowance
     double stopLeadSec = 2.0;
+    /// seconds of continuous growth before it counts (an allocation burst at run start does not)
+    int sustainedGrowthSec = 2;
     /// Kill the run when the whole system has less memory available than this (default 1 GiB).
     qint64 systemMemoryFloorKiB = 1024 * 1024;
 };

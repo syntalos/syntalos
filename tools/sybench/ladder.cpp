@@ -107,11 +107,12 @@ LadderOutcome runLadder(const LadderConfig &cfg, const TryLevelFn &tryLevel)
             break;
     }
 
-    // refinement phase
+    // refinement phase: narrow the gap between the last pass and the first failure until it
+    // is small enough to not matter, or the step budget is spent
     if (hi != 0) {
         for (int i = 0; i < cfg.bisections; ++i) {
             const int mid = (lo + hi) / 2;
-            if (mid <= lo || mid >= hi)
+            if (mid <= lo || mid >= hi || (hi - lo) <= lo * cfg.targetGap)
                 break;
             bool passed = false;
             if (!attempt(mid, passed))

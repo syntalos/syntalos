@@ -534,6 +534,7 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
     qint64 lastSampleMs = 0;
     qint64 pssKiB = 0;
     double growthMiBPerSec = 0;
+    int growthSamples = 0; // consecutive one-second samples that showed memory use growing
     while (true) {
         pollWait(proc, 100);
         inst.collectOutput();
@@ -554,16 +555,21 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
         // expensive to read for many processes, so we only sample it once per second.
         const auto memAvailableKiB = readMemInfo().memAvailableKiB;
         if (nowMs - lastSampleMs >= 1000) {
-            if (lastSampleMs > 0)
+            if (lastSampleMs > 0) {
                 growthMiBPerSec = (lastAvailableKiB - memAvailableKiB) / 1024.0 / ((nowMs - lastSampleMs) / 1000.0);
+                growthSamples = growthMiBPerSec > kStopGrowthToleranceMiBPerSec ? growthSamples + 1 : 0;
+            }
             lastAvailableKiB = memAvailableKiB;
             lastSampleMs = nowMs;
             pssKiB = readProcessTreePssKiB(pid);
             r.peakPssKiB = std::max(r.peakPssKiB, pssKiB);
         }
-        // a stop takes a moment to take effect, so fast growth needs a larger reserve
+        // A stop takes a moment to take effect, so fast growth needs a larger reserve. Only growth
+        // that keeps going counts: overflowing queues grow for the rest of the run, while encoders
+        // allocating their buffers at run start are done after a moment.
+        const bool sustainedGrowth = growthSamples >= cfg.sustainedGrowthSec;
         const auto reserveKiB = cfg.systemMemoryReserveKiB
-                                + static_cast<qint64>(std::max(growthMiBPerSec, 0.0) * cfg.stopLeadSec * 1024);
+                                + (sustainedGrowth ? static_cast<qint64>(growthMiBPerSec * cfg.stopLeadSec * 1024) : 0);
         const bool systemStarved = memAvailableKiB < cfg.systemMemoryFloorKiB;
         const bool memoryShort = memAvailableKiB < reserveKiB;
         const bool overLimit = cfg.memoryLimitKiB > 0 && pssKiB > cfg.memoryLimitKiB;
