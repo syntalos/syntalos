@@ -143,6 +143,11 @@ public:
         return ModuleDriverKind::EVENTS_DEDICATED;
     }
 
+    int eventsMaxModulesPerThread() const override
+    {
+        return 8;
+    }
+
     bool initialize() override
     {
         updatePortConfiguration();

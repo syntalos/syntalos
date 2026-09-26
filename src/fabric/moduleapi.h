@@ -796,17 +796,15 @@ public:
     QString moduleRootDir() const;
 
     /**
-     * @brief Set maximum modules per thread when using dedicated event driver
+     * @brief Maximum number of instances sharing one thread with the dedicated event driver
      *
-     * When this module's driver is ModuleDriverKind::EVENTS_DEDICATED, the module can set
-     * a maximum amount of its instances that should share a thread.
-     * This setting is shared between all instances of this module, the last module to change
-     * it "wins".
-     * Setting the value to -1 or 0 (the default) will result in an unlimited amount of instances
-     * sharing a single thread.
+     * When this module's driver is ModuleDriverKind::EVENTS_DEDICATED, all instances of the
+     * module share one event thread by default. A module whose per-item work is not trivial
+     * should override this and return how many of its instances may share a thread, so that
+     * many instances are spread over several threads instead of saturating a single one.
+     * A value of -1 or 0 (the default) means an unlimited number of instances share one thread.
      */
-    void setEventsMaxModulesPerThread(int maxModuleCount);
-    int eventsMaxModulesPerThread() const;
+    virtual int eventsMaxModulesPerThread() const;
 
     void clearInPorts();
     void clearOutPorts();

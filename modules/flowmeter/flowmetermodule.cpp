@@ -372,6 +372,12 @@ public:
         return ModuleDriverKind::EVENTS_DEDICATED;
     }
 
+    int eventsMaxModulesPerThread() const override
+    {
+        // counting is cheap, but every instance costs a wakeup per item on its thread
+        return 32;
+    }
+
     ModuleFeatures features() const override
     {
         return ModuleFeature::SHOW_SETTINGS | ModuleFeature::SHOW_DISPLAY;

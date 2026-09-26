@@ -2055,7 +2055,7 @@ static QHash<QString, QList<AbstractModule *>> computeEventThreadGroups(const QL
                 remainingEvModCountById[mod->id()] -= 1;
                 int evGroupPerModIdx = static_cast<int>(
                     remainingEvModCountById[mod->id()] / mod->eventsMaxModulesPerThread());
-                evGroupId = QStringLiteral("m:%1_%2").arg(mod->id(), evGroupPerModIdx);
+                evGroupId = QStringLiteral("m:%1_%2").arg(mod->id()).arg(evGroupPerModIdx);
             }
         } else {
             // not an event-driven module

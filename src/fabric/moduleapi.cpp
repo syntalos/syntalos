@@ -592,7 +592,6 @@ public:
     int defaultRealtimePriority;
     int defaultThreadNiceness;
     bool realtimeApproved;
-    static int s_eventsMaxModulesPerThread;
 
     QList<QPair<QWidget *, bool>> displayWindows;
     QList<QPair<QWidget *, bool>> settingsWindows;
@@ -605,9 +604,6 @@ public:
 
     ModuleModifiers modifiers;
 };
-
-// instantiate static field
-int AbstractModule::Private::s_eventsMaxModulesPerThread = -1;
 
 static constexpr std::string SY_ANON_MOD_LOGGER_NAME = "mod.new";
 
@@ -629,7 +625,6 @@ AbstractModule::AbstractModule(const ModuleInfo *info, QObject *parent)
     d->name = d->name.isEmpty() ? QStringLiteral("New Module") : d->name;
 
     d->modifiers = ModuleModifier::ENABLED | ModuleModifier::STOP_ON_FAILURE;
-    d->s_eventsMaxModulesPerThread = -1;
 }
 
 AbstractModule::AbstractModule(QObject *parent)
@@ -961,14 +956,9 @@ QString AbstractModule::moduleRootDir() const
     return moduleDir.isEmpty() ? origModuleDir : moduleDir;
 }
 
-void AbstractModule::setEventsMaxModulesPerThread(int maxModuleCount)
-{
-    d->s_eventsMaxModulesPerThread = maxModuleCount;
-}
-
 int AbstractModule::eventsMaxModulesPerThread() const
 {
-    return d->s_eventsMaxModulesPerThread;
+    return -1;
 }
 
 void AbstractModule::clearInPorts()

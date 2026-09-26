@@ -55,6 +55,12 @@ public:
         return ModuleDriverKind::EVENTS_DEDICATED;
     }
 
+    int eventsMaxModulesPerThread() const override
+    {
+        // transforming frames is real work, a single thread saturates with a few dozen streams
+        return 4;
+    }
+
     ModuleFeatures features() const override
     {
         return ModuleFeature::SHOW_SETTINGS;

@@ -208,7 +208,7 @@ The default is `NONE` (runs on the GUI/main thread, suitable for very lightweigh
 |--------------------|----------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `NONE`             | GUI/main thread                                    | Trivial modules with no blocking work                                                                                                                           |
 | `THREAD_DEDICATED` | One thread per instance                            | Heavy acquisition or processing loops (`runThread` must poll `m_running` and sleep/block on I/O or incoming data)                                               |
-| `EVENTS_DEDICATED` | Shared thread per module type (thread-pool bucket) | Event-driven modules that process data in callbacks; instances of the same module share a thread. Call `setEventsMaxModulesPerThread(n)` to cap the bucket size |
+| `EVENTS_DEDICATED` | Shared thread per module type (thread-pool bucket) | Event-driven modules that process data in callbacks; instances of the same module share a thread. Override `eventsMaxModulesPerThread()` to cap the bucket size |
 | `EVENTS_SHARED`    | Shared thread across arbitrary module types        | Lightweight event-driven modules that can coexist freely with others                                                                                            |
 
 Only library modules can set a dedicated driver, all other modules run as separate process with a dedicated thread handling
