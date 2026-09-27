@@ -27,24 +27,18 @@ namespace SyBench
 
 int nextLadderLevel(int level, const LevelOutcome &outcome)
 {
-    // a little backlog is noise, a growing one means the limit is near: a step that used half
-    // of its allowance only creeps up by one unit, and the increase shrinks with the cube of
-    // the used share on the way there (a tenth used still grows by 51 %, a fifth by 22 %)
+    // the increase shrinks with the cube of the used backlog share, reaching none at half of it
+    // (a tenth used still grows by 51 %, a fifth by 22 %)
     const double headroom = std::clamp(1.0 - 2.0 * outcome.backlogUse, 0.0, 1.0);
     double factor = 1.0 + headroom * headroom * headroom;
 
-    // Queues stay empty as long as spare CPU absorbs the load, so the backlog gives no warning
-    // until the machine is nearly full. The load itself does: the next level may need about
-    // what the machine can sustain, a slight overload the memory guard can still stop, but
-    // not multiples of it.
     if (outcome.cpuUse > 0)
         factor = std::min(factor, 1.0 / outcome.cpuUse);
-    // memory grows with the level as well, mostly through worker processes; leave a margin
+    // leave a margin for memory, running out of it takes the whole machine down
     if (outcome.memoryUse > 0)
         factor = std::min(factor, 0.8 / outcome.memoryUse);
 
-    // always move on, in steps of at least a tenth: near the limit the backlog rule takes over,
-    // and a tenth of overload is what the memory guard handles comfortably
+    // a tenth of overload is what the memory guard handles comfortably
     const int minStep = std::max(1, level / 10);
     const auto next = static_cast<int>(std::lround(level * factor));
     return std::max(next, level + minStep);
@@ -58,8 +52,8 @@ LadderOutcome runLadder(const LadderConfig &cfg, const TryLevelFn &tryLevel)
     int hi = 0;           // lowest level known to fail (0: none yet)
     int lowestFailed = 0; // lowest level that failed for real (not source-limited)
 
-    // returns false if the search has to stop
     LevelOutcome lastOutcome{LevelResult::Failed};
+    // returns false if the search has to stop
     const auto attempt = [&](int level, bool &passed) {
         lastOutcome = tryLevel(level);
         const auto res = lastOutcome.result;

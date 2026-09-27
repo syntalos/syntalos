@@ -72,9 +72,8 @@ public:
 
     static const Profile &profile(const QString &id)
     {
-        const auto &list = profileList();
-        const auto it = std::ranges::find(list, id, &Profile::id);
-        return it != list.end() ? *it : list.first();
+        const auto *p = findProfile(profileList(), id);
+        return p ? *p : profileList().first();
     }
 
     QString id() const override

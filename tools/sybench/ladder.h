@@ -54,21 +54,13 @@ enum class LevelResult {
 /**
  * @brief What trying one level yielded, with hints at how close to the limit it was
  *
- * Each share is 0 when the resource was untouched and 1 when it was used up. The search
- * uses them to pick the next level: a step that came close to a limit is followed by a
- * small increase, so the first failure lands near the limit instead of far beyond it.
+ * Each share is 0 when the resource was untouched and 1 when it was used up.
  */
 struct LevelOutcome {
     LevelResult result;
-    /// share of the allowed backlog the step used up; a step that needed part of its
-    /// allowance is close to the limit
-    double backlogUse = 0;
-    /// CPU load of the step relative to what the machine can sustain; load grows with the
-    /// level, and a level that would need far more than that takes the machine down before
-    /// the step can fail
-    double cpuUse = 0;
-    /// peak memory of the step relative to what the machine has available for it
-    double memoryUse = 0;
+    double backlogUse = 0; /// share of the allowed backlog the step used
+    double cpuUse = 0;     /// CPU load relative to what the machine can sustain
+    double memoryUse = 0;  /// peak memory relative to what the machine has available
 
     LevelOutcome(LevelResult r, double backlog = 0, double cpu = 0, double memory = 0)
         : result(r),
@@ -85,9 +77,10 @@ using TryLevelFn = std::function<LevelOutcome(int level)>;
  * @brief Level to try after the given one passed with the given outcome.
  *
  * A step with no backlog doubles the level; the more of the allowance a step used, the smaller
- * the next increase, down to a single unit. The CPU load and memory of the step are extrapolated
- * to the next level, which may not need much more than the machine has: whichever of the three
- * allows the smallest increase wins.
+ * the next increase. Queues stay empty while spare CPU absorbs the load, so the CPU load and
+ * memory of the step are extrapolated as well, and the next level may need about what the
+ * machine has but not more. The smallest of the three increases wins, but the level always
+ * grows by at least a tenth.
  */
 int nextLadderLevel(int level, const LevelOutcome &outcome);
 

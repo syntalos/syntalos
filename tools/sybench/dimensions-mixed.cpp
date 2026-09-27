@@ -27,14 +27,11 @@ namespace SyBench
 /**
  * @brief How many independent processing chains of mixed modules can run side by side.
  *
- * Each chain is one rig: a source producing a 720p camera stream and an amplifier's worth
- * of channels, a video transform, a Python tracker script working on the scaled frames and
- * emitting one position row per frame, and a signal filter. No single module is expensive,
- * so the limit comes from running many modules and worker processes at once rather than
- * from one heavy module. The chain is not made cheaper than this on purpose: every chain
- * is a worker process, and a machine reaches its CPU limit with a few dozen of them rather
- * than with hundreds. Encoding and display modules are left out, they have their own
- * dimensions and would dominate this one.
+ * Each chain is one rig: a source producing a 720p camera stream and 128 signal channels,
+ * a video transform, a Python tracker script emitting one position row per scaled frame,
+ * and a signal filter. No single module is expensive, so the limit comes from running many
+ * modules and worker processes at once. Encoding and display are left out, they have their
+ * own dimensions and would dominate this one.
  */
 class MixedTasksDimension : public Dimension
 {

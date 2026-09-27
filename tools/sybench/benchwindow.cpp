@@ -225,7 +225,7 @@ void BenchWindow::stopBenchmark()
     if (m_session == nullptr)
         return;
     ui->stopButton->setEnabled(false);
-    ui->phaseLabel->setText(QStringLiteral("Stopping after the current run..."));
+    ui->phaseLabel->setText(QStringLiteral("Stopping..."));
     // only touches atomics, safe to call from this thread
     m_session->cancel();
 }
@@ -244,11 +244,16 @@ void BenchWindow::onSessionFinished(bool cancelled, const QString &error)
 
     m_thread->quit();
     m_thread->wait();
-    m_session->deleteLater();
+    // the thread has ended, so a deleteLater() would never run
+    delete m_session;
     m_session = nullptr;
     m_thread->deleteLater();
     m_thread = nullptr;
     m_finished = true;
+    if (m_closeRequested) {
+        close();
+        return;
+    }
     setRunningState(false);
     showHealth();
     showScore();
@@ -487,17 +492,21 @@ void BenchWindow::appendLog(const QString &msg)
 void BenchWindow::closeEvent(QCloseEvent *event)
 {
     if (isRunning()) {
-        const auto reply = QMessageBox::question(
-            this,
-            QStringLiteral("Benchmark running"),
-            QStringLiteral("A benchmark is still running. Stop it and quit?"));
-        if (reply != QMessageBox::Yes) {
-            event->ignore();
-            return;
+        if (!m_closeRequested) {
+            const auto reply = QMessageBox::question(
+                this,
+                QStringLiteral("Benchmark running"),
+                QStringLiteral("A benchmark is still running. Stop it and quit?"));
+            if (reply != QMessageBox::Yes) {
+                event->ignore();
+                return;
+            }
+            m_closeRequested = true;
+            stopBenchmark();
         }
-        m_session->cancel();
-        m_thread->quit();
-        m_thread->wait();
+        // the window closes once the session has finished
+        event->ignore();
+        return;
     }
     event->accept();
 }

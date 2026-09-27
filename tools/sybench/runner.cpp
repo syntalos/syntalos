@@ -23,6 +23,7 @@
 #include <QDBusConnection>
 #include <QDBusConnectionInterface>
 #include <QDBusMessage>
+#include <QDBusPendingCall>
 #include <QDBusVariant>
 #include <QDir>
 #include <QElapsedTimer>
@@ -275,10 +276,23 @@ void SyntalosRunner::markForRelaunch(const QString &reason)
         m_relaunchReason = reason;
 }
 
-auto SyntalosRunner::callSyntalos(const QString &method, const QVariantList &args, int timeoutMs)
+auto SyntalosRunner::callSyntalos(const QString &method, const QVariantList &args, int timeoutMs, std::stop_token stop)
     -> std::expected<QVariantList, QString>
 {
-    const auto reply = QDBusConnection::sessionBus().call(syntalosCall(method, args), QDBus::Block, timeoutMs);
+    // polled rather than blocking, so a long call (e.g. loading a large project) can be cancelled
+    auto pending = QDBusConnection::sessionBus().asyncCall(syntalosCall(method, args), timeoutMs);
+    while (!pending.isFinished()) {
+        if (stop.stop_requested()) {
+            markForRelaunch(QStringLiteral("The %1 request was cancelled.").arg(method));
+            return std::unexpected(QStringLiteral("Cancelled."));
+        }
+        if (!m_inst->isRunning()) {
+            markForRelaunch(QStringLiteral("Syntalos exited during the %1 request.").arg(method));
+            return std::unexpected(QStringLiteral("Syntalos exited."));
+        }
+        pollWait(m_inst->proc, 50);
+    }
+    const auto reply = pending.reply();
     if (reply.type() == QDBusMessage::ErrorMessage) {
         // we can not know what state Syntalos is in now, so we start over for the next step
         markForRelaunch(QStringLiteral("Syntalos did not answer the %1 request.").arg(method));
@@ -287,10 +301,13 @@ auto SyntalosRunner::callSyntalos(const QString &method, const QVariantList &arg
     return reply.arguments();
 }
 
-auto SyntalosRunner::requestSyntalos(const QString &method, const QVariantList &args, int timeoutMs)
-    -> std::expected<void, QString>
+auto SyntalosRunner::requestSyntalos(
+    const QString &method,
+    const QVariantList &args,
+    int timeoutMs,
+    std::stop_token stop) -> std::expected<void, QString>
 {
-    const auto res = callSyntalos(method, args, timeoutMs);
+    const auto res = callSyntalos(method, args, timeoutMs, stop);
     if (!res)
         return std::unexpected(res.error());
     if (const auto err = res->value(0).toString(); !err.isEmpty())
@@ -469,6 +486,8 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
     timer.start();
 
     const auto failStep = [&](const QString &reason) {
+        if (stop.stop_requested())
+            return cancelled();
         r.failureReason = reason;
         r.relaunchReason = m_relaunchReason;
         LOG_WARNING(m_log, "{}", reason);
@@ -478,16 +497,14 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
     };
 
     LOG_INFO(m_log, "Loading project: {}", cfg.projectFile);
-    if (const auto res = requestSyntalos(
-            QStringLiteral("LoadProject"),
-            {cfg.projectFile},
-            cfg.startupTimeoutSec * 1000);
+    if (const auto
+            res = requestSyntalos(QStringLiteral("LoadProject"), {cfg.projectFile}, cfg.startupTimeoutSec * 1000, stop);
         !res)
         return failStep(QStringLiteral("Loading the project failed: %1").arg(res.error()));
     r.loadSec = timer.elapsed() / 1000.0;
     LOG_INFO(m_log, "Project loaded after {:.1f} s", r.loadSec);
     if (!cfg.ephemeral && !cfg.exportDir.isEmpty()) {
-        if (const auto res = requestSyntalos(QStringLiteral("SetExportDirectory"), {cfg.exportDir}, 10000); !res)
+        if (const auto res = requestSyntalos(QStringLiteral("SetExportDirectory"), {cfg.exportDir}, 10000, stop); !res)
             return failStep(QStringLiteral("Setting the export directory failed: %1").arg(res.error()));
     }
     // what the instance holds with the project loaded, to see later how much the run left behind
@@ -496,13 +513,13 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
     if (stop.stop_requested())
         return cancelled();
 
-    if (const auto res = requestSyntalos(QStringLiteral("StartRun"), {cfg.ephemeral, cfg.durationSec}, 10000); !res)
+    if (const auto res = requestSyntalos(QStringLiteral("StartRun"), {cfg.ephemeral, cfg.durationSec}, 10000, stop);
+        !res)
         return failStep(QStringLiteral("Starting the run failed: %1").arg(res.error()));
     const auto startRequestMs = timer.elapsed();
 
-    // Syntalos stops its run cleanly when asked over D-Bus, so we ask first. Draining overflowing
-    // queues can take a long time, so once the grace period is over we only kill it while its
-    // memory keeps growing (the stop is not working), or when the hard limit is reached.
+    // We ask Syntalos to stop first. Draining full queues can take long, so after the grace period
+    // it is only killed while its memory keeps growing, or once the hard limit is reached.
     enum class StopState {
         Running,
         Stopping,
@@ -549,10 +566,8 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
         if (inst.sink.runStopped)
             break;
 
-        // An overloaded Syntalos lets its data queues grow without bound and can take the whole
-        // machine down with it, so we watch the memory left on the system and stop the run before
-        // that happens. What Syntalos and its workers use is the proportional size, which is
-        // expensive to read for many processes, so we only sample it once per second.
+        // overflowing queues can take the whole machine down, so we watch the memory left;
+        // the PSS of the process tree is expensive to read, so it is sampled once per second
         const auto memAvailableKiB = readMemInfo().memAvailableKiB;
         if (nowMs - lastSampleMs >= 1000) {
             if (lastSampleMs > 0) {
@@ -564,9 +579,7 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
             pssKiB = readProcessTreePssKiB(pid);
             r.peakPssKiB = std::max(r.peakPssKiB, pssKiB);
         }
-        // A stop takes a moment to take effect, so fast growth needs a larger reserve. Only growth
-        // that keeps going counts: overflowing queues grow for the rest of the run, while encoders
-        // allocating their buffers at run start are done after a moment.
+        // a stop takes a moment, so sustained growth (not a start-up allocation burst) needs a larger reserve
         const bool sustainedGrowth = growthSamples >= cfg.sustainedGrowthSec;
         const auto reserveKiB = cfg.systemMemoryReserveKiB
                                 + (sustainedGrowth ? static_cast<qint64>(growthMiBPerSec * cfg.stopLeadSec * 1024) : 0);

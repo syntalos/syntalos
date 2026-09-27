@@ -21,7 +21,9 @@
 
 #include <QList>
 #include <QString>
+#include <algorithm>
 #include <memory>
+#include <ranges>
 #include <vector>
 
 #include "projectgen.h"
@@ -34,6 +36,16 @@ struct DimensionProfile {
     QString id;
     QString title;
 };
+
+/**
+ * @brief The entry with the given id in a list of profiles, nullptr if there is none.
+ */
+template<typename List>
+auto findProfile(const List &list, const QString &id) -> const std::ranges::range_value_t<List> *
+{
+    const auto it = std::ranges::find(list, id, &std::ranges::range_value_t<List>::id);
+    return it != std::ranges::end(list) ? &*it : nullptr;
+}
 
 /**
  * @brief Result of judging one step

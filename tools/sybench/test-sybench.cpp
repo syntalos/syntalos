@@ -631,6 +631,7 @@ private slots:
                           return {LevelResult::Passed, level == 8 ? 0.5 : 0.0};
                       }));
         QCOMPARE(takeTried(), (QList<int>{4, 8, 9}));
+        QCOMPARE(o.sustained, 8);
 
         // refinement ends once the failure is within 5 % of the last pass, before the budget is spent
         {
@@ -644,7 +645,6 @@ private slots:
             QCOMPARE(res.sustained, 5750);
             QCOMPARE(takeTried(), (QList<int>{4000, 8000, 6000, 5000, 5500, 5750}));
         }
-        QCOMPARE(o.sustained, 8);
 
         // a real failure below the source-limited levels bounds the result, so it is not source-limited
         o = runLadder(cfg, recording([](int level) {

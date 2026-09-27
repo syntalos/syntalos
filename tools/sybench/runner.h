@@ -161,11 +161,11 @@ private:
     bool isAlive() const;
     void markForRelaunch(const QString &reason);
 
-    /// Call a method of the control interface; a failed call marks the instance for relaunch.
-    auto callSyntalos(const QString &method, const QVariantList &args, int timeoutMs)
+    /// Call a method of the control interface; a failed or cancelled call marks the instance for relaunch.
+    auto callSyntalos(const QString &method, const QVariantList &args, int timeoutMs, std::stop_token stop = {})
         -> std::expected<QVariantList, QString>;
     /// Call a method that answers with an error message, or an empty string on success.
-    auto requestSyntalos(const QString &method, const QVariantList &args, int timeoutMs)
+    auto requestSyntalos(const QString &method, const QVariantList &args, int timeoutMs, std::stop_token stop = {})
         -> std::expected<void, QString>;
     auto readState() -> std::expected<QString, QString>;
 

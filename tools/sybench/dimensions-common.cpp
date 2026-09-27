@@ -26,9 +26,8 @@ namespace SyBench
 
 const VideoProfile &VideoDimension::videoProfile(const QString &id) const
 {
-    const auto &list = videoProfiles();
-    const auto it = std::ranges::find(list, id, &VideoProfile::id);
-    return it != list.end() ? *it : list.first();
+    const auto *p = findProfile(videoProfiles(), id);
+    return p ? *p : videoProfiles().first();
 }
 
 QList<DimensionProfile> VideoDimension::profiles() const

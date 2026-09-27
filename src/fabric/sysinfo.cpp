@@ -732,4 +732,7 @@ void SysInfo::readCPUInfo()
         d->cpuCount = QThread::idealThreadCount();
         d->cpuPhysicalCoreCount = d->cpuCount;
     }
+    // many non-x86 CPUs (e.g. ARM) do not list core ids, and have no SMT anyway
+    if (d->cpuPhysicalCoreCount <= 0)
+        d->cpuPhysicalCoreCount = d->cpuCount;
 }

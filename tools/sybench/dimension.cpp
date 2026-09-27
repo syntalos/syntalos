@@ -29,8 +29,8 @@ namespace SyBench
 QString Dimension::profileTitle(const QString &profileId) const
 {
     const auto list = profiles();
-    const auto it = std::ranges::find(list, profileId, &DimensionProfile::id);
-    return it != list.end() ? it->title : QString();
+    const auto *p = findProfile(list, profileId);
+    return p ? p->title : QString();
 }
 
 int Dimension::startLevel(int cpuCores, const QString &) const
@@ -43,13 +43,13 @@ int Dimension::maxLevel(int, const QString &) const
     return 512;
 }
 
-/// share of the sustainable CPU load above which a starved source counts as machine overload
-constexpr double kOverloadShare = 0.9;
-
 bool Dimension::writesData(const QString &) const
 {
     return false;
 }
+
+/// share of the sustainable CPU load above which a starved source counts as machine overload
+constexpr double kOverloadShare = 0.9;
 
 StepVerdict evaluateRates(const StepResult &result, const QList<RateCheck> &checks, double minRateFraction)
 {
@@ -191,14 +191,7 @@ ModuleSpec flowMeter(const QString &name, const QString &dataType, const QString
 
 ModuleSpec dataSourceSignals(const QString &name, int width, int height, int fps, double sampleRate, int channels)
 {
-    ModuleSpec m;
-    m.id = QStringLiteral("devel.datasource");
-    m.name = name;
-    m.settings.insert(QStringLiteral("fps"), fps);
-    m.settings.insert(QStringLiteral("frame_width"), width);
-    m.settings.insert(QStringLiteral("frame_height"), height);
-    m.settings.insert(QStringLiteral("frame_content"), QStringLiteral("testcard"));
-    m.settings.insert(QStringLiteral("color_video"), true);
+    auto m = dataSourceTestCard(name, width, height, fps);
     m.settings.insert(QStringLiteral("sample_rate"), sampleRate);
     m.settings.insert(QStringLiteral("signal_channels"), channels);
     return m;

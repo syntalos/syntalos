@@ -82,6 +82,7 @@ private:
     QElapsedTimer m_elapsed;
     QTimer m_elapsedTimer;
     bool m_finished = false;
+    bool m_closeRequested = false; /// close the window once the running session has finished
     int m_stepsPerLadder = 1;
     int m_ladderIndex = 0;
     int m_ladderSteps = 0;
