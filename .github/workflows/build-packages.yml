@@ -95,7 +95,24 @@ jobs:
           curl -fsSL https://syntalos.org/setup/setup-syntalos-repo.sh | sh
 
           # TODO: Remove this one iceoryx2 is available as package
-          eatmydata apt-get install -yq cargo
+          . /etc/os-release
+          if [ "$VERSION_CODENAME" = "trixie" ]; then
+              # iceoryx2 needs a newer Rust toolchain than Debian 13 provides. Rust code is linked
+              # statically, so we only take the toolchain from backports and remove the backports
+              # source again afterwards, to ensure no other build dependency is pulled from there.
+              # We pin just the toolchain packages, as "-t" or "pkg/release" would also pull
+              # newer versions of their dependencies (e.g. libcurl) from backports.
+              echo "deb http://deb.debian.org/debian trixie-backports main" \
+                  > /etc/apt/sources.list.d/backports.list
+              printf 'Package: rustc cargo libstd-rust-*\nPin: release n=trixie-backports\nPin-Priority: 500\n' \
+                  > /etc/apt/preferences.d/rust-backports.pref
+              apt-get update -qq
+              eatmydata apt-get install -yq --no-install-recommends rustc cargo
+              rm /etc/apt/sources.list.d/backports.list /etc/apt/preferences.d/rust-backports.pref
+              apt-get update -qq
+          else
+              eatmydata apt-get install -yq cargo
+          fi
 
     - name: Prepare Build
       run: |
@@ -123,6 +140,20 @@ jobs:
           new="${f%.ddeb}.deb"
           [ -e "$new" ] || mv -- "$f" "$new"
         done
+
+    - name: Test package installation
+      uses: ximion/debspawn-action/run@v1
+      with:
+        suite: ${{ matrix.suite }}
+        summary: 'Installing built packages'
+        commands: |
+          # the packages must be installable on the plain distribution (plus the Syntalos repository)
+          if grep -rqs backports /etc/apt/sources.list /etc/apt/sources.list.d/; then
+              echo "Backports must not be enabled when testing package installation!"
+              exit 1
+          fi
+          apt-get update -qq
+          DEBIAN_FRONTEND=noninteractive eatmydata apt-get install -yq /srv/build/build-results/*.deb
 
     - name: Upload package artifact
       uses: actions/upload-artifact@v7
