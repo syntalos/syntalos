@@ -253,7 +253,10 @@ void PlotWindow::on_addPortBtn_clicked()
             streamSignalTypeMap["Digital Lines"] = value;
     }
 
+    // ports may have been removed, so the port count alone does not yield a unique ID
     int newPortNumber = m_mod->inPorts().length() + 1;
+    while (m_mod->inPortById(QString::fromStdString(std::format("sigs{}-in", newPortNumber))))
+        newPortNumber++;
 
     bool ok;
     auto item = QInputDialog::getItem(
