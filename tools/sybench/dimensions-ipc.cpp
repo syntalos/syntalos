@@ -60,15 +60,12 @@ public:
     static const QList<Profile> &profileList()
     {
         static const QList<Profile> profiles = {
-            {QStringLiteral("cpp-frames"),
-             QStringLiteral("C++ MLink, 1080p frames"),
-             Language::Cpp,
-             Workload::Frames                                                                                            },
+            {QStringLiteral("cpp-frames"),  QStringLiteral("C++ MLink, 1080p frames"), Language::Cpp, Workload::Frames},
             {QStringLiteral("python-rows"),
              QStringLiteral("Python script, table rows"),
              Language::Python,
-             Workload::Rows                                                                                              },
-            {QStringLiteral("cpp-rows"),    QStringLiteral("C++ MLink, table rows"), Language::Cpp, Workload::Rows},
+             Workload::Rows                                                                                           },
+            {QStringLiteral("cpp-rows"),    QStringLiteral("C++ MLink, table rows"),   Language::Cpp, Workload::Rows  },
         };
         return profiles;
     }

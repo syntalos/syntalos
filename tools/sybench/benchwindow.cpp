@@ -20,6 +20,9 @@
 #include "benchwindow.h"
 #include "ui_benchwindow.h"
 
+#include <QHeaderView>
+#include <QResizeEvent>
+#include <QStackedWidget>
 #include <QCloseEvent>
 #include <QDateTime>
 #include <QDir>
@@ -48,11 +51,17 @@ BenchWindow::BenchWindow(QWidget *parent)
     ui->stepsButton->setIcon(QIcon::fromTheme(QStringLiteral("go-previous")));
     ui->newButton->setIcon(QIcon::fromTheme(QStringLiteral("view-refresh")));
 
-    ui->summaryTable->horizontalHeader()->setSectionResizeMode(QHeaderView::Stretch);
-    ui->healthTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
-    ui->healthTable->horizontalHeader()->setSectionResizeMode(1, QHeaderView::Stretch);
-    ui->stepsTable->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
-    ui->stepsTable->horizontalHeader()->setSectionResizeMode(4, QHeaderView::Stretch);
+    // columns are sized to their content as rows arrive, but stay draggable so any
+    // text that does not fit can be revealed (its tooltip shows it in full as well)
+    for (auto *table : {ui->summaryTable, ui->healthTable, ui->stepsTable}) {
+        table->horizontalHeader()->setSectionResizeMode(QHeaderView::Interactive);
+        table->horizontalHeader()->setStretchLastSection(false);
+    }
+
+    // tables on a page that was hidden could not be fitted to their viewport yet
+    connect(ui->pages, &QStackedWidget::currentChanged, this, [this]() {
+        QTimer::singleShot(0, this, &BenchWindow::fitTableColumns);
+    });
 
     setSyntalosBinary(SyntalosRunner::findSyntalosBinary());
     populateDimensions();
@@ -277,6 +286,63 @@ void BenchWindow::showScore()
     ui->scoreDetailLabel->setText(parts.join(QStringLiteral("  ·  ")));
 }
 
+/**
+ * Size the columns of a table to fit their content.
+ */
+static void fitColumns(QTableWidget *table, int fillColumn = -1)
+{
+    constexpr int minFillWidth = 120;
+
+    // the width a column needs for its header and all of its cells
+    const auto contentWidth = [table](int col) {
+        const auto fm = table->fontMetrics();
+        int width = table->horizontalHeader()->sectionSizeHint(col);
+        for (int row = 0; row < table->rowCount(); ++row) {
+            if (const auto *item = table->item(row, col)) {
+                const int iconWidth = item->icon().isNull() ? 0 : std::max(table->iconSize().width(), 16) + 4;
+                width = std::max(width, fm.horizontalAdvance(item->text()) + iconWidth + 12);
+            }
+        }
+        return width;
+    };
+
+    // a page that is not shown yet has no usable viewport, its columns are fitted once it is
+    if (!table->isVisible())
+        return;
+
+    int used = 0;
+    QList<int> widths;
+    for (int col = 0; col < table->columnCount(); ++col) {
+        const int width = col == fillColumn ? 0 : contentWidth(col);
+        widths.append(width);
+        used += width;
+    }
+    const int available = table->viewport()->width();
+    if (fillColumn >= 0) {
+        widths[fillColumn] = std::max(minFillWidth, available - used);
+    } else if (used < available && used > 0) {
+        // spread the spare width over all columns, the wider ones getting more of it
+        const double scale = static_cast<double>(available) / used;
+        for (auto &width : widths)
+            width = static_cast<int>(width * scale);
+    }
+    for (int col = 0; col < table->columnCount(); ++col)
+        table->setColumnWidth(col, widths[col]);
+}
+
+void BenchWindow::fitTableColumns()
+{
+    fitColumns(ui->summaryTable);
+    fitColumns(ui->healthTable, 1);
+    fitColumns(ui->stepsTable, 4);
+}
+
+void BenchWindow::resizeEvent(QResizeEvent *event)
+{
+    QMainWindow::resizeEvent(event);
+    fitTableColumns();
+}
+
 void BenchWindow::showHealth()
 {
     ui->healthTable->setRowCount(0);
@@ -284,8 +350,12 @@ void BenchWindow::showHealth()
     for (const auto &item : m_health) {
         const int row = ui->healthTable->rowCount();
         ui->healthTable->insertRow(row);
-        ui->healthTable->setItem(row, 0, new QTableWidgetItem(item.name));
-        ui->healthTable->setItem(row, 1, new QTableWidgetItem(item.value));
+        auto *nameItem = new QTableWidgetItem(item.name);
+        nameItem->setToolTip(item.name);
+        ui->healthTable->setItem(row, 0, nameItem);
+        auto *valueItem = new QTableWidgetItem(item.value);
+        valueItem->setToolTip(item.value);
+        ui->healthTable->setItem(row, 1, valueItem);
         auto *status = new QTableWidgetItem(healthStatusString(item.status));
         // same colours as the System Info dialog in Syntalos
         if (item.status == Syntalos::SysInfoCheckResult::ISSUE)
@@ -294,6 +364,7 @@ void BenchWindow::showHealth()
             status->setForeground(QColor(244, 119, 80));
         ui->healthTable->setItem(row, 2, status);
     }
+    fitColumns(ui->healthTable, 1);
 }
 
 void BenchWindow::saveReport()
@@ -348,6 +419,7 @@ void BenchWindow::onStepFinished(const StepRecord &step)
     ui->stepsTable->insertRow(row);
     const auto setCell = [&](int col, const QString &text) {
         auto *item = new QTableWidgetItem(text);
+        item->setToolTip(text);
         ui->stepsTable->setItem(row, col, item);
         return item;
     };
@@ -376,6 +448,7 @@ void BenchWindow::onStepFinished(const StepRecord &step)
                                  .arg(step.result.stats->cpuCoreCount));
     }
     setCell(6, Syntalos::formatByteSize(step.result.peakPssKiB * 1024));
+    fitColumns(ui->stepsTable, 4);
     ui->stepsTable->scrollToBottom();
 }
 
@@ -384,8 +457,12 @@ void BenchWindow::onLadderFinished(const LadderRecord &ladder)
     m_ladders.append(ladder);
     const int row = ui->summaryTable->rowCount();
     ui->summaryTable->insertRow(row);
-    ui->summaryTable->setItem(row, 0, new QTableWidgetItem(ladder.dimensionTitle));
-    ui->summaryTable->setItem(row, 1, new QTableWidgetItem(ladder.profileTitle));
+    auto *dimItem = new QTableWidgetItem(ladder.dimensionTitle);
+    dimItem->setToolTip(ladder.dimensionTitle);
+    ui->summaryTable->setItem(row, 0, dimItem);
+    auto *profileItem = new QTableWidgetItem(ladder.profileTitle);
+    profileItem->setToolTip(ladder.profileTitle);
+    ui->summaryTable->setItem(row, 1, profileItem);
     auto sustained = QStringLiteral("%1 %2").arg(ladder.outcome.sustained).arg(ladder.levelUnit);
     if (ladder.outcome.cancelled)
         sustained += QStringLiteral(" (incomplete)");
@@ -394,10 +471,12 @@ void BenchWindow::onLadderFinished(const LadderRecord &ladder)
     else if (ladder.outcome.reachedMax)
         sustained += QStringLiteral(" (or more)");
     auto *item = new QTableWidgetItem(sustained);
+    item->setToolTip(sustained);
     auto font = item->font();
     font.setBold(true);
     item->setFont(font);
     ui->summaryTable->setItem(row, 2, item);
+    fitColumns(ui->summaryTable);
 }
 
 void BenchWindow::appendLog(const QString &msg)
