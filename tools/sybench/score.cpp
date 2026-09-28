@@ -35,11 +35,13 @@ struct ReferenceEntry {
 };
 
 /*
- * Reference approximated from a few runs on my machine under various system loads
- * (AMD Ryzen 9 7900X (12 cores), 30 GiB RAM, NVMe SSD).
+ * Reference approximated from a few runs on my machine while it was under low/medium
+ * background load (AMD Ryzen 9 7900X (12 cores), 30 GiB RAM, NVMe SSD).
+ * Background tasks can impact benchmark results a lot, so it is recommended to run
+ * a benchmark with low background load.
  */
 constexpr ReferenceEntry kReference[] = {
-    {"camera-capacity",   "1080p30",      40    },
+    {"camera-capacity",   "1080p30",      42    },
     {"camera-capacity",   "720p120",      24    },
     {"encoding",          "1080p30-ffv1", 8     },
     {"encoding",          "1080p30-av1",  6     },
