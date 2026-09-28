@@ -28,6 +28,7 @@
 
 #include <QCoreApplication>
 #include <QDir>
+#include <QFileInfo>
 #include <QRandomGenerator>
 #include <QStandardPaths>
 #include <QThread>
@@ -200,6 +201,47 @@ QString tempDirLargeRoot()
         return tmpDir;
 
     return QStandardPaths::writableLocation(QStandardPaths::TempLocation);
+}
+
+/**
+ * Resolve symlinks as far as the path exists, so paths that do not exist
+ * yet can still be compared against canonical directory locations.
+ */
+static QString canonicalPathLenient(const QString &path)
+{
+    std::error_code ec;
+    const auto p = fs::weakly_canonical(fs::absolute(path.toStdString(), ec), ec);
+    if (ec)
+        return QDir::cleanPath(QFileInfo(path).absoluteFilePath());
+    return QDir::cleanPath(QString::fromStdString(p.string()));
+}
+
+bool isTemporaryPath(const QString &path)
+{
+    if (path.isEmpty())
+        return false;
+
+    const QStringList tmpRoots = {
+        QDir::tempPath(),
+        QStringLiteral("/tmp"),
+        QStringLiteral("/var/tmp"),
+        QStandardPaths::writableLocation(QStandardPaths::TempLocation),
+        QStandardPaths::writableLocation(QStandardPaths::CacheLocation),
+        QStandardPaths::writableLocation(QStandardPaths::RuntimeLocation),
+    };
+
+    const auto canonPath = canonicalPathLenient(path);
+    for (const auto &root : tmpRoots) {
+        if (root.isEmpty())
+            continue;
+        const auto canonRoot = canonicalPathLenient(root);
+        if (canonRoot == QStringLiteral("/"))
+            continue;
+        if (canonPath == canonRoot || canonPath.startsWith(canonRoot + QLatin1Char('/')))
+            return true;
+    }
+
+    return false;
 }
 
 void delay(int waitMsec)

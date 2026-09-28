@@ -611,11 +611,7 @@ void Engine::setExportBaseDir(const QString &dataDir)
     }
 
     d->exportDirIsValid = QDir().exists(d->exportBaseDir);
-    d->exportDirIsTempDir = false;
-    if (d->exportBaseDir.startsWith(QStandardPaths::writableLocation(QStandardPaths::TempLocation))
-        || d->exportBaseDir.startsWith(QStandardPaths::writableLocation(QStandardPaths::CacheLocation))) {
-        d->exportDirIsTempDir = true;
-    }
+    d->exportDirIsTempDir = isTemporaryPath(d->exportBaseDir);
 
     // update the actual export directory location, using the test subject data and the
     // current date

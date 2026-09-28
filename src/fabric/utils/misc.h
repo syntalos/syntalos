@@ -114,6 +114,11 @@ QString tempDirRoot();
 QString tempDirLargeRoot();
 
 /**
+ * @brief Check whether a path is located in a temporary or cache directory.
+ */
+bool isTemporaryPath(const QString &path);
+
+/**
  * @brief Find file on the host system (if running in a sandbox)
  * @param path Path of the file to check for
  * @return The absolute path to the requested file, or an empty string if not found.
