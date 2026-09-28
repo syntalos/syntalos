@@ -73,7 +73,7 @@ Depends: breeze-icon-theme,
          ${misc:Depends},
          ${shlibs:Depends}
 Recommends: kde-style-breeze,
-            libminiscope0,
+            libminiscope1,
             tiscamera
 Suggests: kwin-zones,
           pomidaq
