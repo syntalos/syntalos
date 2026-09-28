@@ -6,7 +6,7 @@ project('Syntalos', 'c', 'cpp',
   subproject_dir : 'vendor/wrap',
 
   license: 'LGPL-3.0+',
-  version: '3.2.1',
+  version: '3.2.2',
 )
 
 bug_report_url = 'https://github.com/syntalos/syntalos/issues'
