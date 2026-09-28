@@ -594,8 +594,7 @@ auto SyntalosRunner::run(const StepRunConfig &cfg, std::stop_token stop) -> std:
                 StopCause::MemoryLimit,
                 QStringLiteral(
                     "Memory limit exceeded: Syntalos used %1 MiB with %2 MiB left on the system "
-                    "(reserve %3 MiB), memory use growing by %4 MiB/s. Fast growth means its data "
-                    "queues were overflowing.")
+                    "(reserve %3 MiB), memory use growing by %4 MiB/s.")
                     .arg(pssKiB / 1024)
                     .arg(memAvailableKiB / 1024)
                     .arg((overLimit ? cfg.memoryLimitKiB : reserveKiB) / 1024)

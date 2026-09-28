@@ -165,7 +165,7 @@ void BenchSession::run()
     if (!QDir().mkpath(m_config.workDir))
         return abort(QStringLiteral("Unable to create the work directory %1.").arg(m_config.workDir));
     if (m_runner.syntalosBinary().isEmpty())
-        return abort(QStringLiteral("The syntalos executable was not found."));
+        return abort(QStringLiteral("The syntalos executable not found."));
 
     QList<LadderRecord> ladders;
     for (const auto &sel : m_config.selections) {
@@ -205,7 +205,7 @@ void BenchSession::run()
             break;
         const auto *dim = dimension(lr.dimensionId);
         emit ladderStarted(index, ladders.size(), lr);
-        progress(QStringLiteral("== %1, %2 ==").arg(lr.dimensionTitle, lr.profileTitle));
+        progress(QStringLiteral("══ %1, %2 ══").arg(lr.dimensionTitle, lr.profileTitle));
 
         lr.outcome = runLadder(ladderConfig(*dim, lr.profileId), [&](int level) -> LevelOutcome {
             if (m_stop.stop_requested())
@@ -220,7 +220,7 @@ void BenchSession::run()
             auto step = runStep(*dim, lr.profileId, level, m_config.effectiveStepSeconds());
             if (step && step->verdict.sourceLimited && !m_stop.stop_requested()) {
                 // a data source falling short may be a one-off stall, only a repeat counts
-                progress(QStringLiteral("-> INCONCLUSIVE: %1, retrying this level once").arg(step->verdict.summary));
+                progress(QStringLiteral("⮕ INCONCLUSIVE: %1, retrying level once").arg(step->verdict.summary));
                 step = runStep(*dim, lr.profileId, level, m_config.effectiveStepSeconds());
             }
             if (!step) {
@@ -236,7 +236,7 @@ void BenchSession::run()
                                            .arg(rec.result.loadSec, 0, 'f', 1)
                                            .arg(rec.result.startupSec, 0, 'f', 1);
             lr.steps.append(rec);
-            progress(QStringLiteral("-> %1: %2")
+            progress(QStringLiteral("⮕ %1: %2")
                          .arg(
                              rec.verdict.passed          ? QStringLiteral("PASS")
                              : rec.verdict.sourceLimited ? QStringLiteral("INCONCLUSIVE")
@@ -264,7 +264,7 @@ void BenchSession::run()
         });
 
         if (lr.outcome.inconclusive) {
-            progress(QStringLiteral("Sustained: %1 %2 (source limit reached, the true capacity may be higher)")
+            progress(QStringLiteral("Sustained: %1 %2 (source limit reached, true capacity may be higher)")
                          .arg(lr.outcome.sustained)
                          .arg(lr.levelUnit));
         } else if (lr.outcome.cancelled) {
