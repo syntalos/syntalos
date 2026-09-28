@@ -1,3 +1,53 @@
+Version 3.2.1
+-------------
+Released: 2026-09-28
+
+### Features:
+ * datactl: Add PULL_DOWN and ANALOG LineMode flags for LineReading
+ * miniscope: Port to new libminiscope API
+ * audiosource: Allow selecting an arbitrary file for playback instead of sound generation
+ * plot-timeseries: Add oscilloscope-style sweep mode for the time axis
+ * plot-timeseries: Carry held line levels across the sweep wrap
+ * videorecorder, zarrwriter: Report item counts as run statistics
+ * devel.datasource: Add frame size, channel count and camera-like frames
+ * devel.datasource: Add noise to the generated signals, allow more channels
+ * devel.datasource: Add option to generate rows at very high speeds
+ * example-mlink: Implement frame passthrough
+ * mlink: Add a way for modules to access their cache dir
+ * Gather & expose all instrumentation data we have as JSON and HTML reports
+ * Let modules contribute to run statistics, measure data age in flow meter
+ * Port to iceoryx2 0.10.0
+ * Give a dedicated exit code if we try to launch Syntalos twice
+ * engine: Keep the buffer monitor's peaks for the run statistics
+ * Add a benchmark tool to test which loads a system can sustain
+ * sybench: Add a GUI with live progress, cancellation and report saving
+ * Add option to emit sound cues about the experiment run state
+ * Use thread distribution limits on events-dedicated modules
+ * Add a D-Bus control interface
+ * ui: Improve global config dialog UI
+
+### Bugfixes:
+ * Fix build with Eigen 3.4.1
+ * videorecorder: Do not warn about inexact colors for lossless grayscale in YUV
+ * spikeglx: Ensure suggested stream dataset names won't collide by accident
+ * datasource: Fix crash when a scene is deleted in STOP while main thread is still composing
+ * plot-timeseries: Avoid port ID collisions
+ * mlink: Allow remove and re-registration of same-ID ports
+ * engine: Join event threads in module stop order as well
+ * Ensure we retain permissions when saving/creating project files
+ * Don't remember projects in temp locations in history
+ * Remember the last project dir only for interactively opened projects
+ * Raise default fd limits
+
+### Miscellaneous:
+ * Avoid more string conversions on the caller side in the module API
+ * ci: Install newer Rust toolchain when on Debian Stable
+ * Die in style on SIGINT and SIGTERM
+ * engine: Release unused memory after a run
+
+### Contributors:
+ Matthias Klumpp
+
 Version 3.2.0
 -------------
 Released: 2026-09-06

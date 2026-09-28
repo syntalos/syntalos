@@ -1,6 +1,23 @@
 # What's-New entries shown after a Syntalos upgrade.
 
 [[entry]]
+version = "3.2.1"
+title = "Welcome to Syntalos 3.2.1!"
+body = """
+<p>Syntalos 3.2.1 is a bugfix release that also brings a few new features.</p>
+
+<h3>What's new</h3>
+<ul>
+  <li>A new benchmark tool (see <em>Help → Benchmark</em>), to test which loads your system can sustain.</li>
+  <li>Syntalos can optionally play sound cues to signal the state of an experiment run.</li>
+  <li>A new D-Bus interface allows controlling Syntalos from other, local applications.</li>
+  <li>The time-series plot gained an oscilloscope-style sweep mode, and the
+      <em>Audio Source</em> module can now play back arbitrary sound files.</li>
+  <li>... and many more changes and fixes!</li>
+</ul>
+"""
+
+[[entry]]
 version = "3.2.0"
 title = "Welcome to Syntalos 3.2!"
 body = """
