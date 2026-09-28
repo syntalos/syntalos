@@ -77,6 +77,9 @@ public:
 
     /**
      * @brief Load a project file as the user would, reporting errors to them.
+     *
+     * This does not remember the project directory as last-used location, as the
+     * file may have been passed programmatically (e.g. on the command-line).
      */
     void openProjectFile(const QString &fileName);
 

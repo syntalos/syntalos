@@ -1208,7 +1208,6 @@ void MainWindow::openProjectFile(const QString &fileName)
 {
     if (const auto res = loadProject(fileName); !res)
         reportCriticalError(this, QStringLiteral("Can not load configuration"), res.error());
-    m_gconf->setLastProjectDir(QFileInfo(fileName).absoluteDir().absolutePath());
 }
 
 void MainWindow::projectOpenActionTriggered()
@@ -1222,6 +1221,7 @@ void MainWindow::projectOpenActionTriggered()
         return;
 
     openProjectFile(fileName);
+    m_gconf->setLastProjectDir(QFileInfo(fileName).absoluteDir().absolutePath());
 }
 
 void MainWindow::updateRecentProjectsMenu()
@@ -1273,6 +1273,7 @@ void MainWindow::openRecentProject(const QString &fileName)
     }
 
     openProjectFile(fileName);
+    m_gconf->setLastProjectDir(QFileInfo(fileName).absoluteDir().absolutePath());
 }
 
 void MainWindow::on_actionProjectDetails_toggled(bool arg1)
