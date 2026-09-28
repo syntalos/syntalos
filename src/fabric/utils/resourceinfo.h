@@ -22,6 +22,7 @@
 #include <QString>
 #include <QElapsedTimer>
 #include <QtGlobal>
+#include <expected>
 #include <optional>
 
 namespace Syntalos
@@ -127,6 +128,17 @@ std::optional<ThreadUsageStats> readProcessUsage(qint64 pid);
  * @brief Current resident memory of a process and all of its descendants, in KiB.
  */
 qint64 readProcessTreeRssKiB(qint64 pid);
+
+/**
+ * @brief Raise the soft limit for file descriptors of this process to its hard limit.
+ *
+ * With a lot of IPC, Syntalos or its worker processes can easily exhaust the maximum
+ * fd limit of 1024. That's why we raise the limit (and hope nobody uses select() in
+ * a dependency).
+ *
+ * @return The previous and the new soft limit, or an error message.
+ */
+auto raiseFdLimit() -> std::expected<std::pair<uint64_t, uint64_t>, std::string>;
 
 /**
  * @brief Proportional memory of a process and all of its descendants, in KiB.

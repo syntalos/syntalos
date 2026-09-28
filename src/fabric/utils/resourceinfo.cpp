@@ -420,6 +420,23 @@ std::optional<ThreadUsageStats> readProcessUsage(qint64 pid)
     return usage;
 }
 
+auto raiseFdLimit() -> std::expected<std::pair<uint64_t, uint64_t>, std::string>
+{
+    struct rlimit rl;
+    if (getrlimit(RLIMIT_NOFILE, &rl) != 0)
+        return std::unexpected(std::format("getrlimit failed: {}", strerror(errno)));
+
+    const auto previous = static_cast<uint64_t>(rl.rlim_cur);
+    if (rl.rlim_cur == rl.rlim_max)
+        return std::pair{previous, previous};
+
+    rl.rlim_cur = rl.rlim_max;
+    if (setrlimit(RLIMIT_NOFILE, &rl) != 0)
+        return std::unexpected(std::format("setrlimit failed: {}", strerror(errno)));
+
+    return std::pair{previous, static_cast<uint64_t>(rl.rlim_cur)};
+}
+
 static qint64 readProcessRssKiB(qint64 pid)
 {
     QFile f(QStringLiteral("/proc/%1/statm").arg(pid));

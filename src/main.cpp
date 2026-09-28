@@ -44,6 +44,7 @@
 #include "dbuscontrol.h"
 #include "uiprompts.h"
 #include "utils/misc.h"
+#include "utils/resourceinfo.h"
 
 #include <random>
 
@@ -56,6 +57,9 @@ int main(int argc, char *argv[])
     // set random seed
     std::random_device rd;
     srand(static_cast<uint>(rd()));
+
+    // raise the file descriptor limit before anything allocates descriptors
+    const auto fdLimitRes = raiseFdLimit();
 
     // initialize PipeWire
     pw_init(&argc, &argv);
@@ -171,6 +175,10 @@ int main(int argc, char *argv[])
         QDir(appDataRootDir()).filePath(QStringLiteral("logs")));
     if (!currentLogFilePath().isEmpty())
         LOG_DEBUG(logRoot, "Logging to file: {}", currentLogFilePath());
+    if (!fdLimitRes)
+        LOG_WARNING(logRoot, "Unable to raise the file descriptor limit: {}", fdLimitRes.error());
+    else if (fdLimitRes->first != fdLimitRes->second)
+        LOG_DEBUG(logRoot, "Raised file descriptor limit from {} to {}", fdLimitRes->first, fdLimitRes->second);
 
     // launch Syntalos with the provided options
     auto w = std::make_unique<MainWindow>();

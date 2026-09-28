@@ -21,6 +21,7 @@
 #include "config.h"
 
 #include <algorithm>
+#include <sys/resource.h>
 #include <Eigen/Core>
 #include <QDir>
 #include <QFile>
@@ -313,6 +314,30 @@ SysInfoCheckResult SysInfo::checkUsbFsMemory()
     // some cameras need a really huge buffer to function properly,
     // ideally around 1000Mb even.
     if (d->usbFsMemoryMb < 640)
+        return SysInfoCheckResult::SUSPICIOUS;
+    return SysInfoCheckResult::OK;
+}
+
+std::pair<uint64_t, uint64_t> SysInfo::fdLimits() const
+{
+    struct rlimit rl;
+    if (getrlimit(RLIMIT_NOFILE, &rl) != 0)
+        return {0, 0};
+    const auto toValue = [](rlim_t v) -> uint64_t {
+        return v == RLIM_INFINITY ? 0 : static_cast<uint64_t>(v);
+    };
+    return {toValue(rl.rlim_cur), toValue(rl.rlim_max)};
+}
+
+SysInfoCheckResult SysInfo::checkFdLimits() const
+{
+    // every out-of-process module needs about a hundred descriptors in the main process
+    const auto hard = fdLimits().second;
+    if (hard == 0)
+        return SysInfoCheckResult::OK; // unlimited (or unknown)
+    if (hard < 4096)
+        return SysInfoCheckResult::ISSUE;
+    if (hard < 16384)
         return SysInfoCheckResult::SUSPICIOUS;
     return SysInfoCheckResult::OK;
 }

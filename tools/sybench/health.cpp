@@ -70,6 +70,14 @@ QList<HealthItem> collectHealthItems()
         {QStringLiteral("USB filesystem memory"),
          QStringLiteral("%1 MiB").arg(si->usbFsMemoryMb()),
          si->checkUsbFsMemory()});
+    {
+        // Syntalos raises its soft limit to the hard limit, so the hard limit is what matters
+        const auto hardLimit = si->fdLimits().second;
+        items.append(
+            {QStringLiteral("File descriptor limit"),
+             hardLimit == 0 ? QStringLiteral("unlimited") : QString::number(hardLimit),
+             si->checkFdLimits()});
+    }
     items.append({QStringLiteral("AVX instructions"), si->supportedAVXInstructions(), si->checkAVXInstructions()});
     items.append(
         {QStringLiteral("Sandbox"),

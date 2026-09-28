@@ -51,6 +51,14 @@ SysInfoDialog::SysInfoDialog(SysInfo *sysInfo, QWidget *parent)
     setLabelTextStyle(sysInfo->checkInitSystem(), ui->valInitSystem);
     ui->valUsbFsMemory->setText(QStringLiteral("%1 MB").arg(sysInfo->usbFsMemoryMb()));
     setLabelTextStyle(sysInfo->checkUsbFsMemory(), ui->valUsbFsMemory);
+    {
+        const auto [softLimit, hardLimit] = sysInfo->fdLimits();
+        const auto fmtLimit = [](uint64_t v) {
+            return v == 0 ? QStringLiteral("unlimited") : QString::number(v);
+        };
+        ui->valFdLimit->setText(QStringLiteral("%1 (max. %2)").arg(fmtLimit(softLimit), fmtLimit(hardLimit)));
+        setLabelTextStyle(sysInfo->checkFdLimits(), ui->valFdLimit);
+    }
 
     ui->valMaxRealtimePriority->setText(QString::number(sysInfo->rtkitMaxRealtimePriority()));
     setLabelTextStyle(sysInfo->checkRtkitMaxRealtimePriority(), ui->valMaxRealtimePriority);

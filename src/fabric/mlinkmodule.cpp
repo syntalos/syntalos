@@ -1589,18 +1589,50 @@ void MLinkModule::runThread(OptionalWaitCondition *startWaitCondition)
 {
     d->threadStopped = false;
 
+    // Setting up the IPC wait set needs file descriptors, which can run out with many
+    // workers. Fail the module instead of the whole application, and still park on the
+    // start barrier, which the engine releases once it sees the failure.
+    const auto failSetup = [&](const std::string &what, const char *reason) {
+        raiseError(
+            std::format(
+                "Failed to set up the IPC event loop ({}): {}. If many modules are running, the file descriptor limit "
+                "(ulimit -n) may be too low.",
+                what,
+                reason));
+        startWaitCondition->wait(this);
+        for (auto &ps : d->outPortSubs)
+            ps.guard.reset();
+        d->threadStopped = true;
+    };
+
     // create waitset and attach control guard
-    auto waitSet = iox2::WaitSetBuilder()
-                       .signal_handling_mode(iox2::SignalHandlingMode::Disabled)
-                       .create<iox2::ServiceType::Ipc>()
-                       .value();
-    auto waitSetCtlGuard = waitSet.attach_notification(*d->workerCtlEventListener).value();
+    auto maybeWaitSet = iox2::WaitSetBuilder()
+                            .signal_handling_mode(iox2::SignalHandlingMode::Disabled)
+                            .create<iox2::ServiceType::Ipc>();
+    if (!maybeWaitSet.has_value()) {
+        failSetup("wait set", iox2::bb::into<const char *>(maybeWaitSet.error()));
+        return;
+    }
+    auto waitSet = std::move(maybeWaitSet).value();
+    auto maybeCtlGuard = waitSet.attach_notification(*d->workerCtlEventListener);
+    if (!maybeCtlGuard.has_value()) {
+        failSetup("control channel", iox2::bb::into<const char *>(maybeCtlGuard.error()));
+        return;
+    }
+    auto waitSetCtlGuard = std::move(maybeCtlGuard).value();
 
     // prepare guards for output port forwarding
     for (auto &ps : d->outPortSubs) {
         if (!ps.sub.has_value())
             continue;
-        ps.guard.emplace(waitSet.attach_notification(*ps.sub).value());
+        auto maybeGuard = waitSet.attach_notification(*ps.sub);
+        if (!maybeGuard.has_value()) {
+            failSetup(
+                std::format("output port {}", ps.oport->id().toStdString()),
+                iox2::bb::into<const char *>(maybeGuard.error()));
+            return;
+        }
+        ps.guard.emplace(std::move(maybeGuard).value());
     }
 
     auto onEvent =
@@ -1633,7 +1665,11 @@ void MLinkModule::runThread(OptionalWaitCondition *startWaitCondition)
     d->threadHandlingEvents = true;
     while (m_running) {
         // wait for data - we need to time out every once in a while to check if we are still running
-        waitSet.wait_and_process_once_with_timeout(onEvent, iox2::bb::Duration::from_millis(50)).value();
+        const auto res = waitSet.wait_and_process_once_with_timeout(onEvent, iox2::bb::Duration::from_millis(50));
+        if (!res.has_value()) {
+            raiseError(std::format("IPC event loop failed: {}", iox2::bb::into<const char *>(res.error())));
+            break;
+        }
     }
     d->threadHandlingEvents = false;
 

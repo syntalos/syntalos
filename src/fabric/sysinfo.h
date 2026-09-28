@@ -57,6 +57,12 @@ public:
     int usbFsMemoryMb() const;
     SysInfoCheckResult checkUsbFsMemory();
 
+    /**
+     * @brief Soft and hard file descriptor limit of this process (0 = unlimited).
+     */
+    std::pair<uint64_t, uint64_t> fdLimits() const;
+    SysInfoCheckResult checkFdLimits() const;
+
     int rtkitMaxRealtimePriority() const;
     SysInfoCheckResult checkRtkitMaxRealtimePriority();
 
