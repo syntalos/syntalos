@@ -9,8 +9,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>780</width>
-    <height>536</height>
+    <width>820</width>
+    <height>560</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -18,368 +18,772 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <property name="spacing">
-    <number>4</number>
+    <number>0</number>
    </property>
    <property name="leftMargin">
-    <number>4</number>
+    <number>0</number>
    </property>
    <property name="topMargin">
-    <number>4</number>
+    <number>0</number>
    </property>
    <property name="rightMargin">
-    <number>4</number>
+    <number>0</number>
    </property>
    <property name="bottomMargin">
-    <number>4</number>
+    <number>0</number>
    </property>
    <item>
-    <widget class="QLabel" name="label">
-     <property name="font">
-      <font>
-       <pointsize>14</pointsize>
-      </font>
-     </property>
-     <property name="text">
-      <string>Global Syntalos Settings</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QTabWidget" name="tabWidget">
-     <property name="tabPosition">
-      <enum>QTabWidget::TabPosition::West</enum>
-     </property>
-     <property name="currentIndex">
+    <layout class="QHBoxLayout" name="mainLayout">
+     <property name="spacing">
       <number>0</number>
      </property>
-     <property name="iconSize">
-      <size>
-       <width>24</width>
-       <height>24</height>
-      </size>
-     </property>
-     <property name="usesScrollButtons">
-      <bool>false</bool>
-     </property>
-     <property name="documentMode">
-      <bool>true</bool>
-     </property>
-     <widget class="QWidget" name="tabGeneral">
-      <attribute name="icon">
-       <iconset theme="settings-configure"/>
-      </attribute>
-      <attribute name="title">
-       <string>General</string>
-      </attribute>
-      <layout class="QHBoxLayout" name="horizontalLayout">
+     <item>
+      <widget class="QListWidget" name="pageList">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Fixed" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>140</width>
+         <height>0</height>
+        </size>
+       </property>
+       <property name="maximumSize">
+        <size>
+         <width>140</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="frameShape">
+        <enum>QFrame::Shape::NoFrame</enum>
+       </property>
+       <property name="horizontalScrollBarPolicy">
+        <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>22</width>
+         <height>22</height>
+        </size>
+       </property>
+       <property name="uniformItemSizes">
+        <bool>true</bool>
+       </property>
        <item>
-        <widget class="QWidget" name="widget" native="true">
-         <layout class="QVBoxLayout" name="verticalLayout_9">
+        <property name="text">
+         <string>General</string>
+        </property>
+        <property name="icon">
+         <iconset theme="settings-configure"/>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Network</string>
+        </property>
+        <property name="icon">
+         <iconset theme="network-wired"/>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Sounds</string>
+        </property>
+        <property name="icon">
+         <iconset theme="audio-volume-high"/>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Advanced</string>
+        </property>
+        <property name="icon">
+         <iconset theme="speedometer"/>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Developer</string>
+        </property>
+        <property name="icon">
+         <iconset theme="code-context"/>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item>
+      <widget class="Line" name="pageSeparator">
+       <property name="orientation">
+        <enum>Qt::Orientation::Vertical</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QStackedWidget" name="pageStack">
+       <property name="currentIndex">
+        <number>0</number>
+       </property>
+       <widget class="QScrollArea" name="pageGeneral">
+        <property name="frameShape">
+         <enum>QFrame::Shape::NoFrame</enum>
+        </property>
+        <property name="horizontalScrollBarPolicy">
+         <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
+        </property>
+        <property name="widgetResizable">
+         <bool>true</bool>
+        </property>
+        <widget class="QWidget" name="pageGeneralContents">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>0</y>
+           <width>675</width>
+           <height>513</height>
+          </rect>
+         </property>
+         <layout class="QVBoxLayout" name="vlPageGeneral">
+          <property name="spacing">
+           <number>8</number>
+          </property>
           <property name="leftMargin">
-           <number>0</number>
+           <number>18</number>
           </property>
           <property name="topMargin">
-           <number>0</number>
+           <number>18</number>
           </property>
           <property name="rightMargin">
-           <number>0</number>
+           <number>18</number>
           </property>
           <property name="bottomMargin">
-           <number>0</number>
+           <number>18</number>
           </property>
           <item>
-           <widget class="QGroupBox" name="groupBox_3">
-            <property name="title">
-             <string>Visual Style</string>
+           <widget class="QLabel" name="lblPageTitleGeneral">
+            <property name="font">
+             <font>
+              <pointsize>14</pointsize>
+              <bold>true</bold>
+             </font>
             </property>
-            <layout class="QFormLayout" name="formLayout">
-             <property name="leftMargin">
-              <number>4</number>
-             </property>
-             <property name="topMargin">
-              <number>4</number>
-             </property>
-             <property name="rightMargin">
-              <number>4</number>
-             </property>
-             <property name="bottomMargin">
-              <number>4</number>
-             </property>
-             <item row="0" column="0">
-              <widget class="QLabel" name="colorModeLabel">
-               <property name="text">
-                <string>Color Mode</string>
-               </property>
-              </widget>
-             </item>
-             <item row="0" column="1">
-              <widget class="QComboBox" name="colorModeComboBox">
-               <item>
-                <property name="text">
-                 <string>Default</string>
-                </property>
-               </item>
-               <item>
-                <property name="text">
-                 <string>Dark</string>
-                </property>
-               </item>
-              </widget>
-             </item>
-            </layout>
+            <property name="text">
+             <string>General</string>
+            </property>
            </widget>
           </item>
           <item>
-           <widget class="QGroupBox" name="groupBox_5">
-            <property name="title">
+           <spacer name="vSpacer1">
+            <property name="orientation">
+             <enum>Qt::Orientation::Vertical</enum>
+            </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Policy::Fixed</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>10</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QLabel" name="lblSectionAppearance">
+            <property name="font">
+             <font>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>Appearance</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QGridLayout" name="glSection1" columnstretch="1,0">
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <property name="horizontalSpacing">
+             <number>24</number>
+            </property>
+            <property name="verticalSpacing">
+             <number>10</number>
+            </property>
+            <item row="0" column="0">
+             <widget class="QLabel" name="colorModeLabel">
+              <property name="text">
+               <string>Color mode</string>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+              <property name="buddy">
+               <cstring>colorModeComboBox</cstring>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QComboBox" name="colorModeComboBox"/>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <spacer name="vSpacer2">
+            <property name="orientation">
+             <enum>Qt::Orientation::Vertical</enum>
+            </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Policy::Fixed</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>18</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QLabel" name="lblSectionEngine">
+            <property name="font">
+             <font>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
              <string>Engine</string>
             </property>
-            <layout class="QFormLayout" name="formLayout_3">
-             <property name="leftMargin">
-              <number>4</number>
-             </property>
-             <property name="topMargin">
-              <number>4</number>
-             </property>
-             <property name="rightMargin">
-              <number>4</number>
-             </property>
-             <property name="bottomMargin">
-              <number>4</number>
-             </property>
-             <item row="0" column="0">
-              <widget class="QLabel" name="emergencyStopWhenLowOnMemoryLabel">
-               <property name="text">
-                <string>Emergency stop when low on memory</string>
-               </property>
-              </widget>
-             </item>
-             <item row="0" column="1">
-              <widget class="QCheckBox" name="cbEmergencyOOMStop"/>
-             </item>
-             <item row="1" column="0">
-              <widget class="QLabel" name="minFreeDiskSpaceLabel">
-               <property name="toolTip">
-                <string>Warn before a run if less than this amount of disk space is available, and while a run is in progress if the free space drops below it.</string>
-               </property>
-               <property name="text">
-                <string>Minimum free disk space</string>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="1">
-              <widget class="QSpinBox" name="sbMinFreeDiskSpace">
-               <property name="suffix">
-                <string> GB</string>
-               </property>
-               <property name="minimum">
-                <number>1</number>
-               </property>
-               <property name="maximum">
-                <number>10000</number>
-               </property>
-              </widget>
-             </item>
-             <item row="2" column="0">
-              <widget class="QLabel" name="diskSpaceWarnMinutesLabel">
-               <property name="toolTip">
-                <string>While a run is in progress, warn if the remaining disk space is estimated to last less than this many minutes at the current write rate.</string>
-               </property>
-               <property name="text">
-                <string>Warn if disk space lasts less than</string>
-               </property>
-              </widget>
-             </item>
-             <item row="2" column="1">
-              <widget class="QSpinBox" name="sbDiskSpaceWarnMinutes">
-               <property name="suffix">
-                <string> min</string>
-               </property>
-               <property name="minimum">
-                <number>1</number>
-               </property>
-               <property name="maximum">
-                <number>1440</number>
-               </property>
-              </widget>
-             </item>
-            </layout>
            </widget>
           </item>
           <item>
-           <widget class="QGroupBox" name="groupBox_6">
-            <property name="title">
-             <string>Network Control</string>
+           <layout class="QGridLayout" name="glSection2" columnstretch="1,0">
+            <property name="leftMargin">
+             <number>0</number>
             </property>
-            <property name="checkable">
-             <bool>false</bool>
+            <property name="topMargin">
+             <number>0</number>
             </property>
-            <layout class="QFormLayout" name="formLayout_4">
-             <property name="leftMargin">
-              <number>4</number>
-             </property>
-             <property name="topMargin">
-              <number>4</number>
-             </property>
-             <property name="rightMargin">
-              <number>4</number>
-             </property>
-             <property name="bottomMargin">
-              <number>4</number>
-             </property>
-             <item row="0" column="0">
-              <widget class="QLabel" name="netEnabledLabel">
-               <property name="text">
-                <string>Enabled</string>
-               </property>
-              </widget>
-             </item>
-             <item row="0" column="1">
-              <widget class="QCheckBox" name="cbNetEnabled">
-               <property name="checked">
-                <bool>true</bool>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="0">
-              <widget class="QLabel" name="portLabel">
-               <property name="text">
-                <string>Control Port</string>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="1">
-              <widget class="QSpinBox" name="sbNetControlPort">
-               <property name="toolTip">
-                <string>Port for broadcasting run commands (controller binds here, listeners subscribe)</string>
-               </property>
-               <property name="minimum">
-                <number>1024</number>
-               </property>
-               <property name="maximum">
-                <number>65535</number>
-               </property>
-               <property name="value">
-                <number>5556</number>
-               </property>
-              </widget>
-             </item>
-             <item row="2" column="0">
-              <widget class="QLabel" name="lblNetFeedbackPort">
-               <property name="text">
-                <string>Feedback Port</string>
-               </property>
-              </widget>
-             </item>
-             <item row="2" column="1">
-              <widget class="QSpinBox" name="sbNetFeedbackPort">
-               <property name="toolTip">
-                <string>Port for receiving acknowledgments from listeners (controller binds here)</string>
-               </property>
-               <property name="minimum">
-                <number>1024</number>
-               </property>
-               <property name="maximum">
-                <number>65535</number>
-               </property>
-               <property name="value">
-                <number>5557</number>
-               </property>
-              </widget>
-             </item>
-             <item row="3" column="0">
-              <widget class="QLabel" name="lblNetHost">
-               <property name="text">
-                <string>Controller Host</string>
-               </property>
-              </widget>
-             </item>
-             <item row="3" column="1">
-              <widget class="QLineEdit" name="leNetHost">
-               <property name="toolTip">
-                <string>Hostname or IP of the network controller (used in listener mode only)</string>
-               </property>
-               <property name="placeholderText">
-                <string>localhost</string>
-               </property>
-              </widget>
-             </item>
-             <item row="4" column="0">
-              <widget class="QLabel" name="lblNetInstanceId">
-               <property name="text">
-                <string>Instance ID</string>
-               </property>
-              </widget>
-             </item>
-             <item row="4" column="1">
-              <widget class="QLineEdit" name="leNetInstanceId">
-               <property name="toolTip">
-                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Short unique identifier for this Syntalos instance used in network messages.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <property name="horizontalSpacing">
+             <number>24</number>
+            </property>
+            <property name="verticalSpacing">
+             <number>10</number>
+            </property>
+            <item row="0" column="0">
+             <layout class="QVBoxLayout" name="vlRow1">
+              <property name="spacing">
+               <number>1</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="emergencyStopWhenLowOnMemoryLabel">
+                <property name="text">
+                 <string>Emergency stop when low on memory</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+                <property name="buddy">
+                 <cstring>cbEmergencyOOMStop</cstring>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="lblCaptionEmergencyOOMStop">
+                <property name="text">
+                 <string>Stop a running experiment before the system runs out of memory.</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="0" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QCheckBox" name="cbEmergencyOOMStop"/>
+            </item>
+            <item row="1" column="0">
+             <layout class="QVBoxLayout" name="vlRow2">
+              <property name="spacing">
+               <number>1</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="minFreeDiskSpaceLabel">
+                <property name="text">
+                 <string>Minimum free disk space</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+                <property name="buddy">
+                 <cstring>sbMinFreeDiskSpace</cstring>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="lblCaptionMinFreeDiskSpace">
+                <property name="text">
+                 <string>Warn before a run if not enough disk space is available, and during a run if the free space drops below this value.</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="1" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QSpinBox" name="sbMinFreeDiskSpace">
+              <property name="suffix">
+               <string> GB</string>
+              </property>
+              <property name="minimum">
+               <number>1</number>
+              </property>
+              <property name="maximum">
+               <number>10000</number>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <layout class="QVBoxLayout" name="vlRow3">
+              <property name="spacing">
+               <number>1</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="diskSpaceWarnMinutesLabel">
+                <property name="text">
+                 <string>Warn if disk space lasts less than</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+                <property name="buddy">
+                 <cstring>sbDiskSpaceWarnMinutes</cstring>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="lblCaptionDiskSpaceWarnMinutes">
+                <property name="text">
+                 <string>Warn if the remaining disk space is estimated to be filled within this time, at the current write rate during a run.</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="2" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QSpinBox" name="sbDiskSpaceWarnMinutes">
+              <property name="suffix">
+               <string> min</string>
+              </property>
+              <property name="minimum">
+               <number>1</number>
+              </property>
+              <property name="maximum">
+               <number>1440</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
-           <spacer name="verticalSpacer_2">
+           <spacer name="vSpacer3">
             <property name="orientation">
              <enum>Qt::Orientation::Vertical</enum>
             </property>
             <property name="sizeHint" stdset="0">
              <size>
               <width>20</width>
-              <height>398</height>
+              <height>40</height>
              </size>
             </property>
            </spacer>
           </item>
          </layout>
         </widget>
-       </item>
-       <item>
-        <spacer name="horizontalSpacer">
-         <property name="orientation">
-          <enum>Qt::Orientation::Horizontal</enum>
+       </widget>
+       <widget class="QScrollArea" name="pageNetwork">
+        <property name="frameShape">
+         <enum>QFrame::Shape::NoFrame</enum>
+        </property>
+        <property name="horizontalScrollBarPolicy">
+         <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
+        </property>
+        <property name="widgetResizable">
+         <bool>true</bool>
+        </property>
+        <widget class="QWidget" name="pageNetworkContents">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>0</y>
+           <width>376</width>
+           <height>718</height>
+          </rect>
          </property>
-         <property name="sizeType">
-          <enum>QSizePolicy::Policy::Expanding</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>500</width>
-           <height>0</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-      </layout>
-     </widget>
-     <widget class="QWidget" name="tabSounds">
-      <attribute name="icon">
-       <iconset theme="audio-volume-high"/>
-      </attribute>
-      <attribute name="title">
-       <string>Sounds</string>
-      </attribute>
-      <layout class="QHBoxLayout" name="horizontalLayoutSounds">
-       <item>
-        <widget class="QWidget" name="widgetSounds" native="true">
-         <layout class="QVBoxLayout" name="verticalLayoutSounds">
+         <layout class="QVBoxLayout" name="vlPageNetwork">
+          <property name="spacing">
+           <number>8</number>
+          </property>
           <property name="leftMargin">
-           <number>0</number>
+           <number>18</number>
           </property>
           <property name="topMargin">
-           <number>0</number>
+           <number>18</number>
           </property>
           <property name="rightMargin">
-           <number>0</number>
+           <number>18</number>
           </property>
           <property name="bottomMargin">
-           <number>0</number>
+           <number>18</number>
           </property>
           <item>
-           <widget class="QLabel" name="soundsInfoLabel">
+           <widget class="QLabel" name="lblPageTitleNetwork">
+            <property name="font">
+             <font>
+              <pointsize>14</pointsize>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>Network</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="lblCaptionNetIntro">
+            <property name="text">
+             <string>Network control lets one Syntalos instance start and stop experiment runs on other instances, to synchronize recordings across multiple computers.</string>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="vSpacer4">
+            <property name="orientation">
+             <enum>Qt::Orientation::Vertical</enum>
+            </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Policy::Fixed</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>18</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QLabel" name="lblSectionNetControl">
+            <property name="font">
+             <font>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>Network Control</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QGridLayout" name="glSection3" columnstretch="1,0">
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <property name="horizontalSpacing">
+             <number>24</number>
+            </property>
+            <property name="verticalSpacing">
+             <number>10</number>
+            </property>
+            <item row="0" column="0">
+             <widget class="QLabel" name="netEnabledLabel">
+              <property name="text">
+               <string>Enable network control</string>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+              <property name="buddy">
+               <cstring>cbNetEnabled</cstring>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QCheckBox" name="cbNetEnabled"/>
+            </item>
+            <item row="1" column="0">
+             <layout class="QVBoxLayout" name="vlRow4">
+              <property name="spacing">
+               <number>1</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="portLabel">
+                <property name="text">
+                 <string>Control port</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+                <property name="buddy">
+                 <cstring>sbNetControlPort</cstring>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="lblCaptionNetControlPort">
+                <property name="text">
+                 <string>Port for broadcasting run commands. Listeners subscribe to it.</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="1" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QSpinBox" name="sbNetControlPort">
+              <property name="minimum">
+               <number>1024</number>
+              </property>
+              <property name="maximum">
+               <number>65535</number>
+              </property>
+              <property name="value">
+               <number>5556</number>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <layout class="QVBoxLayout" name="vlRow5">
+              <property name="spacing">
+               <number>1</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="lblNetFeedbackPort">
+                <property name="text">
+                 <string>Feedback port</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+                <property name="buddy">
+                 <cstring>sbNetFeedbackPort</cstring>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="lblCaptionNetFeedbackPort">
+                <property name="text">
+                 <string>Port on which the controller receives acknowledgments from listeners.</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="2" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QSpinBox" name="sbNetFeedbackPort">
+              <property name="minimum">
+               <number>1024</number>
+              </property>
+              <property name="maximum">
+               <number>65535</number>
+              </property>
+              <property name="value">
+               <number>5557</number>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="0">
+             <layout class="QVBoxLayout" name="vlRow6">
+              <property name="spacing">
+               <number>1</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="lblNetHost">
+                <property name="text">
+                 <string>Controller host</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+                <property name="buddy">
+                 <cstring>leNetHost</cstring>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="lblCaptionNetHost">
+                <property name="text">
+                 <string>Hostname or IP address of the network controller. Only used in listener mode.</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="3" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QLineEdit" name="leNetHost">
+              <property name="minimumSize">
+               <size>
+                <width>200</width>
+                <height>0</height>
+               </size>
+              </property>
+              <property name="placeholderText">
+               <string>localhost</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="0">
+             <layout class="QVBoxLayout" name="vlRow7">
+              <property name="spacing">
+               <number>1</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="lblNetInstanceId">
+                <property name="text">
+                 <string>Instance ID</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+                <property name="buddy">
+                 <cstring>leNetInstanceId</cstring>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="lblCaptionNetInstanceId">
+                <property name="text">
+                 <string>Short unique identifier for this Syntalos instance.</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="4" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QLineEdit" name="leNetInstanceId">
+              <property name="minimumSize">
+               <size>
+                <width>200</width>
+                <height>0</height>
+               </size>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <spacer name="vSpacer5">
+            <property name="orientation">
+             <enum>Qt::Orientation::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>40</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
+       </widget>
+       <widget class="QScrollArea" name="pageSounds">
+        <property name="frameShape">
+         <enum>QFrame::Shape::NoFrame</enum>
+        </property>
+        <property name="horizontalScrollBarPolicy">
+         <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
+        </property>
+        <property name="widgetResizable">
+         <bool>true</bool>
+        </property>
+        <widget class="QWidget" name="pageSoundsContents">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>0</y>
+           <width>449</width>
+           <height>463</height>
+          </rect>
+         </property>
+         <layout class="QVBoxLayout" name="vlPageSounds">
+          <property name="spacing">
+           <number>8</number>
+          </property>
+          <property name="leftMargin">
+           <number>18</number>
+          </property>
+          <property name="topMargin">
+           <number>18</number>
+          </property>
+          <property name="rightMargin">
+           <number>18</number>
+          </property>
+          <property name="bottomMargin">
+           <number>18</number>
+          </property>
+          <item>
+           <widget class="QLabel" name="lblPageTitleSounds">
+            <property name="font">
+             <font>
+              <pointsize>14</pointsize>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>Sounds</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="lblCaptionSoundsIntro">
             <property name="text">
              <string>Sound cues can alert you about the state of an experiment while you are away from the setup.</string>
             </property>
@@ -389,44 +793,112 @@
            </widget>
           </item>
           <item>
-           <widget class="QGroupBox" name="groupBoxSoundOutput">
-            <property name="title">
+           <spacer name="vSpacer6">
+            <property name="orientation">
+             <enum>Qt::Orientation::Vertical</enum>
+            </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Policy::Fixed</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>18</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QLabel" name="lblSectionSoundOutput">
+            <property name="font">
+             <font>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
              <string>Output</string>
             </property>
-            <layout class="QFormLayout" name="formLayoutSoundOutput">
-             <property name="leftMargin">
-              <number>4</number>
-             </property>
-             <property name="topMargin">
-              <number>4</number>
-             </property>
-             <property name="rightMargin">
-              <number>4</number>
-             </property>
-             <property name="bottomMargin">
-              <number>4</number>
-             </property>
-             <item row="0" column="0">
-              <widget class="QLabel" name="soundDeviceLabel">
-               <property name="text">
-                <string>Audio device</string>
-               </property>
-              </widget>
-             </item>
-             <item row="0" column="1">
-              <widget class="QComboBox" name="cbSoundDevice"/>
-             </item>
-             <item row="1" column="0">
-              <widget class="QLabel" name="soundVolumeLabel">
-               <property name="text">
-                <string>Volume</string>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="1">
+           </widget>
+          </item>
+          <item>
+           <layout class="QGridLayout" name="glSection5" columnstretch="1,0">
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <property name="horizontalSpacing">
+             <number>24</number>
+            </property>
+            <property name="verticalSpacing">
+             <number>10</number>
+            </property>
+            <item row="0" column="0">
+             <widget class="QLabel" name="soundDeviceLabel">
+              <property name="text">
+               <string>Audio device</string>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+              <property name="buddy">
+               <cstring>cbSoundDevice</cstring>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QComboBox" name="cbSoundDevice">
+              <property name="minimumSize">
+               <size>
+                <width>200</width>
+                <height>0</height>
+               </size>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="soundVolumeLabel">
+              <property name="text">
+               <string>Volume</string>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+              <property name="buddy">
+               <cstring>slSoundVolume</cstring>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QWidget" name="widgetSoundVolume" native="true">
               <layout class="QHBoxLayout" name="horizontalLayoutVolume">
+               <property name="leftMargin">
+                <number>0</number>
+               </property>
+               <property name="topMargin">
+                <number>0</number>
+               </property>
+               <property name="rightMargin">
+                <number>0</number>
+               </property>
+               <property name="bottomMargin">
+                <number>0</number>
+               </property>
                <item>
                 <widget class="QSlider" name="slSoundVolume">
+                 <property name="minimumSize">
+                  <size>
+                   <width>200</width>
+                   <height>0</height>
+                  </size>
+                 </property>
                  <property name="maximum">
                   <number>100</number>
                  </property>
@@ -455,487 +927,177 @@
                 </widget>
                </item>
               </layout>
-             </item>
-            </layout>
-           </widget>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
-           <widget class="QGroupBox" name="groupBoxSoundCues">
-            <property name="title">
-             <string>Play a sound when</string>
-            </property>
-            <layout class="QGridLayout" name="gridLayoutSoundCues" columnstretch="1,0">
-             <property name="leftMargin">
-              <number>4</number>
-             </property>
-             <property name="topMargin">
-              <number>4</number>
-             </property>
-             <property name="rightMargin">
-              <number>4</number>
-             </property>
-             <property name="bottomMargin">
-              <number>4</number>
-             </property>
-             <item row="0" column="0">
-              <widget class="QCheckBox" name="cbCueRunStarted">
-               <property name="text">
-                <string>Experiment run started</string>
-               </property>
-              </widget>
-             </item>
-             <item row="0" column="1">
-              <widget class="QToolButton" name="btnCueRunStarted">
-               <property name="toolTip">
-                <string>Preview</string>
-               </property>
-               <property name="text">
-                <string>Preview</string>
-               </property>
-               <property name="icon">
-                <iconset theme="media-playback-start"/>
-               </property>
-               <property name="toolButtonStyle">
-                <enum>Qt::ToolButtonStyle::ToolButtonIconOnly</enum>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="0">
-              <widget class="QCheckBox" name="cbCueRunSuccess">
-               <property name="text">
-                <string>Run finished successfully</string>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="1">
-              <widget class="QToolButton" name="btnCueRunSuccess">
-               <property name="toolTip">
-                <string>Preview</string>
-               </property>
-               <property name="text">
-                <string>Preview</string>
-               </property>
-               <property name="icon">
-                <iconset theme="media-playback-start"/>
-               </property>
-               <property name="toolButtonStyle">
-                <enum>Qt::ToolButtonStyle::ToolButtonIconOnly</enum>
-               </property>
-              </widget>
-             </item>
-             <item row="2" column="0">
-              <widget class="QCheckBox" name="cbCueRunFailure">
-               <property name="text">
-                <string>Run failed</string>
-               </property>
-              </widget>
-             </item>
-             <item row="2" column="1">
-              <widget class="QToolButton" name="btnCueRunFailure">
-               <property name="toolTip">
-                <string>Preview</string>
-               </property>
-               <property name="text">
-                <string>Preview</string>
-               </property>
-               <property name="icon">
-                <iconset theme="media-playback-start"/>
-               </property>
-               <property name="toolButtonStyle">
-                <enum>Qt::ToolButtonStyle::ToolButtonIconOnly</enum>
-               </property>
-              </widget>
-             </item>
-             <item row="3" column="0">
-              <widget class="QCheckBox" name="cbCueResourceWarning">
-               <property name="text">
-                <string>Resource warning (disk space, memory, stream buffers)</string>
-               </property>
-              </widget>
-             </item>
-             <item row="3" column="1">
-              <widget class="QToolButton" name="btnCueResourceWarning">
-               <property name="toolTip">
-                <string>Preview</string>
-               </property>
-               <property name="text">
-                <string>Preview</string>
-               </property>
-               <property name="icon">
-                <iconset theme="media-playback-start"/>
-               </property>
-               <property name="toolButtonStyle">
-                <enum>Qt::ToolButtonStyle::ToolButtonIconOnly</enum>
-               </property>
-              </widget>
-             </item>
-             <item row="4" column="0">
-              <widget class="QCheckBox" name="cbCueModuleFailed">
-               <property name="text">
-                <string>Module failed (also if its failure does not stop the run)</string>
-               </property>
-              </widget>
-             </item>
-             <item row="4" column="1">
-              <widget class="QToolButton" name="btnCueModuleFailed">
-               <property name="toolTip">
-                <string>Preview</string>
-               </property>
-               <property name="text">
-                <string>Preview</string>
-               </property>
-               <property name="icon">
-                <iconset theme="media-playback-start"/>
-               </property>
-               <property name="toolButtonStyle">
-                <enum>Qt::ToolButtonStyle::ToolButtonIconOnly</enum>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item>
-           <spacer name="verticalSpacerSounds">
+           <spacer name="vSpacer7">
             <property name="orientation">
              <enum>Qt::Orientation::Vertical</enum>
+            </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Policy::Fixed</enum>
             </property>
             <property name="sizeHint" stdset="0">
              <size>
               <width>20</width>
-              <height>398</height>
+              <height>18</height>
              </size>
             </property>
            </spacer>
           </item>
-         </layout>
-        </widget>
-       </item>
-       <item>
-        <spacer name="horizontalSpacerSounds">
-         <property name="orientation">
-          <enum>Qt::Orientation::Horizontal</enum>
-         </property>
-         <property name="sizeType">
-          <enum>QSizePolicy::Policy::Expanding</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>500</width>
-           <height>0</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-      </layout>
-     </widget>
-     <widget class="QWidget" name="tabAdvanced">
-      <attribute name="icon">
-       <iconset theme="blur"/>
-      </attribute>
-      <attribute name="title">
-       <string>Advanced</string>
-      </attribute>
-      <layout class="QHBoxLayout" name="horizontalLayout_2">
-       <item>
-        <widget class="QWidget" name="widget_2" native="true">
-         <layout class="QVBoxLayout" name="verticalLayout_7">
-          <property name="leftMargin">
-           <number>4</number>
-          </property>
-          <property name="topMargin">
-           <number>4</number>
-          </property>
-          <property name="rightMargin">
-           <number>4</number>
-          </property>
-          <property name="bottomMargin">
-           <number>4</number>
-          </property>
           <item>
-           <widget class="QGroupBox" name="groupBox_2">
-            <property name="title">
-             <string>OS Scheduling</string>
+           <widget class="QLabel" name="lblSectionSoundCues">
+            <property name="font">
+             <font>
+              <bold>true</bold>
+             </font>
             </property>
-            <layout class="QFormLayout" name="formLayout_2">
-             <property name="verticalSpacing">
-              <number>6</number>
-             </property>
-             <property name="leftMargin">
-              <number>4</number>
-             </property>
-             <property name="topMargin">
-              <number>4</number>
-             </property>
-             <property name="rightMargin">
-              <number>4</number>
-             </property>
-             <property name="bottomMargin">
-              <number>4</number>
-             </property>
-             <item row="0" column="0">
-              <widget class="QLabel" name="minDefaultNicenessLabel">
-               <property name="text">
-                <string>Default thread niceness</string>
-               </property>
-              </widget>
-             </item>
-             <item row="0" column="1">
-              <widget class="QSpinBox" name="defaultNicenessSpinBox">
-               <property name="toolTip">
-                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Some module threads run with a higher priority (lower niceness) than others, in order to be preferred for data acquisition.&lt;/p&gt;&lt;p&gt;You can adjust their default priority here.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-               </property>
-               <property name="minimum">
-                <number>-20</number>
-               </property>
-               <property name="maximum">
-                <number>0</number>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="0">
-              <widget class="QLabel" name="defaultRTPrioLabel">
-               <property name="text">
-                <string>Default realtime priority for RT threads</string>
-               </property>
-              </widget>
-             </item>
-             <item row="1" column="1">
-              <widget class="QSpinBox" name="defaultRTPrioSpinBox">
-               <property name="toolTip">
-                <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;Some module threads can request realtime scheduling, to make data acquisition more immediate.&lt;/p&gt;&lt;p&gt;You can set their default realtime scheduling priority here.&lt;/p&gt;&lt;p&gt;Values are limited by system defaults in RealtimeKit.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
-               </property>
-               <property name="maximum">
-                <number>20</number>
-               </property>
-               <property name="value">
-                <number>10</number>
-               </property>
-              </widget>
-             </item>
-             <item row="2" column="0">
-              <widget class="QLabel" name="explicitlySetCPUCoreAffinitiesLabel">
-               <property name="text">
-                <string>Explicitly set CPU core affinities</string>
-               </property>
-              </widget>
-             </item>
-             <item row="2" column="1">
-              <widget class="QWidget" name="widget_4" native="true">
-               <property name="minimumSize">
-                <size>
-                 <width>0</width>
-                 <height>22</height>
-                </size>
-               </property>
-               <layout class="QHBoxLayout" name="horizontalLayout_4">
-                <property name="spacing">
-                 <number>2</number>
-                </property>
-                <property name="leftMargin">
-                 <number>0</number>
-                </property>
-                <property name="topMargin">
-                 <number>0</number>
-                </property>
-                <property name="rightMargin">
-                 <number>0</number>
-                </property>
-                <property name="bottomMargin">
-                 <number>0</number>
-                </property>
-                <item>
-                 <widget class="QCheckBox" name="explicitCoreAffinitiesCheckBox"/>
-                </item>
-                <item>
-                 <widget class="QPushButton" name="cpuAffinityWarnButton">
-                  <property name="text">
-                   <string/>
-                  </property>
-                  <property name="icon">
-                   <iconset theme="emblem-warning">
-                    <normaloff>../modules/videorecorder</normaloff>../modules/videorecorder</iconset>
-                  </property>
-                  <property name="iconSize">
-                   <size>
-                    <width>16</width>
-                    <height>16</height>
-                   </size>
-                  </property>
-                  <property name="flat">
-                   <bool>true</bool>
-                  </property>
-                 </widget>
-                </item>
-               </layout>
-              </widget>
-             </item>
-            </layout>
+            <property name="text">
+             <string>Play a sound when…</string>
+            </property>
            </widget>
           </item>
           <item>
-           <spacer name="verticalSpacer_3">
-            <property name="orientation">
-             <enum>Qt::Orientation::Vertical</enum>
+           <layout class="QGridLayout" name="glSection4" columnstretch="1,0">
+            <property name="leftMargin">
+             <number>0</number>
             </property>
-            <property name="sizeHint" stdset="0">
-             <size>
-              <width>20</width>
-              <height>363</height>
-             </size>
+            <property name="topMargin">
+             <number>0</number>
             </property>
-           </spacer>
-          </item>
-         </layout>
-        </widget>
-       </item>
-       <item>
-        <spacer name="horizontalSpacer_2">
-         <property name="orientation">
-          <enum>Qt::Orientation::Horizontal</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>333</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-      </layout>
-     </widget>
-     <widget class="QWidget" name="tabDevel">
-      <attribute name="icon">
-       <iconset theme="code-context"/>
-      </attribute>
-      <attribute name="title">
-       <string>Developer</string>
-      </attribute>
-      <layout class="QHBoxLayout" name="horizontalLayout_3">
-       <item>
-        <widget class="QWidget" name="widget_3" native="true">
-         <layout class="QVBoxLayout" name="verticalLayout_3">
-          <property name="leftMargin">
-           <number>0</number>
-          </property>
-          <property name="topMargin">
-           <number>0</number>
-          </property>
-          <property name="rightMargin">
-           <number>0</number>
-          </property>
-          <item>
-           <widget class="QGroupBox" name="groupBox">
-            <property name="title">
-             <string>Debugging</string>
+            <property name="rightMargin">
+             <number>0</number>
             </property>
-            <layout class="QVBoxLayout" name="verticalLayout_2">
-             <property name="spacing">
-              <number>6</number>
-             </property>
-             <property name="leftMargin">
-              <number>4</number>
-             </property>
-             <property name="topMargin">
-              <number>4</number>
-             </property>
-             <property name="rightMargin">
-              <number>4</number>
-             </property>
-             <property name="bottomMargin">
-              <number>4</number>
-             </property>
-             <item>
-              <widget class="QCheckBox" name="cbDisplayDevModules">
-               <property name="text">
-                <string>Display developer modules in module select dialog</string>
-               </property>
-              </widget>
-             </item>
-             <item>
-              <widget class="QCheckBox" name="cbSaveDiagnostic">
-               <property name="text">
-                <string>Save additional diagnostic data with experiment</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
-          </item>
-          <item>
-           <widget class="QGroupBox" name="groupBox_4">
-            <property name="title">
-             <string>Python</string>
+            <property name="bottomMargin">
+             <number>0</number>
             </property>
-            <layout class="QVBoxLayout" name="verticalLayout_8">
-             <property name="spacing">
-              <number>6</number>
-             </property>
-             <property name="leftMargin">
-              <number>4</number>
-             </property>
-             <property name="topMargin">
-              <number>4</number>
-             </property>
-             <property name="rightMargin">
-              <number>4</number>
-             </property>
-             <property name="bottomMargin">
-              <number>4</number>
-             </property>
-             <item>
-              <widget class="QWidget" name="widget_5" native="true">
-               <layout class="QHBoxLayout" name="horizontalLayout_5">
-                <property name="spacing">
-                 <number>4</number>
-                </property>
-                <property name="leftMargin">
-                 <number>0</number>
-                </property>
-                <property name="topMargin">
-                 <number>0</number>
-                </property>
-                <property name="rightMargin">
-                 <number>0</number>
-                </property>
-                <property name="bottomMargin">
-                 <number>0</number>
-                </property>
-                <item>
-                 <widget class="QLabel" name="label_2">
-                  <property name="text">
-                   <string>Module Developer Directory:</string>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QPushButton" name="btnCreateDevDir">
-                  <property name="text">
-                   <string>Create directory in current user home</string>
-                  </property>
-                  <property name="checkable">
-                   <bool>true</bool>
-                  </property>
-                  <property name="flat">
-                   <bool>true</bool>
-                  </property>
-                 </widget>
-                </item>
-               </layout>
-              </widget>
-             </item>
-             <item>
-              <widget class="QCheckBox" name="cbPythonVenvForScripts">
-               <property name="text">
-                <string>Use &quot;base&quot; virtual environment for generic Python script module</string>
-               </property>
-              </widget>
-             </item>
-            </layout>
-           </widget>
+            <property name="horizontalSpacing">
+             <number>24</number>
+            </property>
+            <property name="verticalSpacing">
+             <number>4</number>
+            </property>
+            <item row="0" column="0">
+             <widget class="QCheckBox" name="cbCueRunStarted">
+              <property name="text">
+               <string>Experiment run started</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QToolButton" name="btnCueRunStarted">
+              <property name="text">
+               <string>Preview</string>
+              </property>
+              <property name="icon">
+               <iconset theme="media-playback-start"/>
+              </property>
+              <property name="toolButtonStyle">
+               <enum>Qt::ToolButtonStyle::ToolButtonIconOnly</enum>
+              </property>
+              <property name="autoRaise">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QCheckBox" name="cbCueRunSuccess">
+              <property name="text">
+               <string>Run finished successfully</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QToolButton" name="btnCueRunSuccess">
+              <property name="text">
+               <string>Preview</string>
+              </property>
+              <property name="icon">
+               <iconset theme="media-playback-start"/>
+              </property>
+              <property name="toolButtonStyle">
+               <enum>Qt::ToolButtonStyle::ToolButtonIconOnly</enum>
+              </property>
+              <property name="autoRaise">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="QCheckBox" name="cbCueRunFailure">
+              <property name="text">
+               <string>Run failed</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QToolButton" name="btnCueRunFailure">
+              <property name="text">
+               <string>Preview</string>
+              </property>
+              <property name="icon">
+               <iconset theme="media-playback-start"/>
+              </property>
+              <property name="toolButtonStyle">
+               <enum>Qt::ToolButtonStyle::ToolButtonIconOnly</enum>
+              </property>
+              <property name="autoRaise">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="0">
+             <widget class="QCheckBox" name="cbCueResourceWarning">
+              <property name="text">
+               <string>Resource warning (disk space, memory, stream buffers)</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QToolButton" name="btnCueResourceWarning">
+              <property name="text">
+               <string>Preview</string>
+              </property>
+              <property name="icon">
+               <iconset theme="media-playback-start"/>
+              </property>
+              <property name="toolButtonStyle">
+               <enum>Qt::ToolButtonStyle::ToolButtonIconOnly</enum>
+              </property>
+              <property name="autoRaise">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="0">
+             <widget class="QCheckBox" name="cbCueModuleFailed">
+              <property name="text">
+               <string>Module failed (also if its failure does not stop the run)</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QToolButton" name="btnCueModuleFailed">
+              <property name="text">
+               <string>Preview</string>
+              </property>
+              <property name="icon">
+               <iconset theme="media-playback-start"/>
+              </property>
+              <property name="toolButtonStyle">
+               <enum>Qt::ToolButtonStyle::ToolButtonIconOnly</enum>
+              </property>
+              <property name="autoRaise">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </item>
           <item>
-           <spacer name="verticalSpacer">
+           <spacer name="vSpacer8">
             <property name="orientation">
              <enum>Qt::Orientation::Vertical</enum>
             </property>
@@ -949,33 +1111,541 @@
           </item>
          </layout>
         </widget>
-       </item>
-       <item>
-        <spacer name="horizontalSpacer_3">
-         <property name="orientation">
-          <enum>Qt::Orientation::Horizontal</enum>
+       </widget>
+       <widget class="QScrollArea" name="pageAdvanced">
+        <property name="frameShape">
+         <enum>QFrame::Shape::NoFrame</enum>
+        </property>
+        <property name="horizontalScrollBarPolicy">
+         <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
+        </property>
+        <property name="widgetResizable">
+         <bool>true</bool>
+        </property>
+        <widget class="QWidget" name="pageAdvancedContents">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>0</y>
+           <width>675</width>
+           <height>513</height>
+          </rect>
          </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>343</width>
-           <height>20</height>
-          </size>
+         <layout class="QVBoxLayout" name="vlPageAdvanced">
+          <property name="spacing">
+           <number>8</number>
+          </property>
+          <property name="leftMargin">
+           <number>18</number>
+          </property>
+          <property name="topMargin">
+           <number>18</number>
+          </property>
+          <property name="rightMargin">
+           <number>18</number>
+          </property>
+          <property name="bottomMargin">
+           <number>18</number>
+          </property>
+          <item>
+           <widget class="QLabel" name="lblPageTitleAdvanced">
+            <property name="font">
+             <font>
+              <pointsize>14</pointsize>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>Advanced</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="vSpacer9">
+            <property name="orientation">
+             <enum>Qt::Orientation::Vertical</enum>
+            </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Policy::Fixed</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>10</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QLabel" name="lblSectionScheduling">
+            <property name="font">
+             <font>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>OS Scheduling</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QGridLayout" name="glSection6" columnstretch="1,0">
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <property name="horizontalSpacing">
+             <number>24</number>
+            </property>
+            <property name="verticalSpacing">
+             <number>10</number>
+            </property>
+            <item row="0" column="0">
+             <layout class="QVBoxLayout" name="vlRow8">
+              <property name="spacing">
+               <number>1</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="minDefaultNicenessLabel">
+                <property name="text">
+                 <string>Default thread niceness</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+                <property name="buddy">
+                 <cstring>defaultNicenessSpinBox</cstring>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="lblCaptionNiceness">
+                <property name="text">
+                 <string>Some module threads run with a higher priority (lower niceness) than others, to be preferred for data acquisition. This sets their default priority.</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="0" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QSpinBox" name="defaultNicenessSpinBox">
+              <property name="minimum">
+               <number>-20</number>
+              </property>
+              <property name="maximum">
+               <number>0</number>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <layout class="QVBoxLayout" name="vlRow9">
+              <property name="spacing">
+               <number>1</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="defaultRTPrioLabel">
+                <property name="text">
+                 <string>Default realtime priority</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+                <property name="buddy">
+                 <cstring>defaultRTPrioSpinBox</cstring>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="lblCaptionRTPrio">
+                <property name="text">
+                 <string>Default scheduling priority for module threads that request realtime scheduling. The permitted range is limited by RealtimeKit.</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="1" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QSpinBox" name="defaultRTPrioSpinBox">
+              <property name="minimum">
+               <number>0</number>
+              </property>
+              <property name="maximum">
+               <number>20</number>
+              </property>
+              <property name="value">
+               <number>10</number>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <layout class="QVBoxLayout" name="vlRow10">
+              <property name="spacing">
+               <number>1</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="explicitlySetCPUCoreAffinitiesLabel">
+                <property name="text">
+                 <string>Explicitly set CPU core affinities</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+                <property name="buddy">
+                 <cstring>explicitCoreAffinitiesCheckBox</cstring>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="lblCaptionCpuAffinity">
+                <property name="text">
+                 <string>Bind module threads to specific CPU cores.</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="lblCaptionCpuAffinityWarning">
+                <property name="text">
+                 <string>&lt;html&gt;Explicit core affinities can improve latency, but may also severely degrade performance. It is not recommended for most setups. &lt;a href=&quot;#info&quot;&gt;Learn more…&lt;/a&gt;&lt;/html&gt;</string>
+                </property>
+                <property name="textFormat">
+                 <enum>Qt::TextFormat::RichText</enum>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="2" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QCheckBox" name="explicitCoreAffinitiesCheckBox"/>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <spacer name="vSpacer10">
+            <property name="orientation">
+             <enum>Qt::Orientation::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>40</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
+       </widget>
+       <widget class="QScrollArea" name="pageDevel">
+        <property name="frameShape">
+         <enum>QFrame::Shape::NoFrame</enum>
+        </property>
+        <property name="horizontalScrollBarPolicy">
+         <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
+        </property>
+        <property name="widgetResizable">
+         <bool>true</bool>
+        </property>
+        <widget class="QWidget" name="pageDevelContents">
+         <property name="geometry">
+          <rect>
+           <x>0</x>
+           <y>0</y>
+           <width>393</width>
+           <height>627</height>
+          </rect>
          </property>
-        </spacer>
-       </item>
-      </layout>
-     </widget>
-    </widget>
+         <layout class="QVBoxLayout" name="vlPageDevel">
+          <property name="spacing">
+           <number>8</number>
+          </property>
+          <property name="leftMargin">
+           <number>18</number>
+          </property>
+          <property name="topMargin">
+           <number>18</number>
+          </property>
+          <property name="rightMargin">
+           <number>18</number>
+          </property>
+          <property name="bottomMargin">
+           <number>18</number>
+          </property>
+          <item>
+           <widget class="QLabel" name="lblPageTitleDevel">
+            <property name="font">
+             <font>
+              <pointsize>14</pointsize>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>Developer</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="vSpacer11">
+            <property name="orientation">
+             <enum>Qt::Orientation::Vertical</enum>
+            </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Policy::Fixed</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>10</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QLabel" name="lblSectionDebugging">
+            <property name="font">
+             <font>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>Debugging</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QGridLayout" name="glSection7" columnstretch="1,0">
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <property name="horizontalSpacing">
+             <number>24</number>
+            </property>
+            <property name="verticalSpacing">
+             <number>10</number>
+            </property>
+            <item row="0" column="0">
+             <widget class="QLabel" name="lblDisplayDevModules">
+              <property name="text">
+               <string>Show developer modules in the module selection</string>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+              <property name="buddy">
+               <cstring>cbDisplayDevModules</cstring>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QCheckBox" name="cbDisplayDevModules"/>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="lblSaveDiagnostic">
+              <property name="text">
+               <string>Save additional diagnostic data with experiments</string>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+              <property name="buddy">
+               <cstring>cbSaveDiagnostic</cstring>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QCheckBox" name="cbSaveDiagnostic"/>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <spacer name="vSpacer12">
+            <property name="orientation">
+             <enum>Qt::Orientation::Vertical</enum>
+            </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Policy::Fixed</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>18</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QLabel" name="lblSectionPython">
+            <property name="font">
+             <font>
+              <bold>true</bold>
+             </font>
+            </property>
+            <property name="text">
+             <string>Python</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <layout class="QGridLayout" name="glSection8" columnstretch="1,0">
+            <property name="leftMargin">
+             <number>0</number>
+            </property>
+            <property name="topMargin">
+             <number>0</number>
+            </property>
+            <property name="rightMargin">
+             <number>0</number>
+            </property>
+            <property name="bottomMargin">
+             <number>0</number>
+            </property>
+            <property name="horizontalSpacing">
+             <number>24</number>
+            </property>
+            <property name="verticalSpacing">
+             <number>10</number>
+            </property>
+            <item row="0" column="0">
+             <layout class="QVBoxLayout" name="vlRow11">
+              <property name="spacing">
+               <number>1</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="lblCreateDevDir">
+                <property name="text">
+                 <string>Module developer directory</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+                <property name="buddy">
+                 <cstring>btnCreateDevDir</cstring>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="lblCaptionCreateDevDir">
+                <property name="text">
+                 <string>Creates a directory in your home folder with links to the Python virtual environments and user modules.</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="0" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QPushButton" name="btnCreateDevDir">
+              <property name="text">
+               <string>Create directory in current user home</string>
+              </property>
+              <property name="checkable">
+               <bool>true</bool>
+              </property>
+              <property name="flat">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="lblPythonVenvForScripts">
+              <property name="text">
+               <string>Use &quot;base&quot; virtual environment for the Python script module</string>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+              <property name="buddy">
+               <cstring>cbPythonVenvForScripts</cstring>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignVCenter">
+             <widget class="QCheckBox" name="cbPythonVenvForScripts"/>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <spacer name="vSpacer13">
+            <property name="orientation">
+             <enum>Qt::Orientation::Vertical</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>20</width>
+              <height>40</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+         </layout>
+        </widget>
+       </widget>
+      </widget>
+     </item>
+    </layout>
    </item>
    <item>
-    <widget class="QDialogButtonBox" name="buttonBox">
+    <widget class="Line" name="buttonSeparator">
      <property name="orientation">
       <enum>Qt::Orientation::Horizontal</enum>
      </property>
-     <property name="standardButtons">
-      <set>QDialogButtonBox::StandardButton::Close</set>
-     </property>
     </widget>
+   </item>
+   <item>
+    <layout class="QVBoxLayout" name="buttonBoxLayout">
+     <property name="leftMargin">
+      <number>8</number>
+     </property>
+     <property name="topMargin">
+      <number>8</number>
+     </property>
+     <property name="rightMargin">
+      <number>8</number>
+     </property>
+     <property name="bottomMargin">
+      <number>8</number>
+     </property>
+     <item>
+      <widget class="QDialogButtonBox" name="buttonBox">
+       <property name="orientation">
+        <enum>Qt::Orientation::Horizontal</enum>
+       </property>
+       <property name="standardButtons">
+        <set>QDialogButtonBox::StandardButton::Close</set>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
   </layout>
  </widget>
@@ -1004,11 +1674,11 @@
    <slot>reject()</slot>
    <hints>
     <hint type="sourcelabel">
-     <x>316</x>
-     <y>260</y>
+     <x>248</x>
+     <y>254</y>
     </hint>
     <hint type="destinationlabel">
-     <x>286</x>
+     <x>157</x>
      <y>274</y>
     </hint>
    </hints>

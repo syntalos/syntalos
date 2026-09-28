@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -24,6 +24,8 @@
 #include <tuple>
 #include <QCheckBox>
 #include <QDir>
+#include <QEvent>
+#include <QLabel>
 #include <QMessageBox>
 #include <QSignalBlocker>
 #include <QStandardPaths>
@@ -48,8 +50,11 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent)
 
     RtKit rtkit;
 
+    setupPageStyles();
+
     // ensure we always show the first page when opening
-    ui->tabWidget->setCurrentIndex(0);
+    connect(ui->pageList, &QListWidget::currentRowChanged, ui->pageStack, &QStackedWidget::setCurrentIndex);
+    ui->pageList->setCurrentRow(0);
 
     // general section
     ui->colorModeComboBox->clear();
@@ -67,6 +72,7 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent)
     ui->sbNetFeedbackPort->setValue(m_gc->netFeedbackPort());
     ui->leNetHost->setText(m_gc->netControlHost());
     ui->leNetInstanceId->setText(m_gc->instanceId());
+    updateNetControlWidgetsState();
 
     // sounds section
     setupSoundCueControls();
@@ -80,7 +86,7 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent)
     ui->defaultRTPrioSpinBox->setMinimum(1);
     ui->defaultRTPrioSpinBox->setValue(m_gc->defaultRTThreadPriority());
 
-    ui->cpuAffinityWarnButton->setVisible(false);
+    connect(ui->lblCaptionCpuAffinityWarning, &QLabel::linkActivated, this, &GlobalConfigDialog::showCpuAffinityInfo);
     ui->explicitCoreAffinitiesCheckBox->setChecked(m_gc->explicitCoreAffinities());
 
     // devel section
@@ -96,6 +102,82 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent)
 GlobalConfigDialog::~GlobalConfigDialog()
 {
     delete ui;
+}
+
+void GlobalConfigDialog::setupPageStyles()
+{
+    // give the sidebar entries some room, similar to system settings panels
+    const auto itemHeight = qMax(ui->pageList->iconSize().height(), ui->pageList->fontMetrics().height()) + 14;
+    for (int i = 0; i < ui->pageList->count(); ++i)
+        ui->pageList->item(i)->setSizeHint(QSize(0, itemHeight));
+
+    // derive sizes from the dialog font, so font sizes from the .ui file are not scaled
+    // a second time and the labels still follow the user's system font size
+    const auto baseFont = font();
+    for (auto label : findChildren<QLabel *>()) {
+        const auto name = label->objectName();
+        auto font = baseFont;
+        if (name.startsWith(QStringLiteral("lblPageTitle"))) {
+            font.setPointSizeF(font.pointSizeF() * 1.4);
+            font.setBold(true);
+        } else if (name.startsWith(QStringLiteral("lblSection"))) {
+            font.setBold(true);
+        } else if (name.startsWith(QStringLiteral("lblCaption"))) {
+            font.setPointSizeF(font.pointSizeF() * 0.9);
+        } else {
+            continue;
+        }
+        label->setFont(font);
+    }
+
+    updateCaptionColors();
+}
+
+void GlobalConfigDialog::updateCaptionColors()
+{
+    // captions use a dimmed variant of the regular text color, which we derive from the current
+    // palette so it stays readable when the color scheme is changed while the dialog is open
+    const auto &dlgPal = palette();
+    for (auto label : findChildren<QLabel *>()) {
+        if (!label->objectName().startsWith(QStringLiteral("lblCaption")))
+            continue;
+        auto pal = label->palette();
+        for (const auto group : {QPalette::Active, QPalette::Inactive}) {
+            auto dimColor = dlgPal.color(group, QPalette::WindowText);
+            dimColor.setAlphaF(0.7);
+            pal.setColor(group, QPalette::WindowText, dimColor);
+        }
+        pal.setColor(QPalette::Disabled, QPalette::WindowText, dlgPal.color(QPalette::Disabled, QPalette::WindowText));
+        label->setPalette(pal);
+    }
+}
+
+void GlobalConfigDialog::changeEvent(QEvent *event)
+{
+    QDialog::changeEvent(event);
+    if (event->type() == QEvent::PaletteChange)
+        updateCaptionColors();
+}
+
+void GlobalConfigDialog::updateNetControlWidgetsState()
+{
+    const auto enabled = ui->cbNetEnabled->isChecked();
+    const std::array<QWidget *, 12> netWidgets = {
+        ui->portLabel,
+        ui->sbNetControlPort,
+        ui->lblCaptionNetControlPort,
+        ui->lblNetFeedbackPort,
+        ui->sbNetFeedbackPort,
+        ui->lblCaptionNetFeedbackPort,
+        ui->lblNetHost,
+        ui->leNetHost,
+        ui->lblCaptionNetHost,
+        ui->lblNetInstanceId,
+        ui->leNetInstanceId,
+        ui->lblCaptionNetInstanceId,
+    };
+    for (auto widget : netWidgets)
+        widget->setEnabled(enabled);
 }
 
 void GlobalConfigDialog::on_colorModeComboBox_currentIndexChanged(int index)
@@ -133,6 +215,7 @@ void GlobalConfigDialog::on_sbDiskSpaceWarnMinutes_valueChanged(int value)
 
 void GlobalConfigDialog::on_cbNetEnabled_toggled(bool checked)
 {
+    updateNetControlWidgetsState();
     if (m_acceptChanges)
         m_gc->setNetControlEnabled(checked);
 }
@@ -259,10 +342,9 @@ void GlobalConfigDialog::on_explicitCoreAffinitiesCheckBox_toggled(bool checked)
 {
     if (m_acceptChanges)
         m_gc->setExplicitCoreAffinities(checked);
-    ui->cpuAffinityWarnButton->setVisible(checked);
 }
 
-void GlobalConfigDialog::on_cpuAffinityWarnButton_clicked()
+void GlobalConfigDialog::showCpuAffinityInfo()
 {
     QMessageBox::information(
         this,
@@ -304,6 +386,9 @@ void GlobalConfigDialog::updateCreateDevDirButtonState()
         ui->btnCreateDevDir->setText("Directory exists (click to update)");
     else
         ui->btnCreateDevDir->setText("Create directory in home directory");
+    ui->lblCaptionCreateDevDir->setText(
+        QStringLiteral("Links to the Python virtual environments and user modules in <code>%1</code>.")
+            .arg(m_gc->homeDevelDir().toHtmlEscaped()));
 }
 
 void GlobalConfigDialog::on_btnCreateDevDir_clicked()

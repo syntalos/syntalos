@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2020-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -59,7 +59,7 @@ private slots:
     void on_defaultNicenessSpinBox_valueChanged(int arg1);
     void on_defaultRTPrioSpinBox_valueChanged(int arg1);
     void on_explicitCoreAffinitiesCheckBox_toggled(bool checked);
-    void on_cpuAffinityWarnButton_clicked();
+    void showCpuAffinityInfo();
 
     void on_cbDisplayDevModules_toggled(bool checked);
     void on_cbSaveDiagnostic_toggled(bool checked);
@@ -69,7 +69,13 @@ private slots:
 signals:
     void defaultColorSchemeChanged();
 
+protected:
+    void changeEvent(QEvent *event) override;
+
 private:
+    void setupPageStyles();
+    void updateCaptionColors();
+    void updateNetControlWidgetsState();
     void updateCreateDevDirButtonState();
     void setupSoundCueControls();
     void refreshSoundDeviceList();
