@@ -10,23 +10,31 @@
 
   <description>
     <p>
-      Syntalos is a software for timestamp-synchronized parallel data acquisition from diverse data sources,
-      such as cameras, microendoscopes, Intan electrophysiology amplifiers or Firmata-based serial interfaces.
-      The software also allows closed-loop interventions via its built-in Python scripting support.
-      It is specifically designed for use in (neuro)scientific in vivo behavior experiments.
+      Syntalos is a software for timestamp-synchronized parallel data acquisition from diverse data sources
+      and for closed-loop interventions.
+      Among many other things, Syntalos supports:
     </p>
+    <ul>
+      <li>Intan RHD/RHS systems, Open Ephys acquisition boards, and Neuropixels probes via remote SpikeGLX</li>
+      <li>UCLA Miniscopes for calcium imaging in freely moving animals</li>
+      <li>Many industrial and generic cameras</li>
+      <li>Microcontrollers and I/O boards via Firmata or MicroPython</li>
+      <li>Online signal and video processing</li>
+    </ul>
     <p>
-      The modularity of this software allows its use for a wide variety of experiments and it often can be used without
-      any programming skills. Data sources, sinks and processing blocks can be connected graphically with virtual
-      "wires" to form a data flow graph using drag &amp; drop, to represent how data should be acquired, displayed
-      or stored.
-      Syntalos can be expanded with custom Python scripts and custom modules if more flexibility is needed.
+      The modularity of Syntalos allows it to be used for a wide variety of experiments, and it often can be used
+      without any programming skills. Data sources, sinks, and processing blocks can be connected graphically with
+      virtual  "wires" to form a data flow graph using drag &amp; drop, to represent how data should be acquired,
+      displayed, or stored.
+      If more flexibility is needed, Syntalos can be extended with Python scripts, live-programmed microcontrollers,
+      or custom modules written in Python or C++.
       For all data sources, Syntalos ensures timestamps of incoming data are aligned, so the individual pieces of
-      data can be correlated without additional processig or external synchronization.
+      data can be correlated without additional processing or external synchronization.
+      Multiple Syntalos instances on different computers can also be started and stopped in sync over the network.
     </p>
     <p>
       All data and metadata generated from an experiment run is stored in a well-defined, comprehensive structure,
-      making it easy to compare, pool or share data between experimentalists with different research questions.
+      making it easy to compare, pool, or share data between experimentalists with different research questions.
     </p>
   </description>
 
@@ -34,12 +42,35 @@
 
   <url type="homepage">https://syntalos.org/</url>
   <url type="bugtracker">https://github.com/syntalos/syntalos/issues</url>
+  <url type="help">https://syntalos.org/docs/</url>
+  <url type="vcs-browser">https://github.com/syntalos/syntalos</url>
+  <url type="contribute">https://github.com/syntalos/syntalos/blob/master/CONTRIBUTING.md</url>
 
   <developer id="net.tenstral">
     <name translate="no">Matthias Klumpp</name>
   </developer>
 
   <content_rating type="oars-1.1" />
+
+  <keywords>
+    <keyword>neuroscience</keyword>
+    <keyword>electrophysiology</keyword>
+    <keyword>behavior</keyword>
+    <keyword>data acquisition</keyword>
+    <keyword>DAQ</keyword>
+    <keyword>synchronization</keyword>
+    <keyword>closed-loop</keyword>
+    <keyword>experiment</keyword>
+    <keyword>camera</keyword>
+    <keyword>Miniscope</keyword>
+    <keyword>Neuropixels</keyword>
+    <keyword>Intan</keyword>
+    <keyword>Open Ephys</keyword>
+  </keywords>
+
+  <references>
+    <doi>10.1038/s41467-025-56081-9</doi>
+  </references>
 
   <replaces>
     <id>io.github.bothlab.syntalos</id>
