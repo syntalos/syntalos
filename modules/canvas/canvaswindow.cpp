@@ -19,6 +19,7 @@
 
 #include "canvaswindow.h"
 
+#include <QCloseEvent>
 #include <QHBoxLayout>
 #include <QVBoxLayout>
 #include <QIcon>
@@ -413,6 +414,14 @@ void CanvasWindow::updateHistogram()
     }
 
     m_histogramWidget->swapHistograms(grayscale);
+}
+
+void CanvasWindow::closeEvent(QCloseEvent *event)
+{
+    // Do not leave a context bound to a GLX drawable that closing this window destroys.
+    m_imgView->doneCurrent();
+    m_histogramWidget->doneCurrent();
+    QWidget::closeEvent(event);
 }
 
 void CanvasWindow::enterEvent(QEnterEvent *event)
