@@ -31,6 +31,7 @@ namespace Ui
 {
 class PlotWindow;
 }
+class QCloseEvent;
 
 using namespace Syntalos;
 
@@ -56,6 +57,9 @@ public:
     void setBufferSize(int kitems);
 
     void refreshChannelTable();
+
+protected:
+    void closeEvent(QCloseEvent *event) override;
 
 private slots:
     void on_settingsDisplayBtn_clicked();

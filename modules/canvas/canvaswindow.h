@@ -30,6 +30,7 @@ class HistogramWidget;
 class QLabel;
 class QTimer;
 class QCheckBox;
+class QCloseEvent;
 
 using namespace Syntalos;
 
@@ -62,6 +63,7 @@ public:
     void setHistogramLogarithmic(bool logarithmic);
 
 protected:
+    void closeEvent(QCloseEvent *event) override;
     void enterEvent(QEnterEvent *event) override;
     void leaveEvent(QEvent *event) override;
 
