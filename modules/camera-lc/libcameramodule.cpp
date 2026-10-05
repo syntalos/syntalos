@@ -259,7 +259,7 @@ public:
     void usbHotplugEvent(UsbHotplugEventKind) override
     {
         // the camera is in use by a run, so we must not query or reconfigure it
-        if (hasActiveWorker())
+        if (hasWorker())
             return;
         m_camSettingsWindow->updateValues();
     }

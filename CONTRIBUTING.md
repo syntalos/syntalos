@@ -289,7 +289,7 @@ class MyModule : public AbstractModule
   start signal at that point, so it can be changed safely. This is not possible at any other time.
 - `stop()` is only called once the worker has finished. Use `takeWorker<Worker>()` there to read back results,
   like counters for `setRunStatistic()` or files that need to be closed.
-- `hasActiveWorker()` is true from `setWorker()` until the worker was taken or `stop()` has returned.
+- `hasWorker()` is true from `setWorker()` until the worker was taken or `stop()` has returned.
 
 ---
 

@@ -950,7 +950,7 @@ protected:
     /**
      * @brief True while this module has a worker for a run.
      */
-    bool hasActiveWorker() const;
+    bool hasWorker() const;
 
     /**
      * @brief Wrap a function so that a worker can have it executed in the main thread.

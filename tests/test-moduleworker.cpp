@@ -151,7 +151,7 @@ public:
         return true;
     }
 
-    using AbstractModule::hasActiveWorker;
+    using AbstractModule::hasWorker;
     using AbstractModule::mainCallback;
     using AbstractModule::modifyWorker;
     using AbstractModule::setWorker;
@@ -243,7 +243,7 @@ private slots:
             });
         QVERIFY(mod.workerHolder() != nullptr);
         QVERIFY(mod.workerHolder()->isThreadWorker());
-        QVERIFY(mod.hasActiveWorker());
+        QVERIFY(mod.hasWorker());
 
         mod.setWorkerActive(true);
         std::thread thread([&] {
@@ -285,7 +285,7 @@ private slots:
         mod.setWorkerActive(false);
 
         // the worker has finished, but it belongs to the run until the module takes it
-        QVERIFY(mod.hasActiveWorker());
+        QVERIFY(mod.hasWorker());
 
         auto worker = mod.takeWorker<CountingWorker>();
         QVERIFY(worker.has_value());
@@ -294,7 +294,7 @@ private slots:
         QCOMPARE(worker->mod.moduleName(), mod.name());
 
         // the worker is gone once it has been taken
-        QVERIFY(!mod.hasActiveWorker());
+        QVERIFY(!mod.hasWorker());
         QVERIFY(mod.workerHolder() == nullptr);
         QVERIFY(!mod.takeWorker<CountingWorker>().has_value());
     }

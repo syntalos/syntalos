@@ -416,7 +416,7 @@ public:
 protected:
     void usbHotplugEvent(UsbHotplugEventKind kind) final
     {
-        if (hasActiveWorker())
+        if (hasWorker())
             return;
         if (kind == UsbHotplugEventKind::DEVICE_ARRIVED || kind == UsbHotplugEventKind::DEVICES_CHANGE
             || kind == UsbHotplugEventKind::DEVICE_LEFT)

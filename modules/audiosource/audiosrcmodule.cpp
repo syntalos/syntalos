@@ -385,7 +385,7 @@ public:
 
     void failPipeline(const QString &errorMessage)
     {
-        if (hasActiveWorker()) {
+        if (hasWorker()) {
             // Our worker may be using the pipeline right now, so we only tell it to keep its hands off:
             // Raising the error ends the run, and the pipeline is deleted in stop(), once the worker is gone.
             m_pipelineFailed->store(true);

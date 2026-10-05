@@ -436,7 +436,7 @@ public:
 
         // If a run is active, our thread may be using the pipeline right now: Raising the error
         // ends the run, and the pipeline is closed in stop(), once the thread is gone.
-        if (!hasActiveWorker())
+        if (!hasWorker())
             m_ctlDialog->closePipeline();
         raiseError(message);
     }

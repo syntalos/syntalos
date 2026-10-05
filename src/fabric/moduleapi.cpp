@@ -782,7 +782,7 @@ void AbstractModule::setWorkerHolder(std::unique_ptr<detail::WorkerHolderBase> h
     d->workerParked = false;
 }
 
-bool AbstractModule::hasActiveWorker() const
+bool AbstractModule::hasWorker() const
 {
     return d->worker != nullptr;
 }

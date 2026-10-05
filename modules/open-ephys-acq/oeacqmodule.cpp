@@ -220,7 +220,7 @@ public:
         m_channelState[id] = enabled;
 
         // The ports are frozen as soon as a run is prepared
-        if (hasActiveWorker()) {
+        if (hasWorker()) {
             // The dialog locks unchecked boxes off during a run, so this
             // signal only fires for channels with an output column.
             for (auto &g : m_groups) {
