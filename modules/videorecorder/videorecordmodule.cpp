@@ -20,7 +20,6 @@
 #include "videorecordmodule.h"
 
 #include "datactl/frametype.h"
-#include <atomic>
 #include <QCoreApplication>
 #include <QDBusConnection>
 #include <QDBusInterface>
@@ -50,36 +49,20 @@ class VideoRecorderModule : public AbstractModule
     Q_OBJECT
 
 private:
-    bool m_recording;
-    std::atomic_bool m_initDone;
-    std::atomic_bool m_recordingFinished;
-    qint64 m_framesReceived = 0;
-    qint64 m_framesEncoded = 0;
-    bool m_startStopped;
-    std::shared_ptr<EDLDataset> m_vidDataset;
-    std::unique_ptr<VideoWriter> m_videoWriter;
-
     RecorderSettingsDialog *m_settingsDialog;
-    CodecProperties m_activeCodecProps;
 
     std::shared_ptr<StreamInputPort<Frame>> m_inPort;
+    // the subscription we record from in the current run, to look at its metadata
     std::shared_ptr<StreamSubscription<Frame>> m_inSub;
 
     std::shared_ptr<StreamInputPort<ControlCommand>> m_ctlPort;
-    std::shared_ptr<StreamSubscription<ControlCommand>> m_ctlSub;
-    bool m_checkCommands;
-
-    QString m_subjectName;
 
     bool m_isEphemeralRun = false;
 
 public:
     explicit VideoRecorderModule(QObject *parent = nullptr)
         : AbstractModule(parent),
-          m_recording(false),
-          m_recordingFinished(true),
-          m_settingsDialog(nullptr),
-          m_subjectName(QString())
+          m_settingsDialog(nullptr)
     {
         m_inPort = registerInputPort<Frame>(QStringLiteral("frames-in"), QStringLiteral("Frames"));
         m_ctlPort = registerInputPort<ControlCommand>(QStringLiteral("control-in"), QStringLiteral("Control"));
@@ -135,9 +118,9 @@ public:
             return false;
         }
 
-        m_videoWriter.reset(new VideoWriter);
-        m_videoWriter->setLogger(m_log);
-        m_videoWriter->setContainer(m_settingsDialog->videoContainer());
+        auto videoWriter = std::make_unique<VideoWriter>();
+        videoWriter->setLogger(m_log);
+        videoWriter->setContainer(m_settingsDialog->videoContainer());
 
         auto codecProps = m_settingsDialog->codecProps();
         codecProps.setThreadCount((potentialNoaffinityCPUCount() >= 2) ? potentialNoaffinityCPUCount() : 2);
@@ -146,46 +129,46 @@ public:
             // Deferred encoding is enabled, so we store a fast lossless intermediate file now
             // and run the (expensive) final codec later. FFVHuff is nearly as cheap to write as
             // uncompressed video, but needs considerably less disk space.
-            m_videoWriter->setContainer(VideoContainer::Matroska);
+            videoWriter->setContainer(VideoContainer::Matroska);
             CodecProperties cprops(VideoCodec::FFVHuff);
             cprops.setExactColors(codecProps.isLossless() && codecProps.exactColors());
             cprops.setThreadCount(codecProps.threadCount());
             codecProps = cprops;
         }
-        m_videoWriter->setCodecProps(codecProps);
+        videoWriter->setCodecProps(codecProps);
 
-        // copy codec properties so the worker thread has direct access to a copy
-        m_activeCodecProps = codecProps;
-
-        m_videoWriter->setFileSliceInterval(0); // no slicing allowed, unless changed later
+        videoWriter->setFileSliceInterval(0); // no slicing allowed, unless changed later
         if (m_settingsDialog->slicingEnabled())
-            m_videoWriter->setFileSliceInterval(m_settingsDialog->sliceInterval());
+            videoWriter->setFileSliceInterval(m_settingsDialog->sliceInterval());
 
-        m_recording = false;
-        m_initDone = false;
-        m_recordingFinished = true;
-        m_framesReceived = 0;
-        m_framesEncoded = 0;
-        m_startStopped = m_settingsDialog->startStopped();
         m_inSub.reset();
-        m_ctlSub.reset();
         if (m_inPort->isDormant()) {
+            // we aren't subscribed to any data source, so there is nothing for us to do this run
             setStateDormant();
             return true;
         }
 
         // get controller subscription, if we have any
-        m_checkCommands = false;
-        if (m_ctlPort->hasSubscription()) {
-            m_ctlSub = m_ctlPort->subscription();
-            m_checkCommands = true;
-        }
+        std::shared_ptr<StreamSubscription<ControlCommand>> ctlSub;
+        if (m_ctlPort->hasSubscription())
+            ctlSub = m_ctlPort->subscription();
 
         // we can record!
         m_inSub = m_inPort->subscription();
-        m_recording = true;
-        m_subjectName = info.subject.id;
         m_isEphemeralRun = info.isEphemeral;
+
+        setWorker(
+            Worker{
+                .inSub = m_inSub,
+                .ctlSub = ctlSub,
+                .checkCommands = ctlSub != nullptr,
+                .startStopped = m_settingsDialog->startStopped(),
+                .saveTimestamps = m_settingsDialog->saveTimestamps(),
+                .subjectName = info.subject.id,
+                // copy codec properties so the worker thread has direct access to a copy
+                .activeCodecProps = codecProps,
+                .videoWriter = std::move(videoWriter),
+            });
 
         // don't permit configuration changes while we are running
         m_settingsDialog->setEnabled(false);
@@ -198,274 +181,43 @@ public:
         AbstractModule::start();
 
         // we may be actually idle in case we e.g. aren't connected to any source
-        if (!m_recording && (state() != ModuleState::ERROR))
+        if (!m_inSub && (state() != ModuleState::ERROR))
             setStateDormant();
 
         if (!m_inSub)
             return;
 
+        std::shared_ptr<EDLDataset> vidDataset;
         if (m_settingsDialog->videoNameFromSource())
-            m_vidDataset = createDefaultDataset(name(), m_inSub->metadata());
+            vidDataset = createDefaultDataset(name(), m_inSub->metadata());
         else
-            m_vidDataset = createDefaultDataset(m_settingsDialog->videoName());
+            vidDataset = createDefaultDataset(m_settingsDialog->videoName());
+
+        // the basename of the files we record into, unless the frame source has suggested one
+        std::string dataBasename;
+        if (vidDataset) {
+            dataBasename = dataBasenameFromSubMetadata(
+                m_inSub->metadata(),
+                std::format(
+                    "{}-{}",
+                    vidDataset->collectionShortTag(),
+                    simplifyStrForFileBasename(vidDataset->name(), true, 22)));
+        }
+
+        // our worker is waiting for the run to start, give it the dataset to record into
+        modifyWorker<Worker>([&](Worker &w) {
+            w.vidDataset = vidDataset;
+            w.dataBasename = dataBasename;
+        });
     }
 
-    void runThread(OptionalWaitCondition *startWaitCondition) override
-    {
-        if (!m_recording) {
-            // just exit if we aren't subscribed to any data source
-            setStateReady();
-            m_recordingFinished = true;
-            return;
-        }
-        m_recordingFinished = false;
-
-        // base path to save our video to
-        std::string vidSavePathBase;
-
-        // section suffix, in case a controller wants to slice the video manually
-        std::string currentSecSuffix;
-        int secCount = 0;
-
-        // set when a new section was requested but its file has not been created yet - we defer
-        // creation until the section's first frame actually arrives, so that sections which never
-        // receive a frame do not leave an empty, header-only file on disk.
-        bool pendingNewSection = false;
-
-        // state of the recording - we are supposed to be running, unless explicitly
-        // requested to be stopped
-        auto state = m_startStopped ? RecordingState::STOPPED : RecordingState::RUNNING;
-
-        // wait for the current run to actually launch
-        startWaitCondition->wait(this);
-
-        // immediately suspend our input subscription in case we are starting in STOPPED mode
-        if (state != RecordingState::RUNNING) {
-            m_inSub->suspend();
-            statusMessage(QStringLiteral("Waiting for start command."));
-        }
-
-        // exit immediately if we don't have a dataset
-        if (!m_vidDataset) {
-            // an error is already emitted at this point, via createDefaultDataset()
-            m_running = false;
-            m_recordingFinished = true;
-            return;
-        }
-
-        while (m_running) {
-            if (state != RecordingState::RUNNING) {
-                // sanity check
-                if (!m_checkCommands) {
-                    // we just jump out of our stopped state in case we are not
-                    // subscribed to a controlling module
-                    state = RecordingState::RUNNING;
-                    continue;
-                }
-
-                // wait for the next command
-                const auto ctlCmd = m_ctlSub->next();
-                if (!ctlCmd.has_value())
-                    break; // we can quit here, a nullopt means we should terminate
-
-                if (ctlCmd->kind == ControlCommandKind::START) {
-                    if (state == RecordingState::PAUSED) {
-                        // hurray, we can just resume normal operation!
-                        state = RecordingState::RUNNING;
-                        m_inSub->resume();
-                        continue;
-                    } else if (state == RecordingState::STOPPED) {
-                        // we were stopped before, so we will now have to create a new
-                        // section to store the new data in
-                        secCount++;
-                        currentSecSuffix = std::format("_sec{}", secCount);
-
-                        // Defer creating the new section's file until its first frame actually
-                        // arrives, if we were already initialized. If we weren't for some reason,
-                        // the section initialization will simply be deferred to the regular first-frame
-                        // init path below (which folds the section suffix into the filename); otherwise
-                        // we flag a pending section that startNewSection() will create once we have a
-                        // frame to write.
-                        if (m_initDone)
-                            pendingNewSection = true;
-
-                        // resume normal operation
-                        state = RecordingState::RUNNING;
-                        m_inSub->resume();
-                        statusMessage(QStringLiteral("Recording video %1...").arg(secCount));
-                        continue;
-                    }
-                }
-
-                // we are not running, so don't execute the frame encoding code
-                // until we received a START command again
-                continue;
-            }
-
-            const auto maybeFrame = m_inSub->next();
-            // getting a nullopt means we can quit this thread, as the experiment has stopped or
-            // the data source has completed delivering data and will not send any more
-            if (!maybeFrame.has_value())
-                break;
-            const auto &frame = maybeFrame.value();
-            m_framesReceived++;
-
-            if (m_checkCommands && m_ctlSub->hasPending()) {
-                // process control commands - we only do this when we also have got a frame,
-                // but we're not doing anything without a frame anyway, so this is fine
-                const auto ctlCmd = m_ctlSub->peekNext();
-
-                // we have to check for nullopt, because we may end up here because the
-                // stream has ended (in which case we will terminate this thread very soon)
-                if (ctlCmd.has_value()) {
-                    if (ctlCmd->kind == ControlCommandKind::PAUSE) {
-                        // switch to our paused state
-                        state = RecordingState::PAUSED;
-                        // stop receiving new data
-                        m_inSub->suspend();
-                        statusMessage(QStringLiteral("Recording paused."));
-                        continue;
-                    } else if (ctlCmd->kind == ControlCommandKind::STOP) {
-                        // switch to our stopped state
-                        state = RecordingState::STOPPED;
-                        // stop receiving new data
-                        m_inSub->suspend();
-                        statusMessage(QStringLiteral("Recording stopped."));
-                        continue;
-                    }
-                }
-            }
-
-            if (!m_initDone) {
-                const auto mdata = m_inSub->metadata();
-                auto frameSize = mdata.valueOr<MetaSize>("size", {});
-                const auto framerate = mdata.valueOr<double>("framerate", 0.0);
-                const auto depth = static_cast<int>(mdata.valueOr<int64_t>("depth", CV_8U));
-                const auto useColor = mdata.valueOr<bool>("has_color", frame.mat.channels() > 1);
-
-                if (frameSize.isEmpty()) {
-                    // we didn't get the dimensions from metadata - let's see if the current frame can
-                    // be used to get dimensions.
-                    frameSize = MetaSize(frame.mat.cols, frame.mat.rows);
-                }
-
-                if (frameSize.isEmpty()) {
-                    raiseError(QStringLiteral("Frame source did not provide image dimensions!"));
-                    m_recordingFinished = true;
-                    return;
-                }
-                if (framerate == 0) {
-                    raiseError(QStringLiteral("Frame source did not provide a framerate!"));
-                    m_recordingFinished = true;
-                    return;
-                }
-
-                const auto inSubSrcModName = m_inSub->metadataValue<std::string>(CommonMetadataKey::SrcModName, {});
-                const auto dataBasename = dataBasenameFromSubMetadata(
-                    m_inSub->metadata(),
-                    std::format(
-                        "{}-{}",
-                        m_vidDataset->collectionShortTag(),
-                        simplifyStrForFileBasename(m_vidDataset->name(), true, 22)));
-                vidSavePathBase = m_vidDataset->pathForDataBasename(dataBasename);
-                m_vidDataset->setDataScanPattern(
-                    dataBasename + "*",
-                    inSubSrcModName.empty() ? std::string() : std::format("Video recording from {}", inSubSrcModName));
-                m_vidDataset->addAuxDataScanPattern(std::format("{}*.tsync", dataBasename), "Video timestamps");
-
-                auto vidSecFnameBase = vidSavePathBase;
-                if (!currentSecSuffix.empty())
-                    vidSecFnameBase = vidSecFnameBase + currentSecSuffix;
-
-                try {
-                    m_videoWriter->initialize(
-                        QString::fromStdString(vidSecFnameBase),
-                        name(),
-                        QString::fromStdString(inSubSrcModName),
-                        m_vidDataset->collectionId(),
-                        m_subjectName,
-                        frameSize.width,
-                        frameSize.height,
-                        framerate,
-                        depth,
-                        useColor,
-                        m_settingsDialog->saveTimestamps());
-                } catch (const std::runtime_error &e) {
-                    raiseError(std::format("Unable to initialize recording: {}", e.what()));
-                    m_recordingFinished = true;
-                    return;
-                }
-
-                // write info video info file with auxiliary information about the video we encoded
-                // (this is useful to gather intel about the video without opening the video file)
-                MetaStringMap vInfo;
-                vInfo["frame_width"] = frameSize.width;
-                vInfo["frame_height"] = frameSize.height;
-                vInfo["framerate"] = framerate;
-                vInfo["colored"] = useColor;
-
-                MetaStringMap encInfo;
-                encInfo["name"] = m_videoWriter->selectedEncoderName().toStdString();
-                // NOTE: We read the lossless flag back from the writer, as it may have adjusted
-                // the setting to match what the selected encoder is actually capable of.
-                encInfo["lossless"] = m_videoWriter->codecProps().isLossless();
-                if (useColor)
-                    encInfo["exact_colors"] = m_videoWriter->hasExactColors();
-                encInfo["thread_count"] = m_activeCodecProps.threadCount();
-                if (m_activeCodecProps.useVaapi())
-                    encInfo["vaapi_enabled"] = true;
-                if (m_activeCodecProps.mode() == CodecProperties::ConstantBitrate)
-                    encInfo["target_bitrate_kbps"] = m_activeCodecProps.bitrateKbps();
-                else
-                    encInfo["target_quality"] = m_activeCodecProps.quality();
-                m_vidDataset->insertAttribute("video", vInfo);
-                m_vidDataset->insertAttribute("encoder", encInfo);
-
-                // signal that we are actually recording this session
-                m_initDone = true;
-                if (secCount == 0)
-                    statusMessage(QStringLiteral("Recording video..."));
-                else
-                    statusMessage(QStringLiteral("Recording video %1...").arg(secCount));
-            }
-
-            // create the file for a freshly-requested section now that we have a frame to write
-            if (pendingNewSection) {
-                pendingNewSection = false;
-                if (!m_videoWriter->startNewSection(QStringLiteral("%1%2").arg(
-                        QString::fromStdString(vidSavePathBase),
-                        QString::fromStdString(currentSecSuffix)))) {
-                    raiseError(
-                        std::format("Unable to initialize recording of a new section: {}", m_videoWriter->lastError()));
-                    m_running = false;
-                    m_recordingFinished = true;
-                    break;
-                }
-            }
-
-            // encode current frame
-            if (!m_videoWriter->encodeFrame(frame.mat, frame.time)) {
-                if (m_videoWriter->lastError().empty())
-                    raiseError(QStringLiteral("Unable to encode frame"));
-                else
-                    raiseError(m_videoWriter->lastError());
-                m_running = false;
-                m_recordingFinished = true;
-                break;
-            }
-            m_framesEncoded++;
-        }
-
-        m_recordingFinished = true;
-    }
-
-    void enqueueVideosForDeferredEncoding()
+    void enqueueVideosForDeferredEncoding(const std::shared_ptr<EDLDataset> &vidDataset, const QString &subjectName)
     {
         if (m_isEphemeralRun) {
             LOG_INFO(m_log, "Not performing deferred encoding, run was ephemeral.");
             return;
         }
-        if (m_vidDataset == nullptr) {
+        if (vidDataset == nullptr) {
             LOG_INFO(
                 m_log,
                 "Not performing deferred encoding, video dataset was not set (we probably failed the run early).");
@@ -525,19 +277,19 @@ public:
 
         // display some "project name" useful for humans
         const auto time = QDateTime::currentDateTime();
-        const auto projectName = m_subjectName.isEmpty() ? QStringLiteral("%1 on %2")
-                                                               .arg(
-                                                                   QString::fromStdString(m_vidDataset->name()),
-                                                                   time.toString("HH:mm yy-MM-dd"))
-                                                         : QStringLiteral("%1 @ %2 on %3")
-                                                               .arg(
-                                                                   m_subjectName,
-                                                                   QString::fromStdString(m_vidDataset->name()),
-                                                                   time.toString("HH:mm yy-MM-dd"));
+        const auto projectName = subjectName.isEmpty() ? QStringLiteral("%1 on %2")
+                                                             .arg(
+                                                                 QString::fromStdString(vidDataset->name()),
+                                                                 time.toString("HH:mm yy-MM-dd"))
+                                                       : QStringLiteral("%1 @ %2 on %3")
+                                                             .arg(
+                                                                 subjectName,
+                                                                 QString::fromStdString(vidDataset->name()),
+                                                                 time.toString("HH:mm yy-MM-dd"));
 
         // we need to explicitly save the dataset here to ensure any globs are finalized into
         // actual data- and aux file parts.
-        const auto dsSaveRes = m_vidDataset->save();
+        const auto dsSaveRes = vidDataset->save();
         if (!dsSaveRes) {
             raiseError(
                 std::format(
@@ -548,20 +300,20 @@ public:
         }
 
         // schedule encoding jobs in the external encoder process
-        for (auto &dataPart : m_vidDataset->dataFile().parts) {
+        for (auto &dataPart : vidDataset->dataFile().parts) {
             QVariantHash mdata;
             mdata["mod-name"] = QVariant::fromValue(name());
             mdata["src-mod-name"] = QString::fromStdString(
                 m_inSub->metadataValue(CommonMetadataKey::SrcModName, std::string{}));
-            mdata["collection-id"] = QString::fromStdString(m_vidDataset->collectionId().toHex());
-            mdata["subject-name"] = m_subjectName;
+            mdata["collection-id"] = QString::fromStdString(vidDataset->collectionId().toHex());
+            mdata["subject-name"] = subjectName;
             mdata["save-timestamps"] = m_settingsDialog->saveTimestamps();
             mdata["video-container"] = static_cast<int>(m_settingsDialog->videoContainer());
 
             QDBusReply<bool> reply = iface->call(
                 "enqueueVideo",
                 projectName,
-                QString::fromStdString(m_vidDataset->pathForDataPart(dataPart)),
+                QString::fromStdString(vidDataset->pathForDataPart(dataPart)),
                 m_settingsDialog->codecProps().toVariant(),
                 mdata);
             if (!reply.isValid() || !reply.value())
@@ -575,21 +327,270 @@ public:
         }
     }
 
+    /**
+     * Runs the recording state machine and encodes the frames it receives, in the module's thread.
+     */
+    struct Worker {
+        WorkerContext mod{};
+        std::shared_ptr<StreamSubscription<Frame>> inSub;
+        std::shared_ptr<StreamSubscription<ControlCommand>> ctlSub;
+        bool checkCommands;
+        bool startStopped;
+        bool saveTimestamps;
+        QString subjectName;
+        CodecProperties activeCodecProps;
+
+        // The video writer isn't threadsafe (for a tiny performance gain), so only the owner of this
+        // worker uses it: Our thread during the run, and the module once the thread has ended.
+        std::unique_ptr<VideoWriter> videoWriter;
+
+        // The dataset is only created when the run is started, as it can be named after metadata of the frame source
+        std::shared_ptr<EDLDataset> vidDataset{};
+        std::string dataBasename{};
+
+        bool initDone = false;
+        qint64 framesReceived = 0;
+        qint64 framesEncoded = 0;
+
+        void run()
+        {
+            // base path to save our video to
+            std::string vidSavePathBase;
+
+            // section suffix, in case a controller wants to slice the video manually
+            std::string currentSecSuffix;
+            int secCount = 0;
+
+            // set when a new section was requested but its file has not been created yet - we defer
+            // creation until the section's first frame actually arrives, so that sections which never
+            // receive a frame do not leave an empty, header-only file on disk.
+            bool pendingNewSection = false;
+
+            // state of the recording - we are supposed to be running, unless explicitly
+            // requested to be stopped
+            auto state = startStopped ? RecordingState::STOPPED : RecordingState::RUNNING;
+
+            // wait for the current run to actually launch
+            mod.waitForStart();
+
+            // immediately suspend our input subscription in case we are starting in STOPPED mode
+            if (state != RecordingState::RUNNING) {
+                inSub->suspend();
+                mod.setStatusMessage(QStringLiteral("Waiting for start command."));
+            }
+
+            // exit immediately if we don't have a dataset
+            if (!vidDataset) {
+                // an error is already emitted at this point, via createDefaultDataset()
+                return;
+            }
+
+            while (mod.running()) {
+                if (state != RecordingState::RUNNING) {
+                    // sanity check
+                    if (!checkCommands) {
+                        // we just jump out of our stopped state in case we are not
+                        // subscribed to a controlling module
+                        state = RecordingState::RUNNING;
+                        continue;
+                    }
+
+                    // wait for the next command
+                    const auto ctlCmd = ctlSub->next();
+                    if (!ctlCmd.has_value())
+                        break; // we can quit here, a nullopt means we should terminate
+
+                    if (ctlCmd->kind == ControlCommandKind::START) {
+                        if (state == RecordingState::PAUSED) {
+                            // hurray, we can just resume normal operation!
+                            state = RecordingState::RUNNING;
+                            inSub->resume();
+                            continue;
+                        } else if (state == RecordingState::STOPPED) {
+                            // we were stopped before, so we will now have to create a new
+                            // section to store the new data in
+                            secCount++;
+                            currentSecSuffix = std::format("_sec{}", secCount);
+
+                            // Defer creating the new section's file until its first frame actually
+                            // arrives, if we were already initialized. If we weren't for some reason,
+                            // the section initialization will simply be deferred to the regular first-frame
+                            // init path below (which folds the section suffix into the filename); otherwise
+                            // we flag a pending section that startNewSection() will create once we have a
+                            // frame to write.
+                            if (initDone)
+                                pendingNewSection = true;
+
+                            // resume normal operation
+                            state = RecordingState::RUNNING;
+                            inSub->resume();
+                            mod.setStatusMessage(QStringLiteral("Recording video %1...").arg(secCount));
+                            continue;
+                        }
+                    }
+
+                    // we are not running, so don't execute the frame encoding code
+                    // until we received a START command again
+                    continue;
+                }
+
+                const auto maybeFrame = inSub->next();
+                // getting a nullopt means we can quit this thread, as the experiment has stopped or
+                // the data source has completed delivering data and will not send any more
+                if (!maybeFrame.has_value())
+                    break;
+                const auto &frame = maybeFrame.value();
+                framesReceived++;
+
+                if (checkCommands && ctlSub->hasPending()) {
+                    // process control commands - we only do this when we also have got a frame,
+                    // but we're not doing anything without a frame anyway, so this is fine
+                    const auto ctlCmd = ctlSub->peekNext();
+
+                    // we have to check for nullopt, because we may end up here because the
+                    // stream has ended (in which case we will terminate this thread very soon)
+                    if (ctlCmd.has_value()) {
+                        if (ctlCmd->kind == ControlCommandKind::PAUSE) {
+                            // switch to our paused state
+                            state = RecordingState::PAUSED;
+                            // stop receiving new data
+                            inSub->suspend();
+                            mod.setStatusMessage(QStringLiteral("Recording paused."));
+                            continue;
+                        } else if (ctlCmd->kind == ControlCommandKind::STOP) {
+                            // switch to our stopped state
+                            state = RecordingState::STOPPED;
+                            // stop receiving new data
+                            inSub->suspend();
+                            mod.setStatusMessage(QStringLiteral("Recording stopped."));
+                            continue;
+                        }
+                    }
+                }
+
+                if (!initDone) {
+                    const auto mdata = inSub->metadata();
+                    auto frameSize = mdata.valueOr<MetaSize>("size", {});
+                    const auto framerate = mdata.valueOr<double>("framerate", 0.0);
+                    const auto depth = static_cast<int>(mdata.valueOr<int64_t>("depth", CV_8U));
+                    const auto useColor = mdata.valueOr<bool>("has_color", frame.mat.channels() > 1);
+
+                    if (frameSize.isEmpty()) {
+                        // we didn't get the dimensions from metadata - let's see if the current frame can
+                        // be used to get dimensions.
+                        frameSize = MetaSize(frame.mat.cols, frame.mat.rows);
+                    }
+
+                    if (frameSize.isEmpty()) {
+                        mod.raiseError(QStringLiteral("Frame source did not provide image dimensions!"));
+                        return;
+                    }
+                    if (framerate == 0) {
+                        mod.raiseError(QStringLiteral("Frame source did not provide a framerate!"));
+                        return;
+                    }
+
+                    const auto inSubSrcModName = inSub->metadataValue<std::string>(CommonMetadataKey::SrcModName, {});
+                    vidSavePathBase = vidDataset->pathForDataBasename(dataBasename);
+                    vidDataset->setDataScanPattern(
+                        dataBasename + "*",
+                        inSubSrcModName.empty() ? std::string()
+                                                : std::format("Video recording from {}", inSubSrcModName));
+                    vidDataset->addAuxDataScanPattern(std::format("{}*.tsync", dataBasename), "Video timestamps");
+
+                    auto vidSecFnameBase = vidSavePathBase;
+                    if (!currentSecSuffix.empty())
+                        vidSecFnameBase = vidSecFnameBase + currentSecSuffix;
+
+                    try {
+                        videoWriter->initialize(
+                            QString::fromStdString(vidSecFnameBase),
+                            mod.moduleName(),
+                            QString::fromStdString(inSubSrcModName),
+                            vidDataset->collectionId(),
+                            subjectName,
+                            frameSize.width,
+                            frameSize.height,
+                            framerate,
+                            depth,
+                            useColor,
+                            saveTimestamps);
+                    } catch (const std::runtime_error &e) {
+                        mod.raiseError(std::format("Unable to initialize recording: {}", e.what()));
+                        return;
+                    }
+
+                    // write info video info file with auxiliary information about the video we encoded
+                    // (this is useful to gather intel about the video without opening the video file)
+                    MetaStringMap vInfo;
+                    vInfo["frame_width"] = frameSize.width;
+                    vInfo["frame_height"] = frameSize.height;
+                    vInfo["framerate"] = framerate;
+                    vInfo["colored"] = useColor;
+
+                    MetaStringMap encInfo;
+                    encInfo["name"] = videoWriter->selectedEncoderName().toStdString();
+                    // NOTE: We read the lossless flag back from the writer, as it may have adjusted
+                    // the setting to match what the selected encoder is actually capable of.
+                    encInfo["lossless"] = videoWriter->codecProps().isLossless();
+                    if (useColor)
+                        encInfo["exact_colors"] = videoWriter->hasExactColors();
+                    encInfo["thread_count"] = activeCodecProps.threadCount();
+                    if (activeCodecProps.useVaapi())
+                        encInfo["vaapi_enabled"] = true;
+                    if (activeCodecProps.mode() == CodecProperties::ConstantBitrate)
+                        encInfo["target_bitrate_kbps"] = activeCodecProps.bitrateKbps();
+                    else
+                        encInfo["target_quality"] = activeCodecProps.quality();
+                    vidDataset->insertAttribute("video", vInfo);
+                    vidDataset->insertAttribute("encoder", encInfo);
+
+                    // signal that we are actually recording this session
+                    initDone = true;
+                    if (secCount == 0)
+                        mod.setStatusMessage(QStringLiteral("Recording video..."));
+                    else
+                        mod.setStatusMessage(QStringLiteral("Recording video %1...").arg(secCount));
+                }
+
+                // create the file for a freshly-requested section now that we have a frame to write
+                if (pendingNewSection) {
+                    pendingNewSection = false;
+                    if (!videoWriter->startNewSection(QStringLiteral("%1%2").arg(
+                            QString::fromStdString(vidSavePathBase),
+                            QString::fromStdString(currentSecSuffix)))) {
+                        mod.raiseError(
+                            std::format(
+                                "Unable to initialize recording of a new section: {}",
+                                videoWriter->lastError()));
+                        return;
+                    }
+                }
+
+                // encode current frame
+                if (!videoWriter->encodeFrame(frame.mat, frame.time)) {
+                    if (videoWriter->lastError().empty())
+                        mod.raiseError(QStringLiteral("Unable to encode frame"));
+                    else
+                        mod.raiseError(videoWriter->lastError());
+                    return;
+                }
+                framesEncoded++;
+            }
+        }
+    };
+
     void stop() override
     {
-        // this will terminate the thread
-        m_running = false;
-
-        // wait until the thread has shut down and we are no longer encoding frames,
-        // then finalize the video. Otherwise we might crash the encoder, as it isn't
+        // our thread has shut down at this point and we are no longer encoding frames,
+        // so we can finalize the video. Doing that any earlier might crash the encoder, as it isn't
         // threadsafe (for a tiny performance gain)
-        while (!m_recordingFinished)
-            processUiEvents();
+        auto worker = takeWorker<Worker>();
 
         bool finalizeOk = true;
-        if (m_videoWriter.get() != nullptr) {
+        if (worker && worker->videoWriter.get() != nullptr) {
             // now shut down the recorder
-            const auto res = m_videoWriter->finalize();
+            const auto res = worker->videoWriter->finalize();
             if (!res) {
                 finalizeOk = false;
                 raiseError(
@@ -602,16 +603,21 @@ public:
         }
 
         statusMessage(QStringLiteral("Recording stopped."));
-        m_videoWriter.reset(nullptr);
+        if (worker)
+            worker->videoWriter.reset(nullptr);
 
-        setRunStatistic(QStringLiteral("frames_received"), m_framesReceived);
-        setRunStatistic(QStringLiteral("frames_encoded"), m_framesEncoded);
+        setRunStatistic(QStringLiteral("frames_received"), worker ? worker->framesReceived : qint64(0));
+        setRunStatistic(QStringLiteral("frames_encoded"), worker ? worker->framesEncoded : qint64(0));
 
-        if (finalizeOk && m_settingsDialog->deferredEncoding())
-            enqueueVideosForDeferredEncoding();
+        if (finalizeOk && m_settingsDialog->deferredEncoding()) {
+            if (worker)
+                enqueueVideosForDeferredEncoding(worker->vidDataset, worker->subjectName);
+            else
+                enqueueVideosForDeferredEncoding(nullptr, QString());
+        }
 
         // drop reference on dataset
-        m_vidDataset.reset();
+        worker.reset();
 
         // permit settings canges again
         m_settingsDialog->setEnabled(true);

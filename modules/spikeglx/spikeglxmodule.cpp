@@ -56,18 +56,28 @@ struct StreamInfo {
 };
 
 /// One live-data output port.
-struct FetchStream {
+struct FetchPort {
     QString portId;
     Sglx::StreamId sid;
     QString streamName;
     SglxUtils::ChanGroup group = SglxUtils::ChanGroup::ALL;
-    bool digital = false;      /// SY/DW group: published as line events, not sample blocks
-    std::vector<int> relChans; /// word/channel indices relative to the group
-    std::vector<int> absChans; /// word/channel indices within the stream
-    std::vector<int> lines;    /// digital only: selected line numbers (word * 16 + bit)
+    bool digital = false; /// SY/DW group: published as line events, not sample blocks
     /// exactly one of the two is set, depending on `digital`
     std::shared_ptr<DataStream<SignalBlockI16>> stream;
     std::shared_ptr<DataStream<LineReading>> lineStream;
+};
+
+/// One live-data output port together with everything needed to fetch its data in a run.
+/// The module creates these for every run, they are then owned by the worker of the run.
+struct FetchStream : FetchPort {
+    explicit FetchStream(const FetchPort &port)
+        : FetchPort(port)
+    {
+    }
+
+    std::vector<int> relChans; /// word/channel indices relative to the group
+    std::vector<int> absChans; /// word/channel indices within the stream
+    std::vector<int> lines;    /// digital only: selected line numbers (word * 16 + bit)
 
     // run state
     double sampleRate = 0;
@@ -102,6 +112,20 @@ static std::string groupPortSuffix(SglxUtils::ChanGroup group)
     return SglxUtils::chanGroupName(group).toLower().toStdString();
 }
 
+/**
+ * Leave SpikeGLX with an unused run name. SpikeGLX verifies its remembered
+ * run name whenever parameters are (re)validated and refuses names that already
+ * exist on disk, which would otherwise break remote device detection after a
+ * SpikeGLX restart, and requires the user to pick a new name for manual runs.
+ */
+static void setPlaceholderRunName(Sglx::Client &client, QuillLogger *log)
+{
+    const auto placeholder = QStringLiteral("syntalos_next_%1")
+                                 .arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss")));
+    if (auto r = client.setRunName(placeholder.toStdString()); !r)
+        LOG_WARNING(log, "Unable to set placeholder run name in SpikeGLX: {}", r.error());
+}
+
 class SpikeGLXModule : public AbstractModule
 {
     Q_OBJECT
@@ -109,34 +133,17 @@ private:
     using RunControlMode = SpikeGLXSettingsDialog::RunControlMode;
 
     SpikeGLXSettingsDialog *m_settingsDlg;
+    /// Client for the actions of the settings dialog, which are only available between runs.
+    /// Every run uses a client of its own, which is created in prepare() and owned by its worker.
     Sglx::Client m_client;
     std::atomic_bool m_dialogBusy{false};
-    std::atomic_bool m_threadStarted{false};
-    std::atomic_bool m_threadDone{true};
     bool m_runActive = false;
 
-    // settings snapshot for the current run
-    RunControlMode m_configuredMode = RunControlMode::Automatic;
-    RunControlMode m_mode = RunControlMode::FullControl; /// effective mode of the current run
-    int m_syncIntervalMs = 1000;
-    bool m_fetchEnabled = false;
-    int m_fetchIntervalMs = 50;
-    int m_fetchMaxBlockMs = 250;
-    bool m_abortOnOverrun = true;
+    std::vector<FetchPort> m_fetchPorts;
 
-    // run state
+    // state used while preparing a run
     std::vector<StreamInfo> m_streams;
-    std::vector<FetchStream> m_fetchStreams;
-    std::vector<SyncStream> m_syncStreams;
-    std::shared_ptr<EDLDataset> m_dataset;
     MetaStringMap m_portsMeta;
-    QString m_runName;
-    TestSubject m_subject;
-    bool m_isEphemeralRun = false;
-    QString m_experimentId;
-    QString m_instanceId; /// ID of this Syntalos instance, sent to SpikeGLX so it knows who controlled it
-    QString m_moduleName; /// our name, snapshot for the run thread
-    bool m_sglxRunStartedByUs = false;
 
 public:
     explicit SpikeGLXModule(ModuleInfo *modInfo, QObject *parent = nullptr)
@@ -181,10 +188,10 @@ public:
     void rebuildOutputPorts()
     {
         QSet<QString> previousIds;
-        for (const auto &fs : m_fetchStreams)
+        for (const auto &fs : m_fetchPorts)
             previousIds.insert(fs.portId);
 
-        std::vector<FetchStream> newStreams;
+        std::vector<FetchPort> newStreams;
         QSet<QString> currentIds;
         const auto entries = m_settingsDlg->fetchEntries();
         for (const auto &entry : entries) {
@@ -193,7 +200,7 @@ public:
             if (!sid || !group)
                 continue;
 
-            FetchStream fs;
+            FetchPort fs;
             fs.sid = *sid;
             fs.streamName = SglxUtils::streamName(*sid);
             fs.group = *group;
@@ -215,7 +222,7 @@ public:
             if (!currentIds.contains(oldId))
                 removeOutPortById(oldId);
         }
-        m_fetchStreams = std::move(newStreams);
+        m_fetchPorts = std::move(newStreams);
     }
 
     /**
@@ -264,12 +271,12 @@ public:
                     std::vector<StreamInfo> streams;
                     QString err;
                     if (auto running = m_client.isRunning(); running && !*running) {
-                        if (auto r = ensureDevicesSelected(devString); !r) {
+                        if (auto r = ensureDevicesSelected(m_client, devString); !r) {
                             streamsText = qstr(r.error());
                             break;
                         }
                     }
-                    if (!enumerateStreams(streams, err)) {
+                    if (!enumerateStreams(m_client, streams, err)) {
                         streamsText = err;
                         break;
                     }
@@ -311,10 +318,10 @@ public:
      * configured, remotely perform "Detect" and "Verify | Save" with it.
      * Must only be called while SpikeGLX is idle.
      */
-    Sglx::Client::Result<void> ensureDevicesSelected(const QString &devString)
+    Sglx::Client::Result<void> ensureDevicesSelected(Sglx::Client &client, const QString &devString)
     {
         // probe whether parameters were validated at all
-        auto np = m_client.streamCount(Sglx::JS_IM);
+        auto np = client.streamCount(Sglx::JS_IM);
         if (np || np.error().find("never validated") == std::string::npos)
             return {};
 
@@ -326,7 +333,7 @@ public:
                     "happen automatically."));
 
         LOG_INFO(m_log, "SpikeGLX parameters are not validated, selecting devices: {}", devString);
-        if (auto r = m_client.selectDevices(devString.toStdString(), 1); !r) {
+        if (auto r = client.selectDevices(devString.toStdString(), 1); !r) {
             auto err = "Remote device detection failed: " + r.error();
             if (r.error().find("already in use") != std::string::npos)
                 err +=
@@ -341,11 +348,11 @@ public:
      * Query the layout of all enabled streams from SpikeGLX.
      * Works while SpikeGLX is idle, as long as its parameters were validated.
      */
-    bool enumerateStreams(std::vector<StreamInfo> &streams, QString &error)
+    bool enumerateStreams(Sglx::Client &client, std::vector<StreamInfo> &streams, QString &error)
     {
         streams.clear();
         for (const int js : {Sglx::JS_IM, Sglx::JS_OB, Sglx::JS_NI}) {
-            auto np = m_client.streamCount(js);
+            auto np = client.streamCount(js);
             if (!np) {
                 error = qstr(np.error());
                 return false;
@@ -355,14 +362,14 @@ public:
                 si.sid = Sglx::StreamId{js, ip};
                 si.name = SglxUtils::streamName(si.sid);
 
-                auto rate = m_client.sampleRate(si.sid);
+                auto rate = client.sampleRate(si.sid);
                 if (!rate) {
                     error = QStringLiteral("%1: %2").arg(si.name, qstr(rate.error()));
                     return false;
                 }
                 si.sampleRate = *rate;
 
-                auto counts = m_client.acqChanCounts(si.sid);
+                auto counts = client.acqChanCounts(si.sid);
                 if (!counts) {
                     error = QStringLiteral("%1: %2").arg(si.name, qstr(counts.error()));
                     return false;
@@ -371,11 +378,11 @@ public:
                 for (const auto c : si.acqCounts)
                     si.totalChans += c;
 
-                if (auto saved = m_client.saveChans(si.sid))
+                if (auto saved = client.saveChans(si.sid))
                     si.savedChans = static_cast<int>(saved->size());
 
                 if (js != Sglx::JS_NI) {
-                    if (auto sn = m_client.streamSN(si.sid)) {
+                    if (auto sn = client.streamSN(si.sid)) {
                         si.serial = qstr(sn->serial);
                         si.slotOrType = sn->slotOrType;
                     }
@@ -399,7 +406,7 @@ public:
      * Build the SpikeGLX run name for this recording:
      * <yyyyMMdd>_<subject>_<experiment>_<collection short tag>[_<extra>], leaving out unavailable parts.
      */
-    QString makeRunName(const RunInfo &info) const
+    QString makeRunName(const RunInfo &info, const std::shared_ptr<EDLDataset> &dataset) const
     {
         const auto now = QDateTime::currentDateTime();
         QStringList parts;
@@ -413,8 +420,8 @@ public:
         if (!experimentId.isEmpty())
             parts << experimentId;
 
-        if (m_dataset) {
-            const auto tag = qstr(m_dataset->collectionShortTag());
+        if (dataset) {
+            const auto tag = qstr(dataset->collectionShortTag());
             if (!tag.isEmpty())
                 parts << tag;
         }
@@ -435,46 +442,42 @@ public:
 
     bool prepare(const RunInfo &info) override
     {
-        m_subject = info.subject;
-        m_isEphemeralRun = info.isEphemeral;
-        m_experimentId = info.experimentId;
-        m_instanceId = GlobalConfig().instanceId();
-        m_moduleName = name();
         m_streams.clear();
-        m_syncStreams.clear();
-        m_dataset.reset();
-        m_sglxRunStartedByUs = false;
-        m_threadStarted = false;
-        m_threadDone = true;
 
         if (m_dialogBusy) {
             raiseError(QStringLiteral("A connection test is still in progress, please wait for it to finish."));
             return false;
         }
 
+        // Every run talks to SpikeGLX via a client of its own, which is handed over to the worker
+        // of the run once we are done preparing. The connection that the settings dialog may have
+        // left open is closed, so we still never have more than one connection to SpikeGLX.
+        m_client.close();
+        auto client = std::make_unique<Sglx::Client>();
+        bool sglxRunStartedByUs = false;
+
         m_runActive = true;
         m_settingsDlg->setRunActive(true);
-        auto cleanupOnFailure = qScopeGuard([this] {
-            if (m_sglxRunStartedByUs) {
+        auto cleanupOnFailure = qScopeGuard([&] {
+            if (sglxRunStartedByUs) {
                 LOG_INFO(m_log, "Stopping the SpikeGLX run again after failed preparation");
-                if (auto r = m_client.stopRun(); !r)
+                if (auto r = client->stopRun(); !r)
                     LOG_WARNING(m_log, "Unable to stop SpikeGLX run: {}", r.error());
                 else
-                    setPlaceholderRunName();
-                m_sglxRunStartedByUs = false;
+                    setPlaceholderRunName(*client, m_log);
+                sglxRunStartedByUs = false;
             }
             m_runActive = false;
             m_settingsDlg->setRunActive(false);
         });
 
         // settings snapshot
-        m_configuredMode = m_settingsDlg->runControlMode();
-        m_mode = m_configuredMode;
-        m_syncIntervalMs = m_settingsDlg->syncIntervalMs();
-        m_fetchEnabled = m_settingsDlg->fetchEnabled();
-        m_fetchIntervalMs = m_settingsDlg->fetchIntervalMs();
-        m_fetchMaxBlockMs = m_settingsDlg->fetchMaxBlockMs();
-        m_abortOnOverrun = m_settingsDlg->overrunPolicy() == SpikeGLXSettingsDialog::AbortRun;
+        auto mode = m_settingsDlg->runControlMode(); // becomes the effective mode of the run below
+        const int syncIntervalMs = m_settingsDlg->syncIntervalMs();
+        const bool fetchEnabled = m_settingsDlg->fetchEnabled();
+        const int fetchIntervalMs = m_settingsDlg->fetchIntervalMs();
+        const int fetchMaxBlockMs = m_settingsDlg->fetchMaxBlockMs();
+        const bool abortOnOverrun = m_settingsDlg->overrunPolicy() == SpikeGLXSettingsDialog::AbortRun;
         const auto host = m_settingsDlg->host();
         const auto port = m_settingsDlg->port();
 
@@ -485,7 +488,7 @@ public:
 
         // connect
         setStatusMessage(QStringLiteral("Connecting to %1:%2…").arg(host).arg(port));
-        if (auto r = m_client.connect(
+        if (auto r = client->connect(
                 host.toStdString(),
                 port,
                 std::chrono::milliseconds(m_settingsDlg->connectTimeoutMs()));
@@ -493,9 +496,9 @@ public:
             raiseError(std::format("Unable to connect to SpikeGLX: {}", r.error()));
             return false;
         }
-        LOG_INFO(m_log, "Connected to {} on {}:{}", m_client.version(), host, port);
+        LOG_INFO(m_log, "Connected to {} on {}:{}", client->version(), host, port);
 
-        auto initialized = m_client.isInitialized();
+        auto initialized = client->isInitialized();
         if (!initialized) {
             raiseError(qstr(initialized.error()));
             return false;
@@ -507,25 +510,25 @@ public:
             return false;
         }
 
-        auto running = m_client.isRunning();
+        auto running = client->isRunning();
         if (!running) {
             raiseError(qstr(running.error()));
             return false;
         }
-        if (m_mode == RunControlMode::Automatic) {
-            m_mode = *running ? RunControlMode::GateOnly : RunControlMode::FullControl;
+        if (mode == RunControlMode::Automatic) {
+            mode = *running ? RunControlMode::GateOnly : RunControlMode::FullControl;
             LOG_INFO(
                 m_log,
                 "SpikeGLX is {}, using {} mode",
                 *running ? "already running" : "idle",
-                runControlModeString(m_mode));
+                runControlModeString(mode));
         }
-        if (m_mode == RunControlMode::FullControl && *running) {
+        if (mode == RunControlMode::FullControl && *running) {
             raiseError(QStringLiteral(
                 "SpikeGLX is already running a run. Stop it, or switch this module to 'Gate only' mode."));
             return false;
         }
-        if (m_mode != RunControlMode::FullControl && !*running) {
+        if (mode != RunControlMode::FullControl && !*running) {
             raiseError(QStringLiteral(
                 "SpikeGLX is not running. Start the SpikeGLX run first, or switch this module to 'Full control' "
                 "mode."));
@@ -534,7 +537,7 @@ public:
 
         // device detection & parameter validation
         if (!*running) {
-            if (auto r = ensureDevicesSelected(m_settingsDlg->deviceString()); !r) {
+            if (auto r = ensureDevicesSelected(*client, m_settingsDlg->deviceString()); !r) {
                 raiseError(qstr(r.error()));
                 return false;
             }
@@ -542,7 +545,7 @@ public:
 
         // stream layout
         QString err;
-        if (!enumerateStreams(m_streams, err)) {
+        if (!enumerateStreams(*client, m_streams, err)) {
             raiseError(QStringLiteral("Unable to query SpikeGLX streams: %1").arg(err));
             return false;
         }
@@ -552,21 +555,21 @@ public:
         }
 
         // dataset & static attributes
-        m_dataset = createDefaultDataset(name());
-        if (!m_dataset)
+        auto dataset = createDefaultDataset(name());
+        if (!dataset)
             return false;
-        m_dataset->insertAttribute("spikeglx_version", m_client.version());
-        m_dataset->insertAttribute("host", host.toStdString());
-        m_dataset->insertAttribute("port", static_cast<int64_t>(port));
-        m_dataset->insertAttribute("run_control", runControlModeString(m_mode)); // effective control mode
+        dataset->insertAttribute("spikeglx_version", client->version());
+        dataset->insertAttribute("host", host.toStdString());
+        dataset->insertAttribute("port", static_cast<int64_t>(port));
+        dataset->insertAttribute("run_control", runControlModeString(mode)); // effective control mode
         if (!m_settingsDlg->deviceString().isEmpty())
-            m_dataset->insertAttribute("device_string", m_settingsDlg->deviceString().toStdString());
-        if (auto addrs = m_client.probeAddrs())
-            m_dataset->insertAttribute("probe_addresses", *addrs);
-        m_dataset->insertAttribute("timestamp_method", "polled-tcp");
-        m_dataset->insertAttribute("live_data_enabled", m_fetchEnabled);
-        if (m_fetchEnabled)
-            m_dataset->insertAttribute("live_data_overrun_policy", std::string{m_abortOnOverrun ? "abort" : "skip"});
+            dataset->insertAttribute("device_string", m_settingsDlg->deviceString().toStdString());
+        if (auto addrs = client->probeAddrs())
+            dataset->insertAttribute("probe_addresses", *addrs);
+        dataset->insertAttribute("timestamp_method", "polled-tcp");
+        dataset->insertAttribute("live_data_enabled", fetchEnabled);
+        if (fetchEnabled)
+            dataset->insertAttribute("live_data_overrun_policy", std::string{abortOnOverrun ? "abort" : "skip"});
         {
             MetaStringMap streamsMeta;
             for (const auto &si : m_streams) {
@@ -590,19 +593,32 @@ public:
                 }
                 streamsMeta.insert(si.name.toStdString(), sm);
             }
-            m_dataset->insertAttribute("streams", streamsMeta);
+            dataset->insertAttribute("streams", streamsMeta);
         }
         // live-data ports
+        std::vector<FetchStream> fetchStreams;
+        for (const auto &fetchPort : m_fetchPorts)
+            fetchStreams.emplace_back(fetchPort);
         m_portsMeta.clear();
-        if (m_fetchEnabled) {
-            for (auto &fs : m_fetchStreams) {
-                if (!configureFetchStream(fs))
+        if (fetchEnabled) {
+            for (auto &fs : fetchStreams) {
+                if (!configureFetchStream(fs, *client, fetchMaxBlockMs))
                     return false;
+
+                // our thread starts the synchronizer once it has taken the reference point of the stream
+                fs.syncer = initCounterSynchronizer(fs.sampleRate);
+                if (fs.syncer) {
+                    fs.syncer->setStrategies(
+                        TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD);
+                    fs.syncer->setTolerance(std::chrono::milliseconds(5));
+                    fs.syncer->setCalibrationBlocksCount(std::max(20, 20000 / std::max(fetchIntervalMs, 1)));
+                }
             }
-            m_dataset->insertAttribute("live_data_ports", m_portsMeta);
+            dataset->insertAttribute("live_data_ports", m_portsMeta);
         }
 
         // sample-count log
+        std::vector<SyncStream> syncStreams;
         for (const auto &streamName : m_settingsDlg->syncStreams()) {
             const auto sid = SglxUtils::parseStreamName(streamName);
             if (!sid) {
@@ -628,7 +644,7 @@ public:
             ss.writer->setTimeDataTypes(TSyncFileDataType::UINT64, TSyncFileDataType::UINT64);
             ss.writer->setChunkSize(120); // new chunk about every 2 min at 1 Hz
 
-            auto fname = m_dataset->addAuxDataFile(
+            auto fname = dataset->addAuxDataFile(
                 QStringLiteral("%1-samplecount.tsync").arg(si->name).toStdString(),
                 "tsync");
             if (!fname) {
@@ -644,42 +660,42 @@ public:
             userData.insert("sample_rate", si->sampleRate);
             if (!si->serial.isEmpty())
                 userData.insert("serial", si->serial.toStdString());
-            if (!ss.writer->open(name().toStdString(), m_dataset->collectionId(), userData)) {
+            if (!ss.writer->open(name().toStdString(), dataset->collectionId(), userData)) {
                 raiseError(std::format("Unable to open time-sync file: {}", ss.writer->lastError()));
                 return false;
             }
-            m_syncStreams.push_back(std::move(ss));
+            syncStreams.push_back(std::move(ss));
         }
 
         // run name & SpikeGLX run start
-        m_runName = makeRunName(info);
-        if (m_mode == RunControlMode::FullControl) {
-            setStatusMessage(QStringLiteral("Starting SpikeGLX run '%1'…").arg(m_runName));
-            if (auto r = m_client.startRun(m_runName.toStdString()); !r) {
-                raiseError(QStringLiteral("Unable to start SpikeGLX run '%1': %2").arg(m_runName, qstr(r.error())));
+        const auto runName = makeRunName(info, dataset);
+        if (mode == RunControlMode::FullControl) {
+            setStatusMessage(QStringLiteral("Starting SpikeGLX run '%1'…").arg(runName));
+            if (auto r = client->startRun(runName.toStdString()); !r) {
+                raiseError(QStringLiteral("Unable to start SpikeGLX run '%1': %2").arg(runName, qstr(r.error())));
                 return false;
             }
-            m_sglxRunStartedByUs = true;
+            sglxRunStartedByUs = true;
 
-            if (!waitForStreams(30000))
+            if (!waitForStreams(*client, fetchEnabled, fetchStreams, syncStreams, 30000))
                 return false;
         } else {
-            if (auto rn = m_client.runName())
-                m_dataset->insertAttribute("run_name", rn->c_str());
+            if (auto rn = client->runName())
+                dataset->insertAttribute("run_name", rn->c_str());
         }
 
         // store SpikeGLX's parameters, now that the run is started and all of them are available
-        if (auto params = m_client.params()) {
+        if (auto params = client->params()) {
             MetaStringMap pm;
             for (const auto &[k, v] : *params)
                 pm.insert(k, MetaValue(v));
-            m_dataset->insertAttribute("spikeglx_params", pm);
+            dataset->insertAttribute("spikeglx_params", pm);
         } else {
             LOG_WARNING(m_log, "Unable to fetch SpikeGLX parameters: {}", params.error());
         }
 
-        for (auto &fs : m_fetchStreams) {
-            if (!m_fetchEnabled)
+        for (auto &fs : fetchStreams) {
+            if (!fetchEnabled)
                 continue;
             if (fs.digital)
                 fs.lineStream->start();
@@ -687,8 +703,28 @@ public:
                 fs.stream->start();
         }
 
-        setStatusMessage(QStringLiteral("Ready (%1)").arg(m_runName));
-        m_threadDone = false;
+        setStatusMessage(QStringLiteral("Ready (%1)").arg(runName));
+
+        // hand the connection and everything else our thread needs for this run over to it
+        setWorker(
+            Worker{
+                .client = std::move(client),
+                .mode = mode,
+                .syncIntervalMs = syncIntervalMs,
+                .fetchEnabled = fetchEnabled,
+                .fetchIntervalMs = fetchIntervalMs,
+                .abortOnOverrun = abortOnOverrun,
+                .fetchStreams = std::move(fetchStreams),
+                .syncStreams = std::move(syncStreams),
+                .dataset = dataset,
+                .runName = runName,
+                .subject = info.subject,
+                .isEphemeralRun = info.isEphemeral,
+                .experimentId = info.experimentId,
+                .instanceId = GlobalConfig().instanceId(),
+                .sglxRunStartedByUs = sglxRunStartedByUs,
+            });
+
         cleanupOnFailure.dismiss();
         return true;
     }
@@ -712,7 +748,7 @@ public:
      * Resolve a configured live-data entry against the real stream layout and
      * set the metadata of its output port.
      */
-    bool configureFetchStream(FetchStream &fs)
+    bool configureFetchStream(FetchStream &fs, Sglx::Client &client, int fetchMaxBlockMs)
     {
         const auto *si = findStream(fs.sid);
         if (!si) {
@@ -773,14 +809,14 @@ public:
         for (const auto c : fs.relChans)
             fs.absChans.push_back(offset + c);
         fs.sampleRate = si->sampleRate;
-        fs.maxSamps = std::clamp(static_cast<int>(std::lround(fs.sampleRate * m_fetchMaxBlockMs / 1000.0)), 1, 999999);
+        fs.maxSamps = std::clamp(static_cast<int>(std::lround(fs.sampleRate * fetchMaxBlockMs / 1000.0)), 1, 999999);
 
         // scaling: check the first and last channel of the selection
         double scale = 1.0;
         const bool digital = fs.digital;
         if (!digital) {
-            auto first = m_client.i16ToVolts(fs.sid, fs.absChans.front());
-            auto last = m_client.i16ToVolts(fs.sid, fs.absChans.back());
+            auto first = client.i16ToVolts(fs.sid, fs.absChans.front());
+            auto last = client.i16ToVolts(fs.sid, fs.absChans.back());
             if (!first || !last) {
                 raiseError(QStringLiteral("Unable to query channel scaling for '%1': %2")
                                .arg(fs.streamName, qstr(first ? last.error() : first.error())));
@@ -876,12 +912,6 @@ public:
         }
         m_portsMeta.insert(fs.portId.toStdString(), portMeta);
 
-        // the fetch streams outlive a run, so the statistics start fresh here
-        fs.gapCount = 0;
-        fs.droppedSamples = 0;
-        fs.fetchedSamples = 0;
-        fs.emittedEvents = 0;
-
         return true;
     }
 
@@ -889,14 +919,19 @@ public:
      * After STARTRUN, wait until SpikeGLX reports the run as active and all
      * streams we touch deliver samples.
      */
-    bool waitForStreams(int timeoutMs)
+    bool waitForStreams(
+        Sglx::Client &client,
+        bool fetchEnabled,
+        const std::vector<FetchStream> &fetchStreams,
+        const std::vector<SyncStream> &syncStreams,
+        int timeoutMs)
     {
         std::vector<Sglx::StreamId> touched;
-        for (const auto &fs : m_fetchStreams) {
-            if (m_fetchEnabled)
+        for (const auto &fs : fetchStreams) {
+            if (fetchEnabled)
                 touched.push_back(fs.sid);
         }
-        for (const auto &ss : m_syncStreams)
+        for (const auto &ss : syncStreams)
             touched.push_back(ss.sid);
         if (touched.empty())
             touched.push_back(m_streams.front().sid);
@@ -905,7 +940,7 @@ public:
         timer.start();
         while (timer.elapsed() < timeoutMs) {
             appProcessEvents();
-            auto running = m_client.isRunning();
+            auto running = client.isRunning();
             if (!running) {
                 raiseError(qstr(running.error()));
                 return false;
@@ -913,7 +948,7 @@ public:
             if (*running) {
                 bool allUp = true;
                 for (const auto &sid : touched) {
-                    auto cnt = m_client.sampleCount(sid);
+                    auto cnt = client.sampleCount(sid);
                     if (!cnt) {
                         allUp = false;
                         break;
@@ -930,552 +965,566 @@ public:
     }
 
     /**
-     * Turn the digital words of one fetch into LineReading edge events.
-     *
-     * SpikeGLX packs digital lines into 16-bit words, lowest numbered line in the
-     * lowest order bit, so a line is `word * 16 + bit` - the very numbering its own
-     * sync and trigger settings use. An event is emitted whenever a selected line
-     * changes level, plus once per line on the first block of the run so the starting
-     * level is recorded. The same happens after a gap in the fetched data: edges inside
-     * the gap are lost, so the level of every line is emitted again at the first sample
-     * after it, which marks the discontinuity for consumers.
+     * Controls the SpikeGLX run, logs its sample counters against the master clock and
+     * fetches live data, in the module's thread.
      */
-    void emitLineEdges(FetchStream &fs, int n, int nCh)
-    {
-        for (int s = 0; s < n; ++s) {
-            const auto tsUs = microseconds_t(
-                std::llround(static_cast<double>(fs.block.timestamps(s)) * 1e6 / fs.sampleRate));
-            const int16_t *row = fs.buffer.data() + static_cast<size_t>(s) * nCh;
+    struct Worker {
+        WorkerContext mod{};
+        using RunControlMode = SpikeGLXSettingsDialog::RunControlMode;
 
-            for (int c = 0; c < nCh; ++c) {
-                // SpikeGLX carries the unsigned status/digital word in a signed slot
-                const auto cur = static_cast<uint16_t>(row[c]);
-                uint16_t changed = fs.linePrimed ? ((cur ^ fs.linePrev[c]) & fs.lineMask[c]) : fs.lineMask[c];
-                fs.linePrev[c] = cur;
+        // The connection to SpikeGLX of this run. It is established in prepare() and then handed over
+        // to us, so this worker is the only user of the client for as long as it exists.
+        std::unique_ptr<Sglx::Client> client;
 
-                const auto base = static_cast<uint16_t>(fs.relChans[c] * SglxUtils::digitalLinesPerWord);
-                while (changed != 0) {
-                    const auto bit = std::countr_zero(changed);
-                    changed &= static_cast<uint16_t>(changed - 1);
+        // settings snapshot for the current run
+        RunControlMode mode; /// effective mode of the current run
+        int syncIntervalMs;
+        bool fetchEnabled;
+        int fetchIntervalMs;
+        bool abortOnOverrun;
 
-                    LineReading r;
-                    r.lineId = base + bit;
-                    r.value = (cur >> bit) & 1;
-                    r.time = tsUs;
-                    fs.lineStream->push(r);
-                    fs.emittedEvents++;
+        // run state
+        std::vector<FetchStream> fetchStreams;
+        std::vector<SyncStream> syncStreams;
+        std::shared_ptr<EDLDataset> dataset;
+        QString runName;
+        TestSubject subject;
+        bool isEphemeralRun;
+        QString experimentId;
+        QString instanceId; /// ID of this Syntalos instance, sent to SpikeGLX so it knows who controlled it
+        bool sglxRunStartedByUs;
+
+        /// set once our thread was launched; the module has to stop the SpikeGLX run if that never happened
+        bool threadStarted = false;
+
+        /**
+         * Turn the digital words of one fetch into LineReading edge events.
+         *
+         * SpikeGLX packs digital lines into 16-bit words, lowest numbered line in the
+         * lowest order bit, so a line is `word * 16 + bit` - the very numbering its own
+         * sync and trigger settings use. An event is emitted whenever a selected line
+         * changes level, plus once per line on the first block of the run so the starting
+         * level is recorded. The same happens after a gap in the fetched data: edges inside
+         * the gap are lost, so the level of every line is emitted again at the first sample
+         * after it, which marks the discontinuity for consumers.
+         */
+        void emitLineEdges(FetchStream &fs, int n, int nCh)
+        {
+            for (int s = 0; s < n; ++s) {
+                const auto tsUs = microseconds_t(
+                    std::llround(static_cast<double>(fs.block.timestamps(s)) * 1e6 / fs.sampleRate));
+                const int16_t *row = fs.buffer.data() + static_cast<size_t>(s) * nCh;
+
+                for (int c = 0; c < nCh; ++c) {
+                    // SpikeGLX carries the unsigned status/digital word in a signed slot
+                    const auto cur = static_cast<uint16_t>(row[c]);
+                    uint16_t changed = fs.linePrimed ? ((cur ^ fs.linePrev[c]) & fs.lineMask[c]) : fs.lineMask[c];
+                    fs.linePrev[c] = cur;
+
+                    const auto base = static_cast<uint16_t>(fs.relChans[c] * SglxUtils::digitalLinesPerWord);
+                    while (changed != 0) {
+                        const auto bit = std::countr_zero(changed);
+                        changed &= static_cast<uint16_t>(changed - 1);
+
+                        LineReading r;
+                        r.lineId = base + bit;
+                        r.value = (cur >> bit) & 1;
+                        r.time = tsUs;
+                        fs.lineStream->push(r);
+                        fs.emittedEvents++;
+                    }
                 }
+                fs.linePrimed = true;
             }
-            fs.linePrimed = true;
         }
-    }
 
-    /**
-     * Fetch everything new on one stream and publish it, as signal blocks for the
-     * analog groups and as line events for the digital ones.
-     * Returns false on a fatal error (already reported).
-     */
-    bool pumpFetchStream(FetchStream &fs)
-    {
-        for (int iter = 0; iter < 64 && m_running; ++iter) {
-            auto res = m_client.fetch(fs.sid, fs.cursor, fs.maxSamps, fs.absChans, fs.buffer);
-            const auto recvTs = m_syTimer->timeSinceStartUsec();
-            if (!res) {
-                if (res.error().find("Too late") != std::string::npos) {
-                    if (m_abortOnOverrun) {
-                        raiseError(QStringLiteral(
-                                       "Syntalos fell behind SpikeGLX: live data of '%1' was overwritten in the "
-                                       "SpikeGLX buffer before it could be fetched. The run was aborted because "
-                                       "complete live data was requested; the SpikeGLX files on the remote "
-                                       "computer are not affected.")
-                                       .arg(fs.streamName));
+        /**
+         * Fetch everything new on one stream and publish it, as signal blocks for the
+         * analog groups and as line events for the digital ones.
+         * Returns false on a fatal error (already reported).
+         */
+        bool pumpFetchStream(FetchStream &fs)
+        {
+            for (int iter = 0; iter < 64 && mod.running(); ++iter) {
+                auto res = client->fetch(fs.sid, fs.cursor, fs.maxSamps, fs.absChans, fs.buffer);
+                const auto recvTs = mod.timer->timeSinceStartUsec();
+                if (!res) {
+                    if (res.error().find("Too late") != std::string::npos) {
+                        if (abortOnOverrun) {
+                            mod.raiseError(
+                                QStringLiteral(
+                                    "Syntalos fell behind SpikeGLX: live data of '%1' was overwritten in the "
+                                    "SpikeGLX buffer before it could be fetched. The run was aborted because "
+                                    "complete live data was requested; the SpikeGLX files on the remote "
+                                    "computer are not affected.")
+                                    .arg(fs.streamName));
+                            return false;
+                        }
+                        // we fell behind the server's ring buffer, resynchronize
+                        auto cnt = client->sampleCount(fs.sid);
+                        if (!cnt) {
+                            mod.raiseError(QStringLiteral("Unable to resynchronize with SpikeGLX stream '%1': %2")
+                                               .arg(fs.streamName, qstr(cnt.error())));
+                            return false;
+                        }
+                        const auto newCursor = std::max<uint64_t>(*cnt, 1);
+                        fs.droppedSamples += newCursor > fs.cursor ? newCursor - fs.cursor : 0;
+                        fs.gapCount++;
+                        fs.linePrimed = false;
+                        LOG_WARNING(
+                            mod.log,
+                            "Live data of '{}' fell behind the SpikeGLX buffer, skipping {} samples",
+                            fs.streamName,
+                            newCursor - fs.cursor);
+                        fs.cursor = newCursor;
+                        return true;
+                    }
+                    if (auto sglxRunning = client->isRunning(); sglxRunning && !*sglxRunning)
+                        mod.raiseError(QStringLiteral("SpikeGLX stopped running unexpectedly."));
+                    else
+                        mod.raiseError(QStringLiteral("Fetching live data from '%1' failed: %2")
+                                           .arg(fs.streamName, qstr(res.error())));
+                    return false;
+                }
+
+                if (res->nSamps <= 0)
+                    return true; // no new data yet
+
+                if (res->headCt != fs.cursor) {
+                    // should not happen without a "Too late" error, but keep the counters honest
+                    if (abortOnOverrun && res->headCt > fs.cursor) {
+                        mod.raiseError(QStringLiteral(
+                                           "Live data of '%1' has a gap of %2 samples; the run was aborted "
+                                           "because complete live data was requested.")
+                                           .arg(fs.streamName)
+                                           .arg(res->headCt - fs.cursor));
                         return false;
                     }
-                    // we fell behind the server's ring buffer, resynchronize
-                    auto cnt = m_client.sampleCount(fs.sid);
-                    if (!cnt) {
-                        raiseError(QStringLiteral("Unable to resynchronize with SpikeGLX stream '%1': %2")
-                                       .arg(fs.streamName, qstr(cnt.error())));
-                        return false;
-                    }
-                    const auto newCursor = std::max<uint64_t>(*cnt, 1);
-                    fs.droppedSamples += newCursor > fs.cursor ? newCursor - fs.cursor : 0;
                     fs.gapCount++;
                     fs.linePrimed = false;
-                    LOG_WARNING(
-                        m_log,
-                        "Live data of '{}' fell behind the SpikeGLX buffer, skipping {} samples",
-                        fs.streamName,
-                        newCursor - fs.cursor);
-                    fs.cursor = newCursor;
-                    return true;
+                    if (res->headCt > fs.cursor)
+                        fs.droppedSamples += res->headCt - fs.cursor;
                 }
-                if (auto running = m_client.isRunning(); running && !*running)
-                    raiseError(QStringLiteral("SpikeGLX stopped running unexpectedly."));
+
+                const int n = res->nSamps;
+                const int nCh = res->nChans;
+                fs.block.timestamps.resize(n);
+                if (!fs.digital) {
+                    fs.block.data.resize(n, nCh);
+                    // the SDK buffer is sample-major int16, exactly our row-major block layout
+                    fs.block.data = Eigen::Map<const MatrixXi16>(fs.buffer.data(), n, nCh);
+                }
+                for (int s = 0; s < n; ++s) {
+                    const int64_t idx = static_cast<int64_t>(res->headCt + s) - static_cast<int64_t>(fs.refSampleCount)
+                                        + fs.startSampleOffset;
+                    fs.block.timestamps(s) = static_cast<uint64_t>(std::max<int64_t>(idx, 0));
+                }
+                if (fs.syncer)
+                    fs.syncer->processTimestamps(recvTs, 0, 1, fs.block.timestamps);
+
+                if (fs.digital)
+                    emitLineEdges(fs, n, nCh);
                 else
-                    raiseError(QStringLiteral("Fetching live data from '%1' failed: %2")
-                                   .arg(fs.streamName, qstr(res.error())));
-                return false;
+                    fs.stream->push(fs.block);
+                fs.cursor = res->headCt + n;
+                fs.fetchedSamples += n;
+
+                if (n < fs.maxSamps)
+                    return true; // drained
             }
-
-            if (res->nSamps <= 0)
-                return true; // no new data yet
-
-            if (res->headCt != fs.cursor) {
-                // should not happen without a "Too late" error, but keep the counters honest
-                if (m_abortOnOverrun && res->headCt > fs.cursor) {
-                    raiseError(QStringLiteral(
-                                   "Live data of '%1' has a gap of %2 samples; the run was aborted "
-                                   "because complete live data was requested.")
-                                   .arg(fs.streamName)
-                                   .arg(res->headCt - fs.cursor));
-                    return false;
-                }
-                fs.gapCount++;
-                fs.linePrimed = false;
-                if (res->headCt > fs.cursor)
-                    fs.droppedSamples += res->headCt - fs.cursor;
-            }
-
-            const int n = res->nSamps;
-            const int nCh = res->nChans;
-            fs.block.timestamps.resize(n);
-            if (!fs.digital) {
-                fs.block.data.resize(n, nCh);
-                // the SDK buffer is sample-major int16, exactly our row-major block layout
-                fs.block.data = Eigen::Map<const MatrixXi16>(fs.buffer.data(), n, nCh);
-            }
-            for (int s = 0; s < n; ++s) {
-                const int64_t idx = static_cast<int64_t>(res->headCt + s) - static_cast<int64_t>(fs.refSampleCount)
-                                    + fs.startSampleOffset;
-                fs.block.timestamps(s) = static_cast<uint64_t>(std::max<int64_t>(idx, 0));
-            }
-            if (fs.syncer)
-                fs.syncer->processTimestamps(recvTs, 0, 1, fs.block.timestamps);
-
-            if (fs.digital)
-                emitLineEdges(fs, n, nCh);
-            else
-                fs.stream->push(fs.block);
-            fs.cursor = res->headCt + n;
-            fs.fetchedSamples += n;
-
-            if (n < fs.maxSamps)
-                return true; // drained
+            return true;
         }
-        return true;
-    }
 
-    void runThread(OptionalWaitCondition *startWaitCondition) override
-    {
-        m_threadStarted = true;
-        auto markDone = qScopeGuard([this] {
-            m_threadDone = true;
-        });
+        void run()
+        {
+            threadStarted = true;
 
-        bool failed = false;
-        bool gateOpened = false;
+            bool failed = false;
+            bool gateOpened = false;
 
-        // Announce ourselves to SpikeGLX before the start barrier: SpikeGLX attaches pending
-        // metadata when its next file-set is opened, so this has to happen before SETRECORDENAB 1,
-        // and doing it ahead of the barrier keeps the round-trip out of the time-critical path
-        // between the start signal and the gate.
-        bool metadataSet = pushRunMetadata();
+            // Announce ourselves to SpikeGLX before the start barrier: SpikeGLX attaches pending
+            // metadata when its next file-set is opened, so this has to happen before SETRECORDENAB 1,
+            // and doing it ahead of the barrier keeps the round-trip out of the time-critical path
+            // between the start signal and the gate.
+            bool metadataSet = pushRunMetadata();
 
-        startWaitCondition->wait(this);
+            mod.waitForStart();
 
-        // The engine also wakes us up if the run was aborted before it ever began, so the
-        // Syntalos clock may never have been started. In that case we must not open the
-        // recording gate - but we still have to fall through to the epilogue below, which
-        // stops the SpikeGLX run that we may have started in prepare().
-        if (!m_running)
-            failed = true;
-
-        const auto startTime = m_syTimer->startTime();
-        const auto startWallUs = std::chrono::duration_cast<std::chrono::microseconds>(
-                                     m_syTimer->startWallTime().time_since_epoch())
-                                     .count();
-        m_dataset->insertAttribute("run_start_wall_time_us", startWallUs);
-
-        // Open the recording gate right away (identity and prep data has been sent in prepare())
-        if (!failed && m_mode != RunControlMode::Monitor) {
-            Sglx::Client::Result<void> r;
-            const auto ts = FUNC_EXEC_TIMESTAMP(startTime, r = m_client.setRecordingEnable(true));
-            if (!r) {
-                raiseError(std::format("Unable to enable recording in SpikeGLX: {}", r.error()));
+            // The engine also wakes us up if the run was aborted before it ever began, so the
+            // Syntalos clock may never have been started. In that case we must not open the
+            // recording gate - but we still have to fall through to the epilogue below, which
+            // stops the SpikeGLX run that we may have started in prepare().
+            if (!mod.running())
                 failed = true;
-            } else {
-                gateOpened = true;
-                m_dataset->insertAttribute("record_start_master_time_us", static_cast<int64_t>(ts.count()));
-                LOG_INFO(m_log, "SpikeGLX recording enabled at {} µs", ts.count());
+
+            const auto startTime = mod.timer->startTime();
+            const auto startWallUs = std::chrono::duration_cast<std::chrono::microseconds>(
+                                         mod.timer->startWallTime().time_since_epoch())
+                                         .count();
+            dataset->insertAttribute("run_start_wall_time_us", startWallUs);
+
+            // Open the recording gate right away (identity and prep data has been sent in prepare())
+            if (!failed && mode != RunControlMode::Monitor) {
+                Sglx::Client::Result<void> r;
+                const auto ts = FUNC_EXEC_TIMESTAMP(startTime, r = client->setRecordingEnable(true));
+                if (!r) {
+                    mod.raiseError(std::format("Unable to enable recording in SpikeGLX: {}", r.error()));
+                    failed = true;
+                } else {
+                    gateOpened = true;
+                    dataset->insertAttribute("record_start_master_time_us", static_cast<int64_t>(ts.count()));
+                    LOG_INFO(mod.log, "SpikeGLX recording enabled at {} µs", ts.count());
+                }
             }
+
+            // reference points: sample count <-> master time
+            if (!failed) {
+                MetaStringMap refs;
+                auto takeReference = [&](Sglx::StreamId sid,
+                                         const QString &sname,
+                                         uint64_t &count,
+                                         microseconds_t &time) {
+                    Sglx::Client::Result<uint64_t> cnt;
+                    time = FUNC_EXEC_TIMESTAMP(startTime, cnt = client->sampleCount(sid));
+                    if (!cnt) {
+                        mod.raiseError(
+                            QStringLiteral("Unable to read sample count of '%1': %2").arg(sname, qstr(cnt.error())));
+                        return false;
+                    }
+                    count = *cnt;
+                    MetaStringMap rm;
+                    rm.insert("sample_count", static_cast<int64_t>(count));
+                    rm.insert("master_time_us", static_cast<int64_t>(time.count()));
+                    refs.insert(sname.toStdString(), rm);
+                    return true;
+                };
+
+                for (auto &fs : fetchStreams) {
+                    if (!fetchEnabled)
+                        break;
+                    microseconds_t t;
+                    if (!takeReference(fs.sid, fs.streamName, fs.refSampleCount, t)) {
+                        failed = true;
+                        break;
+                    }
+                    fs.cursor = std::max<uint64_t>(fs.refSampleCount, 1);
+                    fs.startSampleOffset = std::llround(static_cast<double>(t.count()) * fs.sampleRate / 1e6);
+                    // the edge detector primes on the first block, so the starting
+                    // level of every selected line is emitted once
+                    fs.linePrimed = false;
+                    // the synchronizer was created and configured in prepare()
+                    if (fs.syncer) {
+                        if (!fs.syncer->start()) {
+                            mod.raiseError(
+                                QStringLiteral("Unable to start time synchronizer for '%1'.").arg(fs.streamName));
+                            failed = true;
+                            break;
+                        }
+                    }
+                }
+                for (auto &ss : syncStreams) {
+                    if (failed)
+                        break;
+                    uint64_t count;
+                    microseconds_t t;
+                    if (!takeReference(ss.sid, ss.name, count, t)) {
+                        failed = true;
+                        break;
+                    }
+                    ss.writer->writeTimes(count, static_cast<uint64_t>(t.count()));
+                }
+                dataset->insertAttribute("reference_points", refs);
+            }
+
+            // main loop
+            auto lastSync = mod.timer->timeSinceStartUsec();
+            auto lastHealth = lastSync;
+            const auto syncInterval = std::chrono::milliseconds(syncIntervalMs);
+            const auto healthInterval = std::chrono::milliseconds(2000);
+            const int sleepMs = fetchEnabled ? fetchIntervalMs : std::min(syncIntervalMs, 100);
+
+            while (mod.running() && !failed) {
+                if (fetchEnabled) {
+                    for (auto &fs : fetchStreams) {
+                        if (!pumpFetchStream(fs)) {
+                            failed = true;
+                            break;
+                        }
+                    }
+                    if (failed)
+                        break;
+                }
+
+                const auto now = mod.timer->timeSinceStartUsec();
+                if (!syncStreams.empty() && now - lastSync >= syncInterval) {
+                    lastSync = now;
+                    for (auto &ss : syncStreams) {
+                        Sglx::Client::Result<uint64_t> cnt;
+                        const auto t = FUNC_EXEC_TIMESTAMP(startTime, cnt = client->sampleCount(ss.sid));
+                        if (!cnt) {
+                            mod.raiseError(QStringLiteral("SpikeGLX stream '%1' stopped delivering samples: %2")
+                                               .arg(ss.name, qstr(cnt.error())));
+                            failed = true;
+                            break;
+                        }
+                        ss.writer->writeTimes(*cnt, static_cast<uint64_t>(t.count()));
+                    }
+                    if (failed)
+                        break;
+                }
+
+                if (now - lastHealth >= healthInterval) {
+                    lastHealth = now;
+                    auto sglxRunning = client->isRunning();
+                    if (!sglxRunning || !*sglxRunning) {
+                        mod.raiseError(
+                            sglxRunning
+                                ? QStringLiteral("SpikeGLX stopped running unexpectedly.")
+                                : QStringLiteral("Lost connection to SpikeGLX: %1").arg(qstr(sglxRunning.error())));
+                        failed = true;
+                        break;
+                    }
+                    if (mode != RunControlMode::Monitor) {
+                        auto saving = client->isSaving();
+                        if (saving && !*saving) {
+                            mod.raiseError(QStringLiteral(
+                                "SpikeGLX stopped writing data while the run was active (was recording disabled "
+                                "manually?)."));
+                            failed = true;
+                            break;
+                        }
+                    }
+                }
+
+                // sleep in small slices so we react to stop requests quickly
+                for (int slept = 0; slept < sleepMs && mod.running(); slept += 20)
+                    std::this_thread::sleep_for(milliseconds_t(std::min(20, sleepMs - slept)));
+            }
+
+            // epilogue: this thread is the only user of the client during a run,
+            // so all stop-time commands are issued here.
+            if (gateOpened) {
+                Sglx::Client::Result<void> r;
+                const auto ts = FUNC_EXEC_TIMESTAMP(startTime, r = client->setRecordingEnable(false));
+                if (r)
+                    dataset->insertAttribute("record_stop_master_time_us", static_cast<int64_t>(ts.count()));
+                else
+                    LOG_WARNING(mod.log, "Unable to disable SpikeGLX recording: {}", r.error());
+            }
+
+            // Our keys have served their purpose now, whether a file-set carried them or not.
+            // This has to happen before a possible STOPRUN, as SETMETADATA needs a run in progress.
+            if (metadataSet)
+                clearRunMetadata();
+
+            collectRunInfo();
+
+            if (mode == RunControlMode::FullControl) {
+                Sglx::Client::Result<void> r;
+                const auto ts = FUNC_EXEC_TIMESTAMP(startTime, r = client->stopRun());
+                if (r) {
+                    dataset->insertAttribute("run_stop_master_time_us", static_cast<int64_t>(ts.count()));
+                    sglxRunStartedByUs = false;
+                    setPlaceholderRunName(*client, mod.log);
+                } else {
+                    LOG_WARNING(mod.log, "Unable to stop SpikeGLX run: {}", r.error());
+                }
+            }
+
+            MetaStringMap fetchStats;
+            for (auto &fs : fetchStreams) {
+                if (fs.syncer) {
+                    safeStopSynchronizer(fs.syncer);
+                    fs.syncer.reset();
+                }
+                if (!fetchEnabled)
+                    continue;
+                MetaStringMap sm;
+                sm.insert("fetched_samples", static_cast<int64_t>(fs.fetchedSamples));
+                sm.insert("gap_count", static_cast<int64_t>(fs.gapCount));
+                sm.insert("dropped_samples", static_cast<int64_t>(fs.droppedSamples));
+                if (fs.digital)
+                    sm.insert("emitted_events", static_cast<int64_t>(fs.emittedEvents));
+                fetchStats.insert(fs.portId.toStdString(), sm);
+                if (fs.digital && fs.emittedEvents > 100000)
+                    LOG_WARNING(
+                        mod.log,
+                        "Live data port '{}' emitted {} line events; check that the selected lines are actually "
+                        "connected, a floating input generates events at the stream sample rate",
+                        fs.portId,
+                        fs.emittedEvents);
+                if (fs.gapCount > 0)
+                    LOG_WARNING(
+                        mod.log,
+                        "Live data port '{}' had {} gaps ({} samples lost); the SpikeGLX files on disk are unaffected",
+                        fs.portId,
+                        fs.gapCount,
+                        fs.droppedSamples);
+            }
+            if (fetchEnabled)
+                dataset->insertAttribute("live_data", fetchStats);
         }
 
-        // reference points: sample count <-> master time
-        if (!failed) {
-            MetaStringMap refs;
-            auto takeReference = [&](Sglx::StreamId sid, const QString &sname, uint64_t &count, microseconds_t &time) {
-                Sglx::Client::Result<uint64_t> cnt;
-                time = FUNC_EXEC_TIMESTAMP(startTime, cnt = m_client.sampleCount(sid));
-                if (!cnt) {
-                    raiseError(QStringLiteral("Unable to read sample count of '%1': %2").arg(sname, qstr(cnt.error())));
-                    return false;
-                }
-                count = *cnt;
-                MetaStringMap rm;
-                rm.insert("sample_count", static_cast<int64_t>(count));
-                rm.insert("master_time_us", static_cast<int64_t>(time.count()));
-                refs.insert(sname.toStdString(), rm);
-                return true;
+        /**
+         * @brief The Syntalos identity keys for the current run.
+         * @param blank set every key to an empty value instead of its real one
+         *
+         * SETMETADATA does not queue a key set for the next file-set, it *merges* what we send into
+         * a map that SpikeGLX keeps for the whole duration of its run and writes into the `.meta`
+         * files whenever a file-set is closed (see TrigBase::setMetaData()). Keys can never be
+         * removed again, and the map is not cleared between file-sets - so blanking the values is
+         * the only way to stop our identity from labelling a later, unrelated recording.
+         */
+        std::map<std::string, std::string> runMetadata(bool blank = false) const
+        {
+            const auto value = [blank](const QString &s) {
+                return blank ? std::string() : s.toStdString();
             };
 
-            for (auto &fs : m_fetchStreams) {
-                if (!m_fetchEnabled)
-                    break;
-                microseconds_t t;
-                if (!takeReference(fs.sid, fs.streamName, fs.refSampleCount, t)) {
-                    failed = true;
+            std::map<std::string, std::string> kv;
+            kv["sy_collection_id"] = blank ? std::string() : dataset->collectionId().toHex();
+            kv["sy_subject_id"] = value(subject.id);
+            kv["sy_subject_group"] = value(subject.group);
+            kv["sy_experiment_id"] = value(experimentId);
+            kv["sy_run_name"] = value(runName);
+            kv["sy_module_name"] = value(mod.moduleName());
+            kv["sy_instance_id"] = value(instanceId);
+            if (isEphemeralRun)
+                kv["sy_ephemeral_run"] = blank ? std::string() : "true";
+            return kv;
+        }
+
+        /**
+         * @brief Identify this Syntalos run to SpikeGLX.
+         *
+         * The keys end up in the `.meta` files of the file-set that the recording gate creates.
+         *
+         * @return true if SpikeGLX now holds our identity, but no file-set of ours exists to carry it.
+         */
+        bool pushRunMetadata()
+        {
+            if (mode == RunControlMode::Monitor)
+                return false;
+
+            if (auto r = client->setMetadata(runMetadata()); !r) {
+                LOG_WARNING(mod.log, "Unable to set SpikeGLX metadata: {}", r.error());
+                return false;
+            }
+            return true;
+        }
+
+        /**
+         * @brief Blank our identity again, so it can not label a later, unrelated file-set.
+         *
+         * SpikeGLX keeps our keys for the rest of its run and writes them into *every* file-set it
+         * closes, so leaving them behind would label whatever is recorded next - after an aborted
+         * run that never opened the gate just as much as after a successful one. Keys can not be
+         * deleted, so we overwrite them with empty values; an explicit marker key would be worse,
+         * as it could not be removed either and would then haunt the rest of the SpikeGLX run.
+         *
+         * This is the metadata half of leaving SpikeGLX in a neutral state, the run-name half being
+         * setPlaceholderRunName(). The two are mutually exclusive by design: SETMETADATA needs a run
+         * in progress, SETRUNNAME needs the opposite.
+         */
+        void clearRunMetadata()
+        {
+            // SpikeGLX takes its copy of the metadata when it closes a file-set, and the close is
+            // asynchronous: SETRECORDENAB 0 returns before it has happened. Blanking too early would
+            // strip the identity from our own .meta files, so wait for the files to be closed - at
+            // which point the copy is guaranteed to have been taken.
+            bool filesClosed = false;
+            QElapsedTimer timer;
+            timer.start();
+            while (timer.elapsed() < 2000) {
+                const auto saving = client->isSaving();
+                if (!saving) {
+                    LOG_WARNING(mod.log, "Unable to query the SpikeGLX saving state: {}", saving.error());
                     break;
                 }
-                fs.cursor = std::max<uint64_t>(fs.refSampleCount, 1);
-                fs.startSampleOffset = std::llround(static_cast<double>(t.count()) * fs.sampleRate / 1e6);
-                // the edge detector primes on the first block, so the starting
-                // level of every selected line is emitted once
-                fs.linePrimed = false;
-                fs.syncer = initCounterSynchronizer(fs.sampleRate);
-                if (fs.syncer) {
-                    fs.syncer->setStrategies(
-                        TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD);
-                    fs.syncer->setTolerance(std::chrono::milliseconds(5));
-                    fs.syncer->setCalibrationBlocksCount(std::max(20, 20000 / std::max(m_fetchIntervalMs, 1)));
-                    if (!fs.syncer->start()) {
-                        raiseError(QStringLiteral("Unable to start time synchronizer for '%1'.").arg(fs.streamName));
-                        failed = true;
-                        break;
+                if (!*saving) {
+                    filesClosed = true;
+                    break;
+                }
+                std::this_thread::sleep_for(milliseconds_t(20));
+            }
+            if (!filesClosed) {
+                LOG_WARNING(mod.log, "SpikeGLX is still writing files, leaving our run metadata in place");
+                return;
+            }
+
+            if (auto r = client->setMetadata(runMetadata(true)); !r)
+                LOG_WARNING(mod.log, "Unable to blank SpikeGLX metadata: {}", r.error());
+        }
+
+        /** Record where SpikeGLX wrote its files. */
+        void collectRunInfo()
+        {
+            auto dir = client->dataDir();
+            auto rn = client->runName();
+            auto gt = client->lastGT();
+            if (dir)
+                dataset->insertAttribute("remote_data_dir", *dir);
+            if (rn)
+                dataset->insertAttribute("remote_run_name", *rn);
+            if (gt) {
+                dataset->insertAttribute("last_gate_index", static_cast<int64_t>(gt->first));
+                dataset->insertAttribute("last_trigger_index", static_cast<int64_t>(gt->second));
+            }
+            if (dir && rn && gt && gt->first >= 0) {
+                const auto runDir = QStringLiteral("%1/%2_g%3").arg(qstr(*dir), qstr(*rn)).arg(gt->first);
+                dataset->insertAttribute("remote_run_dir", runDir.toStdString());
+                dataset->insertAttribute(
+                    "remote_file_prefix",
+                    QStringLiteral("%1_g%2_t%3").arg(qstr(*rn)).arg(gt->first).arg(gt->second).toStdString());
+
+                // list the files SpikeGLX wrote for this run (best effort)
+                if (auto files = client->enumDataDir()) {
+                    const auto needle = QStringLiteral("/%1_g%2/").arg(qstr(*rn)).arg(gt->first);
+                    MetaArray remoteFiles;
+                    for (const auto &f : *files) {
+                        const auto qf = qstr(f);
+                        if (qf.contains(needle)
+                            && (qf.endsWith(QLatin1String(".bin")) || qf.endsWith(QLatin1String(".meta"))))
+                            remoteFiles.push_back(f);
                     }
+                    if (!remoteFiles.empty())
+                        dataset->insertAttribute("remote_files", remoteFiles);
                 }
             }
-            for (auto &ss : m_syncStreams) {
-                if (failed)
-                    break;
-                uint64_t count;
-                microseconds_t t;
-                if (!takeReference(ss.sid, ss.name, count, t)) {
-                    failed = true;
-                    break;
-                }
-                ss.writer->writeTimes(count, static_cast<uint64_t>(t.count()));
-            }
-            m_dataset->insertAttribute("reference_points", refs);
         }
-
-        // main loop
-        auto lastSync = m_syTimer->timeSinceStartUsec();
-        auto lastHealth = lastSync;
-        const auto syncInterval = std::chrono::milliseconds(m_syncIntervalMs);
-        const auto healthInterval = std::chrono::milliseconds(2000);
-        const int sleepMs = m_fetchEnabled ? m_fetchIntervalMs : std::min(m_syncIntervalMs, 100);
-
-        while (m_running && !failed) {
-            if (m_fetchEnabled) {
-                for (auto &fs : m_fetchStreams) {
-                    if (!pumpFetchStream(fs)) {
-                        failed = true;
-                        break;
-                    }
-                }
-                if (failed)
-                    break;
-            }
-
-            const auto now = m_syTimer->timeSinceStartUsec();
-            if (!m_syncStreams.empty() && now - lastSync >= syncInterval) {
-                lastSync = now;
-                for (auto &ss : m_syncStreams) {
-                    Sglx::Client::Result<uint64_t> cnt;
-                    const auto t = FUNC_EXEC_TIMESTAMP(startTime, cnt = m_client.sampleCount(ss.sid));
-                    if (!cnt) {
-                        raiseError(QStringLiteral("SpikeGLX stream '%1' stopped delivering samples: %2")
-                                       .arg(ss.name, qstr(cnt.error())));
-                        failed = true;
-                        break;
-                    }
-                    ss.writer->writeTimes(*cnt, static_cast<uint64_t>(t.count()));
-                }
-                if (failed)
-                    break;
-            }
-
-            if (now - lastHealth >= healthInterval) {
-                lastHealth = now;
-                auto running = m_client.isRunning();
-                if (!running || !*running) {
-                    raiseError(
-                        running ? QStringLiteral("SpikeGLX stopped running unexpectedly.")
-                                : QStringLiteral("Lost connection to SpikeGLX: %1").arg(qstr(running.error())));
-                    failed = true;
-                    break;
-                }
-                if (m_mode != RunControlMode::Monitor) {
-                    auto saving = m_client.isSaving();
-                    if (saving && !*saving) {
-                        raiseError(QStringLiteral(
-                            "SpikeGLX stopped writing data while the run was active (was recording disabled "
-                            "manually?)."));
-                        failed = true;
-                        break;
-                    }
-                }
-            }
-
-            // sleep in small slices so we react to stop requests quickly
-            for (int slept = 0; slept < sleepMs && m_running; slept += 20)
-                std::this_thread::sleep_for(milliseconds_t(std::min(20, sleepMs - slept)));
-        }
-
-        // epilogue: this thread is the only user of the client during a run,
-        // so all stop-time commands are issued here.
-        if (gateOpened) {
-            Sglx::Client::Result<void> r;
-            const auto ts = FUNC_EXEC_TIMESTAMP(startTime, r = m_client.setRecordingEnable(false));
-            if (r)
-                m_dataset->insertAttribute("record_stop_master_time_us", static_cast<int64_t>(ts.count()));
-            else
-                LOG_WARNING(m_log, "Unable to disable SpikeGLX recording: {}", r.error());
-        }
-
-        // Our keys have served their purpose now, whether a file-set carried them or not.
-        // This has to happen before a possible STOPRUN, as SETMETADATA needs a run in progress.
-        if (metadataSet)
-            clearRunMetadata();
-
-        collectRunInfo();
-
-        if (m_mode == RunControlMode::FullControl) {
-            Sglx::Client::Result<void> r;
-            const auto ts = FUNC_EXEC_TIMESTAMP(startTime, r = m_client.stopRun());
-            if (r) {
-                m_dataset->insertAttribute("run_stop_master_time_us", static_cast<int64_t>(ts.count()));
-                m_sglxRunStartedByUs = false;
-                setPlaceholderRunName();
-            } else {
-                LOG_WARNING(m_log, "Unable to stop SpikeGLX run: {}", r.error());
-            }
-        }
-
-        MetaStringMap fetchStats;
-        for (auto &fs : m_fetchStreams) {
-            if (fs.syncer) {
-                safeStopSynchronizer(fs.syncer);
-                fs.syncer.reset();
-            }
-            if (!m_fetchEnabled)
-                continue;
-            MetaStringMap sm;
-            sm.insert("fetched_samples", static_cast<int64_t>(fs.fetchedSamples));
-            sm.insert("gap_count", static_cast<int64_t>(fs.gapCount));
-            sm.insert("dropped_samples", static_cast<int64_t>(fs.droppedSamples));
-            if (fs.digital)
-                sm.insert("emitted_events", static_cast<int64_t>(fs.emittedEvents));
-            fetchStats.insert(fs.portId.toStdString(), sm);
-            if (fs.digital && fs.emittedEvents > 100000)
-                LOG_WARNING(
-                    m_log,
-                    "Live data port '{}' emitted {} line events; check that the selected lines are actually "
-                    "connected, a floating input generates events at the stream sample rate",
-                    fs.portId,
-                    fs.emittedEvents);
-            if (fs.gapCount > 0)
-                LOG_WARNING(
-                    m_log,
-                    "Live data port '{}' had {} gaps ({} samples lost); the SpikeGLX files on disk are unaffected",
-                    fs.portId,
-                    fs.gapCount,
-                    fs.droppedSamples);
-        }
-        if (m_fetchEnabled)
-            m_dataset->insertAttribute("live_data", fetchStats);
-    }
-
-    /**
-     * Leave SpikeGLX with an unused run name. SpikeGLX verifies its remembered
-     * run name whenever parameters are (re)validated and refuses names that already
-     * exist on disk, which would otherwise break remote device detection after a
-     * SpikeGLX restart, and requires the user to pick a new name for manual runs.
-     */
-    void setPlaceholderRunName()
-    {
-        const auto placeholder = QStringLiteral("syntalos_next_%1")
-                                     .arg(QDateTime::currentDateTime().toString(QStringLiteral("yyyyMMdd_HHmmss")));
-        if (auto r = m_client.setRunName(placeholder.toStdString()); !r)
-            LOG_WARNING(m_log, "Unable to set placeholder run name in SpikeGLX: {}", r.error());
-    }
-
-    /**
-     * @brief The Syntalos identity keys for the current run.
-     * @param blank set every key to an empty value instead of its real one
-     *
-     * SETMETADATA does not queue a key set for the next file-set, it *merges* what we send into
-     * a map that SpikeGLX keeps for the whole duration of its run and writes into the `.meta`
-     * files whenever a file-set is closed (see TrigBase::setMetaData()). Keys can never be
-     * removed again, and the map is not cleared between file-sets - so blanking the values is
-     * the only way to stop our identity from labelling a later, unrelated recording.
-     */
-    std::map<std::string, std::string> runMetadata(bool blank = false) const
-    {
-        const auto value = [blank](const QString &s) {
-            return blank ? std::string() : s.toStdString();
-        };
-
-        std::map<std::string, std::string> kv;
-        kv["sy_collection_id"] = blank ? std::string() : m_dataset->collectionId().toHex();
-        kv["sy_subject_id"] = value(m_subject.id);
-        kv["sy_subject_group"] = value(m_subject.group);
-        kv["sy_experiment_id"] = value(m_experimentId);
-        kv["sy_run_name"] = value(m_runName);
-        kv["sy_module_name"] = value(m_moduleName);
-        kv["sy_instance_id"] = value(m_instanceId);
-        if (m_isEphemeralRun)
-            kv["sy_ephemeral_run"] = blank ? std::string() : "true";
-        return kv;
-    }
-
-    /**
-     * @brief Identify this Syntalos run to SpikeGLX.
-     *
-     * The keys end up in the `.meta` files of the file-set that the recording gate creates.
-     *
-     * @return true if SpikeGLX now holds our identity, but no file-set of ours exists to carry it.
-     */
-    bool pushRunMetadata()
-    {
-        if (m_mode == RunControlMode::Monitor)
-            return false;
-
-        if (auto r = m_client.setMetadata(runMetadata()); !r) {
-            LOG_WARNING(m_log, "Unable to set SpikeGLX metadata: {}", r.error());
-            return false;
-        }
-        return true;
-    }
-
-    /**
-     * @brief Blank our identity again, so it can not label a later, unrelated file-set.
-     *
-     * SpikeGLX keeps our keys for the rest of its run and writes them into *every* file-set it
-     * closes, so leaving them behind would label whatever is recorded next - after an aborted
-     * run that never opened the gate just as much as after a successful one. Keys can not be
-     * deleted, so we overwrite them with empty values; an explicit marker key would be worse,
-     * as it could not be removed either and would then haunt the rest of the SpikeGLX run.
-     *
-     * This is the metadata half of leaving SpikeGLX in a neutral state, the run-name half being
-     * setPlaceholderRunName(). The two are mutually exclusive by design: SETMETADATA needs a run
-     * in progress, SETRUNNAME needs the opposite.
-     */
-    void clearRunMetadata()
-    {
-        // SpikeGLX takes its copy of the metadata when it closes a file-set, and the close is
-        // asynchronous: SETRECORDENAB 0 returns before it has happened. Blanking too early would
-        // strip the identity from our own .meta files, so wait for the files to be closed - at
-        // which point the copy is guaranteed to have been taken.
-        bool filesClosed = false;
-        QElapsedTimer timer;
-        timer.start();
-        while (timer.elapsed() < 2000) {
-            const auto saving = m_client.isSaving();
-            if (!saving) {
-                LOG_WARNING(m_log, "Unable to query the SpikeGLX saving state: {}", saving.error());
-                break;
-            }
-            if (!*saving) {
-                filesClosed = true;
-                break;
-            }
-            std::this_thread::sleep_for(milliseconds_t(20));
-        }
-        if (!filesClosed) {
-            LOG_WARNING(m_log, "SpikeGLX is still writing files, leaving our run metadata in place");
-            return;
-        }
-
-        if (auto r = m_client.setMetadata(runMetadata(true)); !r)
-            LOG_WARNING(m_log, "Unable to blank SpikeGLX metadata: {}", r.error());
-    }
-
-    /** Record where SpikeGLX wrote its files. */
-    void collectRunInfo()
-    {
-        auto dir = m_client.dataDir();
-        auto rn = m_client.runName();
-        auto gt = m_client.lastGT();
-        if (dir)
-            m_dataset->insertAttribute("remote_data_dir", *dir);
-        if (rn)
-            m_dataset->insertAttribute("remote_run_name", *rn);
-        if (gt) {
-            m_dataset->insertAttribute("last_gate_index", static_cast<int64_t>(gt->first));
-            m_dataset->insertAttribute("last_trigger_index", static_cast<int64_t>(gt->second));
-        }
-        if (dir && rn && gt && gt->first >= 0) {
-            const auto runDir = QStringLiteral("%1/%2_g%3").arg(qstr(*dir), qstr(*rn)).arg(gt->first);
-            m_dataset->insertAttribute("remote_run_dir", runDir.toStdString());
-            m_dataset->insertAttribute(
-                "remote_file_prefix",
-                QStringLiteral("%1_g%2_t%3").arg(qstr(*rn)).arg(gt->first).arg(gt->second).toStdString());
-
-            // list the files SpikeGLX wrote for this run (best effort)
-            if (auto files = m_client.enumDataDir()) {
-                const auto needle = QStringLiteral("/%1_g%2/").arg(qstr(*rn)).arg(gt->first);
-                MetaArray remoteFiles;
-                for (const auto &f : *files) {
-                    const auto qf = qstr(f);
-                    if (qf.contains(needle)
-                        && (qf.endsWith(QLatin1String(".bin")) || qf.endsWith(QLatin1String(".meta"))))
-                        remoteFiles.push_back(f);
-                }
-                if (!remoteFiles.empty())
-                    m_dataset->insertAttribute("remote_files", remoteFiles);
-            }
-        }
-    }
+    };
 
     void stop() override
     {
-        // The engine calls stop() before clearing m_running, so we do it
-        // ourselves and wait for the run thread to finish its epilogue.
-        m_running = false;
-        if (m_threadStarted) {
-            QElapsedTimer timer;
-            timer.start();
-            while (!m_threadDone) {
-                if (timer.elapsed() > 15000) {
-                    LOG_CRITICAL(m_log, "SpikeGLX run thread did not finish in time");
-                    break;
-                }
-                processUiEvents();
-                QThread::msleep(2);
-            }
-        } else if (m_runActive) {
+        // Our thread has finished its epilogue at this point, so we get the connection to SpikeGLX
+        // and everything else that it has used in this run back.
+        auto worker = takeWorker<Worker>();
+
+        if (worker && !worker->threadStarted) {
             // Our thread was never launched, because the run was aborted while modules were
             // still preparing (the engine only starts the module threads once every module
             // has prepared successfully, but calls stop() on all of them regardless).
             // Nothing else talks to SpikeGLX in this case, so we issue the commands that the
             // thread epilogue would have issued right here.
             LOG_INFO(m_log, "Run was aborted before it started, stopping the SpikeGLX run again");
-            if (m_sglxRunStartedByUs) {
-                if (auto r = m_client.stopRun(); !r)
+            if (worker->sglxRunStartedByUs) {
+                if (auto r = worker->client->stopRun(); !r)
                     LOG_WARNING(m_log, "Unable to stop SpikeGLX run: {}", r.error());
                 else
-                    setPlaceholderRunName();
-                m_sglxRunStartedByUs = false;
+                    setPlaceholderRunName(*worker->client, m_log);
+                worker->sglxRunStartedByUs = false;
             }
         }
 
-        for (auto &ss : m_syncStreams) {
-            if (ss.writer)
-                ss.writer->close();
+        if (worker) {
+            for (auto &ss : worker->syncStreams) {
+                if (ss.writer)
+                    ss.writer->close();
+            }
         }
-        m_syncStreams.clear();
+
+        // this closes the connection of the run as well
+        worker.reset();
 
         m_runActive = false;
         m_settingsDlg->setRunActive(false);

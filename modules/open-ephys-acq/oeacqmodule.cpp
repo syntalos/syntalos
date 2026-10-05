@@ -61,13 +61,23 @@ struct GroupStream {
 
     /** Per-output-column zero-fill flag. Written by the GUI thread when the
      *  user toggles a checkbox during a run; read by the run thread on every
-     *  sample copy. */
-    std::unique_ptr<std::atomic_bool[]> mutedOutputColumns;
+     *  sample copy. Shared between the module's group description and the
+     *  copy of it that the worker of a run acquires data with. */
+    std::shared_ptr<std::atomic_bool[]> mutedOutputColumns;
     std::shared_ptr<DataStream<SignalBlockU16>> stream;
     std::shared_ptr<SignalBlockU16> block;
     /** Names of enabled channels only. */
     std::vector<std::string> channelNames;
 };
+
+/**
+ * Create the mute flags for a group with @p count output columns, all un-muted.
+ * (std::make_shared can not create an array of atomics, as it copies its elements)
+ */
+static std::shared_ptr<std::atomic_bool[]> makeMuteFlags(int count)
+{
+    return std::shared_ptr<std::atomic_bool[]>(new std::atomic_bool[count]());
+}
 
 /**
  * Build a canonical channel ID stable across rescans.
@@ -250,10 +260,9 @@ public:
         }
 
         // Pick up the TTL subscription if anything is wired into us.
+        std::shared_ptr<StreamSubscription<LineCommand>> ttlSub;
         if (m_ttlIn && m_ttlIn->hasSubscription())
-            m_ttlSub = m_ttlIn->subscription();
-        else
-            m_ttlSub.reset();
+            ttlSub = m_ttlIn->subscription();
 
         // Apply current settings to the board.
         m_board->setSampleRate(m_sampleRateHz);
@@ -282,256 +291,286 @@ public:
 
         // initialize timesync
         const auto sampleRate = static_cast<double>(m_board->getSampleRate());
-        m_fcSync = initCounterSynchronizer(sampleRate);
-        if (m_fcSync) {
+        auto fcSync = initCounterSynchronizer(sampleRate);
+        if (fcSync) {
             // Shift the sample indices in place to track the master clock (no tsync file);
             // we convert the corrected indices to absolute master-clock times downstream.
-            m_fcSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD);
-            m_fcSync->setTolerance(std::chrono::microseconds(1400));
+            fcSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD);
+            fcSync->setTolerance(std::chrono::microseconds(1400));
             // Only calibrate on roughly the first 20 seconds of data, so the offset
             // estimate isn't skewed by startup transients. One processTimestamps() call
             // corresponds to one 128-sample pump cycle (see AcqBoardONI::pumpSamples).
-            m_fcSync->setCalibrationBlocksCount(static_cast<int>((sampleRate / 128.0) * 20.0));
-            if (!m_fcSync->start()) {
+            fcSync->setCalibrationBlocksCount(static_cast<int>((sampleRate / 128.0) * 20.0));
+            if (!fcSync->start()) {
                 raiseError(QStringLiteral("Unable to start time synchronizer."));
                 return false;
             }
         }
 
+        // hand everything our thread needs for this run over to it
+        setWorker(
+            Worker{
+                .board = m_board.get(),
+                .groups = m_groups,
+                .fcSync = std::move(fcSync),
+                .ttlSub = ttlSub,
+                .ttlStream = m_ttlStream,
+            });
+
         cleanupOnFailure.dismiss();
         return true;
     }
 
-    void runThread(OptionalWaitCondition *startWaitCondition) override
-    {
-        if (!m_board || m_groups.empty())
-            return;
+    /**
+     * Acquires data from the board and publishes it on the output ports, in the module's thread.
+     */
+    struct Worker {
+        WorkerContext mod{};
+        // The board is owned by the module. For the duration of a run it is used by this worker
+        // for acquisition only (the settings UI is locked during a run), the GUI uses it between runs.
+        AcquisitionBoard *board;
+        // The stream layout of this run. This is a copy of the module's description, with which
+        // it shares the mute flags that the GUI may change while we are running.
+        std::vector<GroupStream> groups;
+        std::unique_ptr<FreqCounterSynchronizer> fcSync;
 
-        // Reset mute atomics at run start: every column starts un-muted.
-        for (auto &g : m_groups) {
-            for (int oc = 0; oc < g.channelsPerSample; ++oc)
-                g.mutedOutputColumns[oc].store(false, std::memory_order_relaxed);
-        }
+        // TTL command we receive as inputs to have the board generate as outputs
+        std::shared_ptr<StreamSubscription<LineCommand>> ttlSub;
 
-        // TTL-input edge detector re-primes on the first block of the run, so
-        // the starting level of each selected line is emitted once.
-        m_ttlInPrimed = false;
+        // Board TTL inputs are published as LineReading edge events; ttlPrev holds the
+        // last level per selected line for edge detection (see emitTtlInEdges).
+        // The edge detector primes on the first block of the run, so the starting level
+        // of each selected line is emitted once.
+        std::shared_ptr<DataStream<LineReading>> ttlStream;
+        std::vector<uint16_t> ttlPrev{};
+        bool ttlInPrimed = false;
 
-        // Build the per-pump chunk vector (one entry per group). The board
-        // fills numSamples / samples / sampleIndices in place every call.
-        // chunk.channelsPerSample is the HARDWARE width (rawChannelsPerSample),
-        // not the masked output width.
-        std::vector<AcqSampleChunk> chunks;
-        chunks.reserve(m_groups.size());
-        for (const auto &g : m_groups) {
-            AcqSampleChunk c;
-            c.groupIndex = g.groupIndex;
-            c.kind = g.kind;
-            c.channelsPerSample = g.rawChannelsPerSample;
-            chunks.push_back(std::move(c));
-        }
-
-        // get the current sampling rate
-        const auto sampleRateHz = static_cast<double>(m_board->getSampleRate());
-
-        startWaitCondition->wait(this);
-
-        m_board->setSyncTimer(m_syTimer);
-        // The board captures acqStartTimestamp at the instant it commands the hardware to start
-        microseconds_t acqStartTimestamp;
-        if (!m_board->startAcquisition(acqStartTimestamp)) {
-            raiseError(QStringLiteral("Failed to start acquisition."));
-            return;
-        }
-
-        // Offset the sample indices so index 0 corresponds to the master-clock time at
-        // acquisition start: e.g. starting 1000 µs into a 20 kHz run begins at index 20.
-        // This makes index / sample_rate an absolute master-clock time already; the
-        // synchronizer then shifts the indices to track ongoing drift.
-        const int64_t startSampleOffset = std::llround(
-            static_cast<double>(acqStartTimestamp.count()) * sampleRateHz / 1e6);
-
-        // Synchronized per-sample index vector, computed once per block and shared by all
-        // groups (reused across pumps to avoid reallocation).
-        VectorXu64 syncedTs;
-
-        while (m_running) {
-            microseconds_t blockAcqTS;
-            if (!m_board->pumpSamples(std::span<AcqSampleChunk>(chunks.data(), chunks.size()), blockAcqTS)) {
-                raiseError(QStringLiteral(
-                    "Open Ephys acquisition read failed. The run has been aborted; "
-                    "captured data may be incomplete."));
-                break;
+        void run()
+        {
+            // Reset mute atomics at run start: every column starts un-muted.
+            for (auto &g : groups) {
+                for (int oc = 0; oc < g.channelsPerSample; ++oc)
+                    g.mutedOutputColumns[oc].store(false, std::memory_order_relaxed);
             }
 
-            // All modalities are acquired on the same device clock, so every group in this
-            // pump shares the identical sample-index sequence. Synchronize once per block
-            // (the synchronizer is a stateful estimator and must see exactly one call per
-            // acquired block) and reuse the corrected vector for all groups.
-            bool haveSync = false;
+            // Build the per-pump chunk vector (one entry per group). The board
+            // fills numSamples / samples / sampleIndices in place every call.
+            // chunk.channelsPerSample is the HARDWARE width (rawChannelsPerSample),
+            // not the masked output width.
+            std::vector<AcqSampleChunk> chunks;
+            chunks.reserve(groups.size());
+            for (const auto &g : groups) {
+                AcqSampleChunk c;
+                c.groupIndex = g.groupIndex;
+                c.kind = g.kind;
+                c.channelsPerSample = g.rawChannelsPerSample;
+                chunks.push_back(std::move(c));
+            }
 
-            for (size_t gi = 0; gi < chunks.size(); ++gi) {
-                auto &chunk = chunks[gi];
-                auto &g = m_groups[gi];
-                if (chunk.numSamples <= 0)
-                    continue;
+            // get the current sampling rate
+            const auto sampleRateHz = static_cast<double>(board->getSampleRate());
 
-                const int n = chunk.numSamples;
-                const int rawCps = chunk.channelsPerSample; // hardware width
-                const int outCps = g.channelsPerSample;     // masked width
+            mod.waitForStart();
 
-                // Build and synchronize the shared timestamp vector on the first active
-                // group; subsequent groups reuse it unchanged.
-                if (!haveSync) {
-                    syncedTs.resize(n);
-                    for (int s = 0; s < n; ++s)
-                        syncedTs(s) = static_cast<uint64_t>(
-                            startSampleOffset + static_cast<int64_t>(chunk.sampleIndices[s]));
-                    if (m_fcSync)
-                        m_fcSync->processTimestamps(
-                            blockAcqTS,
-                            0,         // blockIndex
-                            1,         // blockCount
-                            syncedTs); // shifted in place to track the master clock
-                    haveSync = true;
+            board->setSyncTimer(mod.timer);
+            // The board captures acqStartTimestamp at the instant it commands the hardware to start
+            microseconds_t acqStartTimestamp;
+            if (!board->startAcquisition(acqStartTimestamp)) {
+                mod.raiseError(QStringLiteral("Failed to start acquisition."));
+                return;
+            }
+
+            // Offset the sample indices so index 0 corresponds to the master-clock time at
+            // acquisition start: e.g. starting 1000 µs into a 20 kHz run begins at index 20.
+            // This makes index / sample_rate an absolute master-clock time already; the
+            // synchronizer then shifts the indices to track ongoing drift.
+            const int64_t startSampleOffset = std::llround(
+                static_cast<double>(acqStartTimestamp.count()) * sampleRateHz / 1e6);
+
+            // Synchronized per-sample index vector, computed once per block and shared by all
+            // groups (reused across pumps to avoid reallocation).
+            VectorXu64 syncedTs;
+
+            while (mod.running()) {
+                microseconds_t blockAcqTS;
+                if (!board->pumpSamples(std::span<AcqSampleChunk>(chunks.data(), chunks.size()), blockAcqTS)) {
+                    mod.raiseError(QStringLiteral(
+                        "Open Ephys acquisition read failed. The run has been aborted; "
+                        "captured data may be incomplete."));
+                    break;
                 }
 
-                // Reusing the synchronized vector is only valid because every active chunk
-                // in a pump shares one device-clock index sequence (both producers emit a
-                // fixed 128-sample block with identical sampleIndices). Guard that invariant
-                // so a future per-modality length/decimation change can't silently emit a
-                // block whose timestamps and data rows disagree.
-                if (static_cast<int>(syncedTs.size()) != n) [[unlikely]] {
-                    LOG_CRITICAL(m_log, "all active chunks in a pump must share one sample-index sequence");
-                    continue;
+                // All modalities are acquired on the same device clock, so every group in this
+                // pump shares the identical sample-index sequence. Synchronize once per block
+                // (the synchronizer is a stateful estimator and must see exactly one call per
+                // acquired block) and reuse the corrected vector for all groups.
+                bool haveSync = false;
+
+                for (size_t gi = 0; gi < chunks.size(); ++gi) {
+                    auto &chunk = chunks[gi];
+                    auto &g = groups[gi];
+                    if (chunk.numSamples <= 0)
+                        continue;
+
+                    const int n = chunk.numSamples;
+                    const int rawCps = chunk.channelsPerSample; // hardware width
+                    const int outCps = g.channelsPerSample;     // masked width
+
+                    // Build and synchronize the shared timestamp vector on the first active
+                    // group; subsequent groups reuse it unchanged.
+                    if (!haveSync) {
+                        syncedTs.resize(n);
+                        for (int s = 0; s < n; ++s)
+                            syncedTs(s) = static_cast<uint64_t>(
+                                startSampleOffset + static_cast<int64_t>(chunk.sampleIndices[s]));
+                        if (fcSync)
+                            fcSync->processTimestamps(
+                                blockAcqTS,
+                                0,         // blockIndex
+                                1,         // blockCount
+                                syncedTs); // shifted in place to track the master clock
+                        haveSync = true;
+                    }
+
+                    // Reusing the synchronized vector is only valid because every active chunk
+                    // in a pump shares one device-clock index sequence (both producers emit a
+                    // fixed 128-sample block with identical sampleIndices). Guard that invariant
+                    // so a future per-modality length/decimation change can't silently emit a
+                    // block whose timestamps and data rows disagree.
+                    if (static_cast<int>(syncedTs.size()) != n) [[unlikely]] {
+                        LOG_CRITICAL(mod.log, "all active chunks in a pump must share one sample-index sequence");
+                        continue;
+                    }
+
+                    // TTL inputs are published as LineReading edge events, not a
+                    // signal block (g.block is null for this group).
+                    if (g.kind == ChannelKind::TtlIn) {
+                        emitTtlInEdges(chunk, g, syncedTs, sampleRateHz);
+                        continue;
+                    }
+
+                    g.block->data.resize(n, outCps);
+                    g.block->timestamps = syncedTs;
+
+                    // Row-major copy with mask: pick enabledLocalIndices[outCol]
+                    // from each raw row, copy values, and zero-fill any
+                    // column the user disabled mid-run.
+                    for (int s = 0; s < n; ++s) {
+                        const uint16_t *row = chunk.samples.data() + static_cast<size_t>(s) * rawCps;
+                        for (int oc = 0; oc < outCps; ++oc) {
+                            if (g.mutedOutputColumns[oc].load(std::memory_order_relaxed))
+                                g.block->data(s, oc) = 0;
+                            else
+                                g.block->data(s, oc) = row[g.enabledLocalIndices[oc]];
+                        }
+                    }
+
+                    g.stream->push(*g.block);
                 }
 
-                // TTL inputs are published as LineReading edge events, not a
-                // signal block (g.block is null for this group).
-                if (g.kind == ChannelKind::TtlIn) {
-                    emitTtlInEdges(chunk, g, syncedTs, sampleRateHz);
-                    continue;
-                }
-
-                g.block->data.resize(n, outCps);
-                g.block->timestamps = syncedTs;
-
-                // Row-major copy with mask: pick enabledLocalIndices[outCol]
-                // from each raw row, copy values, and zero-fill any
-                // column the user disabled mid-run.
-                for (int s = 0; s < n; ++s) {
-                    const uint16_t *row = chunk.samples.data() + static_cast<size_t>(s) * rawCps;
-                    for (int oc = 0; oc < outCps; ++oc) {
-                        if (g.mutedOutputColumns[oc].load(std::memory_order_relaxed))
-                            g.block->data(s, oc) = 0;
-                        else
-                            g.block->data(s, oc) = row[g.enabledLocalIndices[oc]];
+                // Dispatch any incoming TTL trigger commands onto the board.
+                if (ttlSub) {
+                    while (auto evt = ttlSub->peekNext()) {
+                        dispatchTtlEvent(*evt);
                     }
                 }
 
-                g.stream->push(*g.block);
+                board->drainElapsedDigitalDeadlines();
             }
 
-            // Dispatch any incoming TTL trigger commands onto the board.
-            if (m_ttlSub) {
-                while (auto evt = m_ttlSub->peekNext()) {
-                    dispatchTtlEvent(*evt);
+            board->stopAcquisition();
+        }
+
+        /**
+         * Turn one pump's worth of per-sample TTL-input states (filled by the board
+         * into @p chunk) into LineReading edge events on @c ttlStream. Only the
+         * lines the user selected (the group's enabledLocalIndices) are tracked; an
+         * event is emitted whenever a line's level changes, plus once per line on
+         * the first block of the run so the starting level is recorded.
+         */
+        void emitTtlInEdges(
+            const AcqSampleChunk &chunk,
+            const GroupStream &g,
+            const VectorXu64 &syncedTs,
+            double sampleRateHz)
+        {
+            if (!ttlStream || sampleRateHz <= 0)
+                return;
+
+            const int n = chunk.numSamples;
+            const int rawCps = chunk.channelsPerSample;
+            const int outCps = g.channelsPerSample;
+
+            if (!ttlInPrimed) {
+                // 0xffff is an impossible line state, so the first real sample of
+                // every selected line registers as a change and is emitted.
+                ttlPrev.assign(outCps, 0xffff);
+                ttlInPrimed = true;
+            }
+
+            for (int s = 0; s < n; ++s) {
+                const uint16_t *rowPtr = chunk.samples.data() + static_cast<size_t>(s) * rawCps;
+                for (int oc = 0; oc < outCps; ++oc) {
+                    // A line toggled off mid-run is muted: skip it entirely
+                    if (g.mutedOutputColumns[oc].load(std::memory_order_relaxed))
+                        continue;
+
+                    const uint16_t v = rowPtr[g.enabledLocalIndices[oc]];
+                    if (v == ttlPrev[oc])
+                        continue;
+                    ttlPrev[oc] = v;
+
+                    LineReading r;
+                    r.lineId = static_cast<uint16_t>(g.enabledLocalIndices[oc]);
+                    r.value = v;
+                    r.time = microseconds_t(std::llround(static_cast<double>(syncedTs(s)) * 1e6 / sampleRateHz));
+                    ttlStream->push(r);
                 }
             }
-
-            m_board->drainElapsedDigitalDeadlines();
         }
 
-        m_board->stopAcquisition();
-    }
-
-    /**
-     * Turn one pump's worth of per-sample TTL-input states (filled by the board
-     * into @p chunk) into LineReading edge events on @c m_ttlInStream. Only the
-     * lines the user selected (the group's enabledLocalIndices) are tracked; an
-     * event is emitted whenever a line's level changes, plus once per line on
-     * the first block of the run so the starting level is recorded.
-     */
-    void emitTtlInEdges(
-        const AcqSampleChunk &chunk,
-        const GroupStream &g,
-        const VectorXu64 &syncedTs,
-        double sampleRateHz)
-    {
-        if (!m_ttlStream || sampleRateHz <= 0)
-            return;
-
-        const int n = chunk.numSamples;
-        const int rawCps = chunk.channelsPerSample;
-        const int outCps = g.channelsPerSample;
-
-        if (!m_ttlInPrimed) {
-            // 0xffff is an impossible line state, so the first real sample of
-            // every selected line registers as a change and is emitted.
-            m_ttlPrev.assign(outCps, 0xffff);
-            m_ttlInPrimed = true;
-        }
-
-        for (int s = 0; s < n; ++s) {
-            const uint16_t *rowPtr = chunk.samples.data() + static_cast<size_t>(s) * rawCps;
-            for (int oc = 0; oc < outCps; ++oc) {
-                // A line toggled off mid-run is muted: skip it entirely
-                if (g.mutedOutputColumns[oc].load(std::memory_order_relaxed))
-                    continue;
-
-                const uint16_t v = rowPtr[g.enabledLocalIndices[oc]];
-                if (v == m_ttlPrev[oc])
-                    continue;
-                m_ttlPrev[oc] = v;
-
-                LineReading r;
-                r.lineId = static_cast<uint16_t>(g.enabledLocalIndices[oc]);
-                r.value = v;
-                r.time = microseconds_t(std::llround(static_cast<double>(syncedTs(s)) * 1e6 / sampleRateHz));
-                m_ttlStream->push(r);
+        /**
+         * Translate one line command into a board digital output action.
+         * Only WriteDigitalPulse is honored; other kinds are ignored.
+         */
+        void dispatchTtlEvent(const LineCommand &fc)
+        {
+            switch (fc.kind) {
+            case LineCommandKind::WRITE_DIGITAL_PULSE: {
+                const int line = static_cast<int>(fc.lineId);
+                const auto durMs = std::max<int64_t>(
+                    1,
+                    std::chrono::duration_cast<milliseconds_t>(fc.duration).count());
+                if (line < 0 || line >= 16) {
+                    LOG_WARNING(mod.log, "TTL pulse for line {} ignored: only lines 0..15 are valid.", line);
+                    return;
+                }
+                board->triggerDigitalOutput(line, static_cast<int>(durMs));
+                break;
+            }
+            case LineCommandKind::WRITE_DIGITAL:
+                LOG_INFO(
+                    mod.log,
+                    "TTL line-level command on line {} ignored: only WriteDigitalPulse is "
+                    "supported by the Open Ephys AcqBoard module.",
+                    static_cast<int>(fc.lineId));
+                break;
+            default:
+                // SetMode, analog writes, etc. are not relevant to a
+                // digital trigger output. Silently skip.
+                break;
             }
         }
-    }
-
-    /**
-     * Translate one line command into a board digital output action.
-     * Only WriteDigitalPulse is honored; other kinds are ignored.
-     */
-    void dispatchTtlEvent(const LineCommand &fc)
-    {
-        if (!m_board)
-            return;
-
-        switch (fc.kind) {
-        case LineCommandKind::WRITE_DIGITAL_PULSE: {
-            const int line = static_cast<int>(fc.lineId);
-            const auto durMs = std::max<int64_t>(1, std::chrono::duration_cast<milliseconds_t>(fc.duration).count());
-            if (line < 0 || line >= 16) {
-                LOG_WARNING(m_log, "TTL pulse for line {} ignored: only lines 0..15 are valid.", line);
-                return;
-            }
-            m_board->triggerDigitalOutput(line, static_cast<int>(durMs));
-            break;
-        }
-        case LineCommandKind::WRITE_DIGITAL:
-            LOG_INFO(
-                m_log,
-                "TTL line-level command on line {} ignored: only WriteDigitalPulse is "
-                "supported by the Open Ephys AcqBoard module.",
-                static_cast<int>(fc.lineId));
-            break;
-        default:
-            // SetMode, analog writes, etc. are not relevant to a
-            // digital trigger output. Silently skip.
-            break;
-        }
-    }
+    };
 
     void stop() override
     {
-        if (m_fcSync) {
-            const auto last = m_fcSync->lastMasterAssumedAcqTS();
-            safeStopSynchronizer(m_fcSync, last);
+        // our thread has finished at this point, so nothing uses the synchronizer anymore
+        if (auto worker = takeWorker<Worker>()) {
+            if (worker->fcSync) {
+                const auto last = worker->fcSync->lastMasterAssumedAcqTS();
+                safeStopSynchronizer(worker->fcSync, last);
+            }
         }
 
         AbstractModule::stop();
@@ -630,9 +669,7 @@ private:
 
         if (wantDevice) {
             auto oni = std::make_unique<AcqBoardONI>();
-            oni->setMessageCallback([this](AcquisitionBoard::MessageSeverity sev, const std::string &msg) {
-                handleBoardMessage(sev, msg);
-            });
+            oni->setMessageCallback(boardMessageCallback());
             if (oni->detectBoard()) {
                 next = std::move(oni);
                 LOG_INFO(m_log, "Using ONI Acquisition Board backend.");
@@ -655,9 +692,7 @@ private:
         if (!next) {
             // Either user explicitly chose Simulated, or device probe failed.
             auto sim = std::make_unique<AcqBoardSim>();
-            sim->setMessageCallback([this](AcquisitionBoard::MessageSeverity sev, const std::string &msg) {
-                handleBoardMessage(sev, msg);
-            });
+            sim->setMessageCallback(boardMessageCallback());
             if (!sim->detectBoard()) {
                 raiseError(QStringLiteral(
                     "No Open Ephys Acquisition Board detected and the simulated "
@@ -721,42 +756,50 @@ private:
     }
 
     /**
+     * The message callback a board is given. The device layer can call it from
+     * acquisition threads, so messages are always dispatched onto the GUI thread,
+     * where handleBoardMessage() takes care of them.
+     */
+    AcquisitionBoard::MessageCallback boardMessageCallback()
+    {
+        const auto msgCb = mainCallback([this](AcquisitionBoard::MessageSeverity sev, const QString &msg) {
+            handleBoardMessage(sev, msg);
+        });
+        return [msgCb](AcquisitionBoard::MessageSeverity sev, const std::string &msg) {
+            msgCb(sev, QString::fromStdString(msg));
+        };
+    }
+
+    /**
      * Surface a message coming from the device layer to the user. Info
      * messages of the form "buffer:NN.N%" become live status; warnings open a
      * QMessageBox; errors raise the module error state.
      *
-     * Always dispatched onto the GUI thread - the device layer can call
-     * this from acquisition threads.
+     * Must run on the GUI thread, see boardMessageCallback().
      */
-    void handleBoardMessage(AcquisitionBoard::MessageSeverity sev, const std::string &msgIn)
+    void handleBoardMessage(AcquisitionBoard::MessageSeverity sev, const QString &msg)
     {
-        const QString msg = QString::fromStdString(msgIn);
-        QMetaObject::invokeMethod(
-            this,
-            [this, sev, msg]() {
-                if (sev == AcquisitionBoard::MessageSeverity::Info) {
-                    if (msg.startsWith(QStringLiteral("buffer:"))) {
-                        bool ok = false;
-                        const float pct = msg.mid(7).chopped(1).toFloat(&ok);
-                        if (ok)
-                            updateBufferStatus(pct);
-                    } else {
-                        setStatusMessage(msg);
-                    }
-                    return;
-                }
+        if (sev == AcquisitionBoard::MessageSeverity::Info) {
+            if (msg.startsWith(QStringLiteral("buffer:"))) {
+                bool ok = false;
+                const float pct = msg.mid(7).chopped(1).toFloat(&ok);
+                if (ok)
+                    updateBufferStatus(pct);
+            } else {
+                setStatusMessage(msg);
+            }
+            return;
+        }
 
-                if (sev == AcquisitionBoard::MessageSeverity::Error) {
-                    raiseError(msg);
-                    return;
-                }
+        if (sev == AcquisitionBoard::MessageSeverity::Error) {
+            raiseError(msg);
+            return;
+        }
 
-                QMessageBox box(QMessageBox::Warning, name(), msg, QMessageBox::Ok, m_settingsDlg);
-                box.setTextFormat(Qt::RichText);
-                box.setTextInteractionFlags(Qt::TextBrowserInteraction);
-                box.exec();
-            },
-            Qt::QueuedConnection);
+        QMessageBox box(QMessageBox::Warning, name(), msg, QMessageBox::Ok, m_settingsDlg);
+        box.setTextFormat(Qt::RichText);
+        box.setTextInteractionFlags(Qt::TextBrowserInteraction);
+        box.exec();
     }
 
     /** Reflect the current ONI on-board buffer fill % in the module status line. */
@@ -931,7 +974,7 @@ private:
                 g.channelsPerSample = static_cast<int>(g.enabledLocalIndices.size());
                 if (g.channelsPerSample <= 0)
                     continue; // skip empty port
-                g.mutedOutputColumns = std::make_unique<std::atomic_bool[]>(g.channelsPerSample);
+                g.mutedOutputColumns = makeMuteFlags(g.channelsPerSample);
 
                 g.stream = getOrRegisterOutPort(
                     g.portId,
@@ -961,7 +1004,7 @@ private:
                 g.channelsPerSample = static_cast<int>(g.enabledLocalIndices.size());
                 if (g.channelsPerSample <= 0)
                     continue;
-                g.mutedOutputColumns = std::make_unique<std::atomic_bool[]>(g.channelsPerSample);
+                g.mutedOutputColumns = makeMuteFlags(g.channelsPerSample);
 
                 g.stream = getOrRegisterOutPort(g.portId, auxPortTitle(hs->getStreamPrefix(), auxPerHs));
                 g.block = std::make_shared<SignalBlockU16>(0, g.channelsPerSample);
@@ -988,7 +1031,7 @@ private:
             }
             g.channelsPerSample = static_cast<int>(g.enabledLocalIndices.size());
             if (g.channelsPerSample > 0) {
-                g.mutedOutputColumns = std::make_unique<std::atomic_bool[]>(g.channelsPerSample);
+                g.mutedOutputColumns = makeMuteFlags(g.channelsPerSample);
                 g.stream = getOrRegisterOutPort(g.portId, adcPortTitle(adcCount));
                 g.block = std::make_shared<SignalBlockU16>(0, g.channelsPerSample);
                 currentIds.insert(g.portId);
@@ -1016,11 +1059,11 @@ private:
             if (g.channelsPerSample > 0) {
                 // The group carries only the board chunk + selected-line mapping;
                 // unlike the analog groups it has no SignalBlockU16 stream/block.
-                // runThread() turns its chunk into LineReading edges on m_ttlInStream.
+                // The worker turns its chunk into LineReading edges on m_ttlStream.
                 // mutedOutputColumns is consulted by emitTtlInEdges so a line
                 // toggled off mid-run stops emitting (mirroring the analog
                 // zero-fill); the run-start reset loop walks it like any group.
-                g.mutedOutputColumns = std::make_unique<std::atomic_bool[]>(g.channelsPerSample);
+                g.mutedOutputColumns = makeMuteFlags(g.channelsPerSample);
 
                 if (auto existing = outPortById(g.portId))
                     m_ttlStream = existing->stream<LineReading>();
@@ -1162,20 +1205,15 @@ private:
 
     std::unique_ptr<AcquisitionBoard> m_board;
     std::vector<GroupStream> m_groups;
-    std::unique_ptr<FreqCounterSynchronizer> m_fcSync;
     OeAcqSettingsDialog *m_settingsDlg = nullptr;
 
     // TTL command we receive as inputs to have the board generate as outputs
     std::shared_ptr<StreamInputPort<LineCommand>> m_ttlIn;
-    std::shared_ptr<StreamSubscription<LineCommand>> m_ttlSub;
 
     // Board TTL inputs are published as LineReading edge events. The stream is
     // (un)registered in rebuildOutputPorts() depending on whether any TTL-in
-    // line is selected; m_ttlInPrev holds the last level per selected line for
-    // edge detection (see emitTtlInEdges).
+    // line is selected.
     std::shared_ptr<DataStream<LineReading>> m_ttlStream;
-    std::vector<uint16_t> m_ttlPrev;
-    bool m_ttlInPrimed = false;
 
     int m_sampleRateHz = 30000;
     // Derived board scan flags: true iff at least one AUX/ADC/TTL-in channel is
