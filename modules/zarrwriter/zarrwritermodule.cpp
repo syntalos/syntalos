@@ -426,7 +426,7 @@ public:
         void ensureArraysInitialized(int nCols, ZarrV3Array::DType dataDtype)
         {
             // validate channel count against what the upstream source advertised.
-            if (nCols != expectedChannels) {
+            if (expectedChannels > 0 && nCols != expectedChannels) {
                 mod.raiseError(
                     QStringLiteral("Channel count mismatch: metadata advertised %1 channel(s) but received %2")
                         .arg(expectedChannels)
