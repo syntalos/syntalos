@@ -385,7 +385,7 @@ public:
             w.dataScale = dataScale;
             w.dataOffset = dataOffset;
             w.sampleRate = sampleRate;
-            w.expectedChannels = static_cast<int>(signalNames.size()); // 0 = not advertised, skip validation
+            w.expectedChannels = static_cast<int>(signalNames.size()); // 0 = not advertised
             w.chunkCount = chunkCountFromSampleRate(sampleRate);
         });
     }
@@ -409,7 +409,7 @@ public:
         double dataScale = 1.0;
         double dataOffset = 0.0;
         double sampleRate = -1.0;
-        int expectedChannels = 0; // 0 = not advertised by upstream, skip channel count validation
+        int expectedChannels = 0; // 0 = not advertised by upstream, the first block decides
         int64_t chunkCount = ZARR_CHUNK_DEFAULT;
 
         qint64 itemsWritten = 0;
@@ -425,12 +425,11 @@ public:
 
         void ensureArraysInitialized(int nCols, ZarrV3Array::DType dataDtype)
         {
-            // validate channel count against what the upstream source advertised.
+            // validate channel count against what the upstream source advertised or has sent before
             if (expectedChannels > 0 && nCols != expectedChannels) {
-                mod.raiseError(
-                    QStringLiteral("Channel count mismatch: metadata advertised %1 channel(s) but received %2")
-                        .arg(expectedChannels)
-                        .arg(nCols));
+                mod.raiseError(QStringLiteral("Channel count mismatch: expected %1 channel(s) but received %2")
+                                   .arg(expectedChannels)
+                                   .arg(nCols));
                 writeData = false;
                 return;
             }
@@ -500,6 +499,9 @@ public:
                 writeData = false;
                 return;
             }
+
+            // the data array has this many columns now, so every block that follows must have them too
+            expectedChannels = nCols;
         }
 
         /**
