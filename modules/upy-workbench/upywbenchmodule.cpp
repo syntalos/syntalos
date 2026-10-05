@@ -466,18 +466,19 @@ public:
             outStreams.insert(p->id(), p->streamVar());
         }
 
+        std::vector<std::shared_ptr<StreamInputPort<TableRow>>> activeInPorts;
         for (auto &p : inPorts()) {
             if (p->dataTypeId() != BaseDataType::TableRow)
                 continue;
             auto trp = std::static_pointer_cast<StreamInputPort<TableRow>>(p);
             if (trp->hasSubscription())
-                m_activeInPorts.push_back(trp);
+                activeInPorts.push_back(trp);
         }
 
         // prepare subscription list
         std::vector<std::shared_ptr<StreamSubscription<TableRow>>> activeSubs;
         QStringList activeInPortIds;
-        for (auto &p : m_activeInPorts) {
+        for (auto &p : activeInPorts) {
             activeSubs.push_back(p->subscription());
             activeInPortIds.append(p->id());
         }
@@ -851,8 +852,6 @@ private:
     QSerialPort *m_userSerial;
     qint64 m_bytesToWrite = 0;
     QString m_commCode;
-
-    std::vector<std::shared_ptr<StreamInputPort<TableRow>>> m_activeInPorts;
 };
 
 QString UPyWBenchModuleInfo::id() const
