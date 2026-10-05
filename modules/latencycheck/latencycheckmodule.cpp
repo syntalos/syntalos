@@ -148,8 +148,6 @@ class LatencyCheckModule : public AbstractModule
 private:
     std::shared_ptr<StreamInputPort<LineReading>> m_lrAInPort;
     std::shared_ptr<StreamInputPort<LineReading>> m_lrBInPort;
-    std::shared_ptr<StreamSubscription<LineReading>> m_subA;
-    std::shared_ptr<StreamSubscription<LineReading>> m_subB;
 
     std::shared_ptr<DataStream<LineCommand>> m_lcStream;
     std::shared_ptr<DataStream<SignalBlockI32>> m_latStream;
@@ -157,19 +155,8 @@ private:
     LCSettingsDialog *m_settingsDlg;
     LatencyCanvas *m_canvas;
 
-    // Runtime configuration, captured in prepare() so the event handlers
-    // (which may run on a different thread) read stable values.
-    LatencyMode m_mode;
-    TriggerEdge m_edge;
+    // The acknowledgement line of the current run, captured in prepare()
     uint16_t m_ackLine;
-    int m_ackPulseMs;
-
-    std::unordered_map<uint16_t, uint32_t> m_lastValueA;
-    std::unordered_map<uint16_t, uint32_t> m_lastValueB;
-    microseconds_t m_pendingTimeA{}; // last A edge awaiting a B edge (dual mode)
-    bool m_havePendingA;
-    microseconds_t m_prevTimeA{}; // previous A edge (single-line interval mode)
-    bool m_havePrevA;
 
 public:
     explicit LatencyCheckModule(const ModuleInfo *info = nullptr, QObject *parent = nullptr)
@@ -210,18 +197,10 @@ public:
     bool prepare(const RunInfo &) final
     {
         // Capture settings for the duration of this run
-        m_mode = m_settingsDlg->mode();
-        m_edge = m_settingsDlg->edge();
+        const auto mode = m_settingsDlg->mode();
         m_ackLine = m_settingsDlg->ackLine();
-        m_ackPulseMs = m_settingsDlg->ackPulseMs();
 
         // Reset measurement state
-        m_subA.reset();
-        m_subB.reset();
-        m_lastValueA.clear();
-        m_lastValueB.clear();
-        m_havePendingA = false;
-        m_havePrevA = false;
         m_canvas->clearRuntimeData();
 
         // Configure the latency output stream
@@ -238,32 +217,36 @@ public:
             setStateDormant();
             return true;
         }
-        m_subA = m_lrAInPort->subscription();
-        registerDataReceivedEvent(
-            [this]() {
-                processLineA();
-            },
-            m_lrAInPort->subscriptionVar());
+        const auto subA = m_lrAInPort->subscription();
 
-        if (m_mode == LatencyMode::DualLine) {
+        std::shared_ptr<StreamSubscription<LineReading>> subB;
+        if (mode == LatencyMode::DualLine) {
             if (!m_lrBInPort->hasSubscription()) {
                 raiseError(QStringLiteral(
                     "Dual-line mode is selected, but the \"Line B\" input is not connected. "
                     "Connect a second line or switch to single-line mode in the settings."));
                 return false;
             }
-            m_subB = m_lrBInPort->subscription();
-            registerDataReceivedEvent(
-                [this]() {
-                    processLineB();
-                },
-                m_lrBInPort->subscriptionVar());
+            subB = m_lrBInPort->subscription();
         } else if (m_lrBInPort->hasSubscription()) {
             raiseError(QStringLiteral(
                 "Single-line mode is selected, but the \"Line B\" input is connected. "
                 "Disconnect Line B or switch to dual-line mode in the settings."));
             return false;
         }
+
+        setWorker(
+            Worker{
+                .subA = subA,
+                .subB = subB,
+                .lcStream = m_lcStream,
+                .latStream = m_latStream,
+                .canvas = m_canvas,
+                .mode = mode,
+                .edge = m_settingsDlg->edge(),
+                .ackLine = m_ackLine,
+                .ackPulseMs = m_settingsDlg->ackPulseMs(),
+            });
 
         setStateReady();
         return true;
@@ -281,63 +264,123 @@ public:
         AbstractModule::start();
     }
 
+    /**
+     * Measures the latency between line pulses, in the event loop the module is assigned to.
+     */
+    struct Worker {
+        WorkerContext mod{};
+        std::shared_ptr<StreamSubscription<LineReading>> subA;
+        std::shared_ptr<StreamSubscription<LineReading>> subB; // only set in dual-line mode
+
+        std::shared_ptr<DataStream<LineCommand>> lcStream;
+        std::shared_ptr<DataStream<SignalBlockI32>> latStream;
+
+        // The canvas is a widget that lives in the main thread. We hold it here *only* to feed it
+        // new values via addValue(), which is guarded by the mutex of the canvas. Nothing else
+        // of it must be touched from the worker.
+        LatencyCanvas *canvas;
+
+        // Configuration, captured in prepare() so the event handlers
+        // (which may run on a different thread) read stable values.
+        LatencyMode mode;
+        TriggerEdge edge;
+        uint16_t ackLine;
+        int ackPulseMs;
+
+        std::unordered_map<uint16_t, uint32_t> lastValueA{};
+        std::unordered_map<uint16_t, uint32_t> lastValueB{};
+        microseconds_t pendingTimeA{}; // last A edge awaiting a B edge (dual mode)
+        bool havePendingA = false;
+        microseconds_t prevTimeA{}; // previous A edge (single-line interval mode)
+        bool havePrevA = false;
+
+        void setup(WorkerEvents &ev)
+        {
+            ev.onData(subA, [this] {
+                processLineA();
+            });
+
+            if (subB)
+                ev.onData(subB, [this] {
+                    processLineB();
+                });
+        }
+
+        void processLineA()
+        {
+            while (true) {
+                const auto maybe = subA->peekNext();
+                if (!maybe.has_value())
+                    break;
+                const auto &r = *maybe;
+
+                auto &last = lastValueA[r.lineId];
+                const bool isEdge = isQualifyingEdge(last, r.value, edge);
+                last = r.value;
+                if (!isEdge)
+                    continue;
+
+                if (mode == LatencyMode::SingleLine) {
+                    // Interval between consecutive qualifying pulses on line A.
+                    if (havePrevA) {
+                        const auto latency = r.time - prevTimeA;
+                        emitLatency(r.time, latency);
+                    }
+                    prevTimeA = r.time;
+                    havePrevA = true;
+                    fireAck();
+                } else {
+                    // Dual-line: remember the A timestamp; B completes the pair.
+                    pendingTimeA = r.time;
+                    havePendingA = true;
+                }
+            }
+        }
+
+        void processLineB()
+        {
+            while (true) {
+                const auto maybe = subB->peekNext();
+                if (!maybe.has_value())
+                    break;
+                const auto &r = *maybe;
+
+                auto &last = lastValueB[r.lineId];
+                const bool isEdge = isQualifyingEdge(last, r.value, edge);
+                last = r.value;
+                if (!isEdge)
+                    continue;
+
+                if (havePendingA) {
+                    const auto latency = r.time - pendingTimeA;
+                    emitLatency(r.time, latency);
+                    havePendingA = false;
+                    fireAck();
+                }
+            }
+        }
+
+        void emitLatency(microseconds_t measTime, microseconds_t latency)
+        {
+            SignalBlockI32 sb(1, 1);
+            sb.timestamps[0] = static_cast<uint64_t>(measTime.count());
+            sb.data(0, 0) = latency.count();
+            latStream->push(sb);
+
+            canvas->addValue(static_cast<float>(latency.count() / (float)US_PER_MS));
+        }
+
+        void fireAck()
+        {
+            LineCommand ctl(LineCommandKind::WRITE_DIGITAL_PULSE, ackLine, 1);
+            ctl.duration = std::chrono::duration_cast<microseconds_t>(milliseconds_t(ackPulseMs));
+            lcStream->push(ctl);
+        }
+    };
+
     void stop() final
     {
         m_canvas->setRunning(false);
-    }
-
-    void processLineA()
-    {
-        while (true) {
-            const auto maybe = m_subA->peekNext();
-            if (!maybe.has_value())
-                break;
-            const auto &r = *maybe;
-
-            auto &last = m_lastValueA[r.lineId];
-            const bool edge = isQualifyingEdge(last, r.value, m_edge);
-            last = r.value;
-            if (!edge)
-                continue;
-
-            if (m_mode == LatencyMode::SingleLine) {
-                // Interval between consecutive qualifying pulses on line A.
-                if (m_havePrevA) {
-                    const auto latency = r.time - m_prevTimeA;
-                    emitLatency(r.time, latency);
-                }
-                m_prevTimeA = r.time;
-                m_havePrevA = true;
-                fireAck();
-            } else {
-                // Dual-line: remember the A timestamp; B completes the pair.
-                m_pendingTimeA = r.time;
-                m_havePendingA = true;
-            }
-        }
-    }
-
-    void processLineB()
-    {
-        while (true) {
-            const auto maybe = m_subB->peekNext();
-            if (!maybe.has_value())
-                break;
-            const auto &r = *maybe;
-
-            auto &last = m_lastValueB[r.lineId];
-            const bool edge = isQualifyingEdge(last, r.value, m_edge);
-            last = r.value;
-            if (!edge)
-                continue;
-
-            if (m_havePendingA) {
-                const auto latency = r.time - m_pendingTimeA;
-                emitLatency(r.time, latency);
-                m_havePendingA = false;
-                fireAck();
-            }
-        }
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
@@ -358,24 +401,6 @@ public:
         m_canvas->setBinCount(settings.value("histogram_bins", 30).toInt());
 
         return true;
-    }
-
-private:
-    void emitLatency(microseconds_t measTime, microseconds_t latency)
-    {
-        SignalBlockI32 sb(1, 1);
-        sb.timestamps[0] = static_cast<uint64_t>(measTime.count());
-        sb.data(0, 0) = latency.count();
-        m_latStream->push(sb);
-
-        m_canvas->addValue(static_cast<float>(latency.count() / (float)US_PER_MS));
-    }
-
-    void fireAck()
-    {
-        LineCommand ctl(LineCommandKind::WRITE_DIGITAL_PULSE, m_ackLine, 1);
-        ctl.duration = std::chrono::duration_cast<microseconds_t>(milliseconds_t(m_ackPulseMs));
-        m_lcStream->push(ctl);
     }
 };
 

@@ -30,12 +30,10 @@ class VideoTransformModule : public AbstractModule
 
 private:
     std::shared_ptr<StreamInputPort<Frame>> m_framesInPort;
-    std::shared_ptr<StreamSubscription<Frame>> m_framesIn;
     std::shared_ptr<DataStream<Frame>> m_framesOut;
 
     VTransformCtlDialog *m_settingsDlg;
     QList<std::shared_ptr<VideoTransform>> m_activeVTFList;
-    cv::Size m_expectedFrameSize;
 
 public:
     explicit VideoTransformModule(QObject *parent = nullptr)
@@ -68,8 +66,6 @@ public:
 
     bool prepare(const RunInfo &) override
     {
-        clearDataReceivedEventRegistrations();
-        m_framesIn = nullptr;
         // check if there even is something to do for us
         if (m_framesInPort->isDormant()) {
             setStateDormant();
@@ -82,19 +78,17 @@ public:
         // lock UI
         m_settingsDlg->setRunning(true);
 
-        // be notified once we get a new frame
-        m_framesIn = m_framesInPort->subscription();
-        registerDataReceivedEvent(&VideoTransformModule::onFrameReceived, m_framesIn);
+        const auto framesIn = m_framesInPort->subscription();
 
         // get copy of video-transformation list
         m_activeVTFList = m_settingsDlg->transformList();
 
         // copy all existing metadata over from the source
-        m_framesOut->setMetadata(m_framesIn->metadata());
+        m_framesOut->setMetadata(framesIn->metadata());
 
         // notify transformers about original data
-        MetaSize tfISize = m_framesIn->metadataValue<MetaSize>("size", {});
-        m_expectedFrameSize = cv::Size(tfISize.width, tfISize.height);
+        MetaSize tfISize = framesIn->metadataValue<MetaSize>("size", {});
+        const cv::Size expectedFrameSize(tfISize.width, tfISize.height);
         for (const auto &vtf : m_activeVTFList) {
             vtf->setOriginalSize(tfISize);
             vtf->start();
@@ -110,6 +104,14 @@ public:
         // start the stream
         m_framesOut->start();
 
+        setWorker(
+            Worker{
+                .framesIn = framesIn,
+                .framesOut = m_framesOut,
+                .vtfList = m_activeVTFList,
+                .expectedFrameSize = expectedFrameSize,
+            });
+
         setStateReady();
         return true;
     }
@@ -119,52 +121,72 @@ public:
         // nothing to do here
     }
 
-    void onFrameReceived()
-    {
-        if (!m_framesIn)
-            return;
-        auto maybeFrame = m_framesIn->peekNext();
-        if (!maybeFrame.has_value())
-            return;
+    /**
+     * Applies the selected transformations to incoming frames.
+     */
+    struct Worker {
+        WorkerContext mod{};
+        std::shared_ptr<StreamSubscription<Frame>> framesIn;
+        std::shared_ptr<DataStream<Frame>> framesOut;
 
-        // get the frame
-        auto frame = std::move(*maybeFrame);
+        // The transforms are shared with the settings dialog. Only transforms which permit being modified
+        // while they are running can be changed during a run, and they guard their settings themselves.
+        QList<std::shared_ptr<VideoTransform>> vtfList;
+        cv::Size expectedFrameSize;
 
-        // ensure the frame dimensions match what the stream metadata advertises;
-        // the transforms rely on this guarantee and must not receive unexpected sizes
-        if (frame.mat.cols != m_expectedFrameSize.width || frame.mat.rows != m_expectedFrameSize.height) [[unlikely]] {
-            raiseError(QStringLiteral(
-                           "Received frame with unexpected dimensions %1x%2 (expected %3x%4). "
-                           "The video source is sending invalid frames.")
-                           .arg(frame.mat.cols)
-                           .arg(frame.mat.rows)
-                           .arg(m_expectedFrameSize.width)
-                           .arg(m_expectedFrameSize.height));
-            return;
+        void setup(WorkerEvents &ev)
+        {
+            // be notified once we get a new frame
+            ev.onData(framesIn, [this] {
+                onFrameReceived();
+            });
         }
 
-        // apply transformations
-        cv::Mat image = frame.mat;
-        bool prevTransformCreatedCopy = false;
-        for (const auto &vtf : m_activeVTFList) {
-            if (vtf->needsIndependentCopy()) {
-                if (!prevTransformCreatedCopy) {
-                    // make sure we have our own copy of the data and don't modify the original
-                    // data pool that is shared between threads
-                    image = image.clone();
+        void onFrameReceived()
+        {
+            auto maybeFrame = framesIn->peekNext();
+            if (!maybeFrame.has_value())
+                return;
+
+            // get the frame
+            auto frame = std::move(*maybeFrame);
+
+            // ensure the frame dimensions match what the stream metadata advertises;
+            // the transforms rely on this guarantee and must not receive unexpected sizes
+            if (frame.mat.cols != expectedFrameSize.width || frame.mat.rows != expectedFrameSize.height) [[unlikely]] {
+                mod.raiseError(QStringLiteral(
+                                   "Received frame with unexpected dimensions %1x%2 (expected %3x%4). "
+                                   "The video source is sending invalid frames.")
+                                   .arg(frame.mat.cols)
+                                   .arg(frame.mat.rows)
+                                   .arg(expectedFrameSize.width)
+                                   .arg(expectedFrameSize.height));
+                return;
+            }
+
+            // apply transformations
+            cv::Mat image = frame.mat;
+            bool prevTransformCreatedCopy = false;
+            for (const auto &vtf : vtfList) {
+                if (vtf->needsIndependentCopy()) {
+                    if (!prevTransformCreatedCopy) {
+                        // make sure we have our own copy of the data and don't modify the original
+                        // data pool that is shared between threads
+                        image = image.clone();
+                        prevTransformCreatedCopy = true;
+                    }
+                } else {
+                    // the transform will copy the data by itself, so we can assume it was copied after this point
                     prevTransformCreatedCopy = true;
                 }
-            } else {
-                // the transform will copy the data by itself, so we can assume it was copied after this point
-                prevTransformCreatedCopy = true;
+                vtf->process(image);
             }
-            vtf->process(image);
-        }
 
-        // forward the updated frame
-        frame.mat = std::move(image);
-        m_framesOut->push(frame);
-    }
+            // forward the updated frame
+            frame.mat = std::move(image);
+            framesOut->push(frame);
+        }
+    };
 
     void stop() override
     {

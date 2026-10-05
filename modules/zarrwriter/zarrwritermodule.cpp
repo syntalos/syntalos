@@ -183,40 +183,24 @@ private:
     QLineEdit *m_nameEdit;
 };
 
+// Chunk limits, see chunkCountFromSampleRate() for details
+static constexpr int64_t ZARR_CHUNK_MIN = 1000;
+static constexpr int64_t ZARR_CHUNK_MAX = 100000;
+static constexpr int64_t ZARR_CHUNK_DEFAULT = 10000; // fallback when sample rate is unknown
+
 class ZarrWriterModule : public AbstractModule
 {
     Q_OBJECT
 
 private:
-    // Chunk limits, see chunkCountFromSampleRate() for details
-    static constexpr int64_t ZARR_CHUNK_MIN = 1000;
-    static constexpr int64_t ZARR_CHUNK_MAX = 100000;
-    static constexpr int64_t ZARR_CHUNK_DEFAULT = 10000; // fallback when sample rate is unknown
-
     // Exactly one input port exists at a time, of the type the user selected.
     // Its concrete stream type is only looked at when data arrives.
     std::shared_ptr<VarStreamInputPort> m_inPort;
-    std::shared_ptr<VariantStreamSubscription> m_sub;
 
+    // the subscription we read from in the current run, to look at its metadata
+    std::shared_ptr<VariantStreamSubscription> m_sub;
     bool m_lineEvents; // input is a sparse LineReading event stream, not signal blocks
     bool m_writeData;
-    qint64 m_itemsWritten = 0;
-    int m_expectedChannels; // 0 = not advertised by upstream, skip channel count validation
-    int64_t m_chunkCount;
-
-    std::shared_ptr<EDLDataset> m_currentDSet;
-    std::string m_storePath;
-
-    QStringList m_signalNames;
-    QString m_timeUnit;
-    QString m_dataUnit;
-    QString m_srcModType;
-    double m_dataScale = 1.0;
-    double m_dataOffset = 0.0;
-    double m_sampleRate = -1.0;
-
-    std::unique_ptr<ZarrV3Array> m_tsArray;
-    std::unique_ptr<ZarrV3Array> m_dataArray;
 
     ZarrSettingsDialog *m_settingsDlg;
 
@@ -224,9 +208,7 @@ public:
     explicit ZarrWriterModule(ZarrWriterModuleInfo *modInfo, QObject *parent = nullptr)
         : AbstractModule(parent),
           m_lineEvents(false),
-          m_writeData(false),
-          m_expectedChannels(0),
-          m_chunkCount(ZARR_CHUNK_DEFAULT)
+          m_writeData(false)
     {
         m_settingsDlg = new ZarrSettingsDialog();
         m_settingsDlg->setWindowIcon(modInfo->icon());
@@ -275,8 +257,6 @@ public:
 
     bool prepare(const RunInfo &info) override
     {
-        m_itemsWritten = 0;
-        clearDataReceivedEventRegistrations();
         m_settingsDlg->setRunning(true);
 
         if (!m_settingsDlg->useNameFromSource() && m_settingsDlg->dataName().isEmpty()) {
@@ -295,7 +275,14 @@ public:
 
         m_sub = m_inPort->subscriptionVar();
         m_lineEvents = m_sub->dataTypeId() == LineReading::staticTypeId();
-        registerDataReceivedEvent(&ZarrWriterModule::onDataReceived, m_sub);
+
+        setWorker(
+            Worker{
+                .sub = m_sub,
+                .lineEvents = m_lineEvents,
+                // we don't write anything to disk if we aren't going to use the data anyway
+                .writeData = m_writeData,
+            });
 
         setStateReady();
         return true;
@@ -306,108 +293,350 @@ public:
         if (!m_sub || !m_writeData)
             return;
 
+        // if we fail to set up the store, the worker must not try to write to it
+        const auto disableWriting = [this] {
+            modifyWorker<Worker>([](Worker &w) {
+                w.writeData = false;
+            });
+        };
+
         // collect stream metadata
         const MetaStringMap mdata = m_sub->metadata();
-        m_signalNames.clear();
+        QStringList signalNames;
         for (const auto &v : m_sub->metadataValue("signal_names", MetaArray{}))
             if (const auto s = v.get<std::string>())
-                m_signalNames << QString::fromStdString(*s);
-        m_dataUnit = QString::fromStdString(m_sub->metadataValue("data_unit", std::string{}));
+                signalNames << QString::fromStdString(*s);
+        const auto dataUnit = QString::fromStdString(m_sub->metadataValue("data_unit", std::string{}));
+        QString timeUnit;
+        double dataScale = 1.0;
+        double dataOffset = 0.0;
+        double sampleRate = -1.0;
         if (m_lineEvents) {
             // Sparse edge events: recorded as a timestamps array + a 2-column
             // [line_id, value] data array. The data columns are fixed, so the
             // upstream signal_names (line labels) are kept only for the dataset
             // attributes, not the array schema. Events are irregular, so the
             // default chunk size is used.
-            m_timeUnit = QString::fromStdString(m_sub->metadataValue("time_unit", std::string{"microseconds"}));
+            timeUnit = QString::fromStdString(m_sub->metadataValue("time_unit", std::string{"microseconds"}));
         } else {
-            m_timeUnit = QString::fromStdString(m_sub->metadataValue("time_unit", std::string{}));
-            m_dataScale = m_sub->metadataValue("data_scale", 1.0);
-            m_dataOffset = m_sub->metadataValue("data_offset", 0.0);
-            m_sampleRate = m_sub->metadataValue("sample_rate", -1.0);
+            timeUnit = QString::fromStdString(m_sub->metadataValue("time_unit", std::string{}));
+            dataScale = m_sub->metadataValue("data_scale", 1.0);
+            dataOffset = m_sub->metadataValue("data_offset", 0.0);
+            sampleRate = m_sub->metadataValue("sample_rate", -1.0);
         }
-        m_chunkCount = chunkCountFromSampleRate(m_sampleRate);
 
-        m_srcModType = QString::fromStdString(mdata.valueOr<std::string>("src_mod_type", std::string{}));
+        const auto srcModType = QString::fromStdString(mdata.valueOr<std::string>("src_mod_type", std::string{}));
 
         // create EDL dataset for this recording
+        std::shared_ptr<EDLDataset> dset;
         if (m_settingsDlg->useNameFromSource())
-            m_currentDSet = createDefaultDataset(name(), mdata);
+            dset = createDefaultDataset(name(), mdata);
         else
-            m_currentDSet = createDefaultDataset(m_settingsDlg->dataName());
+            dset = createDefaultDataset(m_settingsDlg->dataName());
 
-        if (!m_currentDSet) {
-            m_writeData = false;
+        if (!dset) {
+            disableWriting();
             return;
         }
 
         // Mirror the signal metadata into the dataset's attributes.toml so the EDL
         // manifest is self-describing without parsing the Zarr store's zarr.json.
-        if (m_sampleRate > 0 || m_timeUnit == "index")
-            m_currentDSet->insertAttribute("sample_rate", m_sampleRate);
-        if (!m_timeUnit.isEmpty())
-            m_currentDSet->insertAttribute("time_unit", m_timeUnit.toStdString());
-        if (!m_dataUnit.isEmpty())
-            m_currentDSet->insertAttribute("data_unit", m_dataUnit.toStdString());
-        if (m_dataScale != 1.0)
-            m_currentDSet->insertAttribute("data_scale", m_dataScale);
-        if (m_dataOffset != 0.0)
-            m_currentDSet->insertAttribute("data_offset", m_dataOffset);
-        if (!m_srcModType.isEmpty())
-            m_currentDSet->insertAttribute("src_mod_type", m_srcModType.toStdString());
-        if (!m_signalNames.isEmpty()) {
+        if (sampleRate > 0 || timeUnit == "index")
+            dset->insertAttribute("sample_rate", sampleRate);
+        if (!timeUnit.isEmpty())
+            dset->insertAttribute("time_unit", timeUnit.toStdString());
+        if (!dataUnit.isEmpty())
+            dset->insertAttribute("data_unit", dataUnit.toStdString());
+        if (dataScale != 1.0)
+            dset->insertAttribute("data_scale", dataScale);
+        if (dataOffset != 0.0)
+            dset->insertAttribute("data_offset", dataOffset);
+        if (!srcModType.isEmpty())
+            dset->insertAttribute("src_mod_type", srcModType.toStdString());
+        if (!signalNames.isEmpty()) {
             MetaArray names;
-            for (const auto &n : m_signalNames)
+            for (const auto &n : signalNames)
                 names.push_back(n.toStdString());
-            m_currentDSet->insertAttribute("signal_names", names);
+            dset->insertAttribute("signal_names", names);
         }
 
         // register the Zarr store directory as the dataset's primary file
-        auto storeName = dataBasenameFromSubMetadata(mdata, m_currentDSet->name());
+        auto storeName = dataBasenameFromSubMetadata(mdata, dset->name());
         storeName += ".zarr";
-        m_storePath = m_currentDSet->setDataFile(storeName);
+        const std::string storePath = dset->setDataFile(storeName);
 
         // Write Zarr v3 root group metadata
-        if (!zarrWriteRootGroupMetadata(m_storePath)) {
+        if (!zarrWriteRootGroupMetadata(storePath)) {
             raiseError(QStringLiteral("Failed to create Zarr store directory or root metadata"));
-            m_writeData = false;
+            disableWriting();
             return;
         }
 
-        // arrays are created lazily on the first data block. We store the
+        // our worker is waiting for the run to start, give it the store to write to.
+        // The arrays are created lazily on the first data block. We store the
         // expected channel count from metadata now so we can validate the
         // actual incoming data against it.
-        m_expectedChannels = static_cast<int>(m_signalNames.size()); // 0 = not advertised, skip validation
-        m_tsArray.reset();
-        m_dataArray.reset();
+        modifyWorker<Worker>([&](Worker &w) {
+            w.currentDSet = dset;
+            w.storePath = storePath;
+            w.signalNames = signalNames;
+            w.timeUnit = timeUnit;
+            w.dataUnit = dataUnit;
+            w.dataScale = dataScale;
+            w.dataOffset = dataOffset;
+            w.sampleRate = sampleRate;
+            w.expectedChannels = static_cast<int>(signalNames.size()); // 0 = not advertised, skip validation
+            w.chunkCount = chunkCountFromSampleRate(sampleRate);
+        });
     }
+
+    /**
+     * Writes the received data into a Zarr store, in the event loop the module is assigned to.
+     */
+    struct Worker {
+        WorkerContext mod{};
+        std::shared_ptr<VariantStreamSubscription> sub;
+        bool lineEvents; // input is a sparse LineReading event stream, not signal blocks
+        bool writeData;
+
+        // The store is only set up when the run is started, as it depends on metadata of the data source
+        std::shared_ptr<EDLDataset> currentDSet{};
+        std::string storePath{};
+
+        QStringList signalNames{};
+        QString timeUnit{};
+        QString dataUnit{};
+        double dataScale = 1.0;
+        double dataOffset = 0.0;
+        double sampleRate = -1.0;
+        int expectedChannels = 0; // 0 = not advertised by upstream, skip channel count validation
+        int64_t chunkCount = ZARR_CHUNK_DEFAULT;
+
+        qint64 itemsWritten = 0;
+        std::unique_ptr<ZarrV3Array> tsArray{};
+        std::unique_ptr<ZarrV3Array> dataArray{};
+
+        void setup(WorkerEvents &ev)
+        {
+            ev.onData(sub, [this] {
+                onDataReceived();
+            });
+        }
+
+        void ensureArraysInitialized(int nCols, ZarrV3Array::DType dataDtype)
+        {
+            // validate channel count against what the upstream source advertised.
+            if (nCols != expectedChannels) {
+                mod.raiseError(
+                    QStringLiteral("Channel count mismatch: metadata advertised %1 channel(s) but received %2")
+                        .arg(expectedChannels)
+                        .arg(nCols));
+                writeData = false;
+                return;
+            }
+
+            // skip if we are already initialized
+            if (tsArray)
+                return;
+
+            // 1-D timestamps array: shape = [total_samples], dtype = uint64
+            tsArray = std::make_unique<ZarrV3Array>(
+                QString::fromStdString(storePath),
+                QStringLiteral("timestamps"),
+                ZarrV3Array::DType::UInt64,
+                chunkCount,
+                1,
+                QStringList{QStringLiteral("time")});
+
+            if (!timeUnit.isEmpty()) {
+                QJsonObject tsAttrs;
+                tsAttrs["time_unit"] = timeUnit;
+                tsArray->setAttributes(tsAttrs);
+            }
+
+            if (auto res = tsArray->open(); !res) {
+                mod.raiseError(QStringLiteral("Failed to open timestamps array: ") + res.error());
+                tsArray.reset();
+                writeData = false;
+                return;
+            }
+
+            // 2-D data array: shape = [total_samples, n_channels]
+            const QStringList dataDimNames = {QStringLiteral("time"), QStringLiteral("channel")};
+            dataArray = std::make_unique<ZarrV3Array>(
+                QString::fromStdString(storePath),
+                QStringLiteral("data"),
+                dataDtype,
+                chunkCount,
+                nCols,
+                dataDimNames);
+
+            // embed signal metadata as Zarr array attributes. time_unit lives on
+            // the timestamps array (which it describes), not here.
+            QJsonObject dataAttrs;
+            if (!signalNames.isEmpty()) {
+                QJsonArray names;
+                for (const auto &n : signalNames)
+                    names.append(n);
+                dataAttrs["signal_names"] = names;
+            }
+            if (!dataUnit.isEmpty())
+                dataAttrs["data_unit"] = dataUnit;
+            if (dataScale != 1.0)
+                dataAttrs["data_scale"] = dataScale;
+            if (dataOffset != 0.0)
+                dataAttrs["data_offset"] = dataOffset;
+            if (sampleRate > 0 || dataUnit == "index")
+                dataAttrs["sample_rate"] = sampleRate;
+            if (currentDSet)
+                dataAttrs["collection_id"] = QString::fromStdString(currentDSet->collectionId().toHex());
+            if (!dataAttrs.isEmpty())
+                dataArray->setAttributes(dataAttrs);
+
+            if (auto res = dataArray->open(); !res) {
+                mod.raiseError(QStringLiteral("Failed to open data array: ") + res.error());
+                tsArray.reset();
+                dataArray.reset();
+                writeData = false;
+                return;
+            }
+        }
+
+        /**
+         * Lazily create the arrays for a LineReading event stream: a 1-D
+         * `timestamps` array plus a 2-column `data` array holding [line_id, value]
+         * per event. Row i of `data` pairs with timestamps[i]; both are appended one
+         * row per event in lockstep so the triplet stays aligned.
+         */
+        void ensureLineArraysInitialized()
+        {
+            if (tsArray)
+                return;
+
+            tsArray = std::make_unique<ZarrV3Array>(
+                QString::fromStdString(storePath),
+                QStringLiteral("timestamps"),
+                ZarrV3Array::DType::UInt64,
+                chunkCount,
+                1,
+                QStringList{QStringLiteral("event")});
+            if (!timeUnit.isEmpty()) {
+                QJsonObject tsAttrs;
+                tsAttrs["time_unit"] = timeUnit;
+                tsArray->setAttributes(tsAttrs);
+            }
+            if (auto res = tsArray->open(); !res) {
+                mod.raiseError(QStringLiteral("Failed to open timestamps array: ") + res.error());
+                tsArray.reset();
+                writeData = false;
+                return;
+            }
+
+            dataArray = std::make_unique<ZarrV3Array>(
+                QString::fromStdString(storePath),
+                QStringLiteral("data"),
+                ZarrV3Array::DType::UInt32,
+                chunkCount,
+                2,
+                QStringList{QStringLiteral("line"), QStringLiteral("value")});
+            QJsonObject dataAttrs;
+            dataAttrs["signal_names"] = QJsonArray{QStringLiteral("line_id"), QStringLiteral("value")};
+            if (!dataUnit.isEmpty())
+                dataAttrs["data_unit"] = dataUnit;
+            if (currentDSet)
+                dataAttrs["collection_id"] = QString::fromStdString(currentDSet->collectionId().toHex());
+            dataArray->setAttributes(dataAttrs);
+            if (auto res = dataArray->open(); !res) {
+                mod.raiseError(QStringLiteral("Failed to open data array: ") + res.error());
+                tsArray.reset();
+                dataArray.reset();
+                writeData = false;
+                return;
+            }
+        }
+
+        void onDataReceived()
+        {
+            // Drain everything queued - even when not saving or after a fatal
+            // error - otherwise items pile up unbounded.
+            const ProcessVarFn processItem = [this](BaseDataType &data) {
+                if (!writeData)
+                    return;
+                if (lineEvents)
+                    writeLineReading(static_cast<const LineReading &>(data));
+                else
+                    visitSignalBlock(data, [this](auto &block) {
+                        writeSignalBlock(block);
+                    });
+                if (writeData)
+                    itemsWritten++;
+            };
+            while (sub->callIfNextVar(processItem)) {
+            }
+        }
+
+        template<SignalBlockType T>
+        void writeSignalBlock(const T &block)
+        {
+            using Scalar = signal_block_scalar_t<T>;
+
+            ensureArraysInitialized(static_cast<int>(block.data.cols()), zarrDTypeFor<Scalar>());
+            if (!writeData)
+                return; // ensureArraysInitialized hit a fatal condition (channel mismatch, etc.)
+
+            // Syntalos signal-block matrices are row-major.
+            // Verify at compile time so we can write the storage directly without a copy.
+            static_assert(
+                std::remove_reference_t<decltype(block.data)>::IsRowMajor,
+                "SignalBlock data matrix must be row-major");
+
+            tsArray->appendBytes(block.timestamps.data(), block.timestamps.rows());
+            dataArray->appendBytes(block.data.data(), block.data.rows());
+
+            // Surface any sticky I/O error from the writer back to the user.
+            if (tsArray->hasError() || dataArray->hasError()) {
+                const QString msg = tsArray->hasError() ? tsArray->errorMessage() : dataArray->errorMessage();
+                mod.raiseError(QStringLiteral("Zarr writer I/O error: ") + msg);
+                writeData = false;
+            }
+        }
+
+        void writeLineReading(const LineReading &ev)
+        {
+            // Append the timestamp and the [line_id, value] row in lockstep so
+            // they stay aligned by index.
+            ensureLineArraysInitialized();
+            if (!writeData)
+                return;
+
+            const uint64_t t = static_cast<uint64_t>(ev.time.count());
+            const uint32_t row[2] = {static_cast<uint32_t>(ev.lineId), static_cast<uint32_t>(ev.value)};
+            tsArray->appendBytes(&t, 1);
+            dataArray->appendBytes(row, 1);
+
+            if (tsArray->hasError() || dataArray->hasError()) {
+                const QString msg = tsArray->hasError() ? tsArray->errorMessage() : dataArray->errorMessage();
+                mod.raiseError(QStringLiteral("Zarr writer I/O error: ") + msg);
+                writeData = false; // the caller keeps draining the queue
+            }
+        }
+    };
 
     void stop() override
     {
         m_settingsDlg->setRunning(false);
-        setRunStatistic(QStringLiteral("items_written"), m_itemsWritten);
 
-        if (!m_writeData)
+        // our event thread is done at this point, so we can read its results and complete the arrays
+        auto worker = takeWorker<Worker>();
+        setRunStatistic(QStringLiteral("items_written"), worker ? worker->itemsWritten : qint64(0));
+
+        if (!worker || !worker->writeData)
             return;
 
-        if (m_tsArray && !m_tsArray->finalize())
+        if (worker->tsArray && !worker->tsArray->finalize())
             raiseError(QStringLiteral("Failed to finalize Zarr timestamps array"));
-        if (m_dataArray && !m_dataArray->finalize())
+        if (worker->dataArray && !worker->dataArray->finalize())
             raiseError(QStringLiteral("Failed to finalize Zarr data array"));
-
-        m_tsArray.reset();
-        m_dataArray.reset();
-        m_currentDSet.reset();
-        m_expectedChannels = 0;
-        m_chunkCount = ZARR_CHUNK_DEFAULT;
-        m_signalNames.clear();
-        m_timeUnit.clear();
-        m_dataUnit.clear();
-        m_srcModType.clear();
-        m_dataScale = 1.0;
-        m_dataOffset = 0.0;
-        m_sampleRate = -1.0;
-        m_storePath.clear();
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
@@ -436,203 +665,6 @@ private:
             return ZARR_CHUNK_DEFAULT;
         const auto count = static_cast<int64_t>(std::round(sampleRate));
         return std::clamp(count, ZARR_CHUNK_MIN, ZARR_CHUNK_MAX);
-    }
-
-    void ensureArraysInitialized(int nCols, ZarrV3Array::DType dataDtype)
-    {
-        // validate channel count against what the upstream source advertised.
-        if (nCols != m_expectedChannels) {
-            raiseError(QStringLiteral("Channel count mismatch: metadata advertised %1 channel(s) but received %2")
-                           .arg(m_expectedChannels)
-                           .arg(nCols));
-            m_writeData = false;
-            return;
-        }
-
-        // skip if we are already initialized
-        if (m_tsArray)
-            return;
-
-        // 1-D timestamps array: shape = [total_samples], dtype = uint64
-        m_tsArray = std::make_unique<ZarrV3Array>(
-            QString::fromStdString(m_storePath),
-            QStringLiteral("timestamps"),
-            ZarrV3Array::DType::UInt64,
-            m_chunkCount,
-            1,
-            QStringList{QStringLiteral("time")});
-
-        if (!m_timeUnit.isEmpty()) {
-            QJsonObject tsAttrs;
-            tsAttrs["time_unit"] = m_timeUnit;
-            m_tsArray->setAttributes(tsAttrs);
-        }
-
-        if (auto res = m_tsArray->open(); !res) {
-            raiseError(QStringLiteral("Failed to open timestamps array: ") + res.error());
-            m_tsArray.reset();
-            m_writeData = false;
-            return;
-        }
-
-        // 2-D data array: shape = [total_samples, n_channels]
-        const QStringList dataDimNames = {QStringLiteral("time"), QStringLiteral("channel")};
-        m_dataArray = std::make_unique<ZarrV3Array>(
-            QString::fromStdString(m_storePath),
-            QStringLiteral("data"),
-            dataDtype,
-            m_chunkCount,
-            nCols,
-            dataDimNames);
-
-        // embed signal metadata as Zarr array attributes. time_unit lives on
-        // the timestamps array (which it describes), not here.
-        QJsonObject dataAttrs;
-        if (!m_signalNames.isEmpty()) {
-            QJsonArray names;
-            for (const auto &n : m_signalNames)
-                names.append(n);
-            dataAttrs["signal_names"] = names;
-        }
-        if (!m_dataUnit.isEmpty())
-            dataAttrs["data_unit"] = m_dataUnit;
-        if (m_dataScale != 1.0)
-            dataAttrs["data_scale"] = m_dataScale;
-        if (m_dataOffset != 0.0)
-            dataAttrs["data_offset"] = m_dataOffset;
-        if (m_sampleRate > 0 || m_dataUnit == "index")
-            dataAttrs["sample_rate"] = m_sampleRate;
-        if (m_currentDSet)
-            dataAttrs["collection_id"] = QString::fromStdString(m_currentDSet->collectionId().toHex());
-        if (!dataAttrs.isEmpty())
-            m_dataArray->setAttributes(dataAttrs);
-
-        if (auto res = m_dataArray->open(); !res) {
-            raiseError(QStringLiteral("Failed to open data array: ") + res.error());
-            m_tsArray.reset();
-            m_dataArray.reset();
-            m_writeData = false;
-            return;
-        }
-    }
-
-    /**
-     * Lazily create the arrays for a LineReading event stream: a 1-D
-     * `timestamps` array plus a 2-column `data` array holding [line_id, value]
-     * per event. Row i of `data` pairs with timestamps[i]; both are appended one
-     * row per event in lockstep so the triplet stays aligned.
-     */
-    void ensureLineArraysInitialized()
-    {
-        if (m_tsArray)
-            return;
-
-        m_tsArray = std::make_unique<ZarrV3Array>(
-            QString::fromStdString(m_storePath),
-            QStringLiteral("timestamps"),
-            ZarrV3Array::DType::UInt64,
-            m_chunkCount,
-            1,
-            QStringList{QStringLiteral("event")});
-        if (!m_timeUnit.isEmpty()) {
-            QJsonObject tsAttrs;
-            tsAttrs["time_unit"] = m_timeUnit;
-            m_tsArray->setAttributes(tsAttrs);
-        }
-        if (auto res = m_tsArray->open(); !res) {
-            raiseError(QStringLiteral("Failed to open timestamps array: ") + res.error());
-            m_tsArray.reset();
-            m_writeData = false;
-            return;
-        }
-
-        m_dataArray = std::make_unique<ZarrV3Array>(
-            QString::fromStdString(m_storePath),
-            QStringLiteral("data"),
-            ZarrV3Array::DType::UInt32,
-            m_chunkCount,
-            2,
-            QStringList{QStringLiteral("line"), QStringLiteral("value")});
-        QJsonObject dataAttrs;
-        dataAttrs["signal_names"] = QJsonArray{QStringLiteral("line_id"), QStringLiteral("value")};
-        if (!m_dataUnit.isEmpty())
-            dataAttrs["data_unit"] = m_dataUnit;
-        if (m_currentDSet)
-            dataAttrs["collection_id"] = QString::fromStdString(m_currentDSet->collectionId().toHex());
-        m_dataArray->setAttributes(dataAttrs);
-        if (auto res = m_dataArray->open(); !res) {
-            raiseError(QStringLiteral("Failed to open data array: ") + res.error());
-            m_tsArray.reset();
-            m_dataArray.reset();
-            m_writeData = false;
-            return;
-        }
-    }
-
-    void onDataReceived()
-    {
-        // Drain everything queued - even when not saving or after a fatal
-        // error - otherwise items pile up unbounded.
-        const ProcessVarFn processItem = [this](BaseDataType &data) {
-            if (!m_writeData)
-                return;
-            if (m_lineEvents)
-                writeLineReading(static_cast<const LineReading &>(data));
-            else
-                visitSignalBlock(data, [this](auto &block) {
-                    writeSignalBlock(block);
-                });
-            if (m_writeData)
-                m_itemsWritten++;
-        };
-        while (m_sub->callIfNextVar(processItem)) {
-        }
-    }
-
-    template<SignalBlockType T>
-    void writeSignalBlock(const T &block)
-    {
-        using Scalar = signal_block_scalar_t<T>;
-
-        ensureArraysInitialized(static_cast<int>(block.data.cols()), zarrDTypeFor<Scalar>());
-        if (!m_writeData)
-            return; // ensureArraysInitialized hit a fatal condition (channel mismatch, etc.)
-
-        // Syntalos signal-block matrices are row-major.
-        // Verify at compile time so we can write the storage directly without a copy.
-        static_assert(
-            std::remove_reference_t<decltype(block.data)>::IsRowMajor,
-            "SignalBlock data matrix must be row-major");
-
-        m_tsArray->appendBytes(block.timestamps.data(), block.timestamps.rows());
-        m_dataArray->appendBytes(block.data.data(), block.data.rows());
-
-        // Surface any sticky I/O error from the writer back to the user.
-        if (m_tsArray->hasError() || m_dataArray->hasError()) {
-            const QString msg = m_tsArray->hasError() ? m_tsArray->errorMessage() : m_dataArray->errorMessage();
-            raiseError(QStringLiteral("Zarr writer I/O error: ") + msg);
-            m_writeData = false;
-        }
-    }
-
-    void writeLineReading(const LineReading &ev)
-    {
-        // Append the timestamp and the [line_id, value] row in lockstep so
-        // they stay aligned by index.
-        ensureLineArraysInitialized();
-        if (!m_writeData)
-            return;
-
-        const uint64_t t = static_cast<uint64_t>(ev.time.count());
-        const uint32_t row[2] = {static_cast<uint32_t>(ev.lineId), static_cast<uint32_t>(ev.value)};
-        m_tsArray->appendBytes(&t, 1);
-        m_dataArray->appendBytes(row, 1);
-
-        if (m_tsArray->hasError() || m_dataArray->hasError()) {
-            const QString msg = m_tsArray->hasError() ? m_tsArray->errorMessage() : m_dataArray->errorMessage();
-            raiseError(QStringLiteral("Zarr writer I/O error: ") + msg);
-            m_writeData = false; // the caller keeps draining the queue
-        }
     }
 };
 

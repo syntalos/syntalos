@@ -40,31 +40,40 @@ public:
     std::shared_ptr<StreamSubscription<T>> sub;
     std::string portId;
 
-    // Resolved canvas channel indices by column; -1 = not yet resolved.
-    // For LineReading subscriptions this is indexed by lineId instead.
-    std::vector<int> channelIdxByCol;
-
     std::string yLabel = "y";
     double timestampDivisor;
+};
+
+/**
+ * State the worker keeps for each subscription it reads data from.
+ */
+template<typename T>
+struct PlotSubscriptionState {
+    std::shared_ptr<StreamSubscription<T>> sub;
+    std::string portId;
+
+    // Resolved canvas channel indices by column; -1 = not yet resolved.
+    // For LineReading subscriptions this is indexed by lineId instead.
+    std::vector<int> channelIdxByCol{};
 
     // LineReading reconstruction state: last value per lineId and the set of
     // lineIds seen so far (in first-seen order). On each event we append a
     // timestamp plus the held value of *every* known line, so all line channels
     // stay aligned to the port's single shared timestamp ring.
-    std::vector<int32_t> lineValues;
-    std::vector<int> knownLines;
+    std::vector<int32_t> lineValues{};
+    std::vector<int> knownLines{};
 };
 
 class PlotSeriesModule : public AbstractModule
 {
     Q_OBJECT
 private:
+    // the subscriptions of the current run, to apply their metadata once the run starts
     std::vector<PlotSubscriptionDetails<SignalBlockF32>> m_fpSubs;
     std::vector<PlotSubscriptionDetails<SignalBlockI32>> m_intSubs;
     std::vector<PlotSubscriptionDetails<LineReading>> m_lrSubs;
 
     PlotWindow *m_plotWindow;
-    bool m_active;
 
 public:
     explicit PlotSeriesModule(PlotSeriesModuleInfo *modInfo, QObject *parent = nullptr)
@@ -94,13 +103,19 @@ public:
 
     bool prepare(const RunInfo &) override
     {
-        m_active = false;
         m_fpSubs.clear();
         m_intSubs.clear();
         m_lrSubs.clear();
 
         auto canvas = m_plotWindow->canvas();
         canvas->clearRuntimeData();
+
+        Worker worker{
+            .fpSubs = {},
+            .intSubs = {},
+            .lrSubs = {},
+            .canvas = canvas,
+        };
 
         for (auto &port : inPorts()) {
             if (!port->hasSubscription()) {
@@ -124,6 +139,7 @@ public:
                 // prevent receiving more than 4k items/s to safeguard a bit against overflows
                 sd.sub->setThrottleItemsPerSec(4000);
                 m_fpSubs.push_back(sd);
+                worker.fpSubs.push_back({.sub = sd.sub, .portId = sd.portId});
             } else if (port->dataTypeName() == "SignalBlockI32") {
                 PlotSubscriptionDetails<SignalBlockI32> sd(
                     std::static_pointer_cast<StreamInputPort<SignalBlockI32>>(port));
@@ -131,19 +147,17 @@ public:
                 // prevent receiving more than 4k items/s
                 sd.sub->setThrottleItemsPerSec(4000);
                 m_intSubs.push_back(sd);
+                worker.intSubs.push_back({.sub = sd.sub, .portId = sd.portId});
             } else if (port->dataTypeName() == "LineReading") {
                 PlotSubscriptionDetails<LineReading> sd(std::static_pointer_cast<StreamInputPort<LineReading>>(port));
                 m_lrSubs.push_back(sd);
-            } else {
-                continue;
+                worker.lrSubs.push_back({.sub = sd.sub, .portId = sd.portId});
             }
-
-            registerDataReceivedEvent(&PlotSeriesModule::onSignalBlockReceived, port->subscriptionVar());
         }
 
         // we are only active if we have something subscribed
         if (!m_fpSubs.empty() || !m_intSubs.empty() || !m_lrSubs.empty())
-            m_active = true;
+            setWorker(std::move(worker));
 
         // success
         setStateReady();
@@ -235,101 +249,122 @@ public:
         m_plotWindow->refreshChannelTable();
     }
 
-    template<typename T>
-    void processIncomingData(PlotSubscriptionDetails<T> &sd)
-    {
-        auto canvas = m_plotWindow->canvas();
+    /**
+     * Feeds the data we receive to the plot canvas, in the event loop the module is assigned to.
+     */
+    struct Worker {
+        WorkerContext mod{};
+        std::vector<PlotSubscriptionState<SignalBlockF32>> fpSubs;
+        std::vector<PlotSubscriptionState<SignalBlockI32>> intSubs;
+        std::vector<PlotSubscriptionState<LineReading>> lrSubs;
 
-        // Drain all queued blocks in a tight loop to prevent the subscription
-        // queue from growing when a 30 kHz producer outruns individual event firings.
-        while (true) {
-            auto maybeData = sd.sub->peekNext();
-            if (!maybeData.has_value())
-                break;
-            const auto &data = *maybeData;
-            const int nCols = data.data.cols();
+        // The canvas is a widget that lives in the main thread. We hold it here *only* to register
+        // channels and feed it new data via ensureChannel(), setChannelDigital() and appendBlockF/I(),
+        // which are guarded by the mutex of the canvas. Nothing else of it must be touched from the worker.
+        PlotCanvas *canvas;
 
-            // Grow the index cache on first sight of a new column count.
-            if ((int)sd.channelIdxByCol.size() < nCols)
-                sd.channelIdxByCol.resize(nCols, -1);
-
-            // Resolve any still-unknown channel indices (at most once per column).
-            for (int c = 0; c < nCols; ++c) {
-                if (sd.channelIdxByCol[c] == -1)
-                    sd.channelIdxByCol[c] = canvas->ensureChannel(sd.portId, c, std::string());
-            }
-
-            // One lock acquisition per block for all channels.
-            if constexpr (std::is_same_v<T, SignalBlockI32>)
-                canvas->appendBlockI(sd.portId, data.timestamps, data.data, sd.channelIdxByCol.data(), nCols);
-            else
-                canvas->appendBlockF(sd.portId, data.timestamps, data.data, sd.channelIdxByCol.data(), nCols);
+        void setup(WorkerEvents &ev)
+        {
+            // new data on any of our subscriptions makes us look at all of them
+            const auto onData = [this] {
+                onSignalBlockReceived();
+            };
+            for (const auto &sd : fpSubs)
+                ev.onData(sd.sub, onData);
+            for (const auto &sd : intSubs)
+                ev.onData(sd.sub, onData);
+            for (const auto &sd : lrSubs)
+                ev.onData(sd.sub, onData);
         }
-    }
 
-    void processIncomingLineReadings(PlotSubscriptionDetails<LineReading> &sd)
-    {
-        auto canvas = m_plotWindow->canvas();
+        template<typename T>
+        void processIncomingData(PlotSubscriptionState<T> &sd)
+        {
+            // Drain all queued blocks in a tight loop to prevent the subscription
+            // queue from growing when a 30 kHz producer outruns individual event firings.
+            while (true) {
+                auto maybeData = sd.sub->peekNext();
+                if (!maybeData.has_value())
+                    break;
+                const auto &data = *maybeData;
+                const int nCols = data.data.cols();
 
-        VectorXu64 ts(1);
-        MatrixXi32 row; // 1 x (#known lines), rebuilt per event
-        std::vector<int> chIdx;
+                // Grow the index cache on first sight of a new column count.
+                if ((int)sd.channelIdxByCol.size() < nCols)
+                    sd.channelIdxByCol.resize(nCols, -1);
 
-        while (true) {
-            auto maybeData = sd.sub->peekNext();
-            if (!maybeData.has_value())
-                break;
-            const auto &ev = *maybeData;
-            const int lineId = ev.lineId;
+                // Resolve any still-unknown channel indices (at most once per column).
+                for (int c = 0; c < nCols; ++c) {
+                    if (sd.channelIdxByCol[c] == -1)
+                        sd.channelIdxByCol[c] = canvas->ensureChannel(sd.portId, c, std::string());
+                }
 
-            // Each line becomes a digital channel (colIdx = lineId) under this
-            // module input port, so it lists/toggles in the channel table.
-            if ((int)sd.channelIdxByCol.size() <= lineId) {
-                sd.channelIdxByCol.resize(lineId + 1, -1);
-                sd.lineValues.resize(lineId + 1, 0);
+                // One lock acquisition per block for all channels.
+                if constexpr (std::is_same_v<T, SignalBlockI32>)
+                    canvas->appendBlockI(sd.portId, data.timestamps, data.data, sd.channelIdxByCol.data(), nCols);
+                else
+                    canvas->appendBlockF(sd.portId, data.timestamps, data.data, sd.channelIdxByCol.data(), nCols);
             }
-            if (sd.channelIdxByCol[lineId] == -1) {
-                // Synthesize a label from the lineId; LineReading streams don't
-                // carry per-line names.
-                const int ci = canvas->ensureChannel(sd.portId, lineId, std::format("Line {}", lineId));
-                canvas->setChannelDigital(ci, sd.sub->metadataValue("is_digital").getOr(false));
-                sd.channelIdxByCol[lineId] = ci;
-                sd.knownLines.push_back(lineId);
-            }
-            sd.lineValues[lineId] = static_cast<int32_t>(ev.value);
-
-            // Append one timestamp plus the held value of every known line, so
-            // all line channels share the port's single timestamp ring and stay
-            // aligned (sample-and-hold reconstruction of the digital state).
-            const int k = static_cast<int>(sd.knownLines.size());
-            ts(0) = static_cast<uint64_t>(ev.time.count());
-            row.resize(1, k);
-            chIdx.resize(k);
-            for (int j = 0; j < k; ++j) {
-                const int lid = sd.knownLines[j];
-                chIdx[j] = sd.channelIdxByCol[lid];
-                row(0, j) = sd.lineValues[lid];
-            }
-            canvas->appendBlockI(sd.portId, ts, row, chIdx.data(), k);
         }
-    }
 
-    void onSignalBlockReceived()
-    {
-        if (!m_active)
-            return;
+        void processIncomingLineReadings(PlotSubscriptionState<LineReading> &sd)
+        {
+            VectorXu64 ts(1);
+            MatrixXi32 row; // 1 x (#known lines), rebuilt per event
+            std::vector<int> chIdx;
 
-        for (auto &sd : m_fpSubs)
-            processIncomingData(sd);
-        for (auto &sd : m_intSubs)
-            processIncomingData(sd);
-        for (auto &sd : m_lrSubs)
-            processIncomingLineReadings(sd);
-    }
+            while (true) {
+                auto maybeData = sd.sub->peekNext();
+                if (!maybeData.has_value())
+                    break;
+                const auto &ev = *maybeData;
+                const int lineId = ev.lineId;
+
+                // Each line becomes a digital channel (colIdx = lineId) under this
+                // module input port, so it lists/toggles in the channel table.
+                if ((int)sd.channelIdxByCol.size() <= lineId) {
+                    sd.channelIdxByCol.resize(lineId + 1, -1);
+                    sd.lineValues.resize(lineId + 1, 0);
+                }
+                if (sd.channelIdxByCol[lineId] == -1) {
+                    // Synthesize a label from the lineId; LineReading streams don't
+                    // carry per-line names.
+                    const int ci = canvas->ensureChannel(sd.portId, lineId, std::format("Line {}", lineId));
+                    canvas->setChannelDigital(ci, sd.sub->metadataValue("is_digital").getOr(false));
+                    sd.channelIdxByCol[lineId] = ci;
+                    sd.knownLines.push_back(lineId);
+                }
+                sd.lineValues[lineId] = static_cast<int32_t>(ev.value);
+
+                // Append one timestamp plus the held value of every known line, so
+                // all line channels share the port's single timestamp ring and stay
+                // aligned (sample-and-hold reconstruction of the digital state).
+                const int k = static_cast<int>(sd.knownLines.size());
+                ts(0) = static_cast<uint64_t>(ev.time.count());
+                row.resize(1, k);
+                chIdx.resize(k);
+                for (int j = 0; j < k; ++j) {
+                    const int lid = sd.knownLines[j];
+                    chIdx[j] = sd.channelIdxByCol[lid];
+                    row(0, j) = sd.lineValues[lid];
+                }
+                canvas->appendBlockI(sd.portId, ts, row, chIdx.data(), k);
+            }
+        }
+
+        void onSignalBlockReceived()
+        {
+            for (auto &sd : fpSubs)
+                processIncomingData(sd);
+            for (auto &sd : intSubs)
+                processIncomingData(sd);
+            for (auto &sd : lrSubs)
+                processIncomingLineReadings(sd);
+        }
+    };
 
     void stop() override
     {
-        m_active = false;
         m_plotWindow->setRunning(false);
     }
 

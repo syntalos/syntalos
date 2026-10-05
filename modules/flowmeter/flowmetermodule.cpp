@@ -334,22 +334,23 @@ class FlowMeterModule : public AbstractModule
     Q_OBJECT
 private:
     std::shared_ptr<VarStreamInputPort> m_inPort;
-    std::shared_ptr<VariantStreamSubscription> m_sub;
-    std::atomic<uint64_t> m_count{0};
-    InputStats m_stats;
     bool m_isSignal = false;
+
+    // item counter, shared between the worker which increments it and the display which polls it
+    std::shared_ptr<std::atomic<uint64_t>> m_count;
 
     FlowMeterSettingsDialog *m_settingsDlg;
     FlowMeterDisplay *m_display;
 
 public:
     explicit FlowMeterModule(FlowMeterModuleInfo *modInfo, QObject *parent = nullptr)
-        : AbstractModule(parent)
+        : AbstractModule(parent),
+          m_count(std::make_shared<std::atomic<uint64_t>>(0))
     {
         m_display = new FlowMeterDisplay;
         m_display->setWindowIcon(modInfo->icon());
-        m_display->setStatsSource([this]() {
-            return m_count.load(std::memory_order_relaxed);
+        m_display->setStatsSource([count = m_count]() {
+            return count->load(std::memory_order_relaxed);
         });
         addDisplayWindow(m_display);
 
@@ -404,9 +405,7 @@ public:
     {
         m_settingsDlg->setRunning(true);
 
-        m_count.store(0, std::memory_order_relaxed);
-        m_sub.reset();
-        clearDataReceivedEventRegistrations();
+        m_count->store(0, std::memory_order_relaxed);
 
         m_display->setTypeName(m_settingsDlg->selectedTypeName());
 
@@ -415,20 +414,22 @@ public:
             return true;
         }
 
-        m_sub = m_inPort->subscriptionVar();
+        const auto sub = m_inPort->subscriptionVar();
 
-        m_stats = InputStats();
-        m_isSignal = withSignalBlockType(m_sub->dataTypeId(), [](auto) {});
-        const auto timeUnit = m_sub->metadataValue("time_unit", std::string{"microseconds"});
+        InputStats stats;
+        m_isSignal = withSignalBlockType(sub->dataTypeId(), [](auto) {});
+        const auto timeUnit = sub->metadataValue("time_unit", std::string{"microseconds"});
         if (timeUnit == "milliseconds")
-            m_stats.timeUnitToUsec = 1000.0;
+            stats.timeUnitToUsec = 1000.0;
         else if (timeUnit != "microseconds")
-            m_stats.timeUnitToUsec = 0;
-        registerDataReceivedEvent(
-            [this]() {
-                onData();
-            },
-            m_sub);
+            stats.timeUnitToUsec = 0;
+
+        setWorker(
+            Worker{
+                .sub = sub,
+                .count = m_count,
+                .stats = std::move(stats),
+            });
 
         setStateReady();
         return true;
@@ -440,54 +441,71 @@ public:
         AbstractModule::start();
     }
 
+    /**
+     * Counts the items arriving on the input port and measures their timing.
+     */
+    struct Worker {
+        WorkerContext mod{};
+        std::shared_ptr<VariantStreamSubscription> sub;
+        std::shared_ptr<std::atomic<uint64_t>> count; // polled by the display
+        InputStats stats;
+
+        void setup(WorkerEvents &ev)
+        {
+            ev.onData(sub, [this] {
+                onData();
+            });
+        }
+
+        void onData()
+        {
+            // Drain every queued item and count it. We must drain (even though we
+            // discard the decoded value) so the meter does not act as a bottleneck.
+            while (sub->callIfNextVar([this](BaseDataType &data) {
+                const auto nowUsec = mod.timer->timeSinceStartUsec().count();
+                stats.addArrival(nowUsec);
+                if (const auto itemTime = itemTimeUsec(data))
+                    stats.addAge(nowUsec - *itemTime);
+            }))
+                count->fetch_add(1, std::memory_order_relaxed);
+        }
+
+        /**
+         * Acquisition time of an item, if its type carries one that we know how to read.
+         * For signal blocks, we use the time of the newest sample.
+         */
+        std::optional<int64_t> itemTimeUsec(BaseDataType &data)
+        {
+            std::optional<int64_t> time;
+            const auto typeId = sub->dataTypeId();
+            if (typeId == syDataTypeId<Frame>()) {
+                time = static_cast<Frame &>(data).time.count();
+            } else if (typeId == syDataTypeId<LineReading>()) {
+                time = static_cast<LineReading &>(data).time.count();
+            } else {
+                visitSignalBlock(data, [&](auto &block) {
+                    const auto len = block.length();
+                    stats.samples += len;
+                    if (len > 0 && stats.timeUnitToUsec > 0)
+                        time = static_cast<int64_t>(std::llround(block.timestamps[len - 1] * stats.timeUnitToUsec));
+                });
+            }
+
+            return time;
+        }
+    };
+
     void stop() override
     {
         m_display->setRunning(false);
         m_settingsDlg->setRunning(false);
 
         // our event thread has been joined at this point, so we can safely access the measurements
-        if (m_sub) {
-            const auto v = m_stats.toVariant(m_isSignal);
+        if (auto worker = takeWorker<Worker>()) {
+            const auto v = worker->stats.toVariant(m_isSignal);
             for (auto it = v.constBegin(); it != v.constEnd(); ++it)
                 setRunStatistic(it.key(), it.value());
         }
-    }
-
-    void onData()
-    {
-        // Drain every queued item and count it. We must drain (even though we
-        // discard the decoded value) so the meter does not act as a bottleneck.
-        while (m_sub->callIfNextVar([this](BaseDataType &data) {
-            const auto nowUsec = m_syTimer->timeSinceStartUsec().count();
-            m_stats.addArrival(nowUsec);
-            if (const auto itemTime = itemTimeUsec(data))
-                m_stats.addAge(nowUsec - *itemTime);
-        }))
-            m_count.fetch_add(1, std::memory_order_relaxed);
-    }
-
-    /**
-     * Acquisition time of an item, if its type carries one that we know how to read.
-     * For signal blocks, we use the time of the newest sample.
-     */
-    std::optional<int64_t> itemTimeUsec(BaseDataType &data)
-    {
-        std::optional<int64_t> time;
-        const auto typeId = m_sub->dataTypeId();
-        if (typeId == syDataTypeId<Frame>()) {
-            time = static_cast<Frame &>(data).time.count();
-        } else if (typeId == syDataTypeId<LineReading>()) {
-            time = static_cast<LineReading &>(data).time.count();
-        } else {
-            visitSignalBlock(data, [&](auto &block) {
-                const auto len = block.length();
-                m_stats.samples += len;
-                if (len > 0 && m_stats.timeUnitToUsec > 0)
-                    time = static_cast<int64_t>(std::llround(block.timestamps[len - 1] * m_stats.timeUnitToUsec));
-            });
-        }
-
-        return time;
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override

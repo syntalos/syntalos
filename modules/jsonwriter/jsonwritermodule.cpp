@@ -56,19 +56,9 @@ private:
     std::shared_ptr<StreamInputPort<TableRow>> m_rowsIn;
     std::shared_ptr<StreamInputPort<LineReading>> m_lineIn;
 
-    std::shared_ptr<StreamSubscription<SignalBlockF32>> m_floatSub;
-    std::shared_ptr<StreamSubscription<SignalBlockI32>> m_intSub;
-    std::shared_ptr<StreamSubscription<TableRow>> m_rowSub;
-    std::shared_ptr<StreamSubscription<LineReading>> m_lineSub;
-
+    // the subscriptions we read from in the current run, to look at their metadata
+    std::shared_ptr<VariantStreamSubscription> m_activeSub;
     InputSourceKind m_isrcKind;
-    std::shared_ptr<EDLDataset> m_currentDSet;
-
-    std::unique_ptr<KCompressionDevice> m_compDev;
-    std::unique_ptr<QTextStream> m_textStream;
-    bool m_initFile;
-    QSet<int> m_selectedIndices;
-    bool m_writeData;
 
     JSONSettingsDialog *m_settingsDlg;
 
@@ -136,7 +126,7 @@ public:
     bool prepare(const RunInfo &info) override
     {
         m_isrcKind = InputSourceKind::NONE;
-        clearDataReceivedEventRegistrations();
+        m_activeSub.reset();
         m_settingsDlg->setRunning(true);
 
         if (!m_settingsDlg->useNameFromSource() && m_settingsDlg->dataName().isEmpty()) {
@@ -144,40 +134,37 @@ public:
             return false;
         }
 
-        // we don't write anything to disk if we aren't going to use the data anyway
-        m_writeData = !info.isEphemeral;
+        Worker worker{
+            .isrcKind = InputSourceKind::NONE,
+            .floatSub = nullptr,
+            .intSub = nullptr,
+            .rowSub = nullptr,
+            .lineSub = nullptr,
+            .jsonFormat = m_settingsDlg->jsonFormat(),
+            // we don't write anything to disk if we aren't going to use the data anyway
+            .writeData = !info.isEphemeral,
+        };
 
         // Only a single input port exists at a time
-        m_floatSub.reset();
         if (m_floatIn && m_floatIn->hasSubscription()) {
-            m_floatSub = m_floatIn->subscription();
+            worker.floatSub = m_floatIn->subscription();
+            m_activeSub = worker.floatSub;
             m_isrcKind = InputSourceKind::FLOAT;
-
-            registerDataReceivedEvent(&JSONWriterModule::onFloatSignalBlockReceived, m_floatSub);
         }
-
-        m_intSub.reset();
         if (m_intIn && m_intIn->hasSubscription()) {
-            m_intSub = m_intIn->subscription();
+            worker.intSub = m_intIn->subscription();
+            m_activeSub = worker.intSub;
             m_isrcKind = InputSourceKind::INT32;
-
-            registerDataReceivedEvent(&JSONWriterModule::onIntSignalBlockReceived, m_intSub);
         }
-
-        m_rowSub.reset();
         if (m_rowsIn && m_rowsIn->hasSubscription()) {
-            m_rowSub = m_rowsIn->subscription();
+            worker.rowSub = m_rowsIn->subscription();
+            m_activeSub = worker.rowSub;
             m_isrcKind = InputSourceKind::ROW;
-
-            registerDataReceivedEvent(&JSONWriterModule::onTableRowReceived, m_rowSub);
         }
-
-        m_lineSub.reset();
         if (m_lineIn && m_lineIn->hasSubscription()) {
-            m_lineSub = m_lineIn->subscription();
+            worker.lineSub = m_lineIn->subscription();
+            m_activeSub = worker.lineSub;
             m_isrcKind = InputSourceKind::LINE_READING;
-
-            registerDataReceivedEvent(&JSONWriterModule::onLineReadingReceived, m_lineSub);
         }
 
         if (m_isrcKind == InputSourceKind::NONE) {
@@ -185,6 +172,9 @@ public:
             setStateDormant();
             return true;
         }
+
+        worker.isrcKind = m_isrcKind;
+        setWorker(std::move(worker));
 
         // success
         setStateReady();
@@ -196,382 +186,423 @@ public:
         if (m_isrcKind == InputSourceKind::NONE)
             return;
 
-        MetaStringMap mdata;
+        // the metadata of our data source is final only now
+        const auto mdata = m_activeSub->metadata();
         QStringList signalNames;
-        switch (m_isrcKind) {
-        case InputSourceKind::FLOAT:
-            mdata = m_floatSub->metadata();
-            for (const auto &v : m_floatSub->metadataValue("signal_names", MetaArray{}))
+        if (m_isrcKind == InputSourceKind::FLOAT || m_isrcKind == InputSourceKind::INT32) {
+            for (const auto &v : m_activeSub->metadataValue("signal_names", MetaArray{}))
                 if (const auto s = v.get<std::string>())
                     signalNames << QString::fromStdString(*s);
-            break;
-        case InputSourceKind::INT32:
-            mdata = m_intSub->metadata();
-            for (const auto &v : m_intSub->metadataValue("signal_names", MetaArray{}))
-                if (const auto s = v.get<std::string>())
-                    signalNames << QString::fromStdString(*s);
-            break;
-        case InputSourceKind::ROW:
-            mdata = m_rowSub->metadata();
-            break;
-        case InputSourceKind::LINE_READING:
-            // Columns are fixed ([time, line_id, value]); no per-signal selection.
-            mdata = m_lineSub->metadata();
-            break;
-        case InputSourceKind::NONE:
-            return;
-        default:
-            return;
         }
 
         // update GUI to list available signals
         m_settingsDlg->setAvailableEntries(signalNames);
 
         // convert user signal selection into indices
-        m_selectedIndices.clear();
+        QSet<int> selectedIndices;
         if (!m_settingsDlg->recordAllData()) {
             const auto recSet = m_settingsDlg->recordedEntriesSet();
             for (int i = 0; i < signalNames.count(); i++) {
                 if (recSet.contains(signalNames[i]))
-                    m_selectedIndices.insert(i);
+                    selectedIndices.insert(i);
             }
         }
 
         // create dataset for storage
+        std::shared_ptr<EDLDataset> dset;
         if (m_settingsDlg->useNameFromSource())
-            m_currentDSet = createDefaultDataset(name(), mdata);
+            dset = createDefaultDataset(name(), mdata);
         else
-            m_currentDSet = createDefaultDataset(m_settingsDlg->dataName());
-        if (m_currentDSet.get() == nullptr) {
-            m_writeData = false;
-            return;
+            dset = createDefaultDataset(m_settingsDlg->dataName());
+
+        std::unique_ptr<KCompressionDevice> compDev;
+        if (dset.get() != nullptr) {
+            // get our file basename
+            auto fname = dataBasenameFromSubMetadata(mdata, QStringLiteral("data"));
+            fname = QStringLiteral("%1.json.zst").arg(fname);
+
+            // retrieve an absolute path from our file basename that we can open
+            fname = QString::fromStdString(dset->setDataFile(fname.toStdString()));
+
+            compDev = std::make_unique<KCompressionDevice>(fname, KCompressionDevice::Zstd);
+            if (!compDev->open(QIODevice::WriteOnly)) {
+                raiseError(
+                    QStringLiteral("Unable to open file '%1' for writing: %2").arg(fname, compDev->errorString()));
+                return;
+            }
         }
 
-        // get our file basename
-        auto fname = dataBasenameFromSubMetadata(mdata, QStringLiteral("data"));
-        fname = QStringLiteral("%1.json.zst").arg(fname);
+        // our worker is waiting for the run to start, give it the file to write to
+        modifyWorker<Worker>([&](Worker &w) {
+            w.selectedIndices = selectedIndices;
+            w.currentDSet = dset;
+            if (compDev == nullptr) {
+                w.writeData = false;
+                return;
+            }
 
-        // retrieve an absolute path from our file basename that we can open
-        fname = QString::fromStdString(m_currentDSet->setDataFile(fname.toStdString()));
+            w.compDev = std::move(compDev);
+            w.textStream = std::make_unique<QTextStream>(w.compDev.get());
+            w.initFile = true;
+        });
+    }
 
-        m_compDev = std::make_unique<KCompressionDevice>(fname, KCompressionDevice::Zstd);
-        if (!m_compDev->open(QIODevice::WriteOnly)) {
-            raiseError(QStringLiteral("Unable to open file '%1' for writing: %2").arg(fname, m_compDev->errorString()));
-            return;
+    /**
+     * Writes the received data into a JSON file, in the event loop the module is assigned to.
+     */
+    struct Worker {
+        WorkerContext mod{};
+        InputSourceKind isrcKind;
+        std::shared_ptr<StreamSubscription<SignalBlockF32>> floatSub;
+        std::shared_ptr<StreamSubscription<SignalBlockI32>> intSub;
+        std::shared_ptr<StreamSubscription<TableRow>> rowSub;
+        std::shared_ptr<StreamSubscription<LineReading>> lineSub;
+        QString jsonFormat;
+        bool writeData;
+
+        // The output is only set up when the run is started, as it depends on metadata of the data source
+        std::shared_ptr<EDLDataset> currentDSet{};
+        std::unique_ptr<KCompressionDevice> compDev{};
+        std::unique_ptr<QTextStream> textStream{};
+        QSet<int> selectedIndices{};
+        bool initFile = false;
+
+        void setup(WorkerEvents &ev)
+        {
+            // Only a single input port exists at a time
+            switch (isrcKind) {
+            case InputSourceKind::FLOAT:
+                ev.onData(floatSub, [this] {
+                    onFloatSignalBlockReceived();
+                });
+                break;
+            case InputSourceKind::INT32:
+                ev.onData(intSub, [this] {
+                    onIntSignalBlockReceived();
+                });
+                break;
+            case InputSourceKind::ROW:
+                ev.onData(rowSub, [this] {
+                    onTableRowReceived();
+                });
+                break;
+            case InputSourceKind::LINE_READING:
+                ev.onData(lineSub, [this] {
+                    onLineReadingReceived();
+                });
+                break;
+            case InputSourceKind::NONE:
+                break;
+            }
         }
 
-        m_textStream = std::make_unique<QTextStream>(m_compDev.get());
-        m_initFile = true;
-    }
+        static QString toJsonValue(const QString &str)
+        {
+            QString res = str;
+            res.replace("\\", "\\\\");
+            res.replace("\"", "\\\"");
+            res.replace("\n", "\\n");
+            res.replace("\r", "\\r");
+            res.replace("\t", "\\t");
 
-    static QString toJsonValue(const QString &str)
-    {
-        QString res = str;
-        res.replace("\\", "\\\\");
-        res.replace("\"", "\\\"");
-        res.replace("\n", "\\n");
-        res.replace("\r", "\\r");
-        res.replace("\t", "\\t");
-
-        return "\"" + res + "\"";
-    }
-
-    static QString toJsonValue(const std::string &str)
-    {
-        QString res = QString::fromStdString(str);
-        res.replace("\\", "\\\\");
-        res.replace("\"", "\\\"");
-        res.replace("\n", "\\n");
-        res.replace("\r", "\\r");
-        res.replace("\t", "\\t");
-
-        return "\"" + res + "\"";
-    }
-
-    QString floatToJsonValue(double value)
-    {
-        if (std::isnan(value))
-            return "NaN";
-
-        // this is an extension to the JSON spec that Pandas parses
-        if (std::isinf(value))
-            return value > 0 ? "Infinity" : "-Infinity";
-
-        return QString::number(value, 'g', 16);
-    }
-
-    template<typename T>
-    QString intToJsonValue(T value)
-    {
-        if (std::isnan(value))
-            return "NaN";
-
-        // this is an extension to the JSON spec that Pandas parses
-        if (std::isinf(value))
-            return value > 0 ? "Infinity" : "-Infinity";
-
-        return QString::number(value);
-    }
-
-    QString shortenTimeUnit(const QString &timeUnit)
-    {
-        if (timeUnit == "seconds")
-            return QStringLiteral("sec");
-        if (timeUnit == "milliseconds")
-            return QStringLiteral("msec");
-        if (timeUnit == "microseconds")
-            return QStringLiteral("usec");
-        if (timeUnit == "index")
-            return QStringLiteral("idx");
-
-        return "t";
-    }
-
-    void initJsonFile()
-    {
-        QStringList columns;
-        QString timeUnit;
-        QString dataUnit;
-        double dataScale = 1.0;
-        double dataOffset = 0.0;
-        double sampleRate = -1.0;
-        QTextStream &stream = *m_textStream;
-
-        switch (m_isrcKind) {
-        case InputSourceKind::FLOAT:
-            for (const auto &v : m_floatSub->metadataValue("signal_names", MetaArray{}))
-                if (const auto s = v.get<std::string>())
-                    columns << QString::fromStdString(*s);
-            timeUnit = QString::fromStdString(m_floatSub->metadataValue("time_unit", std::string{}));
-            dataUnit = QString::fromStdString(m_floatSub->metadataValue("data_unit", std::string{}));
-            dataScale = m_floatSub->metadataValue("data_scale", 1.0);
-            dataOffset = m_floatSub->metadataValue("data_offset", 0.0);
-            sampleRate = m_floatSub->metadataValue("sample_rate", -1.0);
-            break;
-        case InputSourceKind::INT32:
-            for (const auto &v : m_intSub->metadataValue("signal_names", MetaArray{}))
-                if (const auto s = v.get<std::string>())
-                    columns << QString::fromStdString(*s);
-            timeUnit = QString::fromStdString(m_intSub->metadataValue("time_unit", std::string{}));
-            dataUnit = QString::fromStdString(m_intSub->metadataValue("data_unit", std::string{}));
-            dataScale = m_intSub->metadataValue("data_scale", 1.0);
-            dataOffset = m_intSub->metadataValue("data_offset", 0.0);
-            sampleRate = m_intSub->metadataValue("sample_rate", -1.0);
-            break;
-        case InputSourceKind::ROW:
-            for (const auto &v : m_rowSub->metadataValue("table_header", MetaArray{}))
-                if (const auto s = v.get<std::string>())
-                    columns << QString::fromStdString(*s);
-            break;
-        case InputSourceKind::LINE_READING:
-            timeUnit = QString::fromStdString(m_lineSub->metadataValue("time_unit", std::string{"microseconds"}));
-            dataUnit = QString::fromStdString(m_lineSub->metadataValue("data_unit", std::string{}));
-            // Fixed event schema; the timestamp column is included explicitly
-            // (the FLOAT/INT timestamp-prepend below does not run for this kind).
-            columns << QStringLiteral("timestamp_%1").arg(shortenTimeUnit(timeUnit)) << QStringLiteral("line_id")
-                    << QStringLiteral("value");
-            break;
-        default:
-            return;
+            return "\"" + res + "\"";
         }
 
-        if (columns.isEmpty()) {
-            raiseError(
-                "Unable to determine the data columns - the data source may not have set the "
-                "required `signal_names` or `table_header` metadata. Please ensure the sending module "
-                "emits the correct metadata!");
-            return;
+        static QString toJsonValue(const std::string &str)
+        {
+            QString res = QString::fromStdString(str);
+            res.replace("\\", "\\\\");
+            res.replace("\"", "\\\"");
+            res.replace("\n", "\\n");
+            res.replace("\r", "\\r");
+            res.replace("\t", "\\t");
+
+            return "\"" + res + "\"";
         }
 
-        if (m_isrcKind == InputSourceKind::FLOAT || m_isrcKind == InputSourceKind::INT32) {
-            if (timeUnit.isEmpty())
-                columns.prepend("timestamp");
-            else
-                columns.prepend(QStringLiteral("timestamp_%1").arg(shortenTimeUnit(timeUnit)));
+        QString floatToJsonValue(double value)
+        {
+            if (std::isnan(value))
+                return "NaN";
+
+            // this is an extension to the JSON spec that Pandas parses
+            if (std::isinf(value))
+                return value > 0 ? "Infinity" : "-Infinity";
+
+            return QString::number(value, 'g', 16);
         }
 
-        stream << "{";
-        if (m_settingsDlg->jsonFormat() == "extended-pandas") {
-            stream << "\"collection_id\": " << toJsonValue(m_currentDSet->collectionId().toHex());
+        template<typename T>
+        QString intToJsonValue(T value)
+        {
+            if (std::isnan(value))
+                return "NaN";
+
+            // this is an extension to the JSON spec that Pandas parses
+            if (std::isinf(value))
+                return value > 0 ? "Infinity" : "-Infinity";
+
+            return QString::number(value);
+        }
+
+        QString shortenTimeUnit(const QString &timeUnit)
+        {
+            if (timeUnit == "seconds")
+                return QStringLiteral("sec");
+            if (timeUnit == "milliseconds")
+                return QStringLiteral("msec");
+            if (timeUnit == "microseconds")
+                return QStringLiteral("usec");
+            if (timeUnit == "index")
+                return QStringLiteral("idx");
+
+            return "t";
+        }
+
+        void initJsonFile()
+        {
+            QStringList columns;
+            QString timeUnit;
+            QString dataUnit;
+            double dataScale = 1.0;
+            double dataOffset = 0.0;
+            double sampleRate = -1.0;
+            QTextStream &stream = *textStream;
+
+            switch (isrcKind) {
+            case InputSourceKind::FLOAT:
+                for (const auto &v : floatSub->metadataValue("signal_names", MetaArray{}))
+                    if (const auto s = v.get<std::string>())
+                        columns << QString::fromStdString(*s);
+                timeUnit = QString::fromStdString(floatSub->metadataValue("time_unit", std::string{}));
+                dataUnit = QString::fromStdString(floatSub->metadataValue("data_unit", std::string{}));
+                dataScale = floatSub->metadataValue("data_scale", 1.0);
+                dataOffset = floatSub->metadataValue("data_offset", 0.0);
+                sampleRate = floatSub->metadataValue("sample_rate", -1.0);
+                break;
+            case InputSourceKind::INT32:
+                for (const auto &v : intSub->metadataValue("signal_names", MetaArray{}))
+                    if (const auto s = v.get<std::string>())
+                        columns << QString::fromStdString(*s);
+                timeUnit = QString::fromStdString(intSub->metadataValue("time_unit", std::string{}));
+                dataUnit = QString::fromStdString(intSub->metadataValue("data_unit", std::string{}));
+                dataScale = intSub->metadataValue("data_scale", 1.0);
+                dataOffset = intSub->metadataValue("data_offset", 0.0);
+                sampleRate = intSub->metadataValue("sample_rate", -1.0);
+                break;
+            case InputSourceKind::ROW:
+                for (const auto &v : rowSub->metadataValue("table_header", MetaArray{}))
+                    if (const auto s = v.get<std::string>())
+                        columns << QString::fromStdString(*s);
+                break;
+            case InputSourceKind::LINE_READING:
+                timeUnit = QString::fromStdString(lineSub->metadataValue("time_unit", std::string{"microseconds"}));
+                dataUnit = QString::fromStdString(lineSub->metadataValue("data_unit", std::string{}));
+                // Fixed event schema; the timestamp column is included explicitly
+                // (the FLOAT/INT timestamp-prepend below does not run for this kind).
+                columns << QStringLiteral("timestamp_%1").arg(shortenTimeUnit(timeUnit)) << QStringLiteral("line_id")
+                        << QStringLiteral("value");
+                break;
+            default:
+                return;
+            }
+
+            if (columns.isEmpty()) {
+                mod.raiseError(
+                    "Unable to determine the data columns - the data source may not have set the "
+                    "required `signal_names` or `table_header` metadata. Please ensure the sending module "
+                    "emits the correct metadata!");
+                return;
+            }
+
+            if (isrcKind == InputSourceKind::FLOAT || isrcKind == InputSourceKind::INT32) {
+                if (timeUnit.isEmpty())
+                    columns.prepend("timestamp");
+                else
+                    columns.prepend(QStringLiteral("timestamp_%1").arg(shortenTimeUnit(timeUnit)));
+            }
+
+            stream << "{";
+            if (jsonFormat == "extended-pandas") {
+                stream << "\"collection_id\": " << toJsonValue(currentDSet->collectionId().toHex());
+                if (!timeUnit.isEmpty())
+                    stream << ",\n\"time_unit\": " << toJsonValue(timeUnit);
+                if (!dataUnit.isEmpty())
+                    stream << ",\n\"data_unit\": " << toJsonValue(dataUnit);
+                if (sampleRate > 0 || timeUnit == "index")
+                    stream << ",\n\"sample_rate\": " << floatToJsonValue(sampleRate);
+                stream << ",\n";
+            }
+
+            stream << "\"columns\": [";
+            QString columnsLine;
+            for (int i = 0; i < columns.length(); i++) {
+                // always write timestamp column, then check the other channels for being whitelisted
+                if (i == 0)
+                    columnsLine.append(toJsonValue(columns[i]) + ",");
+                else if (selectedIndices.isEmpty() || selectedIndices.contains(i - 1))
+                    columnsLine.append(toJsonValue(columns[i]) + ",");
+            }
+            if (!columnsLine.isEmpty())
+                columnsLine = columnsLine.left(columnsLine.length() - 1);
+            stream << columnsLine << "],\n\"data\": [\n";
+
+            // add some metadata
+            currentDSet->insertAttribute("json_schema", jsonFormat.toStdString());
             if (!timeUnit.isEmpty())
-                stream << ",\n\"time_unit\": " << toJsonValue(timeUnit);
+                currentDSet->insertAttribute("time_unit", timeUnit.toStdString());
             if (!dataUnit.isEmpty())
-                stream << ",\n\"data_unit\": " << toJsonValue(dataUnit);
+                currentDSet->insertAttribute("data_unit", dataUnit.toStdString());
+            // Persist the affine raw->physical transform alongside data_unit
+            // so consumers of the EDL manifest can reconstruct physical
+            // values. Skip identity values to avoid noise on streams that
+            // never advertised the keys.
+            if (dataScale != 1.0)
+                currentDSet->insertAttribute("data_scale", dataScale);
+            if (dataOffset != 0.0)
+                currentDSet->insertAttribute("data_offset", dataOffset);
             if (sampleRate > 0 || timeUnit == "index")
-                stream << ",\n\"sample_rate\": " << floatToJsonValue(sampleRate);
-            stream << ",\n";
+                currentDSet->insertAttribute("sample_rate", sampleRate);
+
+            // try to write the header to disk as soon as we can
+            stream.flush();
         }
 
-        stream << "\"columns\": [";
-        QString columnsLine;
-        for (int i = 0; i < columns.length(); i++) {
-            // always write timestamp column, then check the other channels for being whitelisted
-            if (i == 0)
-                columnsLine.append(toJsonValue(columns[i]) + ",");
-            else if (m_selectedIndices.isEmpty() || m_selectedIndices.contains(i - 1))
-                columnsLine.append(toJsonValue(columns[i]) + ",");
-        }
-        if (!columnsLine.isEmpty())
-            columnsLine = columnsLine.left(columnsLine.length() - 1);
-        stream << columnsLine << "],\n\"data\": [\n";
-
-        // add some metadata
-        m_currentDSet->insertAttribute("json_schema", m_settingsDlg->jsonFormat().toStdString());
-        if (!timeUnit.isEmpty())
-            m_currentDSet->insertAttribute("time_unit", timeUnit.toStdString());
-        if (!dataUnit.isEmpty())
-            m_currentDSet->insertAttribute("data_unit", dataUnit.toStdString());
-        // Persist the affine raw->physical transform alongside data_unit
-        // so consumers of the EDL manifest can reconstruct physical
-        // values. Skip identity values to avoid noise on streams that
-        // never advertised the keys.
-        if (dataScale != 1.0)
-            m_currentDSet->insertAttribute("data_scale", dataScale);
-        if (dataOffset != 0.0)
-            m_currentDSet->insertAttribute("data_offset", dataOffset);
-        if (sampleRate > 0 || timeUnit == "index")
-            m_currentDSet->insertAttribute("sample_rate", sampleRate);
-
-        // try to write the header to disk as soon as we can
-        stream.flush();
-    }
-
-    void writeEntryStart(const VectorXu64 &timestamps, int i)
-    {
-        if (i == 0 && m_initFile)
-            (*m_textStream) << "[" << intToJsonValue(timestamps(i, 0));
-        else
-            (*m_textStream) << ",\n[" << intToJsonValue(timestamps(i, 0));
-    }
-
-    void onFloatSignalBlockReceived()
-    {
-        auto maybeData = m_floatSub->peekNext();
-        if (!maybeData.has_value())
-            return;
-        const auto &data = *maybeData;
-        if (!m_writeData)
-            return;
-
-        if (m_initFile)
-            initJsonFile();
-
-        for (int i = 0; i < data.timestamps.rows(); ++i) {
-            writeEntryStart(data.timestamps, i);
-
-            if (m_selectedIndices.isEmpty()) {
-                for (int k = 0; k < data.data.cols(); ++k)
-                    (*m_textStream) << "," << intToJsonValue(data.data(i, k));
-            } else {
-                for (const auto &k : m_selectedIndices)
-                    (*m_textStream) << "," << intToJsonValue(data.data(i, k));
-            }
-            (*m_textStream) << "]";
-        }
-
-        // ensure we don't initialize the file twice
-        m_initFile = false;
-    }
-
-    void onIntSignalBlockReceived()
-    {
-        auto maybeData = m_intSub->peekNext();
-        if (!maybeData.has_value())
-            return;
-        const auto &data = maybeData.value();
-        if (!m_writeData)
-            return;
-
-        if (m_initFile)
-            initJsonFile();
-
-        for (int i = 0; i < data.timestamps.rows(); ++i) {
-            writeEntryStart(data.timestamps, i);
-
-            if (m_selectedIndices.isEmpty()) {
-                for (int k = 0; k < data.data.cols(); ++k)
-                    (*m_textStream) << "," << floatToJsonValue(data.data(i, k));
-            } else {
-                for (const auto &k : m_selectedIndices)
-                    (*m_textStream) << "," << floatToJsonValue(data.data(i, k));
-            }
-            (*m_textStream) << "]";
-        }
-
-        // ensure we don't initialize the file twice
-        m_initFile = false;
-    }
-
-    void onTableRowReceived()
-    {
-        auto maybeData = m_rowSub->peekNext();
-        if (!maybeData.has_value())
-            return;
-        const auto &row = *maybeData;
-        if (!m_writeData)
-            return;
-
-        if (m_initFile) {
-            initJsonFile();
-            (*m_textStream) << "[";
-        } else {
-            (*m_textStream) << ",\n[";
-        }
-
-        // ensure we don't initialize the file twice
-        m_initFile = false;
-
-        // write row
-        for (int i = 0; i < row.length(); i++) {
-            if (i == 0)
-                (*m_textStream) << toJsonValue(row.data[i]);
+        void writeEntryStart(const VectorXu64 &timestamps, int i)
+        {
+            if (i == 0 && initFile)
+                (*textStream) << "[" << intToJsonValue(timestamps(i, 0));
             else
-                (*m_textStream) << "," << toJsonValue(row.data[i]);
+                (*textStream) << ",\n[" << intToJsonValue(timestamps(i, 0));
         }
-        (*m_textStream) << "]";
-    }
 
-    void onLineReadingReceived()
-    {
-        if (!m_writeData)
-            return;
+        void onFloatSignalBlockReceived()
+        {
+            auto maybeData = floatSub->peekNext();
+            if (!maybeData.has_value())
+                return;
+            const auto &data = *maybeData;
+            if (!writeData || !textStream)
+                return;
 
-        // One [time, line_id, value] row per edge event.
-        while (auto maybeData = m_lineSub->peekNext()) {
-            const auto &ev = maybeData.value();
-
-            if (m_initFile) {
+            if (initFile)
                 initJsonFile();
-                (*m_textStream) << "[";
-            } else {
-                (*m_textStream) << ",\n[";
-            }
-            m_initFile = false;
 
-            (*m_textStream) << intToJsonValue(static_cast<uint64_t>(ev.time.count())) << ","
-                            << intToJsonValue(ev.lineId) << "," << intToJsonValue(ev.value) << "]";
+            for (int i = 0; i < data.timestamps.rows(); ++i) {
+                writeEntryStart(data.timestamps, i);
+
+                if (selectedIndices.isEmpty()) {
+                    for (int k = 0; k < data.data.cols(); ++k)
+                        (*textStream) << "," << intToJsonValue(data.data(i, k));
+                } else {
+                    for (const auto &k : selectedIndices)
+                        (*textStream) << "," << intToJsonValue(data.data(i, k));
+                }
+                (*textStream) << "]";
+            }
+
+            // ensure we don't initialize the file twice
+            initFile = false;
         }
-    }
+
+        void onIntSignalBlockReceived()
+        {
+            auto maybeData = intSub->peekNext();
+            if (!maybeData.has_value())
+                return;
+            const auto &data = maybeData.value();
+            if (!writeData || !textStream)
+                return;
+
+            if (initFile)
+                initJsonFile();
+
+            for (int i = 0; i < data.timestamps.rows(); ++i) {
+                writeEntryStart(data.timestamps, i);
+
+                if (selectedIndices.isEmpty()) {
+                    for (int k = 0; k < data.data.cols(); ++k)
+                        (*textStream) << "," << floatToJsonValue(data.data(i, k));
+                } else {
+                    for (const auto &k : selectedIndices)
+                        (*textStream) << "," << floatToJsonValue(data.data(i, k));
+                }
+                (*textStream) << "]";
+            }
+
+            // ensure we don't initialize the file twice
+            initFile = false;
+        }
+
+        void onTableRowReceived()
+        {
+            auto maybeData = rowSub->peekNext();
+            if (!maybeData.has_value())
+                return;
+            const auto &row = *maybeData;
+            if (!writeData || !textStream)
+                return;
+
+            if (initFile) {
+                initJsonFile();
+                (*textStream) << "[";
+            } else {
+                (*textStream) << ",\n[";
+            }
+
+            // ensure we don't initialize the file twice
+            initFile = false;
+
+            // write row
+            for (int i = 0; i < row.length(); i++) {
+                if (i == 0)
+                    (*textStream) << toJsonValue(row.data[i]);
+                else
+                    (*textStream) << "," << toJsonValue(row.data[i]);
+            }
+            (*textStream) << "]";
+        }
+
+        void onLineReadingReceived()
+        {
+            if (!writeData || !textStream)
+                return;
+
+            // One [time, line_id, value] row per edge event.
+            while (auto maybeData = lineSub->peekNext()) {
+                const auto &ev = maybeData.value();
+
+                if (initFile) {
+                    initJsonFile();
+                    (*textStream) << "[";
+                } else {
+                    (*textStream) << ",\n[";
+                }
+                initFile = false;
+
+                (*textStream) << intToJsonValue(static_cast<uint64_t>(ev.time.count())) << ","
+                              << intToJsonValue(ev.lineId) << "," << intToJsonValue(ev.value) << "]";
+            }
+        }
+    };
 
     void stop() override
     {
-        if (m_isrcKind == InputSourceKind::NONE)
-            return;
+        m_activeSub.reset();
 
-        // write terminator
-        if (m_textStream.get() != nullptr) {
-            if (m_writeData)
-                (*m_textStream) << "\n]}\n";
-            m_textStream->flush();
+        // our event thread is done at this point, so we can complete the file
+        if (auto worker = takeWorker<Worker>()) {
+            // write terminator
+            if (worker->textStream.get() != nullptr) {
+                if (worker->writeData)
+                    (*worker->textStream) << "\n]}\n";
+                worker->textStream->flush();
+            }
+
+            // close file
+            if (worker->compDev.get() != nullptr)
+                worker->compDev->close();
         }
-
-        // close file, reset pointers
-        if (m_compDev.get() != nullptr)
-            m_compDev->close();
-        m_textStream.reset();
-        m_compDev.reset();
-
-        m_currentDSet.reset();
 
         // re-enable UI
         m_settingsDlg->setRunning(false);

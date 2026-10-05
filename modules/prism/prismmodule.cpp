@@ -67,15 +67,6 @@ private:
     // Combine mode: merged output stream
     std::shared_ptr<DataStream<Frame>> m_combinedOut;
 
-    // Runtime: active subscriptions (set in prepare())
-    std::shared_ptr<StreamSubscription<Frame>> m_mainSub;
-    std::shared_ptr<StreamSubscription<Frame>> m_channelSubs[4];
-
-    // Runtime: per-channel frame buffers for combine mode
-    std::optional<Frame> m_channelBuffers[4];
-    uint64_t m_outFrameIndex = 0;
-    cv::Size m_expectedSize{0, 0};
-
 public:
     explicit PrismModule(PrismModuleInfo *modInfo, QObject *parent = nullptr)
         : AbstractModule(parent),
@@ -85,8 +76,6 @@ public:
             m_channelEnabled[i] = (i < 3); // R, G, B enabled by default; A disabled
             m_channelStreams[i] = nullptr;
             m_channelInputs[i] = nullptr;
-            m_channelSubs[i] = nullptr;
-            m_channelBuffers[i] = std::nullopt;
         }
 
         m_settingsDlg = new PrismCtlDialog;
@@ -166,17 +155,6 @@ public:
     {
         m_settingsDlg->setRunning(true);
 
-        // Clear runtime subscriptions and buffers
-        m_mainSub = nullptr;
-        for (int ch = 0; ch < 4; ch++) {
-            m_channelSubs[ch] = nullptr;
-            m_channelBuffers[ch] = std::nullopt;
-        }
-        m_outFrameIndex = 0;
-        m_expectedSize = cv::Size(0, 0);
-
-        clearDataReceivedEventRegistrations();
-
         switch (m_currentMode) {
         case PrismMode::SPLIT:
         case PrismMode::GRAYSCALE:
@@ -188,6 +166,182 @@ public:
 
         return true;
     }
+
+    /**
+     * Splits, combines or converts incoming frames, depending on the selected mode.
+     */
+    struct Worker {
+        WorkerContext mod{};
+        PrismMode mode;
+        std::array<bool, 4> channelEnabled;
+
+        // Split / Grayscale mode: input subscription
+        std::shared_ptr<StreamSubscription<Frame>> mainSub;
+
+        // Split mode (one output stream per channel)
+        std::array<std::shared_ptr<DataStream<Frame>>, 4> channelStreams;
+
+        // Grayscale mode: single output stream
+        std::shared_ptr<DataStream<Frame>> grayOut;
+
+        // Combine mode: one subscription per connected channel
+        std::array<std::shared_ptr<StreamSubscription<Frame>>, 4> channelSubs;
+
+        // Combine mode: merged output stream
+        std::shared_ptr<DataStream<Frame>> combinedOut;
+        cv::Size expectedSize;
+
+        // per-channel frame buffers for combine mode
+        std::array<std::optional<Frame>, 4> channelBuffers{};
+        uint64_t outFrameIndex = 0;
+
+        void setup(WorkerEvents &ev)
+        {
+            if (mode != PrismMode::COMBINE) {
+                ev.onData(mainSub, [this] {
+                    onMainFrameReceived();
+                });
+                return;
+            }
+
+            // Register event callbacks only for the connected channel subscriptions
+            if (channelSubs[0])
+                ev.onData(channelSubs[0], [this] {
+                    onChannelReceived(0);
+                });
+            if (channelSubs[1])
+                ev.onData(channelSubs[1], [this] {
+                    onChannelReceived(1);
+                });
+            if (channelSubs[2])
+                ev.onData(channelSubs[2], [this] {
+                    onChannelReceived(2);
+                });
+            if (channelSubs[3])
+                ev.onData(channelSubs[3], [this] {
+                    onChannelReceived(2);
+                });
+        }
+
+        void onMainFrameReceived()
+        {
+            const auto maybeFrame = mainSub->peekNext();
+            if (!maybeFrame.has_value())
+                return;
+            const auto &frame = maybeFrame.value();
+
+            if (mode == PrismMode::GRAYSCALE)
+                processGrayscale(frame);
+            else
+                processSplit(frame);
+        }
+
+        void processSplit(const Frame &frame) const
+        {
+            // Clone to ensure we own the data before splitting
+            std::vector<cv::Mat> planes;
+            cv::split(frame.mat.clone(), planes);
+
+            for (int ch = 0; ch < 4; ch++) {
+                if (!channelStreams[ch])
+                    continue;
+                const int planeIdx = CHAN_TO_OCV_PLANE[ch];
+                if (planeIdx >= static_cast<int>(planes.size()))
+                    continue;
+                channelStreams[ch]->push(Frame(planes[planeIdx], frame.index, frame.time));
+            }
+        }
+
+        void processGrayscale(const Frame &frame) const
+        {
+            cv::Mat gray;
+            const int channels = frame.mat.channels();
+            if (channels == 1) {
+                gray = frame.mat; // already grayscale
+            } else if (channels == 3) {
+                cv::cvtColor(frame.mat, gray, cv::COLOR_BGR2GRAY);
+            } else if (channels == 4) {
+                cv::cvtColor(frame.mat, gray, cv::COLOR_BGRA2GRAY);
+            } else {
+                // Fallback: just take the first plane
+                cv::extractChannel(frame.mat, gray, 0);
+            }
+            grayOut->push(Frame(gray, frame.index, frame.time));
+        }
+
+        void onChannelReceived(int ch)
+        {
+            if (!channelSubs[ch])
+                return;
+            auto maybeFrame = channelSubs[ch]->peekNext();
+            if (!maybeFrame.has_value())
+                return;
+
+            channelBuffers[ch] = std::move(*maybeFrame);
+            tryCombine();
+        }
+
+        /**
+         * @brief Attempt to merge buffered channel frames into one output frame.
+         *
+         * A merge is performed once every channel that is both enabled AND connected
+         * has contributed a frame. After the merge the buffers are cleared, so the
+         * next round starts fresh.
+         */
+        void tryCombine()
+        {
+            // Wait until all enabled+connected channels have a buffered frame
+            for (int ch = 0; ch < 4; ch++) {
+                if (!channelEnabled[ch] || !channelSubs[ch])
+                    continue; // not active — skip
+                if (!channelBuffers[ch].has_value())
+                    return; // still waiting for this channel
+            }
+
+            // Determine if we include an alpha plane
+            const bool hasAlpha = channelEnabled[3] && channelSubs[3];
+            const int numPlanes = hasAlpha ? 4 : 3;
+
+            // Determine output frame size from the first available buffer
+            cv::Size frameSize = expectedSize;
+            microseconds_t timestamp{0};
+            for (int ch = 0; ch < 4; ch++) {
+                if (channelBuffers[ch].has_value()) {
+                    const auto &mat = channelBuffers[ch]->mat;
+                    frameSize = mat.size();
+                    timestamp = channelBuffers[ch]->time;
+                    break;
+                }
+            }
+
+            // Build planes in BGR/BGRA order for cv::merge
+            // plane 0 = B (user ch 2), plane 1 = G (user ch 1), plane 2 = R (user ch 0), plane 3 = A (user ch 3)
+            std::vector<cv::Mat> planes(numPlanes);
+            for (int p = 0; p < numPlanes; p++) {
+                const int ch = OCV_PLANE_TO_CHAN[p];
+                if (channelEnabled[ch] && channelSubs[ch] && channelBuffers[ch].has_value()) {
+                    const auto &mat = channelBuffers[ch]->mat;
+                    if (mat.channels() == 1) {
+                        planes[p] = mat;
+                    } else {
+                        // Input has multiple channels - extract just the first one
+                        cv::extractChannel(mat, planes[p], 0);
+                    }
+                } else {
+                    // Channel not active or not yet available - fill with zeros
+                    planes[p] = cv::Mat::zeros(frameSize, CV_8UC1);
+                }
+            }
+
+            cv::Mat merged;
+            cv::merge(planes, merged);
+            combinedOut->push(Frame(merged, outFrameIndex++, timestamp));
+
+            // Clear buffers so the next round of frames can be collected
+            for (int ch = 0; ch < 4; ch++)
+                channelBuffers[ch] = std::nullopt;
+        }
+    };
 
     void stop() override
     {
@@ -215,11 +369,10 @@ private:
             return true;
         }
 
-        m_mainSub = m_mainIn->subscription();
-        registerDataReceivedEvent(&PrismModule::onMainFrameReceived, m_mainSub);
+        const auto mainSub = m_mainIn->subscription();
 
-        const auto framerate = m_mainSub->metadataValue<double>(QStringLiteral("framerate"), 0.0);
-        const auto size = m_mainSub->metadataValue<MetaSize>(QStringLiteral("size"), {});
+        const auto framerate = mainSub->metadataValue<double>(QStringLiteral("framerate"), 0.0);
+        const auto size = mainSub->metadataValue<MetaSize>(QStringLiteral("size"), {});
 
         if (m_currentMode == PrismMode::GRAYSCALE) {
             m_grayOut->setMetadataValue("framerate", framerate);
@@ -236,6 +389,18 @@ private:
             }
         }
 
+        setWorker(
+            Worker{
+                .mode = m_currentMode,
+                .channelEnabled = std::to_array(m_channelEnabled),
+                .mainSub = mainSub,
+                .channelStreams = std::to_array(m_channelStreams),
+                .grayOut = m_grayOut,
+                .channelSubs = {},
+                .combinedOut = nullptr,
+                .expectedSize = cv::Size(0, 0),
+            });
+
         setStateReady();
         return true;
     }
@@ -243,17 +408,19 @@ private:
     bool prepareCombine()
     {
         bool anyConnected = false;
+        std::array<std::shared_ptr<StreamSubscription<Frame>>, 4> channelSubs;
+        cv::Size expectedSize(0, 0);
 
         for (int ch = 0; ch < 4; ch++) {
             if (!m_channelInputs[ch] || !m_channelInputs[ch]->hasSubscription())
                 continue;
-            m_channelSubs[ch] = m_channelInputs[ch]->subscription();
+            channelSubs[ch] = m_channelInputs[ch]->subscription();
 
             // Use the first connected channel for output metadata
             if (!anyConnected) {
-                const auto fr = m_channelSubs[ch]->metadataValue<double>(QStringLiteral("framerate"), 0.0);
-                const auto sz = m_channelSubs[ch]->metadataValue<MetaSize>(QStringLiteral("size"), {});
-                m_expectedSize = cv::Size(sz.width, sz.height);
+                const auto fr = channelSubs[ch]->metadataValue<double>(QStringLiteral("framerate"), 0.0);
+                const auto sz = channelSubs[ch]->metadataValue<MetaSize>(QStringLiteral("size"), {});
+                expectedSize = cv::Size(sz.width, sz.height);
                 m_combinedOut->setMetadataValue("framerate", fr);
                 m_combinedOut->setMetadataValue("size", sz);
             }
@@ -266,154 +433,22 @@ private:
             return true;
         }
 
-        // Register event callbacks only for the connected channel subscriptions
-        if (m_channelSubs[0])
-            registerDataReceivedEvent(
-                [this] {
-                    onChannelReceived(0);
-                },
-                m_channelSubs[0]);
-        if (m_channelSubs[1])
-            registerDataReceivedEvent(
-                [this] {
-                    onChannelReceived(1);
-                },
-                m_channelSubs[1]);
-        if (m_channelSubs[2])
-            registerDataReceivedEvent(
-                [this] {
-                    onChannelReceived(2);
-                },
-                m_channelSubs[2]);
-        if (m_channelSubs[3])
-            registerDataReceivedEvent(
-                [this] {
-                    onChannelReceived(2);
-                },
-                m_channelSubs[3]);
-
         m_combinedOut->start();
+
+        setWorker(
+            Worker{
+                .mode = m_currentMode,
+                .channelEnabled = std::to_array(m_channelEnabled),
+                .mainSub = nullptr,
+                .channelStreams = {},
+                .grayOut = nullptr,
+                .channelSubs = channelSubs,
+                .combinedOut = m_combinedOut,
+                .expectedSize = expectedSize,
+            });
+
         setStateReady();
         return true;
-    }
-
-    void onMainFrameReceived()
-    {
-        const auto maybeFrame = m_mainSub->peekNext();
-        if (!maybeFrame.has_value())
-            return;
-        const auto &frame = maybeFrame.value();
-
-        if (m_currentMode == PrismMode::GRAYSCALE)
-            processGrayscale(frame);
-        else
-            processSplit(frame);
-    }
-
-    void processSplit(const Frame &frame) const
-    {
-        // Clone to ensure we own the data before splitting
-        std::vector<cv::Mat> planes;
-        cv::split(frame.mat.clone(), planes);
-
-        for (int ch = 0; ch < 4; ch++) {
-            if (!m_channelStreams[ch])
-                continue;
-            const int planeIdx = CHAN_TO_OCV_PLANE[ch];
-            if (planeIdx >= static_cast<int>(planes.size()))
-                continue;
-            m_channelStreams[ch]->push(Frame(planes[planeIdx], frame.index, frame.time));
-        }
-    }
-
-    void processGrayscale(const Frame &frame) const
-    {
-        cv::Mat gray;
-        const int channels = frame.mat.channels();
-        if (channels == 1) {
-            gray = frame.mat; // already grayscale
-        } else if (channels == 3) {
-            cv::cvtColor(frame.mat, gray, cv::COLOR_BGR2GRAY);
-        } else if (channels == 4) {
-            cv::cvtColor(frame.mat, gray, cv::COLOR_BGRA2GRAY);
-        } else {
-            // Fallback: just take the first plane
-            cv::extractChannel(frame.mat, gray, 0);
-        }
-        m_grayOut->push(Frame(gray, frame.index, frame.time));
-    }
-
-    void onChannelReceived(int ch)
-    {
-        if (!m_channelSubs[ch])
-            return;
-        auto maybeFrame = m_channelSubs[ch]->peekNext();
-        if (!maybeFrame.has_value())
-            return;
-
-        m_channelBuffers[ch] = std::move(*maybeFrame);
-        tryCombine();
-    }
-
-    /**
-     * @brief Attempt to merge buffered channel frames into one output frame.
-     *
-     * A merge is performed once every channel that is both enabled AND connected
-     * has contributed a frame. After the merge the buffers are cleared, so the
-     * next round starts fresh.
-     */
-    void tryCombine()
-    {
-        // Wait until all enabled+connected channels have a buffered frame
-        for (int ch = 0; ch < 4; ch++) {
-            if (!m_channelEnabled[ch] || !m_channelSubs[ch])
-                continue; // not active — skip
-            if (!m_channelBuffers[ch].has_value())
-                return; // still waiting for this channel
-        }
-
-        // Determine if we include an alpha plane
-        const bool hasAlpha = m_channelEnabled[3] && m_channelSubs[3];
-        const int numPlanes = hasAlpha ? 4 : 3;
-
-        // Determine output frame size from the first available buffer
-        cv::Size frameSize = m_expectedSize;
-        microseconds_t timestamp{0};
-        for (int ch = 0; ch < 4; ch++) {
-            if (m_channelBuffers[ch].has_value()) {
-                const auto &mat = m_channelBuffers[ch]->mat;
-                frameSize = mat.size();
-                timestamp = m_channelBuffers[ch]->time;
-                break;
-            }
-        }
-
-        // Build planes in BGR/BGRA order for cv::merge
-        // plane 0 = B (user ch 2), plane 1 = G (user ch 1), plane 2 = R (user ch 0), plane 3 = A (user ch 3)
-        std::vector<cv::Mat> planes(numPlanes);
-        for (int p = 0; p < numPlanes; p++) {
-            const int ch = OCV_PLANE_TO_CHAN[p];
-            if (m_channelEnabled[ch] && m_channelSubs[ch] && m_channelBuffers[ch].has_value()) {
-                const auto &mat = m_channelBuffers[ch]->mat;
-                if (mat.channels() == 1) {
-                    planes[p] = mat;
-                } else {
-                    // Input has multiple channels - extract just the first one
-                    cv::extractChannel(mat, planes[p], 0);
-                }
-            } else {
-                // Channel not active or not yet available - fill with zeros
-                planes[p] = cv::Mat::zeros(frameSize, CV_8UC1);
-            }
-        }
-
-        cv::Mat merged;
-        cv::merge(planes, merged);
-        m_combinedOut->push(Frame(merged, m_outFrameIndex++, timestamp));
-
-        // Clear buffers so the next round of frames can be collected
-        for (int ch = 0; ch < 4; ch++)
-            m_channelBuffers[ch] = std::nullopt;
     }
 };
 

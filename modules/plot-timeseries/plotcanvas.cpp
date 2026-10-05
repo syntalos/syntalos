@@ -636,6 +636,8 @@ void PlotCanvas::setChannelEnabled(int channelIndex, bool enabled)
 
 void PlotCanvas::setChannelDigital(int channelIndex, bool digital)
 {
+    // this is also called while data is flowing, so we must not touch the channels without the lock
+    const std::lock_guard<std::mutex> lock(d->dataMutex);
     if (channelIndex < 0 || channelIndex >= (int)d->channels.size())
         return;
     d->channels[channelIndex].digital = digital;
