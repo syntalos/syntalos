@@ -344,9 +344,6 @@ public:
         return true;
     }
 
-    /**
-     * Generates all test data in the module's thread.
-     */
     struct Worker {
         WorkerContext mod{};
 

@@ -349,26 +349,18 @@ void ModuleEventThread::moduleEventThreadFunc(
             oneShotPayloads.push_back(std::move(pl));
         };
 
+    // add the event sources the workers of our modules have registered
     for (const auto &mod : mods) {
-        // events of the module's worker
-        if (const auto worker = mod->workerHolder()) {
-            for (const auto &ev : worker->events().timedEvents())
-                addTimedEvent(mod, ev.intervalMsec, ev.fn);
-            for (const auto &ev : worker->events().dataEvents())
-                addDataEvent(mod, ev.subscription, ev.fn);
-            for (const auto &ev : worker->events().oneShotEvents())
-                addOneShotEvent(mod, ev.timer, ev.fn);
-        }
+        const auto worker = mod->workerHolder();
+        if (worker == nullptr)
+            continue;
 
-        // events registered directly by the module
-        for (const auto &ev : mod->intervalEventCallbacks()) {
-            const auto fn = ev.first;
-            addTimedEvent(mod, ev.second, [mod, fn](int &interval) {
-                std::invoke(fn, mod, interval);
-            });
-        }
-        for (const auto &ev : mod->recvDataEventCallbacks())
-            addDataEvent(mod, ev.second, ev.first);
+        for (const auto &ev : worker->events().timedEvents())
+            addTimedEvent(mod, ev.intervalMsec, ev.fn);
+        for (const auto &ev : worker->events().dataEvents())
+            addDataEvent(mod, ev.subscription, ev.fn);
+        for (const auto &ev : worker->events().oneShotEvents())
+            addOneShotEvent(mod, ev.timer, ev.fn);
     }
 
     // wait for us to start

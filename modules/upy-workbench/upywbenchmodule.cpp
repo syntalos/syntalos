@@ -515,9 +515,6 @@ public:
         return true;
     }
 
-    /**
-     * Runs the user's script on the device and exchanges data with it, in a dedicated thread.
-     */
     struct Worker {
         WorkerContext mod{};
         QString serialDevice;
@@ -534,7 +531,7 @@ public:
         void processIncomingPortData(
             const QJsonObject &obj,
             const QHash<int, std::shared_ptr<VariantDataStream>> &streamMap,
-            microseconds_t &recvMasterTime)
+            microseconds_t &recvMasterTime) const
         {
             // ignore empty requests
             if (obj.isEmpty())

@@ -730,12 +730,6 @@ void AbstractModule::start()
     setState(ModuleState::RUNNING);
 }
 
-void AbstractModule::runThread(OptionalWaitCondition *waitCondition)
-{
-    // unless a module overrides this function, its thread runs the worker that it has set for the run
-    runWorker(waitCondition);
-}
-
 void AbstractModule::runWorker(OptionalWaitCondition *startWaitCondition)
 {
     auto worker = d->worker.get();
@@ -1101,17 +1095,6 @@ std::shared_ptr<StreamOutputPort> AbstractModule::outPortById(const QString &id)
     return m_outPorts.value(id);
 }
 
-QList<QPair<intervalEventFunc_t, int>> AbstractModule::intervalEventCallbacks() const
-{
-    return m_intervalEventCBList;
-}
-
-QList<QPair<recvDataEventFunc_t, std::shared_ptr<VariantStreamSubscription>>> AbstractModule::recvDataEventCallbacks()
-    const
-{
-    return m_recvDataEventCBList;
-}
-
 bool AbstractModule::makeDirectory(const QString &dir)
 {
     if (!QDir().mkpath(dir)) {
@@ -1303,11 +1286,6 @@ QWidget *AbstractModule::addSettingsWindow(QWidget *window, bool owned)
 {
     d->settingsWindows.append(qMakePair(window, owned));
     return window;
-}
-
-void AbstractModule::clearDataReceivedEventRegistrations()
-{
-    m_recvDataEventCBList.clear();
 }
 
 std::unique_ptr<FreqCounterSynchronizer> AbstractModule::initCounterSynchronizer(double frequencyHz)
@@ -1510,11 +1488,6 @@ void AbstractModule::setStorageGroup(std::shared_ptr<EDLGroup> edlGroup)
 {
     d->defaultDataset.reset();
     d->rootDataGroup = edlGroup;
-}
-
-void AbstractModule::resetEventCallbacks()
-{
-    m_intervalEventCBList.clear();
 }
 
 void AbstractModule::setPotentialNoaffinityCPUCount(uint coreN)

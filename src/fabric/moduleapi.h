@@ -36,6 +36,8 @@
 #include "datactl/timesync.h"
 #include "logging.h"
 
+class SyThread;
+
 namespace Syntalos
 {
 /**
@@ -473,12 +475,6 @@ VariantDataStream *newStreamForType(int typeId);
  */
 VarStreamInputPort *newInputPortForType(int typeId, AbstractModule *mod, const QString &id, const QString &title);
 
-/// Event function type for timed callbacks
-using intervalEventFunc_t = void (AbstractModule::*)(int &);
-
-/// Callable type used for subscription new-data callbacks
-using recvDataEventFunc_t = std::function<void()>;
-
 /**
  * @brief Abstract base class for all modules
  *
@@ -489,6 +485,7 @@ class Q_DECL_EXPORT AbstractModule : public QObject
 {
     Q_OBJECT
     friend class Engine;
+    friend class ::SyThread;
     friend class MLinkModule;
     friend class WorkerContext;
     friend class TestModuleWorker;
@@ -689,19 +686,6 @@ public:
     virtual void start();
 
     /**
-     * @brief Run task in a thread
-     *
-     * If the module advertises itself has being threaded, this function is executed
-     * in a new thread after the module has left its PREPARE stage.
-     * The module should only start to handle input when all modules are ready. This is the case
-     * when either the start() method was called, a start event was sent via the
-     * system status event stream or the wait condition unblocks (call waitCondition->wait(this)
-     * to wait for the start signal).
-     * @return true if no error
-     */
-    virtual void runThread(OptionalWaitCondition *startWaitCondition);
-
-    /**
      * @brief Called to process UI events
      *
      * If ModuleFeature::CALL_UI_EVENTS is set, the engine will explicitly
@@ -834,9 +818,6 @@ public:
      * This is used by the engine to run the worker, modules must not call it.
      */
     detail::WorkerHolderBase *workerHolder() const;
-
-    QList<QPair<intervalEventFunc_t, int>> intervalEventCallbacks() const;
-    QList<QPair<recvDataEventFunc_t, std::shared_ptr<VariantStreamSubscription>>> recvDataEventCallbacks() const;
 
     QVariant serializeDisplayUiGeometry() const;
     void restoreDisplayUiGeometry(const QVariant &var);
@@ -1126,79 +1107,6 @@ protected:
     QWidget *addSettingsWindow(QWidget *window, bool owned = true);
 
     /**
-     * @brief Request a member function of this module to be called at an interval
-     *
-     * Set a pointer to a member function of this module as first paremter, to be called
-     * at a interval set as second parameter in milliseconds.
-     * If the interval selected is 0, the function will be called as soon as possible.
-     *
-     * The first parameter of the callback is a reference to the execution interval, which
-     * the callee may adjust to be run less or more frequent. Adjusting the frequency does
-     * not come at zero cost, so please avoid very frequent adjustments.
-     *
-     * Since these functions are scheduled together with other possible events in an event
-     * loop, do not expect the member function to be called in exactly the requested intervals.
-     * The interval will also not be adjusted to "catch up" for lost time.
-     *
-     * Please ensure that the callback function never blocks for an extended period of time
-     * to give other modules a chance to run as well. Also, you can expect this function to
-     * be run in a different thread compared to where the module's prepare() function was run.
-     * The function may even move between threads, so make sure it is reentrant.
-     */
-    template<typename T>
-    void registerTimedEvent(void (T::*fn)(int &), const milliseconds_t &interval)
-    {
-        static_assert(
-            std::is_base_of<AbstractModule, T>::value,
-            "Callback needs to point to a member function of a class derived from AbstractModule");
-        const auto amFn = static_cast<intervalEventFunc_t>(fn);
-        m_intervalEventCBList.append(qMakePair(amFn, interval.count()));
-    }
-
-    /**
-     * @brief Request a member function of this module to be called when a subscription has new data.
-     *
-     * Set a pointer to a member function of this module as first parameter, to be called
-     * once the stream subscription given as second parameter has received more data.
-     *
-     * Please ensure that the callback function never blocks for an extended period of time
-     * to give other modules a chance to run as well. Also, you can expect this function to
-     * be run in a different thread compared to where the module's prepare() function was run.
-     * The function may even move between threads, so make sure it is reentrant.
-     */
-    template<typename T>
-    void registerDataReceivedEvent(void (T::*fn)(), std::shared_ptr<VariantStreamSubscription> subscription)
-    {
-        static_assert(
-            std::is_base_of<AbstractModule, T>::value,
-            "Callback needs to point to a member function of a class derived from AbstractModule");
-        auto self = static_cast<T *>(this);
-        m_recvDataEventCBList.append(qMakePair(
-            recvDataEventFunc_t([self, fn]() {
-                (self->*fn)();
-            }),
-            subscription));
-    }
-
-    /**
-     * @brief Request an arbitrary callable to be called when a subscription has new data.
-     *
-     * Overload accepting any callable (lambda, std::function, ...) instead of a member function pointer.
-     * The same threading and blocking rules as for the member-function-pointer overload apply.
-     */
-    template<typename Callable>
-        requires std::invocable<Callable>
-    void registerDataReceivedEvent(Callable &&fn, std::shared_ptr<VariantStreamSubscription> subscription)
-    {
-        m_recvDataEventCBList.append(qMakePair(recvDataEventFunc_t(std::forward<Callable>(fn)), subscription));
-    }
-
-    /**
-     * @brief Remove all registered data-received event callbacks.
-     */
-    void clearDataReceivedEventRegistrations();
-
-    /**
      * @brief Get new frequency/counter synchronizer
      *
      * This function can be called in the PREPARING phase of a module to retrieve a synchronizer
@@ -1314,9 +1222,6 @@ private:
     QMap<QString, std::shared_ptr<StreamOutputPort>> m_outPorts;
     QMap<QString, std::shared_ptr<VarStreamInputPort>> m_inPorts;
 
-    QList<QPair<intervalEventFunc_t, int>> m_intervalEventCBList;
-    QList<QPair<recvDataEventFunc_t, std::shared_ptr<VariantStreamSubscription>>> m_recvDataEventCBList;
-
     std::shared_ptr<EDLGroup> storageGroup() const;
     void setStorageGroup(std::shared_ptr<EDLGroup> edlGroup);
 
@@ -1324,7 +1229,6 @@ private:
     void setState(ModuleState state);
     void clearRunStatistics();
     void setSimpleStorageNames(bool enabled);
-    void resetEventCallbacks();
     void setPotentialNoaffinityCPUCount(uint coreN);
     void setDefaultRTPriority(int prio);
     void setDefaultThreadNiceness(int nice);

@@ -262,7 +262,7 @@ private:
             self->m_priorityApplied = setCurrentThreadNiceness(self->m_td.niceness);
         }
 
-        self->m_mod->runThread(self->m_waitCond);
+        self->m_mod->runWorker(self->m_waitCond);
 
         // A module thread that returns without ever signalling readiness (and without
         // raising an error) would leave the engine waiting for it forever. The thread
@@ -2568,13 +2568,10 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
         for (auto const &port : mod->outPorts())
             port->setDormant(false);
 
-        // Clear any event callbacks registered in a previous run. Event subscriptions are
-        // run-scoped, so carrying them across prepare() calls is always wrong and causes
-        // stale-callback crashes if a module forgets to clear them itself.
-        mod->clearDataReceivedEventRegistrations();
         mod->clearRunStatistics();
 
-        // The worker of a module is run-scoped as well, drop any that was not claimed after the last run.
+        // The worker of a module (and with it any event callback it has registered) is run-scoped,
+        // drop any that was not claimed after the last run.
         mod->setWorkerActive(false);
         mod->setWorkerHolder(nullptr);
         for (const auto &iport : mod->inPorts()) {
