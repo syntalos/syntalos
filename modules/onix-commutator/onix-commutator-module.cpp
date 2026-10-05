@@ -203,8 +203,9 @@ public:
             double prevYaw2Pi = 0;
             while (mod.running()) {
                 auto sblock = qSub->next();
+                // no value means the input has ended or the run is being stopped, no more data will arrive
                 if (!sblock.has_value())
-                    continue;
+                    break;
 
                 const auto qw = sblock->data(0, 0);
                 const auto qx = sblock->data(0, 1);
