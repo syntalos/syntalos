@@ -124,8 +124,8 @@ public:
     void markIncomingForExport(StreamExporter *exporter);
     bool prepare(const RunInfo &info) override;
     void start() override;
+    void preStop() override;
     void stop() override;
-    void runThread(OptionalWaitCondition *startWaitCondition) override;
 
 signals:
     void processOutputReceived(OutChannelType channel, const QString &text);
@@ -149,11 +149,15 @@ private:
     bool registerOutPortForwarders();
     void shutdownOutputPorts();
 
+    static void applyStateRequest(AbstractModule *mod, ModuleState newState);
+    static void applyStateRequest(const WorkerContext &ctx, ModuleState newState);
+
 private:
     class Private;
     Q_DISABLE_COPY(MLinkModule)
     std::unique_ptr<Private> d;
     friend class Private;
+    friend class MLinkWorkerControlSink;
 };
 
 } // namespace Syntalos

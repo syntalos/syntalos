@@ -59,13 +59,552 @@ enum class IpcCallFlag {
 Q_DECLARE_FLAGS(IpcCallFlags, IpcCallFlag)
 Q_DECLARE_OPERATORS_FOR_FLAGS(IpcCallFlags)
 
-class MLinkModule::Private
+/**
+ * Acknowledge a request of the worker process.
+ */
+static void replyDoneSlice(QuillLogger *log, SliceActiveRequest &req, bool success)
+{
+    auto maybeResponse = req.loan_uninit();
+    if (!maybeResponse.has_value()) {
+        LOG_ERROR(
+            log,
+            "Failed to loan response for port change reply: {}",
+            iox2::bb::into<const char *>(maybeResponse.error()));
+        return;
+    }
+    if (auto res = iox2::send(std::move(maybeResponse).value().write_payload(DoneResponse{success})); !res.has_value())
+        LOG_ERROR(log, "Failed to send port change reply to worker: {}", iox2::bb::into<const char *>(res.error()));
+}
+
+static void replySlice(QuillLogger *log, SliceBiDiActiveRequest &req, const ByteVector &data)
+{
+    auto maybeResponse = req.loan_slice_uninit(data.size());
+    if (!maybeResponse.has_value()) {
+        LOG_WARNING(
+            log,
+            "Failed to loan response slice ({} bytes): {}",
+            data.size(),
+            iox2::bb::into<const char *>(maybeResponse.error()));
+        return;
+    }
+    auto rawResponse = std::move(maybeResponse).value();
+    std::memcpy(rawResponse.payload_mut().data(), data.data(), data.size());
+    if (auto res = iox2::send(iox2::assume_init(std::move(rawResponse))); !res.has_value())
+        LOG_ERROR(log, "Failed to send response slice to worker: {}", iox2::bb::into<const char *>(res.error()));
+}
+
+namespace Syntalos
+{
+
+/**
+ * @brief Receiver of the control messages a worker process sends to us.
+ *
+ * Control messages are handled by the main thread while no run is active, and by
+ * the module's thread during a run. Both act on them through this interface.
+ */
+class MLinkControlSink
 {
 public:
-    Private(QuillLogger *logger)
-        : log(logger) {};
+    virtual ~MLinkControlSink() = default;
+
+    virtual void error(const QString &message) = 0;
+    virtual void statusMessage(const QString &message) = 0;
+    virtual void stateChangeRequested(ModuleState newState) = 0;
+    virtual void syncDetailsChanged(
+        const std::string &id,
+        const TimeSyncStrategies &strategies,
+        const microseconds_t &tolerance) = 0;
+    virtual void syncOffsetChanged(const std::string &id, const microseconds_t &offset) = 0;
+    virtual void inputPortChangeRequested(const InputPortChangeRequest &req) = 0;
+    virtual void outputPortChangeRequested(const OutputPortChangeRequest &req) = 0;
+
+    /// The storage group the worker process may reserve names in
+    virtual std::shared_ptr<EDLGroup> storageGroup() = 0;
+};
+
+/**
+ * @brief The IPC endpoints on which we receive control messages from a worker process.
+ *
+ * iceoryx2 endpoints must not be used by two threads at once. So this object is owned by
+ * exactly one thread at a time: By the main thread while no run is active, and by the
+ * module's thread during a run. It is handed over when a run is started, and returned
+ * once the module's thread has finished.
+ */
+class MLinkControlChannel
+{
+public:
+    // Subscribers to receive information from module processes
+    std::optional<IoxSubscriber<ErrorEvent>> subError;
+    std::optional<IoxSubscriber<StateChangeEvent>> subStateChange;
+    std::optional<IoxSubscriber<StatusMessageEvent>> subStatusMsg;
+    std::optional<IoxSubscriber<SyncDetailsEvent>> subSyncDetails;
+    std::optional<IoxSubscriber<SyncOffsetEvent>> subSyncOffset;
+    std::optional<IoxUntypedReqServer> srvInPortChange;
+    std::optional<IoxUntypedReqServer> srvOutPortChange;
+    std::optional<IoxUntypedReqResServer> srvEdlReserve;
+
+    // Listener to react to worker control events
+    std::optional<IoxListener> workerCtlEventListener;
+
+    [[nodiscard]] bool isConnected() const
+    {
+        return subError.has_value();
+    }
+
+    void disconnect()
+    {
+        subError.reset();
+        subStateChange.reset();
+        subStatusMsg.reset();
+        subSyncDetails.reset();
+        subSyncOffset.reset();
+        srvInPortChange.reset();
+        srvOutPortChange.reset();
+        srvEdlReserve.reset();
+        workerCtlEventListener.reset();
+    }
+
+    void drainListener()
+    {
+        if (workerCtlEventListener.has_value())
+            drainListenerEvents(*workerCtlEventListener);
+    }
+
+    /**
+     * Forward errors the worker process has reported.
+     */
+    void processErrors(MLinkControlSink &sink)
+    {
+        if (!subError.has_value())
+            return;
+
+        while (true) {
+            auto mSample = subError->receive();
+            if (!mSample.has_value())
+                break;
+            const auto &sample = mSample.value();
+            if (!sample.has_value())
+                break;
+            const auto &ev = sample->payload();
+            const auto title = QString::fromUtf8(ev.title.unchecked_access().c_str());
+            const auto msg = QString::fromUtf8(ev.message.unchecked_access().c_str());
+            if (title.isEmpty())
+                sink.error(msg);
+            else
+                sink.error(QStringLiteral("<html><b>%1</b><br/>%2").arg(title, msg));
+        }
+    }
+
+    /**
+     * Process all incoming IPC data on the control channels and forward it.
+     *
+     * This does *not* handle the high-volume data-plane channels, which have
+     * dedicated event/listener pairs for more efficient communication.
+     */
+    void process(MLinkControlSink &sink, QuillLogger *log)
+    {
+        // Drain the control event listener to keep its socket buffer clear.
+        // We *must* drain at the start to immediately consume the notification that triggered this call,
+        // and to prevent race conditions with new events arriving while we process the previous one.
+        drainListener();
+
+        // Error events
+        processErrors(sink);
+
+        // State changes
+        if (subStateChange.has_value()) {
+            while (true) {
+                auto sample = safeReceive(*subStateChange);
+                if (!sample.has_value())
+                    break;
+                const auto newState = sample->payload().state;
+
+                // the error state must only be set by raiseError(), never directly
+                if (newState == ModuleState::ERROR)
+                    continue;
+                sink.stateChangeRequested(newState);
+            }
+        }
+
+        // Status messages
+        if (subStatusMsg.has_value()) {
+            while (true) {
+                auto sample = safeReceive(*subStatusMsg);
+                if (!sample.has_value())
+                    break;
+                sink.statusMessage(QString::fromUtf8(sample->payload().text.unchecked_access().c_str()));
+            }
+        }
+
+        // Synchronizer notifications
+        if (subSyncDetails.has_value()) {
+            while (true) {
+                auto sample = safeReceive(*subSyncDetails);
+                if (!sample.has_value())
+                    break;
+                const auto &ev = sample->payload();
+                const std::string id(ev.id.unchecked_access().c_str());
+                const TimeSyncStrategies strategies(static_cast<int>(ev.strategies));
+                const microseconds_t tolerance(ev.toleranceUsec);
+                sink.syncDetailsChanged(id, strategies, tolerance);
+            }
+        }
+        if (subSyncOffset.has_value()) {
+            while (true) {
+                auto sample = safeReceive(*subSyncOffset);
+                if (!sample.has_value())
+                    break;
+                const auto &ev = sample->payload();
+                const std::string id(ev.id.unchecked_access().c_str());
+                sink.syncOffsetChanged(id, microseconds_t(ev.offsetUsec));
+            }
+        }
+
+        // Input port change requests
+        if (srvInPortChange.has_value()) {
+            while (true) {
+                auto req = safeReceive(*srvInPortChange);
+                if (!req.has_value())
+                    break;
+
+                // deserialize
+                const auto pl = req->payload();
+                sink.inputPortChangeRequested(InputPortChangeRequest::fromMemory(pl.data(), pl.number_of_bytes()));
+
+                // always acknowledge so the worker never waits too long
+                replyDoneSlice(log, *req, true);
+            }
+        }
+
+        // Output port change requests
+        if (srvOutPortChange.has_value()) {
+            while (true) {
+                auto req = safeReceive(*srvOutPortChange);
+                if (!req.has_value())
+                    break;
+
+                // deserialize
+                const auto pl = req->payload();
+                sink.outputPortChangeRequested(OutputPortChangeRequest::fromMemory(pl.data(), pl.number_of_bytes()));
+
+                // always acknowledge so the worker never blocks indefinitely
+                replyDoneSlice(log, *req, true);
+            }
+        }
+
+        // EDL name-reservation requests from the worker
+        if (srvEdlReserve.has_value()) {
+            const auto sg = sink.storageGroup();
+            while (true) {
+                auto req = safeReceive(*srvEdlReserve);
+                if (!req.has_value())
+                    break;
+
+                const auto pl = req->payload();
+                const auto reserveReq = EdlReserveRequest::fromMemory(pl.data(), pl.number_of_bytes());
+
+                EdlReserveReply rep;
+                if (!sg) {
+                    rep.success = false;
+                    rep.errorMessage = "Module has no storage group assigned.";
+                } else {
+                    // Walk parentRelPath (slash-separated sub-group names) from the assigned root.
+                    std::shared_ptr<EDLGroup> parent = sg;
+                    bool walkOk = true;
+                    const auto &relPath = reserveReq.parentRelPath;
+                    if (!relPath.empty() && relPath != "/") {
+                        std::istringstream ss(relPath);
+                        std::string segment;
+                        while (std::getline(ss, segment, '/')) {
+                            if (segment.empty())
+                                continue;
+                            auto maybeGroup = parent->groupByName(segment, EDLCreateFlag::CREATE_OR_OPEN);
+                            if (!maybeGroup.has_value()) {
+                                rep.success = false;
+                                rep.errorMessage = maybeGroup.error();
+                                walkOk = false;
+                                break;
+                            }
+                            maybeGroup.value()->setDetached(true);
+                            parent = maybeGroup.value();
+                        }
+                    }
+
+                    if (walkOk) {
+                        if (reserveReq.kind == EdlReserveRequest::Kind::Group) {
+                            auto maybeGroup = parent->groupByName(reserveReq.name, EDLCreateFlag::CREATE_OR_OPEN);
+                            if (maybeGroup.has_value()) {
+                                maybeGroup.value()->setDetached(true);
+                                rep.success = true;
+                                rep.absolutePath = maybeGroup.value()->path().string();
+                            } else {
+                                rep.success = false;
+                                rep.errorMessage = maybeGroup.error();
+                            }
+                        } else {
+                            auto maybeDataset = parent->datasetByName(reserveReq.name, EDLCreateFlag::MUST_CREATE);
+                            if (maybeDataset.has_value()) {
+                                maybeDataset.value()->setDetached(true);
+                                rep.success = true;
+                                rep.absolutePath = maybeDataset.value()->path().string();
+                            } else {
+                                rep.success = false;
+                                rep.errorMessage = maybeDataset.error();
+                            }
+                        }
+                    }
+                }
+
+                replySlice(log, *req, rep.toBytes());
+            }
+        }
+    }
+};
+
+/**
+ * @brief Forwards the data of one output port from the worker process into our data stream.
+ */
+struct MLinkOutPortSub {
+    std::optional<SySubscriber> sub;
+    std::shared_ptr<StreamOutputPort> oport;
+    std::optional<IoxWaitSetGuard> guard;
+};
+
+/**
+ * @brief An output stream of the module, as the thread needs to know it during a run.
+ */
+struct MLinkOutStreamInfo {
+    std::shared_ptr<VariantDataStream> stream;
+    QString portTitle;
+};
+
+/**
+ * @brief Relays data and control messages of the worker process while a run is active.
+ */
+struct MLinkRunWorker {
+    WorkerContext mod{};
+
+    // the main thread deposits the control channel here when it starts the module,
+    // and we put it back once we are done
+    Guarded<std::unique_ptr<MLinkControlChannel>> ctlSlot;
+    std::vector<MLinkOutPortSub> outPortSubs;
+    QHash<std::string, MLinkOutStreamInfo> outStreams;
+    std::shared_ptr<EDLGroup> storageGroup;
+    QString moduleId;
+    MainCallback<std::string, TimeSyncStrategies, microseconds_t> onSyncDetailsChanged;
+    MainCallback<std::string, microseconds_t> onSyncOffsetChanged;
+
+    void run();
+};
+
+/**
+ * @brief Acts on control messages in the module's thread, while a run is active.
+ *
+ * The module can not be changed during a run, so requests of the worker
+ * process to change its ports are refused here.
+ */
+class MLinkWorkerControlSink final : public MLinkControlSink
+{
+public:
+    explicit MLinkWorkerControlSink(MLinkRunWorker &worker)
+        : w(worker)
+    {
+    }
+
+    void error(const QString &message) override
+    {
+        w.mod.raiseError(message);
+    }
+
+    void statusMessage(const QString &message) override
+    {
+        w.mod.setStatusMessage(message);
+    }
+
+    void stateChangeRequested(ModuleState newState) override
+    {
+        MLinkModule::applyStateRequest(w.mod, newState);
+    }
+
+    void syncDetailsChanged(
+        const std::string &id,
+        const TimeSyncStrategies &strategies,
+        const microseconds_t &tolerance) override
+    {
+        w.onSyncDetailsChanged(id, strategies, tolerance);
+    }
+
+    void syncOffsetChanged(const std::string &id, const microseconds_t &offset) override
+    {
+        w.onSyncOffsetChanged(id, offset);
+    }
+
+    void inputPortChangeRequested(const InputPortChangeRequest &) override
+    {
+        LOG_WARNING(w.mod.log, "Input port change request ignored: No changes are allowed.");
+    }
+
+    void outputPortChangeRequested(const OutputPortChangeRequest &opc) override
+    {
+        if (opc.action == PortAction::ADD) {
+            LOG_WARNING(w.mod.log, "Output port addition ignored: No changes are allowed.");
+        } else if (opc.action == PortAction::REMOVE) {
+            LOG_WARNING(w.mod.log, "Output port removal ignored: No changes are allowed.");
+        } else if (opc.action == PortAction::CHANGE) {
+            const auto it = w.outStreams.constFind(opc.id);
+            if (it == w.outStreams.constEnd())
+                return;
+            it->stream->setMetadata(opc.metadata);
+            it->stream->setCommonMetadata(w.moduleId, w.mod.moduleName(), it->portTitle);
+        }
+    }
+
+    std::shared_ptr<EDLGroup> storageGroup() override
+    {
+        return w.storageGroup;
+    }
+
+private:
+    MLinkRunWorker &w;
+};
+
+void MLinkRunWorker::run()
+{
+    // Setting up the IPC wait set needs file descriptors, which can run out with many
+    // workers. Fail the module instead of the whole application, and still park on the
+    // start barrier, which the engine releases once it sees the failure.
+    const auto failSetup = [&](const std::string &what, const char *reason) {
+        mod.raiseError(
+            std::format(
+                "Failed to set up the IPC event loop ({}): {}. If many modules are running, the file descriptor limit "
+                "(ulimit -n) may be too low.",
+                what,
+                reason));
+        mod.waitForStart();
+        for (auto &ps : outPortSubs)
+            ps.guard.reset();
+    };
+
+    // create waitset
+    auto maybeWaitSet = iox2::WaitSetBuilder()
+                            .signal_handling_mode(iox2::SignalHandlingMode::Disabled)
+                            .create<iox2::ServiceType::Ipc>();
+    if (!maybeWaitSet.has_value()) {
+        failSetup("wait set", iox2::bb::into<const char *>(maybeWaitSet.error()));
+        return;
+    }
+    auto waitSet = std::move(maybeWaitSet).value();
+
+    // prepare guards for output port forwarding
+    for (auto &ps : outPortSubs) {
+        if (!ps.sub.has_value())
+            continue;
+        auto maybeGuard = waitSet.attach_notification(*ps.sub);
+        if (!maybeGuard.has_value()) {
+            failSetup(
+                std::format("output port {}", ps.oport->id().toStdString()),
+                iox2::bb::into<const char *>(maybeGuard.error()));
+            return;
+        }
+        ps.guard.emplace(std::move(maybeGuard).value());
+    }
+
+    mod.waitForStart();
+
+    // The main thread has handled the control messages until now, and gave the control channel
+    // to us when it started the module. If there is none, the module was never started.
+    auto ctl = ctlSlot.take();
+    if (ctl != nullptr) {
+        MLinkWorkerControlSink ctlSink(*this);
+
+        // attach control guard
+        std::optional<IoxWaitSetGuard> waitSetCtlGuard;
+        auto maybeCtlGuard = waitSet.attach_notification(*ctl->workerCtlEventListener);
+        if (maybeCtlGuard.has_value()) {
+            waitSetCtlGuard.emplace(std::move(maybeCtlGuard).value());
+        } else {
+            mod.raiseError(
+                std::format(
+                    "Failed to set up the IPC event loop (control channel): {}. If many modules are running, the file "
+                    "descriptor limit (ulimit -n) may be too low.",
+                    iox2::bb::into<const char *>(maybeCtlGuard.error())));
+        }
+
+        auto onEvent =
+            [&](const iox2::WaitSetAttachmentId<iox2::ServiceType::Ipc> &attachmentId) -> iox2::CallbackProgression {
+            // handle control messages
+            if (attachmentId.has_event_from(*waitSetCtlGuard)) {
+                ctl->process(ctlSink, mod.log);
+            } else {
+                for (auto &ps : outPortSubs) {
+                    if (!ps.guard.has_value())
+                        continue;
+                    if (!attachmentId.has_event_from(*ps.guard))
+                        continue;
+
+                    // We have incoming data! - handle it, the break because the event
+                    // is per single attachment ID.
+                    ps.sub->handleEvents([&ps](const IoxImmutableByteSlice &pl) {
+                        ps.oport->streamVar()->pushRawData(ps.oport->dataTypeId(), pl.data(), pl.number_of_bytes());
+                    });
+                    break;
+                }
+            }
+
+            return iox2::CallbackProgression::Continue;
+        };
+
+        while (mod.running() && waitSetCtlGuard.has_value()) {
+            // wait for data - we need to time out every once in a while to check if we are still running
+            const auto res = waitSet.wait_and_process_once_with_timeout(onEvent, iox2::bb::Duration::from_millis(50));
+            if (!res.has_value()) {
+                mod.raiseError(std::format("IPC event loop failed: {}", iox2::bb::into<const char *>(res.error())));
+                break;
+            }
+        }
+
+        // MUST reset all guards before the local WaitSet goes out of scope.
+        // iceoryx2 contract: "WaitSetGuard must live at most as long as the WaitSet."
+        waitSetCtlGuard.reset();
+        for (auto &ps : outPortSubs)
+            ps.guard.reset();
+
+        // we finished - drain incoming control messages from the module process one more time
+        ctl->process(ctlSink, mod.log);
+
+        // Drain any data the OOP process published before responding to the stop signal
+        // but that the WaitSet loop hadn't yet forwarded.
+        for (auto &ps : outPortSubs) {
+            if (!ps.sub.has_value())
+                continue;
+            ps.sub->handleEvents([&ps](const IoxImmutableByteSlice &pl) {
+                ps.oport->streamVar()->pushRawData(ps.oport->dataTypeId(), pl.data(), pl.number_of_bytes());
+            });
+        }
+
+        // the main thread handles the control messages again from here on
+        ctlSlot.set(std::move(ctl));
+    }
+
+    // disconnect forwarders
+    for (auto &ps : outPortSubs) {
+        ps.guard.reset();
+        ps.sub->drain();
+    }
+    outPortSubs.clear();
+}
+
+} // namespace Syntalos
+
+class MLinkModule::Private : public MLinkControlSink
+{
+public:
+    Private(MLinkModule *module, QuillLogger *logger)
+        : q(module),
+          log(logger) {};
     ~Private() = default;
 
+    MLinkModule *q;
     QuillLogger *log = nullptr;
     QProcess *proc = nullptr;
     ModuleWorkerMode workerMode;
@@ -88,31 +627,27 @@ public:
     std::string clientId;
     std::optional<iox2::Node<iox2::ServiceType::Ipc>> node;
 
-    // Subscribers to receive information from module processes
-    std::optional<IoxSubscriber<ErrorEvent>> subError;
-    std::optional<IoxSubscriber<StateChangeEvent>> subStateChange;
-    std::optional<IoxSubscriber<StatusMessageEvent>> subStatusMsg;
-    std::optional<IoxSubscriber<SyncDetailsEvent>> subSyncDetails;
-    std::optional<IoxSubscriber<SyncOffsetEvent>> subSyncOffset;
-    std::optional<IoxUntypedReqServer> srvInPortChange;
-    std::optional<IoxUntypedReqServer> srvOutPortChange;
-    std::optional<IoxUntypedReqResServer> srvEdlReserve;
+    // The endpoints to receive information from the module process on. We only own them
+    // while no run is active: When a run is started, they are deposited in the slot for the
+    // module's thread to take, which returns them there when it is done.
+    std::unique_ptr<MLinkControlChannel> ctl;
+    Guarded<std::unique_ptr<MLinkControlChannel>> ctlSlot;
 
-    // Output port forwarders
-    struct OutPortSub {
-        std::optional<SySubscriber> sub;
-        std::shared_ptr<StreamOutputPort> oport;
-        std::optional<IoxWaitSetGuard> guard;
-    };
-    std::vector<OutPortSub> outPortSubs;
+    // Output port forwarders for the upcoming run
+    std::vector<MLinkOutPortSub> outPortSubs;
 
-    // Listener to react to worker control events, notifier
-    // to notify the worker if we send control events.
-    std::optional<IoxListener> workerCtlEventListener;
+    // notifier to notify the worker if we send control events.
     std::optional<IoxNotifier> ctlEventNotifier;
     QTimer *ctlEventTimer = nullptr;
-    std::atomic_bool threadStopped = true;
-    std::atomic_bool threadHandlingEvents = false;
+
+    /**
+     * Take the control channel back from the module's thread, once it has finished.
+     */
+    void reclaimControlChannel()
+    {
+        if (ctl == nullptr)
+            ctl = ctlSlot.take();
+    }
 
     /**
      * Construct service name for a channel on this module.
@@ -138,135 +673,103 @@ public:
             LOG_WARNING(log, "Failed to notify worker of control event: {}", iox2::bb::into<const char *>(r.error()));
     }
 
-    void checkClientError(MLinkModule *self)
+    void error(const QString &message) override
     {
-        if (!subError.has_value())
-            return;
+        q->raiseError(message);
+    }
 
-        while (true) {
-            auto mSample = subError->receive();
-            if (!mSample.has_value())
-                break;
-            const auto &sample = mSample.value();
-            if (!sample.has_value())
-                break;
-            const auto &ev = sample->payload();
-            const auto title = QString::fromUtf8(ev.title.unchecked_access().c_str());
-            const auto msg = QString::fromUtf8(ev.message.unchecked_access().c_str());
-            if (title.isEmpty())
-                self->raiseError(msg);
-            else
-                self->raiseError(QStringLiteral("<html><b>%1</b><br/>%2").arg(title, msg));
+    void statusMessage(const QString &message) override
+    {
+        q->setStatusMessage(message);
+    }
+
+    void stateChangeRequested(ModuleState newState) override
+    {
+        MLinkModule::applyStateRequest(q, newState);
+    }
+
+    void syncDetailsChanged(
+        const std::string &id,
+        const TimeSyncStrategies &strategies,
+        const microseconds_t &tolerance) override
+    {
+        Q_EMIT q->synchronizerDetailsChanged(id, strategies, tolerance);
+    }
+
+    void syncOffsetChanged(const std::string &id, const microseconds_t &offset) override
+    {
+        Q_EMIT q->synchronizerOffsetChanged(id, offset);
+    }
+
+    void inputPortChangeRequested(const InputPortChangeRequest &ipc) override
+    {
+        if (!portChangesAllowed) {
+            LOG_WARNING(log, "Input port change request ignored: No changes are allowed.");
+        } else if (ipc.action == PortAction::ADD) {
+            const auto portId = QString::fromStdString(ipc.id);
+            const auto portTitle = QString::fromStdString(ipc.title);
+            auto iport = q->inPortById(portId);
+            if (iport && iport->dataTypeId() != ipc.dataTypeId) {
+                q->removeInPortById(portId);
+                iport = nullptr;
+            }
+            if (!iport)
+                iport = q->registerInputPortByTypeId(ipc.dataTypeId, portId, portTitle);
+            inPortIdMap[ipc.id] = iport;
+        } else if (ipc.action == PortAction::REMOVE) {
+            q->removeInPortById(QString::fromStdString(ipc.id));
+            inPortIdMap.remove(ipc.id);
         }
     }
 
-    void checkClientStatusMessage(MLinkModule *self)
+    void outputPortChangeRequested(const OutputPortChangeRequest &opc) override
     {
-        if (!subStatusMsg.has_value())
-            return;
-
-        while (true) {
-            auto sample = safeReceive(*subStatusMsg);
-            if (!sample.has_value())
-                break;
-            self->setStatusMessage(sample->payload().text.unchecked_access().c_str());
-        }
-    }
-
-    void replyDoneSlice(SliceActiveRequest &req, bool success) const
-    {
-        auto maybeResponse = req.loan_uninit();
-        if (!maybeResponse.has_value()) {
-            LOG_ERROR(
-                log,
-                "Failed to loan response for port change reply: {}",
-                iox2::bb::into<const char *>(maybeResponse.error()));
-            return;
-        }
-        if (auto res = iox2::send(std::move(maybeResponse).value().write_payload(DoneResponse{success}));
-            !res.has_value())
-            LOG_ERROR(log, "Failed to send port change reply to worker: {}", iox2::bb::into<const char *>(res.error()));
-    }
-
-    void replySlice(SliceBiDiActiveRequest &req, const ByteVector &data) const
-    {
-        auto maybeResponse = req.loan_slice_uninit(data.size());
-        if (!maybeResponse.has_value()) {
-            LOG_WARNING(
-                log,
-                "Failed to loan response slice ({} bytes): {}",
-                data.size(),
-                iox2::bb::into<const char *>(maybeResponse.error()));
-            return;
-        }
-        auto rawResponse = std::move(maybeResponse).value();
-        std::memcpy(rawResponse.payload_mut().data(), data.data(), data.size());
-        if (auto res = iox2::send(iox2::assume_init(std::move(rawResponse))); !res.has_value())
-            LOG_ERROR(log, "Failed to send response slice to worker: {}", iox2::bb::into<const char *>(res.error()));
-    }
-
-    void checkClientSyncDetails(MLinkModule *self)
-    {
-        if (!subSyncDetails.has_value())
-            return;
-
-        while (true) {
-            auto sample = safeReceive(*subSyncDetails);
-            if (!sample.has_value())
-                break;
-            const auto &ev = sample->payload();
-            const std::string id(ev.id.unchecked_access().c_str());
-            const TimeSyncStrategies strategies(static_cast<int>(ev.strategies));
-            const microseconds_t tolerance(ev.toleranceUsec);
-            Q_EMIT self->synchronizerDetailsChanged(id, strategies, tolerance);
-        }
-    }
-
-    void checkClientSyncOffset(MLinkModule *self)
-    {
-        if (!subSyncOffset.has_value())
-            return;
-
-        while (true) {
-            auto sample = safeReceive(*subSyncOffset);
-            if (!sample.has_value())
-                break;
-            const auto &ev = sample->payload();
-            const std::string id(ev.id.unchecked_access().c_str());
-            Q_EMIT self->synchronizerOffsetChanged(id, microseconds_t(ev.offsetUsec));
-        }
-    }
-
-    void checkClientStateChange(MLinkModule *self)
-    {
-        if (!subStateChange.has_value())
-            return;
-
-        while (true) {
-            auto sample = safeReceive(*subStateChange);
-            if (!sample.has_value())
-                break;
-            const auto newState = sample->payload().state;
-
-            // the error state must only be set by raiseError(), never directly
-            if (newState == ModuleState::ERROR)
-                continue;
-
-            // only the engine / user interaction is allowed to clear a module error state
-            if (self->state() == ModuleState::ERROR)
-                continue;
-
-            // only some states are allowed to be set by the module
-            if (newState == ModuleState::DORMANT || newState == ModuleState::READY
-                || newState == ModuleState::INITIALIZING || newState == ModuleState::IDLE) {
-                LOG_DEBUG(
-                    self->m_log,
-                    "Client state change request granted: {} → {}",
-                    toString(self->state()),
-                    toString(newState));
-                self->setState(newState);
+        const auto action = opc.action;
+        if (action == PortAction::ADD) {
+            if (!portChangesAllowed) {
+                LOG_WARNING(log, "Output port addition ignored: No changes are allowed.");
+            } else {
+                // only register a new output port if we don't have one with that ID already
+                const auto portId = QString::fromStdString(opc.id);
+                const auto portTitle = QString::fromStdString(opc.title);
+                auto oport = q->outPortById(portId);
+                std::shared_ptr<VariantDataStream> ostream;
+                if (oport) {
+                    if (oport->dataTypeId() != opc.dataTypeId) {
+                        q->removeOutPortById(portId);
+                        oport = nullptr;
+                    } else {
+                        ostream = oport->streamVar();
+                    }
+                }
+                if (!ostream)
+                    ostream = q->registerOutputPortByTypeId(opc.dataTypeId, portId, portTitle);
+                ostream->setMetadata(opc.metadata);
+                outPortIdMap[opc.id] = ostream;
+            }
+        } else if (action == PortAction::REMOVE) {
+            if (!portChangesAllowed) {
+                LOG_WARNING(log, "Output port removal ignored: No changes are allowed.");
+            } else {
+                q->removeOutPortById(QString::fromStdString(opc.id));
+                outPortIdMap.remove(opc.id);
+            }
+        } else if (action == PortAction::CHANGE) {
+            std::shared_ptr<VariantDataStream> ostream;
+            if (outPortIdMap.contains(opc.id))
+                ostream = outPortIdMap.value(opc.id);
+            else if (auto oport = q->outPortById(qstr(opc.id)))
+                ostream = oport->streamVar();
+            if (ostream) {
+                ostream->setMetadata(opc.metadata);
+                q->updateCommonStreamMetadata();
             }
         }
+    }
+
+    std::shared_ptr<EDLGroup> storageGroup() override
+    {
+        return q->storageGroup();
     }
 
     /**
@@ -314,7 +817,9 @@ public:
         QElapsedTimer timer;
         timer.start();
         while (true) {
-            checkClientError(self);
+            // during a run, the module's thread owns the control channel and reports errors
+            if (ctl != nullptr)
+                ctl->processErrors(*this);
 
             auto maybeResponse = pending.receive();
             if (!maybeResponse.has_value()) {
@@ -343,11 +848,10 @@ public:
                 return std::nullopt;
             }
 
-            // Pump worker-initiated port-change requests from the main thread only when
-            // the dedicated module thread is not active. When the thread is running, it
-            // handles these requests itself via its WaitSet; calling handleIncomingControl()
-            // from both threads simultaneously would race on the server objects.
-            if (!threadHandlingEvents) {
+            // Pump worker-initiated port-change requests from the main thread only while
+            // we own the control channel. During a run, the module's thread has it and
+            // handles these requests itself via its WaitSet.
+            if (ctl != nullptr) {
                 self->handleIncomingControl();
                 if (timeoutSec > 4)
                     qApp->processEvents();
@@ -416,8 +920,10 @@ public:
         QElapsedTimer timer;
         timer.start();
         while (true) {
-            checkClientError(self);
-            if (!threadHandlingEvents) {
+            // during a run, the module's thread owns the control channel and reports errors
+            if (ctl != nullptr)
+                ctl->processErrors(*this);
+            if (ctl != nullptr) {
                 self->handleIncomingControl();
                 if (timeoutSec > 4)
                     qApp->processEvents();
@@ -495,8 +1001,10 @@ public:
         QElapsedTimer timer;
         timer.start();
         while (true) {
-            checkClientError(self);
-            if (!threadHandlingEvents) {
+            // during a run, the module's thread owns the control channel and reports errors
+            if (ctl != nullptr)
+                ctl->processErrors(*this);
+            if (ctl != nullptr) {
                 self->handleIncomingControl();
                 if (timeoutSec > 4)
                     qApp->processEvents();
@@ -538,7 +1046,7 @@ public:
 
 MLinkModule::MLinkModule(QObject *parent)
     : AbstractModule(parent),
-      d(new MLinkModule::Private(m_log))
+      d(new MLinkModule::Private(this, m_log))
 {
     d->proc = new QProcess(this);
     // Run the worker in its own process group, so a Ctrl+C in the terminal only reaches Syntalos,
@@ -611,7 +1119,7 @@ MLinkModule::~MLinkModule()
 bool MLinkModule::testIpcApiVersion(bool emitErrors)
 {
     // do nothing if the error channel does not exist yet
-    if (!d->subError)
+    if (!d->ctl || !d->ctl->isConnected())
         return false;
 
     auto modApiTagResponse = d->callClientSimple<ApiVersionRequest, ApiVersionResponse>(
@@ -645,186 +1153,40 @@ bool MLinkModule::testIpcApiVersion(bool emitErrors)
  */
 void MLinkModule::handleIncomingControl()
 {
-    // do nothing if the error channel does not exist yet
-    if (!d->subError)
+    // do nothing if the error channel does not exist yet, or if the module's
+    // thread currently owns the control channel and handles the messages itself
+    if (!d->ctl || !d->ctl->isConnected())
         return;
 
-    // Drain the control event listener to keep its socket buffer clear.
-    // We *must* drain at the start to immediately consume the notification that triggered this call,
-    // and to prevent race conditions with new events arriving while we process the previous one.
-    if (d->workerCtlEventListener.has_value())
-        drainListenerEvents(*d->workerCtlEventListener);
+    d->ctl->process(*d, m_log);
+}
 
-    // Error events
-    d->checkClientError(this);
+void MLinkModule::applyStateRequest(AbstractModule *mod, ModuleState newState)
+{
+    // the error state must only be set by raiseError(), never directly
+    if (newState == ModuleState::ERROR)
+        return;
 
-    // State changes
-    d->checkClientStateChange(this);
+    // only the engine / user interaction is allowed to clear a module error state
+    if (mod->state() == ModuleState::ERROR)
+        return;
 
-    // Status messages
-    d->checkClientStatusMessage(this);
-
-    // Synchronizer notifications
-    d->checkClientSyncDetails(this);
-    d->checkClientSyncOffset(this);
-
-    // Input port change requests
-    if (d->srvInPortChange.has_value()) {
-        while (true) {
-            auto req = safeReceive(*d->srvInPortChange);
-            if (!req.has_value())
-                break;
-
-            // deserialize
-            const auto pl = req->payload();
-            const auto ipc = InputPortChangeRequest::fromMemory(pl.data(), pl.number_of_bytes());
-            const auto action = ipc.action;
-            if (!d->portChangesAllowed) {
-                LOG_WARNING(m_log, "Input port change request ignored: No changes are allowed.");
-            } else if (action == PortAction::ADD) {
-                const auto portId = QString::fromStdString(ipc.id);
-                const auto portTitle = QString::fromStdString(ipc.title);
-                auto iport = inPortById(portId);
-                if (iport && iport->dataTypeId() != ipc.dataTypeId) {
-                    removeInPortById(portId);
-                    iport = nullptr;
-                }
-                if (!iport)
-                    iport = registerInputPortByTypeId(ipc.dataTypeId, portId, portTitle);
-                d->inPortIdMap[ipc.id] = iport;
-            } else if (action == PortAction::REMOVE) {
-                removeInPortById(QString::fromStdString(ipc.id));
-                d->inPortIdMap.remove(ipc.id);
-            }
-
-            // always acknowledge so the worker never waits too long
-            d->replyDoneSlice(*req, true);
-        }
+    // only some states are allowed to be set by the module
+    if (newState == ModuleState::DORMANT || newState == ModuleState::READY || newState == ModuleState::INITIALIZING
+        || newState == ModuleState::IDLE) {
+        LOG_DEBUG(
+            mod->m_log,
+            "Client state change request granted: {} → {}",
+            toString(mod->state()),
+            toString(newState));
+        mod->setState(newState);
     }
+}
 
-    // Output port change requests
-    if (d->srvOutPortChange.has_value()) {
-        while (true) {
-            auto req = safeReceive(*d->srvOutPortChange);
-            if (!req.has_value())
-                break;
-
-            // deserialize
-            const auto pl = req->payload();
-            const auto opc = OutputPortChangeRequest::fromMemory(pl.data(), pl.number_of_bytes());
-            const auto action = opc.action;
-            if (action == PortAction::ADD) {
-                if (!d->portChangesAllowed) {
-                    LOG_WARNING(m_log, "Output port addition ignored: No changes are allowed.");
-                } else {
-                    // only register a new output port if we don't have one with that ID already
-                    const auto portId = QString::fromStdString(opc.id);
-                    const auto portTitle = QString::fromStdString(opc.title);
-                    auto oport = outPortById(portId);
-                    std::shared_ptr<VariantDataStream> ostream;
-                    if (oport) {
-                        if (oport->dataTypeId() != opc.dataTypeId) {
-                            removeOutPortById(portId);
-                            oport = nullptr;
-                        } else {
-                            ostream = oport->streamVar();
-                        }
-                    }
-                    if (!ostream)
-                        ostream = registerOutputPortByTypeId(opc.dataTypeId, portId, portTitle);
-                    ostream->setMetadata(opc.metadata);
-                    d->outPortIdMap[opc.id] = ostream;
-                }
-            } else if (action == PortAction::REMOVE) {
-                if (!d->portChangesAllowed) {
-                    LOG_WARNING(m_log, "Output port removal ignored: No changes are allowed.");
-                } else {
-                    removeOutPortById(QString::fromStdString(opc.id));
-                    d->outPortIdMap.remove(opc.id);
-                }
-            } else if (action == PortAction::CHANGE) {
-                std::shared_ptr<VariantDataStream> ostream;
-                if (d->outPortIdMap.contains(opc.id))
-                    ostream = d->outPortIdMap.value(opc.id);
-                else if (auto oport = outPortById(qstr(opc.id)))
-                    ostream = oport->streamVar();
-                if (ostream) {
-                    ostream->setMetadata(opc.metadata);
-                    updateCommonStreamMetadata();
-                }
-            }
-
-            // always acknowledge so the worker never blocks indefinitely
-            d->replyDoneSlice(*req, true);
-        }
-    }
-
-    // EDL name-reservation requests from the worker
-    if (d->srvEdlReserve.has_value()) {
-        const auto sg = storageGroup();
-        while (true) {
-            auto req = safeReceive(*d->srvEdlReserve);
-            if (!req.has_value())
-                break;
-
-            const auto pl = req->payload();
-            const auto reserveReq = EdlReserveRequest::fromMemory(pl.data(), pl.number_of_bytes());
-
-            EdlReserveReply rep;
-            if (!sg) {
-                rep.success = false;
-                rep.errorMessage = "Module has no storage group assigned.";
-            } else {
-                // Walk parentRelPath (slash-separated sub-group names) from the assigned root.
-                std::shared_ptr<EDLGroup> parent = sg;
-                bool walkOk = true;
-                const auto &relPath = reserveReq.parentRelPath;
-                if (!relPath.empty() && relPath != "/") {
-                    std::istringstream ss(relPath);
-                    std::string segment;
-                    while (std::getline(ss, segment, '/')) {
-                        if (segment.empty())
-                            continue;
-                        auto maybeGroup = parent->groupByName(segment, EDLCreateFlag::CREATE_OR_OPEN);
-                        if (!maybeGroup.has_value()) {
-                            rep.success = false;
-                            rep.errorMessage = maybeGroup.error();
-                            walkOk = false;
-                            break;
-                        }
-                        maybeGroup.value()->setDetached(true);
-                        parent = maybeGroup.value();
-                    }
-                }
-
-                if (walkOk) {
-                    if (reserveReq.kind == EdlReserveRequest::Kind::Group) {
-                        auto maybeGroup = parent->groupByName(reserveReq.name, EDLCreateFlag::CREATE_OR_OPEN);
-                        if (maybeGroup.has_value()) {
-                            maybeGroup.value()->setDetached(true);
-                            rep.success = true;
-                            rep.absolutePath = maybeGroup.value()->path().string();
-                        } else {
-                            rep.success = false;
-                            rep.errorMessage = maybeGroup.error();
-                        }
-                    } else {
-                        auto maybeDataset = parent->datasetByName(reserveReq.name, EDLCreateFlag::MUST_CREATE);
-                        if (maybeDataset.has_value()) {
-                            maybeDataset.value()->setDetached(true);
-                            rep.success = true;
-                            rep.absolutePath = maybeDataset.value()->path().string();
-                        } else {
-                            rep.success = false;
-                            rep.errorMessage = maybeDataset.error();
-                        }
-                    }
-                }
-            }
-
-            d->replySlice(*req, rep.toBytes());
-        }
-    }
+void MLinkModule::applyStateRequest(const WorkerContext &ctx, ModuleState newState)
+{
+    if (ctx.m_mod != nullptr)
+        applyStateRequest(ctx.m_mod, newState);
 }
 
 void MLinkModule::resetConnection()
@@ -835,30 +1197,29 @@ void MLinkModule::resetConnection()
     // SIGINT/SIGTERM are handled by Syntalos itself (see termsignalwatcher.h), not by iceoryx2
     d->node.emplace(makeIoxNode("syntalos-master-" + d->clientId, iox2::SignalHandlingMode::Disabled));
 
+    // The connection is never reset while a run is active, so if we do not have the control
+    // channel, the module's thread of a previous run has left it in the hand-over slot.
+    d->reclaimControlChannel();
+    if (d->ctl == nullptr)
+        d->ctl = std::make_unique<MLinkControlChannel>();
+    auto &ctl = *d->ctl;
+
     // ensure the old connections are gone before we are trying to create new ones
-    d->subError.reset();
-    d->subStateChange.reset();
-    d->subStatusMsg.reset();
-    d->subSyncDetails.reset();
-    d->subSyncOffset.reset();
-    d->srvInPortChange.reset();
-    d->srvOutPortChange.reset();
-    d->srvEdlReserve.reset();
-    d->workerCtlEventListener.reset();
+    ctl.disconnect();
     d->ctlEventNotifier.reset();
 
     // (re)create subscribers/servers for client -> master data channels
-    d->subError.emplace(makeTypedSubscriber<ErrorEvent>(*d->node, d->svcName(ERROR_CHANNEL_ID)));
-    d->subStateChange.emplace(makeTypedSubscriber<StateChangeEvent>(*d->node, d->svcName(STATE_CHANNEL_ID)));
-    d->subStatusMsg.emplace(makeTypedSubscriber<StatusMessageEvent>(*d->node, d->svcName(STATUS_MESSAGE_CHANNEL_ID)));
-    d->subSyncDetails.emplace(makeTypedSubscriber<SyncDetailsEvent>(*d->node, d->svcName(SYNC_DETAILS_CHANNEL_ID)));
-    d->subSyncOffset.emplace(makeTypedSubscriber<SyncOffsetEvent>(*d->node, d->svcName(SYNC_OFFSET_CHANNEL_ID)));
-    d->srvInPortChange.emplace(makeSliceServer(*d->node, d->svcName(IN_PORT_CHANGE_CHANNEL_ID)));
-    d->srvOutPortChange.emplace(makeSliceServer(*d->node, d->svcName(OUT_PORT_CHANGE_CHANNEL_ID)));
-    d->srvEdlReserve.emplace(makeSliceServer<IoxByteSlice>(*d->node, d->svcName(EDL_RESERVE_CALL_ID)));
+    ctl.subError.emplace(makeTypedSubscriber<ErrorEvent>(*d->node, d->svcName(ERROR_CHANNEL_ID)));
+    ctl.subStateChange.emplace(makeTypedSubscriber<StateChangeEvent>(*d->node, d->svcName(STATE_CHANNEL_ID)));
+    ctl.subStatusMsg.emplace(makeTypedSubscriber<StatusMessageEvent>(*d->node, d->svcName(STATUS_MESSAGE_CHANNEL_ID)));
+    ctl.subSyncDetails.emplace(makeTypedSubscriber<SyncDetailsEvent>(*d->node, d->svcName(SYNC_DETAILS_CHANNEL_ID)));
+    ctl.subSyncOffset.emplace(makeTypedSubscriber<SyncOffsetEvent>(*d->node, d->svcName(SYNC_OFFSET_CHANNEL_ID)));
+    ctl.srvInPortChange.emplace(makeSliceServer(*d->node, d->svcName(IN_PORT_CHANGE_CHANNEL_ID)));
+    ctl.srvOutPortChange.emplace(makeSliceServer(*d->node, d->svcName(OUT_PORT_CHANGE_CHANNEL_ID)));
+    ctl.srvEdlReserve.emplace(makeSliceServer<IoxByteSlice>(*d->node, d->svcName(EDL_RESERVE_CALL_ID)));
 
     // control listener: Called when the client publishes a control command
-    d->workerCtlEventListener.emplace(ipc::makeEventListener(*d->node, d->svcName(WORKER_CTL_EVENT_ID)));
+    ctl.workerCtlEventListener.emplace(ipc::makeEventListener(*d->node, d->svcName(WORKER_CTL_EVENT_ID)));
     // control notifier: We use this to wake up the client when we made a request
     d->ctlEventNotifier.emplace(ipc::makeEventNotifier(*d->node, d->svcName(MASTER_CTL_EVENT_ID)));
 }
@@ -1106,7 +1467,8 @@ void MLinkModule::terminateProcess()
     }
 
     // drain any now-stale events
-    drainListenerEvents(*d->workerCtlEventListener);
+    if (d->ctl != nullptr)
+        d->ctl->drainListener();
 }
 
 bool MLinkModule::runProcess()
@@ -1380,7 +1742,7 @@ bool MLinkModule::registerOutPortForwarders()
             continue;
         }
 
-        Private::OutPortSub ps;
+        MLinkOutPortSub ps;
         const auto topology = makeIpcServiceTopology(1, oport->streamVar()->subscriberCount());
         try {
             ps.sub.reset(); // ensure the old subscription is gone before we try to create a new one
@@ -1523,6 +1885,36 @@ bool MLinkModule::prepare(const RunInfo &info)
     updateCommonStreamMetadata();
 
     d->portChangesAllowed = false;
+
+    // Everything is set up, so we can create the worker that relays data and control
+    // messages in our thread while the run is active.
+    QHash<std::string, MLinkOutStreamInfo> outStreams;
+    for (const auto &oport : outPorts())
+        outStreams.insert(oport->id().toStdString(), MLinkOutStreamInfo{oport->streamVar(), oport->title()});
+    for (auto it = d->outPortIdMap.constBegin(); it != d->outPortIdMap.constEnd(); ++it) {
+        if (!outStreams.contains(it.key()))
+            outStreams.insert(it.key(), MLinkOutStreamInfo{it.value(), QString()});
+    }
+
+    setWorker(
+        MLinkRunWorker{
+            .ctlSlot = d->ctlSlot,
+            .outPortSubs = std::move(d->outPortSubs),
+            .outStreams = std::move(outStreams),
+            .storageGroup = storageGroup(),
+            .moduleId = id(),
+            .onSyncDetailsChanged = mainCallback([this](
+                                                     const std::string &syncId,
+                                                     const TimeSyncStrategies &strategies,
+                                                     const microseconds_t &tolerance) {
+                Q_EMIT synchronizerDetailsChanged(syncId, strategies, tolerance);
+            }),
+            .onSyncOffsetChanged = mainCallback([this](const std::string &syncId, const microseconds_t &offset) {
+                Q_EMIT synchronizerOffsetChanged(syncId, offset);
+            }),
+        });
+    d->outPortSubs.clear();
+
     return true;
 }
 
@@ -1567,8 +1959,12 @@ void MLinkModule::start()
         },
         2);
 
-    // stop reading control events in the GUI thread - the module thread will do that for us soon
+    // Stop reading control events in the GUI thread, and hand the control channel over to
+    // the module thread: It takes it as soon as the run is started, and handles all control
+    // messages until the run has ended.
     d->ctlEventTimer->stop();
+    if (d->ctl != nullptr)
+        d->ctlSlot.set(std::move(d->ctl));
 
     // Start all output streams, regardless of whether they have a master-side IPC
     // forwarder. This re-snapshots the (now-final and immutable) metadata into all
@@ -1584,120 +1980,10 @@ void MLinkModule::start()
     AbstractModule::start();
 }
 
-void MLinkModule::runThread(OptionalWaitCondition *startWaitCondition)
+void MLinkModule::preStop()
 {
-    d->threadStopped = false;
-
-    // Setting up the IPC wait set needs file descriptors, which can run out with many
-    // workers. Fail the module instead of the whole application, and still park on the
-    // start barrier, which the engine releases once it sees the failure.
-    const auto failSetup = [&](const std::string &what, const char *reason) {
-        raiseError(
-            std::format(
-                "Failed to set up the IPC event loop ({}): {}. If many modules are running, the file descriptor limit "
-                "(ulimit -n) may be too low.",
-                what,
-                reason));
-        startWaitCondition->wait(this);
-        for (auto &ps : d->outPortSubs)
-            ps.guard.reset();
-        d->threadStopped = true;
-    };
-
-    // create waitset and attach control guard
-    auto maybeWaitSet = iox2::WaitSetBuilder()
-                            .signal_handling_mode(iox2::SignalHandlingMode::Disabled)
-                            .create<iox2::ServiceType::Ipc>();
-    if (!maybeWaitSet.has_value()) {
-        failSetup("wait set", iox2::bb::into<const char *>(maybeWaitSet.error()));
-        return;
-    }
-    auto waitSet = std::move(maybeWaitSet).value();
-    auto maybeCtlGuard = waitSet.attach_notification(*d->workerCtlEventListener);
-    if (!maybeCtlGuard.has_value()) {
-        failSetup("control channel", iox2::bb::into<const char *>(maybeCtlGuard.error()));
-        return;
-    }
-    auto waitSetCtlGuard = std::move(maybeCtlGuard).value();
-
-    // prepare guards for output port forwarding
-    for (auto &ps : d->outPortSubs) {
-        if (!ps.sub.has_value())
-            continue;
-        auto maybeGuard = waitSet.attach_notification(*ps.sub);
-        if (!maybeGuard.has_value()) {
-            failSetup(
-                std::format("output port {}", ps.oport->id().toStdString()),
-                iox2::bb::into<const char *>(maybeGuard.error()));
-            return;
-        }
-        ps.guard.emplace(std::move(maybeGuard).value());
-    }
-
-    auto onEvent =
-        [this, &waitSetCtlGuard](
-            const iox2::WaitSetAttachmentId<iox2::ServiceType::Ipc> &attachmentId) -> iox2::CallbackProgression {
-        // handle control messages
-        if (attachmentId.has_event_from(waitSetCtlGuard)) {
-            handleIncomingControl();
-        } else {
-            for (auto &ps : d->outPortSubs) {
-                if (!ps.guard.has_value())
-                    continue;
-                if (!attachmentId.has_event_from(*ps.guard))
-                    continue;
-
-                // We have incoming data! - handle it, the break because the event
-                // is per single attachment ID.
-                ps.sub->handleEvents([&ps](const IoxImmutableByteSlice &pl) {
-                    ps.oport->streamVar()->pushRawData(ps.oport->dataTypeId(), pl.data(), pl.number_of_bytes());
-                });
-                break;
-            }
-        }
-
-        return iox2::CallbackProgression::Continue;
-    };
-
-    startWaitCondition->wait(this);
-
-    d->threadHandlingEvents = true;
-    while (m_running) {
-        // wait for data - we need to time out every once in a while to check if we are still running
-        const auto res = waitSet.wait_and_process_once_with_timeout(onEvent, iox2::bb::Duration::from_millis(50));
-        if (!res.has_value()) {
-            raiseError(std::format("IPC event loop failed: {}", iox2::bb::into<const char *>(res.error())));
-            break;
-        }
-    }
-    d->threadHandlingEvents = false;
-
-    // MUST reset output-port guards before the local WaitSet goes out of scope.
-    // iceoryx2 contract: "WaitSetGuard must live at most as long as the WaitSet."
-    for (auto &ps : d->outPortSubs)
-        ps.guard.reset();
-
-    // we finished - drain incoming control messages from the module process one more time
-    handleIncomingControl();
-
-    // Drain any data the OOP process published before responding to the stop signal
-    // but that the WaitSet loop hadn't yet forwarded.
-    for (auto &ps : d->outPortSubs) {
-        if (!ps.sub.has_value())
-            continue;
-        ps.sub->handleEvents([&ps](const IoxImmutableByteSlice &pl) {
-            ps.oport->streamVar()->pushRawData(ps.oport->dataTypeId(), pl.data(), pl.number_of_bytes());
-        });
-    }
-
-    // disconnect forwarders
-    shutdownOutputPorts();
-
-    d->threadStopped = true;
-}
-
-void MLinkModule::stop()
-{
+    // Our thread is still running at this point and forwards any data the worker
+    // still sends, until the worker has acknowledged the request to stop.
     if (isProcessRunning()) {
         // remember what the worker consumed during this run and which priority it ran at,
         // for the run statistics (transient workers exit on their own after the stop request)
@@ -1706,16 +1992,14 @@ void MLinkModule::stop()
 
         d->callClientSimple<StopRequest>(this, STOP_CALL_ID, [](auto &) {}, 15);
     }
+}
 
-    // stop the module thread first
+void MLinkModule::stop()
+{
     AbstractModule::stop();
 
-    // wait for our thread to stop, so we do not access iox objects from two threads by accident
-    // in the brief period while the thread isn't shut down yet but we still receive messages
-    while (!d->threadStopped) {
-        std::this_thread::sleep_for(milliseconds_t(5));
-        processUiEvents();
-    }
+    // our thread has finished, so we handle the control messages again
+    d->reclaimControlChannel();
 
     d->sentMetadata.clear();
     d->portChangesAllowed = true;
