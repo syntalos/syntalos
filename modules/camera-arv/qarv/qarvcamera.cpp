@@ -158,6 +158,7 @@ QList<QArvCameraId> QArvCamera::listCameras() {
 }
 
 QArvCameraId QArvCamera::getId() const {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     const char* id, * vendor, * model;
     id = arv_camera_get_device_id(camera, nullptr);
     if (id == nullptr)
@@ -177,12 +178,14 @@ ArvCamera* QArvCamera::aravisCamera() {
 }
 
 QRect QArvCamera::getROI() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     int x, y, width, height;
     arv_camera_get_region(camera, &x, &y, &width, &height, nullptr);
     return QRect(x, y, width, height);
 }
 
 QPair<int, int> QArvCamera::getROIWidthBounds() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     int wmin, wmax;
     arv_camera_get_width_bounds(camera, &wmin, &wmax, nullptr);
     QRect roi = getROI();
@@ -190,6 +193,7 @@ QPair<int, int> QArvCamera::getROIWidthBounds() {
 }
 
 QPair<int, int> QArvCamera::getROIHeightBounds() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     int hmin, hmax;
     arv_camera_get_height_bounds(camera, &hmin, &hmax, nullptr);
     QRect roi = getROI();
@@ -197,6 +201,7 @@ QPair<int, int> QArvCamera::getROIHeightBounds() {
 }
 
 void QArvCamera::setROI(QRect roi) {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     int x, y, width, height;
     roi.getRect(&x, &y, &width, &height);
     auto hmin = getROIHeightBounds();
@@ -213,18 +218,21 @@ void QArvCamera::setROI(QRect roi) {
 }
 
 QSize QArvCamera::getBinning() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     int x, y;
     arv_camera_get_binning(camera, &x, &y, nullptr);
     return QSize(x, y);
 }
 
 void QArvCamera::setBinning(QSize bin) {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     arv_camera_set_binning(camera, bin.width(), bin.height(), nullptr);
     emit dataChanged(QModelIndex(), QModelIndex());
 }
 
 QList< QString > QArvCamera::getPixelFormats()
 {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     QList<QString> list;
     unsigned int numformats;
     const char **formats = arv_camera_dup_available_pixel_formats_as_strings(camera, &numformats, nullptr);
@@ -241,6 +249,7 @@ QList< QString > QArvCamera::getPixelFormats()
 }
 
 QList< QString > QArvCamera::getPixelFormatNames() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     unsigned int numformats;
     const char **formats =
         arv_camera_dup_available_pixel_formats_as_display_names(camera,
@@ -255,6 +264,7 @@ QList< QString > QArvCamera::getPixelFormatNames() {
 }
 
 QList<ArvPixelFormat> QArvCamera::getPixelFormatIds() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     unsigned int numformats;
     gint64 *formats =
         arv_camera_dup_available_pixel_formats(camera, &numformats, nullptr);
@@ -267,30 +277,36 @@ QList<ArvPixelFormat> QArvCamera::getPixelFormatIds() {
 }
 
 QString QArvCamera::getPixelFormat() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     return QString(arv_camera_get_pixel_format_as_string(camera, nullptr));
 }
 
 ArvPixelFormat QArvCamera::getPixelFormatId() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     return arv_camera_get_pixel_format(camera, nullptr);
 }
 
 void QArvCamera::setPixelFormat(const QString& format) {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     auto tmp = format.toLatin1();
     arv_camera_set_pixel_format_from_string(camera, tmp.constData(), nullptr);
     emit dataChanged(QModelIndex(), QModelIndex());
 }
 
 double QArvCamera::getFPS() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     return arv_camera_get_frame_rate(camera, nullptr);
 }
 
 void QArvCamera::setFPS(double fps) {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     arv_camera_set_frame_rate(camera, fps, nullptr);
     emit dataChanged(QModelIndex(), QModelIndex());
 }
 
 QPair<double, double> QArvCamera::getFPSBounds()
 {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     g_autoptr(GError) error = nullptr;
     double min, max;
     arv_camera_get_frame_rate_bounds(camera, &min, &max, &error);
@@ -308,68 +324,82 @@ bool QArvCamera::isGvDevice() const
 }
 
 int QArvCamera::getMTU() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     return arv_device_get_integer_feature_value(device, "GevSCPSPacketSize", nullptr);
 }
 
 void QArvCamera::setMTU(int mtu) {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     arv_device_set_integer_feature_value(device, "GevSCPSPacketSize", mtu, nullptr);
     arv_device_set_integer_feature_value(device, "GevSCBWR", 10, nullptr);
     emit dataChanged(QModelIndex(), QModelIndex());
 }
 
 double QArvCamera::getExposure() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     return arv_camera_get_exposure_time(camera, nullptr);
 }
 
 void QArvCamera::setExposure(double exposure) {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     arv_camera_set_exposure_time(camera, exposure, nullptr);
     emit dataChanged(QModelIndex(), QModelIndex());
 }
 
 bool QArvCamera::hasAutoExposure() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     return arv_camera_is_exposure_auto_available(camera, nullptr);
 }
 
 bool QArvCamera::getAutoExposure() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     return arv_camera_get_exposure_time_auto(camera, nullptr) != ARV_AUTO_OFF;
 }
 
 void QArvCamera::setAutoExposure(bool enable) {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     auto mode = enable ? ARV_AUTO_CONTINUOUS : ARV_AUTO_OFF;
     arv_camera_set_exposure_time_auto(camera, mode, nullptr);
     emit dataChanged(QModelIndex(), QModelIndex());
 }
 
 double QArvCamera::getGain() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     return arv_camera_get_gain(camera, nullptr);
 }
 
 void QArvCamera::setGain(double gain) {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     arv_camera_set_gain(camera, gain, nullptr);
     emit dataChanged(QModelIndex(), QModelIndex());
 }
 
 QPair< double, double > QArvCamera::getExposureBounds() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     double expomin, expomax;
     arv_camera_get_exposure_time_bounds(camera, &expomin, &expomax, nullptr);
     return QPair<double, double>(expomin, expomax);
 }
 
 QPair< double, double > QArvCamera::getGainBounds() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     double gainmin, gainmax;
     arv_camera_get_gain_bounds(camera, &gainmin, &gainmax, nullptr);
     return QPair<double, double>(gainmin, gainmax);
 }
 
 bool QArvCamera::hasAutoGain() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     return arv_camera_is_gain_auto_available(camera, nullptr);
 }
 
 bool QArvCamera::getAutoGain() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     return arv_camera_get_gain_auto(camera, nullptr) != ARV_AUTO_OFF;
 }
 
 void QArvCamera::setAutoGain(bool enable) {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     auto mode = enable ? ARV_AUTO_CONTINUOUS : ARV_AUTO_OFF;
     arv_camera_set_gain_auto(camera, mode, nullptr);
     emit dataChanged(QModelIndex(), QModelIndex());
@@ -475,6 +505,7 @@ bool QArvCamera::rawFrameCallback()
  * never copied.
  */
 std::expected<void, QString> QArvCamera::startAcquisition(bool zeroCopy, bool dropInvalidFrames, const NewFrameFn &newBufferCb) {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     nocopy = zeroCopy;
     dropInvalid = dropInvalidFrames;
     fnNewFrameBuffer = newBufferCb;
@@ -518,6 +549,7 @@ std::expected<void, QString> QArvCamera::startAcquisition(bool zeroCopy, bool dr
 }
 
 void QArvCamera::stopAcquisition() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     if (!acquiring) return;
 
     // Close the acquisition gate first: the Aravis stream callback thread checks
@@ -563,6 +595,7 @@ static QHostAddress GSocketAddress_to_QHostAddress(GSocketAddress* gaddr) {
 }
 
 QHostAddress QArvCamera::getIP() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     if (ARV_IS_GV_DEVICE(device)) {
         auto gaddr = arv_gv_device_get_device_address(ARV_GV_DEVICE(device));
         return GSocketAddress_to_QHostAddress(gaddr);
@@ -570,6 +603,7 @@ QHostAddress QArvCamera::getIP() {
 }
 
 QHostAddress QArvCamera::getHostIP() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     if (ARV_IS_GV_DEVICE(device)) {
         auto gaddr = arv_gv_device_get_interface_address(ARV_GV_DEVICE(device));
         return GSocketAddress_to_QHostAddress(gaddr);
@@ -577,6 +611,7 @@ QHostAddress QArvCamera::getHostIP() {
 }
 
 int QArvCamera::getEstimatedBW() {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
 #ifdef ARAVIS_OLD_SET_FEATURE
     return arv_device_get_integer_feature_value(device, "GevSCDCT");
 #else
@@ -585,6 +620,7 @@ int QArvCamera::getEstimatedBW() {
 }
 
 QTextStream& operator<<(QTextStream& out, QArvCamera* camera) {
+    const std::lock_guard<std::recursive_mutex> lock(camera->m_camMutex);
     auto id = camera->getId();
     out << "CameraID:\t"
         << QString::fromUtf8(id.vendor) << "\t"
@@ -603,6 +639,7 @@ QTextStream& operator<<(QTextStream& out, QArvCamera* camera) {
  * cannot be fixed until Aravis provides dependecy information.
  */
 QTextStream& operator>>(QTextStream& in, QArvCamera* camera) {
+    const std::lock_guard<std::recursive_mutex> lock(camera->m_camMutex);
     auto ID = camera->getId();
     const auto camIdLine = in.readLine();
     QStringList parts = camIdLine.split('\t');
@@ -670,6 +707,7 @@ QTextStream& operator>>(QTextStream& in, QArvCamera* camera) {
 
 QModelIndex QArvCamera::index(int row, int column,
                               const QModelIndex& parent) const {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     if (column > 1) return QModelIndex();
     QArvCamera::QArvFeatureTree* treenode;
     if (!parent.isValid()) treenode = featuretree;
@@ -706,6 +744,7 @@ int QArvCamera::rowCount(const QModelIndex& parent) const {
 }
 
 QVariant QArvCamera::data(const QModelIndex& index, int role) const {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     QArvCamera::QArvFeatureTree* treenode;
     if (!index.isValid()) treenode = featuretree;
     else treenode =
@@ -870,6 +909,7 @@ QVariant QArvCamera::data(const QModelIndex& index, int role) const {
 
 bool QArvCamera::setData(const QModelIndex& index, const QVariant& value,
                          int role) {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     QAbstractItemModel::setData(index, value, role);
     if (!(index.model()->flags(index) & Qt::ItemIsEnabled)
         || !(index.model()->flags(index) & Qt::ItemIsEditable))
@@ -943,6 +983,7 @@ bool QArvCamera::setData(const QModelIndex& index, const QVariant& value,
 }
 
 Qt::ItemFlags QArvCamera::flags(const QModelIndex& index) const {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     auto f = QAbstractItemModel::flags(index);
     if (!index.isValid()) return f;
     QArvCamera::QArvFeatureTree* treenode;
@@ -1026,6 +1067,7 @@ QModelIndex QArvCamera::featureIndex(const QString& feature) const {
 }
 
 void QArvCamera::enableRegisterCache(bool enable, bool debug) {
+    const std::lock_guard<std::recursive_mutex> lock(m_camMutex);
     auto policy = enable ?
         ARV_REGISTER_CACHE_POLICY_ENABLE :
         ARV_REGISTER_CACHE_POLICY_DISABLE;

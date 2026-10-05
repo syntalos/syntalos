@@ -23,6 +23,7 @@
 #include <gio/gio.h>  // Workaround for gdbusintrospection's use of "signal".
 #include <expected>
 #include <atomic>
+#include <mutex>
 #include <QList>
 #include <QString>
 #include <QRect>
@@ -243,6 +244,16 @@ private:
     Syntalos::QuillLogger *m_log = nullptr;
     QArvCameraExtension* ext;
     static QList<QArvCameraId> cameraList;
+    //! Serializes all access to the camera, its device and its Genicam data.
+    /*! Aravis objects must not be used from two threads at the same time, and
+     * a camera is used by the GUI thread for its settings and by whichever
+     * thread starts and stops the acquisition. The mutex is recursive, as the
+     * model functions call each other. The stream callback must not take it:
+     * stopAcquisition() waits for the stream thread while holding it. That is
+     * fine, as the callback only uses the stream and its buffers, which is
+     * safe to do from another thread.
+     */
+    mutable std::recursive_mutex m_camMutex;
     ArvCamera* camera;
     ArvDevice* device;
     ArvStream* stream;
