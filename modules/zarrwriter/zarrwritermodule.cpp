@@ -486,7 +486,7 @@ public:
                 dataAttrs["data_scale"] = dataScale;
             if (dataOffset != 0.0)
                 dataAttrs["data_offset"] = dataOffset;
-            if (sampleRate > 0 || dataUnit == "index")
+            if (sampleRate > 0 || timeUnit == "index")
                 dataAttrs["sample_rate"] = sampleRate;
             if (currentDSet)
                 dataAttrs["collection_id"] = QString::fromStdString(currentDSet->collectionId().toHex());
