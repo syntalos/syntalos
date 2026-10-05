@@ -178,11 +178,14 @@ main    = "libexample-cpp.so"   # relative path to the .so inside the module dir
 The `ModuleInfo` subclass is the factory; `AbstractModule` is the runtime instance.
 Key overrideable lifecycle methods on `AbstractModule`:
 - `initialize()` - called once when the module is added to a project board
-- `prepare(testSubject)` - allocate resources, validate port connections
+- `prepare(info)` - allocate resources, validate port connections, create the worker for the run (see below)
 - `start()` - called immediately before data acquisition begins
-- `runThread(startWaitCondition)` - runs in a dedicated thread during acquisition; must honour `m_running`; only called if `driver()` is `THREAD_DEDICATED`.
-- `stop()` - tear down the run; always called even if the run failed
+- `preStop()` - the run is being stopped, but the module's worker is still running
+- `stop()` - tear down the run; always called even if the run failed. The module's worker has finished at this point.
 - `showSettingsUi()` / `showDisplayUi()` - open settings or display windows
+
+All of these are called in the main (GUI) thread. Code that runs in the module's own thread or
+event loop does not live in the module class, but in a *worker* (see "Module Workers" below).
 
 **Logging** — Library modules get a per-module `QuillLogger *m_log` member (set up automatically).
 Use the Quill log macros with this logger:
@@ -207,12 +210,85 @@ The default is `NONE` (runs on the GUI/main thread, suitable for very lightweigh
 | `ModuleDriverKind` | Execution model                                    | When to use                                                                                                                                                     |
 |--------------------|----------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `NONE`             | GUI/main thread                                    | Trivial modules with no blocking work                                                                                                                           |
-| `THREAD_DEDICATED` | One thread per instance                            | Heavy acquisition or processing loops (`runThread` must poll `m_running` and sleep/block on I/O or incoming data)                                               |
+| `THREAD_DEDICATED` | One thread per instance                            | Heavy acquisition or processing loops (the worker's `run()` must poll `running()` and sleep/block on I/O or incoming data)                                      |
 | `EVENTS_DEDICATED` | Shared thread per module type (thread-pool bucket) | Event-driven modules that process data in callbacks; instances of the same module share a thread. Override `eventsMaxModulesPerThread()` to cap the bucket size |
 | `EVENTS_SHARED`    | Shared thread across arbitrary module types        | Lightweight event-driven modules that can coexist freely with others                                                                                            |
 
 Only library modules can set a dedicated driver, all other modules run as separate process with a dedicated thread handling
 communication on Syntalos' master side.
+
+**Module Workers** - Everything a module does outside the main thread is done by a *worker*: a plain
+struct that the module fills in `prepare()` and hands to the engine with `setWorker()`.
+The worker's fields are the complete list of what the thread can touch.
+Its only link to the module is a `WorkerContext` member named `mod`, which offers the things that are safe
+to use from any thread:
+```cpp
+class MyModule : public AbstractModule
+{
+    ...
+    bool prepare(const RunInfo &) override
+    {
+        setWorker(
+            Worker{
+                .frameSub = m_frameIn->subscription(),
+                .frameOut = m_frameOut,
+                .threshold = m_settingsDlg->threshold(),
+                .gain = m_gain,
+                .onInfo = mainCallback([this](const QString &text) {
+                    m_infoLabel->setText(text);
+                }),
+            });
+        return true;
+    }
+
+    struct Worker {
+        WorkerContext mod{};                                 // the worker's link to its module
+        std::shared_ptr<StreamSubscription<Frame>> frameSub; // inputs and outputs
+        std::shared_ptr<DataStream<Frame>> frameOut;
+        double threshold;                                    // values copied from the settings
+        LiveValue<double> gain;                              // can be changed by the GUI during the run
+        MainCallback<QString> onInfo;                        // runs a function of the module in the main thread
+        int frameCount = 0;                                  // state of the thread needs a default value
+
+        std::expected<void, QString> run()
+        {
+            mod.waitForStart(); // setup is done, wait until all modules are started together
+            while (mod.running()) {
+                auto maybeFrame = frameSub->next();
+                if (!maybeFrame.has_value())
+                    break; // end of stream
+                if (auto g = gain.takeIfChanged())
+                    applyGain(*g);
+                frameOut->push(std::move(*maybeFrame));
+                frameCount++;
+            }
+            LOG_INFO(mod.log, "Processed {} frames", frameCount);
+            return {}; // or: return std::unexpected("What went wrong"), which raises a module error
+        }
+    };
+
+    void stop() override
+    {
+        if (auto worker = takeWorker<Worker>())
+            setRunStatistic("frames", worker->frameCount);
+        AbstractModule::stop();
+    }
+};
+```
+- A worker with a `run()` function gets a dedicated thread (`THREAD_DEDICATED`). A worker for the event-based
+  drivers has a `void setup(WorkerEvents &ev)` function instead, in which it registers callbacks with
+  `ev.onData(subscription, [this] { ... })` and `ev.every(interval, [this](int &intervalMsec) { ... })`.
+  For something that has to happen once, some time after an event, `ev.timer([this] { ... })` returns a
+  `WorkerTimer` that the worker keeps as a field and starts with `timer.start(delay)` when it needs it.
+- For values that change during a run, use `LiveValue<T>` (set by the GUI, picked up by the worker with
+  `takeIfChanged()`), `Guarded<T>` (data behind a mutex) or atomics behind a `std::shared_ptr`. To have something
+  done in the main thread, hand the worker a `MainCallback` created with `mainCallback()`.
+- If the worker needs something that is only known when the run starts (e.g. a dataset named after stream
+  metadata), call `modifyWorker<Worker>([&](Worker &w) { ... })` in `start()`. The worker is waiting for the
+  start signal at that point, so it can be changed safely. This is not possible at any other time.
+- `stop()` is only called once the worker has finished. Use `takeWorker<Worker>()` there to read back results,
+  like counters for `setRunStatistic()` or files that need to be closed.
+- `hasActiveWorker()` is true from `setWorker()` until the worker was taken or `stop()` has returned.
 
 ---
 
@@ -318,13 +394,14 @@ Key points:
 ### Module Lifecycle Summary
 
 ```
-initialize()        ← module added to board; start persistent worker if needed
-  prepare()         ← run is about to begin; validate connections, allocate resources
-    start()         ← acquisition begins
-    runThread()     ← runs in dedicated thread; check m_running for clean exit
-    stop()          ← run ended (normal or error); always called
+initialize()        ← module added to board; (start persistent MLink process if needed)
+  prepare()         ← run is about to begin; validate connections, allocate resources, setWorker()
+    start()         ← acquisition begins; the worker is released right after
+      worker        ← run() in a dedicated thread, or event callbacks; checks running() for clean exit
+    preStop()       ← run is ending, the worker is still running
+    stop()          ← run ended (normal or error) and the worker has finished; always called
   prepare() ...     ← next run
-~destructor         ← module removed from board; terminate worker
+~destructor         ← module removed from board; (terminate MLink process if needed)
 ```
 
 ### Ports and Streams
@@ -355,7 +432,7 @@ Check `VarStreamInputPort::isDormant()` in a module's `prepare()` to react to up
 ### Data Flow
 
 1. The engine calls `prepare()` on all modules (allocate resources, validate connections).
-2. On `start()`, each module's `runThread()` executes in its own thread.
+2. On `start()`, the workers of all modules are released together and run in their threads.
 3. Data flows through typed, buffered stream connections between ports.
 4. Timestamp sync is maintained via a global `SyncTimer`; modules receive a `SynchronizerStrategy` to
    handle hardware or software sync.
@@ -422,7 +499,7 @@ into the in-process stream graph so that the library destination module can read
 
 1. `MLinkModule::registerOutPortForwarders()` (`src/fabric/mlinkmodule.cpp`) creates an IOX
    **subscriber** on the source worker's output service, attached to the master's IOX node.
-2. The master's `runThread()` waits on a `WaitSet`; when data arrives it calls
+2. The master's worker thread (`MLinkRunWorker`) waits on a `WaitSet`; when data arrives it calls
    `ps.oport->streamVar()->pushRawData(...)` to push the bytes into the in-process `DataStream`.
 3. Library destination modules read that stream normally via their `StreamSubscription`.
 
@@ -460,8 +537,9 @@ This is a combination of Cases 3 and 4:
 - New functions should prefer C++23's std::expected for error handling over throwing exceptions / bool returns + error state variables.
 - Never fail silently - modules must surface errors via `raiseError()`, no silent returns.
 - Modules must not block each other; long-running work goes in the module's own thread.
-- `runThread()` must periodically check `m_running` (or `waitCondition`) to allow clean shutdown.
-- `runThread()` is not a `QThread` - never use GUI from it or assume signals/slots work. Use `std::mutex` and atomic operations if needed.
+- A worker's `run()` must call `waitForStart()` once it is set up, and periodically check `running()` to allow clean shutdown.
+- A worker does not run in a `QThread` - never use GUI from it or assume signals/slots work. Everything it shares with the
+  main thread must be one of the thread-safe handle types (`LiveValue`, `Guarded`, `MainCallback`) or an atomic.
 - Settings are serialized as structured `QVariantHash` and/or `QByteArray` for library modules via `serializeSettings` / `loadSettings`.
   Out-of-process modules (executable and Python) serialize to an opaque `ByteVector` blob. The master side
   requests serialization and deserialization from the worker via the `SaveSettings` / `LoadSettings` IPC RPC
