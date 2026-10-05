@@ -113,44 +113,15 @@ private:
 };
 
 /**
- * @brief A mutex-protected value shared between the main thread and a worker.
+ * @brief A mutex-protected value that is handed over between the main thread and a worker.
  *
- * This is a handle: copies share the same value. The value can only be reached
- * while holding its mutex, either via the accessor returned by lock() or
- * via the get() / set() / take() convenience functions.
+ * This is a handle: copies share the same value. One side deposits a value
+ * with set(), the other one moves it out with take().
  */
 template<typename T>
 class Guarded
 {
 public:
-    /**
-     * @brief Exclusive access to the guarded value, for as long as this object lives.
-     */
-    class Access
-    {
-    public:
-        T *operator->()
-        {
-            return m_value;
-        }
-
-        T &operator*()
-        {
-            return *m_value;
-        }
-
-    private:
-        friend class Guarded<T>;
-        Access(std::mutex &mutex, T *value)
-            : m_lock(mutex),
-              m_value(value)
-        {
-        }
-
-        std::unique_lock<std::mutex> m_lock;
-        T *m_value;
-    };
-
     Guarded()
         : d(std::make_shared<Data>())
     {
@@ -160,24 +131,6 @@ public:
         : d(std::make_shared<Data>())
     {
         d->value = std::move(initialValue);
-    }
-
-    /**
-     * @brief Lock the value and access it for as long as the returned object lives.
-     */
-    [[nodiscard]] Access lock()
-    {
-        return Access(d->mutex, &d->value);
-    }
-
-    /**
-     * @brief Get a copy of the current value.
-     */
-    [[nodiscard]] T get() const
-        requires std::copy_constructible<T>
-    {
-        const std::lock_guard<std::mutex> lock(d->mutex);
-        return d->value;
     }
 
     void set(T value)
@@ -197,7 +150,7 @@ public:
 
 private:
     struct Data {
-        mutable std::mutex mutex;
+        std::mutex mutex;
         T value{};
     };
     std::shared_ptr<Data> d;

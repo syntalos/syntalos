@@ -208,16 +208,10 @@ private slots:
         Guarded<std::vector<int>> queue;
         auto other = queue;
 
-        {
-            auto access = queue.lock();
-            access->push_back(1);
-            (*access).push_back(2);
-        }
-        QCOMPARE(other.get().size(), size_t(2));
-
+        queue.set({1, 2});
         const auto taken = other.take();
         QCOMPARE(taken.size(), size_t(2));
-        QVERIFY(queue.get().empty());
+        QVERIFY(queue.take().empty());
 
         // move-only values can be handed over as well
         Guarded<std::unique_ptr<int>> slot;

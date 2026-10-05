@@ -281,8 +281,9 @@ class MyModule : public AbstractModule
   For something that has to happen once, some time after an event, `ev.timer([this] { ... })` returns a
   `WorkerTimer` that the worker keeps as a field and starts with `timer.start(delay)` when it needs it.
 - For values that change during a run, use `LiveValue<T>` (set by the GUI, picked up by the worker with
-  `takeIfChanged()`), `Guarded<T>` (data behind a mutex) or atomics behind a `std::shared_ptr`. To have something
-  done in the main thread, hand the worker a `MainCallback` created with `mainCallback()`.
+  `takeIfChanged()`), `Guarded<T>` (a value handed over with `set()` and `take()`) or atomics behind a
+  `std::shared_ptr`. To have something done in the main thread, hand the worker a `MainCallback` created with
+  `mainCallback()`.
 - If the worker needs something that is only known when the run starts (e.g. a dataset named after stream
   metadata), call `modifyWorker<Worker>([&](Worker &w) { ... })` in `start()`. The worker is waiting for the
   start signal at that point, so it can be changed safely. This is not possible at any other time.
