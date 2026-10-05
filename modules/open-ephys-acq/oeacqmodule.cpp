@@ -186,7 +186,7 @@ public:
         });
 
         connect(m_settingsDlg, &OeAcqSettingsDialog::measureImpedancesRequested, this, [this]() {
-            if (!m_board || m_running)
+            if (!m_board || hasWorker())
                 return;
             OeAcqImpedanceDialog dlg(m_board.get(), m_settingsDlg);
             dlg.exec();
@@ -651,7 +651,7 @@ private:
      */
     bool setupBackend()
     {
-        if (m_running) {
+        if (hasWorker()) {
             // Should not be reachable — settings dialog disables these
             // controls during a run — but defend anyway.
             LOG_WARNING(m_log, "Refusing to switch backend while a run is active.");
