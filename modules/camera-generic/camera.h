@@ -76,6 +76,8 @@ public:
     double framerate() const;
     void setFramerate(double fps);
 
+    // The following controls may be set from any thread while frames are being
+    // recorded, the new value is applied to the camera before the next frame.
     double exposure() const;
     void setExposure(double value);
 
@@ -115,6 +117,7 @@ private:
     std::unique_ptr<CameraData> d;
 
     void fail(const QString &msg);
+    void applyControls();
     std::expected<double, QString> setCameraProperty(
         int propertyId,
         double value,

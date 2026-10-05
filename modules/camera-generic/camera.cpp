@@ -21,6 +21,7 @@
 
 #include <algorithm>
 #include <array>
+#include <atomic>
 #include <QFileInfo>
 #include <cmath>
 #include <fcntl.h>
@@ -98,14 +99,15 @@ public:
     bool connected;
     bool failed;
 
-    double exposure{};
-    double brightness{};
-    double contrast{};
-
-    double saturation{};
-    double hue{};
-
-    double gain{};
+    // Controls that may be changed while frames are being recorded. The setters only store
+    // the new value, and the thread that records frames applies it before the next frame.
+    std::atomic<double> exposure{};
+    std::atomic<double> brightness{};
+    std::atomic<double> contrast{};
+    std::atomic<double> saturation{};
+    std::atomic<double> hue{};
+    std::atomic<double> gain{};
+    std::atomic_bool controlsChanged{false};
 
     int autoExposureRaw{};
 
@@ -264,7 +266,7 @@ void Camera::setExposure(double value)
         value = 2047;
 
     d->exposure = value;
-    (void)setCameraProperty(cv::CAP_PROP_EXPOSURE, value, false);
+    d->controlsChanged = true;
 }
 
 double Camera::brightness() const
@@ -280,7 +282,7 @@ void Camera::setBrightness(double value)
         value = -100;
 
     d->brightness = value;
-    (void)setCameraProperty(cv::CAP_PROP_BRIGHTNESS, value, false);
+    d->controlsChanged = true;
 }
 
 double Camera::contrast() const
@@ -296,7 +298,7 @@ void Camera::setContrast(double value)
         value = 255;
 
     d->contrast = value;
-    (void)setCameraProperty(cv::CAP_PROP_CONTRAST, value, false);
+    d->controlsChanged = true;
 }
 
 double Camera::saturation() const
@@ -310,7 +312,7 @@ void Camera::setSaturation(double value)
         value = 255;
 
     d->saturation = value;
-    (void)setCameraProperty(cv::CAP_PROP_SATURATION, value, false);
+    d->controlsChanged = true;
 }
 
 double Camera::hue() const
@@ -326,7 +328,7 @@ void Camera::setHue(double value)
         value = -100;
 
     d->hue = value;
-    (void)setCameraProperty(cv::CAP_PROP_HUE, value, false);
+    d->controlsChanged = true;
 }
 
 double Camera::gain() const
@@ -340,7 +342,18 @@ void Camera::setGain(double value)
         value = 255;
 
     d->gain = value;
-    (void)setCameraProperty(cv::CAP_PROP_GAIN, value, false);
+    d->controlsChanged = true;
+}
+
+void Camera::applyControls()
+{
+    d->controlsChanged = false;
+    (void)setCameraProperty(cv::CAP_PROP_EXPOSURE, d->exposure, false);
+    (void)setCameraProperty(cv::CAP_PROP_BRIGHTNESS, d->brightness, false);
+    (void)setCameraProperty(cv::CAP_PROP_CONTRAST, d->contrast, false);
+    (void)setCameraProperty(cv::CAP_PROP_SATURATION, d->saturation, false);
+    (void)setCameraProperty(cv::CAP_PROP_HUE, d->hue, false);
+    (void)setCameraProperty(cv::CAP_PROP_GAIN, d->gain, false);
 }
 
 int Camera::autoExposureRaw() const
@@ -395,12 +408,7 @@ bool Camera::connect()
     setPixelFormat(d->captureFormat);
     setFramerate(d->fps);
     setAutoExposureRaw(d->autoExposureRaw);
-    setExposure(d->exposure);
-    setBrightness(d->brightness);
-    setContrast(d->contrast);
-    setSaturation(d->saturation);
-    setHue(d->hue);
-    setGain(d->gain);
+    applyControls();
 
     setResolution(d->frameSize);
 
@@ -512,6 +520,10 @@ void Camera::setPixelFormat(const CameraPixelFormat &pixFmt)
 
 bool Camera::recordFrame(Frame &frame, SecondaryClockSynchronizer *clockSync)
 {
+    // apply changes the user has made to the camera controls since the last frame
+    if (d->controlsChanged)
+        applyControls();
+
     bool status = false;
     auto frameRecvTime = FUNC_DONE_TIMESTAMP(d->startTime, status = d->cam->grab());
 

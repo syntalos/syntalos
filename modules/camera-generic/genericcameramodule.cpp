@@ -145,7 +145,6 @@ public:
             Worker{
                 .camera = m_camera,
                 .fps = m_fps,
-                .liveControls = m_camSettingsWindow->liveControls(),
                 .outStream = m_outStream,
                 .clockSync = std::move(clockSync),
             });
@@ -170,7 +169,6 @@ public:
         WorkerContext mod{};
         Camera *camera;
         double fps;
-        CameraLiveControls liveControls;
         std::shared_ptr<DataStream<Frame>> outStream;
         std::unique_ptr<SecondaryClockSynchronizer> clockSync;
 
@@ -188,9 +186,6 @@ public:
             uint windowFrameCount = 0;
 
             while (mod.running()) {
-                // apply changes the user has made to the camera controls since the last frame
-                liveControls.applyChanges(camera);
-
                 Frame frame;
                 if (!camera->recordFrame(frame, clockSync.get())) {
                     frameRecordFailedCount++;
