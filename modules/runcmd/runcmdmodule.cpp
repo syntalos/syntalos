@@ -189,7 +189,10 @@ public:
 
         // we are not running anymore - check for errors
         bool failed = false;
-        if (m_proc->exitStatus() == QProcess::CrashExit) {
+        if (m_proc->error() == QProcess::FailedToStart) {
+            raiseError(QStringLiteral("Unable to start %1: %2").arg(m_proc->program(), m_proc->errorString()));
+            failed = true;
+        } else if (m_proc->exitStatus() == QProcess::CrashExit) {
             raiseError(QStringLiteral("The process %1 crashed: %2").arg(m_proc->program()).arg(m_proc->errorString()));
             failed = true;
         } else {
