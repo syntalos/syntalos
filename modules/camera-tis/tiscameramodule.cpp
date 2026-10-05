@@ -150,7 +150,6 @@ public:
 
     bool prepare(const RunInfo &) override
     {
-        m_deviceLost->store(false);
         m_device = m_ctlDialog->selectedDevice();
         if (m_device.serial().empty()) {
             raiseError("Unable to continue: No valid camera was selected!");
@@ -423,7 +422,7 @@ public:
         }
 
         // the pipeline of a device that has disappeared is of no use anymore
-        if (m_deviceLost->load())
+        if (m_deviceLost->exchange(false))
             m_ctlDialog->closePipeline();
 
         // we are not running anymore, so new device selections are possible again
@@ -432,11 +431,11 @@ public:
 
     void onDeviceLost(const QString &message)
     {
-        m_deviceLost->store(true);
-
         // If a run is active, our thread may be using the pipeline right now: Raising the error
         // ends the run, and the pipeline is closed in stop(), once the thread is gone.
-        if (!hasWorker())
+        if (hasWorker())
+            m_deviceLost->store(true);
+        else
             m_ctlDialog->closePipeline();
         raiseError(message);
     }
