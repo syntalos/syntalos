@@ -655,14 +655,20 @@ ModuleState AbstractModule::state() const
 
 void AbstractModule::setStateDormant()
 {
-    if (d->state != ModuleState::RUNNING && d->state != ModuleState::INITIALIZING)
-        setState(ModuleState::DORMANT);
+    // this may be called by any thread, so the state must not change between check and update
+    auto expected = d->state.load();
+    do {
+        if (expected == ModuleState::RUNNING || expected == ModuleState::INITIALIZING)
+            return;
+    } while (!d->state.compare_exchange_weak(expected, ModuleState::DORMANT));
+    Q_EMIT stateChanged(ModuleState::DORMANT);
 }
 
 void AbstractModule::setStateReady()
 {
-    if (d->state == ModuleState::PREPARING)
-        setState(ModuleState::READY);
+    auto expected = ModuleState::PREPARING;
+    if (d->state.compare_exchange_strong(expected, ModuleState::READY))
+        Q_EMIT stateChanged(ModuleState::READY);
 }
 
 QString AbstractModule::id() const
@@ -1372,13 +1378,14 @@ void AbstractModule::setState(ModuleState state)
 
 void AbstractModule::raiseError(const QString &message)
 {
-    // if there is multiple errors emitted, likely caused by the first one, we only bubble up the first one
-    if (d->state == ModuleState::ERROR) {
+    // If there is multiple errors emitted, likely caused by the first one, we only bubble up the first one.
+    // Errors may be raised by multiple threads at once, so only the one that switches the state wins.
+    if (d->state.exchange(ModuleState::ERROR) == ModuleState::ERROR) {
         LOG_ERROR(m_log, "Not escalating subsequent error from '{}': {}", name(), message);
         return;
     }
 
-    setState(ModuleState::ERROR);
+    Q_EMIT stateChanged(ModuleState::ERROR);
     LOG_ERROR(m_log, "Error raised by '{}': {}", name(), message);
     Q_EMIT error(message);
 }
