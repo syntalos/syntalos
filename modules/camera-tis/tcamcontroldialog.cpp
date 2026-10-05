@@ -440,11 +440,13 @@ void TcamControlDialog::openPipeline(FormatHandling handling)
         delete m_tcamCollection;
     m_tcamCollection = new TcamCollection(GST_BIN(m_pipeline));
 
+    // we own the reference on the sink, and may have one from an earlier call for this pipeline
+    gst_clear_object(&m_videoSink);
     m_videoSink = GST_APP_SINK(gst_bin_get_by_name(GST_BIN(m_pipeline), "sink"));
-    g_object_set(m_videoSink, "max-buffers", 4, "drop", true, nullptr);
-    if (!m_videoSink) {
+    if (m_videoSink)
+        g_object_set(m_videoSink, "max-buffers", 4, "drop", true, nullptr);
+    else
         qErrnoWarning("Unable to find sink element. Potentially unable to stream...");
-    }
 }
 
 void TcamControlDialog::closePipeline()
@@ -456,7 +458,9 @@ void TcamControlDialog::closePipeline()
 
         m_device_caps.clear();
 
-        m_source = nullptr;
+        // the elements we looked up in the pipeline are references of our own
+        gst_clear_object(&m_source);
+        gst_clear_object(&m_videoSink);
     }
 }
 
