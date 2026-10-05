@@ -110,6 +110,9 @@ module_cpp_args = [
     '-Wno-error=unused-but-set-variable',
     '-Wno-unused-but-set-variable',
 
+    # FIXME: Temporarily allow use of deprecated APIs
+    '-Wno-error=deprecated-declarations',
+
     # Pristine Intan code has switch-on-enum patterns where GCC cannot prove
     # all cases initialize a local; treat as warning instead of error.
     '-Wno-error=maybe-uninitialized',
