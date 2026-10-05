@@ -21,12 +21,48 @@
 #define GENERICCAMERASETTINGSDIALOG_H
 
 #include "camera.h"
+#include "moduleworker.h"
 #include <QDialog>
 
 namespace Ui
 {
 class GenericCameraSettingsDialog;
 }
+
+/**
+ * @brief Camera controls which can be adjusted while a run is active.
+ *
+ * During a run, the capture device is used by the thread that records the frames and
+ * must not be touched by anything else. The settings dialog therefore only sets the
+ * new values here, and the recording thread applies them to the camera between two frames.
+ */
+struct CameraLiveControls {
+    LiveValue<double> exposure;
+    LiveValue<double> brightness;
+    LiveValue<double> contrast;
+    LiveValue<double> saturation;
+    LiveValue<double> hue;
+    LiveValue<double> gain;
+
+    /**
+     * @brief Apply all values that have been changed since the last call to the camera.
+     */
+    void applyChanges(Camera *camera)
+    {
+        if (const auto value = exposure.takeIfChanged())
+            camera->setExposure(*value);
+        if (const auto value = brightness.takeIfChanged())
+            camera->setBrightness(*value);
+        if (const auto value = contrast.takeIfChanged())
+            camera->setContrast(*value);
+        if (const auto value = saturation.takeIfChanged())
+            camera->setSaturation(*value);
+        if (const auto value = hue.takeIfChanged())
+            camera->setHue(*value);
+        if (const auto value = gain.takeIfChanged())
+            camera->setGain(*value);
+    }
+};
 
 class GenericCameraSettingsDialog : public QDialog
 {
@@ -48,6 +84,7 @@ public:
     void setPixelFormatName(const QString &pixFmtName);
 
     void setRunning(bool running);
+    CameraLiveControls liveControls() const;
 
     void updateValues();
 
@@ -84,6 +121,9 @@ private:
     Camera *m_camera;
     QString m_pixFmtName;
     bool m_useResolutionList;
+
+    bool m_running;
+    CameraLiveControls m_liveControls;
 };
 
 #endif // GENERICCAMERASETTINGSDIALOG_H

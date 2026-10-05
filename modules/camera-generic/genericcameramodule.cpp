@@ -25,7 +25,6 @@
 #include "genericcamerasettingsdialog.h"
 
 #include <cmath>
-#include <thread>
 
 SYNTALOS_MODULE(GenericCameraModule)
 
@@ -36,18 +35,14 @@ private:
     Camera *m_camera;
     GenericCameraSettingsDialog *m_camSettingsWindow;
 
-    std::atomic_bool m_stopped;
     double m_fps;
     std::shared_ptr<DataStream<Frame>> m_outStream;
-
-    std::unique_ptr<SecondaryClockSynchronizer> m_clockSync;
 
 public:
     explicit GenericCameraModule(QObject *parent = nullptr)
         : AbstractModule(parent),
           m_camera(new Camera(m_log)),
-          m_camSettingsWindow(nullptr),
-          m_stopped(true)
+          m_camSettingsWindow(nullptr)
     {
         m_outStream = registerOutputPort<Frame>(QStringLiteral("video"), QStringLiteral("Video"));
 
@@ -137,14 +132,23 @@ public:
         m_outStream->start();
 
         // set up clock synchronizer
-        m_clockSync = initClockSynchronizer(m_fps);
-        m_clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD);
+        auto clockSync = initClockSynchronizer(m_fps);
+        clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD);
 
         // start the synchronizer
-        if (!m_clockSync->start()) {
+        if (!clockSync->start()) {
             raiseError(QStringLiteral("Unable to set up clock synchronizer!"));
             return false;
         }
+
+        setWorker(
+            Worker{
+                .camera = m_camera,
+                .fps = m_fps,
+                .liveControls = m_camSettingsWindow->liveControls(),
+                .outStream = m_outStream,
+                .clockSync = std::move(clockSync),
+            });
 
         statusMessage("Waiting.");
 
@@ -153,78 +157,91 @@ public:
 
     void start() override
     {
-        m_camera->setStartTime(m_syTimer->startTime());
         statusMessage("Acquiring frames...");
 
         AbstractModule::start();
     }
 
-    void runThread(OptionalWaitCondition *waitCondition) override
-    {
-        auto fpsLow = false;
-        auto frameRecordFailedCount = 0;
-        m_stopped = false;
+    /**
+     * Records frames from the camera in the module's thread.
+     * While it is running, the capture device must only be touched by this thread.
+     */
+    struct Worker {
+        WorkerContext mod{};
+        Camera *camera;
+        double fps;
+        CameraLiveControls liveControls;
+        std::shared_ptr<DataStream<Frame>> outStream;
+        std::unique_ptr<SecondaryClockSynchronizer> clockSync;
 
-        // wait until we actually start acquiring data
-        waitCondition->wait(this);
+        std::expected<void, QString> run()
+        {
+            auto fpsLow = false;
+            auto frameRecordFailedCount = 0;
 
-        // the framerate is measured over a sliding window
-        auto windowStartTime = currentTimePoint();
-        uint windowFrameCount = 0;
+            // wait until we actually start acquiring data
+            mod.waitForStart();
+            camera->setStartTime(mod.timer->startTime());
 
-        while (m_running) {
-            Frame frame;
-            if (!m_camera->recordFrame(frame, m_clockSync.get())) {
-                frameRecordFailedCount++;
-                if (frameRecordFailedCount > 32) {
-                    m_running = false;
-                    raiseError(QStringLiteral(
-                        "Too many attempts to record frames from this camera have failed. Is the camera "
-                        "connected properly?"));
+            // the framerate is measured over a sliding window
+            auto windowStartTime = currentTimePoint();
+            uint windowFrameCount = 0;
+
+            while (mod.running()) {
+                // apply changes the user has made to the camera controls since the last frame
+                liveControls.applyChanges(camera);
+
+                Frame frame;
+                if (!camera->recordFrame(frame, clockSync.get())) {
+                    frameRecordFailedCount++;
+                    if (frameRecordFailedCount > 32)
+                        return std::unexpected(QStringLiteral(
+                            "Too many attempts to record frames from this camera have failed. Is the camera "
+                            "connected properly?"));
+                    continue;
                 }
-                continue;
-            }
-            // the failure threshold targets consecutive failures, so reset after a good frame
-            frameRecordFailedCount = 0;
+                // the failure threshold targets consecutive failures, so reset after a good frame
+                frameRecordFailedCount = 0;
 
-            // emit this frame on our output port
-            m_outStream->push(frame);
+                // emit this frame on our output port
+                outStream->push(frame);
 
-            // evaluate the average framerate roughly every two seconds
-            windowFrameCount++;
-            const auto windowMsec = timeDiffToNowMsec(windowStartTime).count();
-            if (windowMsec >= 2000) {
-                const auto currentFps = (windowFrameCount * 1000.0) / static_cast<double>(windowMsec);
-                windowStartTime = currentTimePoint();
-                windowFrameCount = 0;
+                // evaluate the average framerate roughly every two seconds
+                windowFrameCount++;
+                const auto windowMsec = timeDiffToNowMsec(windowStartTime).count();
+                if (windowMsec >= 2000) {
+                    const auto currentFps = (windowFrameCount * 1000.0) / static_cast<double>(windowMsec);
+                    windowStartTime = currentTimePoint();
+                    windowFrameCount = 0;
 
-                // warn only if the sustained average framerate is too low
-                if (currentFps < (m_fps * 0.9)) {
-                    fpsLow = true;
-                    setStatusMessage(
-                        QStringLiteral("<html><font color=\"red\"><b>Framerate (%1 fps) is too low!</b></font>")
-                            .arg(currentFps, 0, 'f', 1));
-                } else if (fpsLow) {
-                    fpsLow = false;
-                    statusMessage("Acquiring frames...");
+                    // warn only if the sustained average framerate is too low
+                    if (currentFps < (fps * 0.9)) {
+                        fpsLow = true;
+                        mod.setStatusMessage(
+                            QStringLiteral("<html><font color=\"red\"><b>Framerate (%1 fps) is too low!</b></font>")
+                                .arg(currentFps, 0, 'f', 1));
+                    } else if (fpsLow) {
+                        fpsLow = false;
+                        mod.setStatusMessage("Acquiring frames...");
+                    }
                 }
             }
+
+            return {};
         }
-
-        m_stopped = true;
-    }
+    };
 
     void stop() override
     {
         statusMessage("Cleaning up...");
         AbstractModule::stop();
 
-        while (!m_stopped)
-            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        // our thread has finished at this point, so the camera is ours again
+        if (auto worker = takeWorker<Worker>())
+            safeStopSynchronizer(worker->clockSync);
 
         m_camera->disconnect();
         m_camSettingsWindow->setRunning(false);
-        safeStopSynchronizer(m_clockSync);
         statusMessage("Camera disconnected.");
     }
 
@@ -274,7 +291,8 @@ public:
 
     void usbHotplugEvent(UsbHotplugEventKind) override
     {
-        if (!m_stopped)
+        // the camera is in use by a run, so we must not query or reconfigure it
+        if (hasActiveWorker())
             return;
         m_camSettingsWindow->updateValues();
     }

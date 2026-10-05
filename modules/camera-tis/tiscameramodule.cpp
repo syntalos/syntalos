@@ -31,6 +31,19 @@
 
 SYNTALOS_MODULE(TISCameraModule)
 
+/**
+ * Releases a reference on a GStreamer object.
+ */
+struct GstObjectUnref {
+    void operator()(gpointer object) const
+    {
+        gst_object_unref(object);
+    }
+};
+
+template<typename T>
+using GstObjectRef = std::unique_ptr<T, GstObjectUnref>;
+
 class TISCameraModule : public AbstractModule
 {
     Q_OBJECT
@@ -41,18 +54,17 @@ private:
     TcamControlDialog *m_ctlDialog;
 
     Device m_device;
-    GstElement *m_pipeline = nullptr;
-    GstAppSink *m_appSink = nullptr;
     cv::Size m_resolution;
 
     double m_fps;
     QString m_imgFormat;
-    std::atomic_bool m_deviceLost;
+    std::shared_ptr<std::atomic_bool> m_deviceLost;
 
 public:
     explicit TISCameraModule(QObject *parent = nullptr)
         : AbstractModule(parent),
-          m_capConfig(std::make_shared<TcamCaptureConfig>())
+          m_capConfig(std::make_shared<TcamCaptureConfig>()),
+          m_deviceLost(std::make_shared<std::atomic_bool>(false))
     {
         m_outStream = registerOutputPort<Frame>(QStringLiteral("video"), QStringLiteral("Video"));
 
@@ -138,7 +150,7 @@ public:
 
     bool prepare(const RunInfo &) override
     {
-        m_deviceLost = false;
+        m_deviceLost->store(false);
         m_device = m_ctlDialog->selectedDevice();
         if (m_device.serial().empty()) {
             raiseError("Unable to continue: No valid camera was selected!");
@@ -170,193 +182,240 @@ public:
 
         // start the stream
         m_outStream->start();
-        m_pipeline = m_ctlDialog->pipeline();
-        m_appSink = m_ctlDialog->videoSink();
 
-        statusMessage("Waiting.");
-        return true;
-    }
-
-    void runThread(OptionalWaitCondition *waitCondition) override
-    {
         // set up clock synchronizer
-        const auto clockSync = initClockSynchronizer(m_fps);
+        auto clockSync = initClockSynchronizer(m_fps);
         clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD);
 
         // start the synchronizer
         if (!clockSync->start()) {
             raiseError(QStringLiteral("Unable to set up clock synchronizer!"));
-            return;
+            return false;
         }
 
-        setCameraNameStatus();
+        // The worker gets references of its own on the pipeline and its sink, so they stay
+        // valid for it no matter what happens to the dialog's pipeline during the run.
+        setWorker(
+            Worker{
+                .pipeline = GstObjectRef<GstElement>(GST_ELEMENT(gst_object_ref(m_ctlDialog->pipeline()))),
+                .appSink = GstObjectRef<GstAppSink>(GST_APP_SINK(gst_object_ref(m_ctlDialog->videoSink()))),
+                .resolution = m_resolution,
+                .fps = m_fps,
+                .deviceName = m_device.str(),
+                .deviceLost = m_deviceLost,
+                .showCameraName = mainCallback([this]() {
+                    setCameraNameStatus();
+                }),
+                .outStream = m_outStream,
+                .clockSync = std::move(clockSync),
+            });
 
-        // We can carry one second of data or 15 frames in the queue
-        // Timestamps are read and calculated backwards from the buffer statistics.
-        gst_app_sink_set_max_buffers(m_appSink, m_fps > 15 ? static_cast<uint>(std::ceil(m_fps)) + 1 : 15);
+        statusMessage("Waiting.");
+        return true;
+    }
 
-        GstClockTime sampleTimeout = std::lround((GST_SECOND / m_fps) * 3);
-        if (sampleTimeout < GST_SECOND)
-            sampleTimeout = GST_SECOND;
+    /**
+     * Pulls frames from the GStreamer pipeline in the module's thread.
+     *
+     * The pipeline belongs to the control dialog, so the worker holds references of its own
+     * on everything it uses, to keep the objects alive for as long as it exists.
+     */
+    struct Worker {
+        WorkerContext mod{};
+        GstObjectRef<GstElement> pipeline;
+        GstObjectRef<GstAppSink> appSink;
+        cv::Size resolution;
+        double fps;
+        std::string deviceName;
+        std::shared_ptr<std::atomic_bool> deviceLost;
+        MainCallback<> showCameraName;
+        std::shared_ptr<DataStream<Frame>> outStream;
+        std::unique_ptr<SecondaryClockSynchronizer> clockSync;
 
-        // wait until we actually start acquiring data
-        waitCondition->wait(this);
+        void run()
+        {
+            showCameraName();
 
-        if (gst_element_set_state(m_pipeline, GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
-            raiseError(QStringLiteral("Failed to start image acquisition pipeline."));
-            return;
-        }
+            // We can carry one second of data or 15 frames in the queue
+            // Timestamps are read and calculated backwards from the buffer statistics.
+            gst_app_sink_set_max_buffers(appSink.get(), fps > 15 ? static_cast<uint>(std::ceil(fps)) + 1 : 15);
 
-        uint framesDropped = 0;
-        nanoseconds_t sysOffsetToMaster{0};
-        guint64 devOffsetToSysNs = 0;
-        uint64_t validFrameCount = 0;
-        while (m_running) {
-            g_autoptr(GstSample) sample = nullptr;
+            GstClockTime sampleTimeout = std::lround((GST_SECOND / fps) * 3);
+            if (sampleTimeout < GST_SECOND)
+                sampleTimeout = GST_SECOND;
 
-            sample = gst_app_sink_try_pull_sample(m_appSink, sampleTimeout);
-            const auto frameFetchTimeNs = m_syTimer->timeSinceStartNsec();
+            // wait until we actually start acquiring data
+            mod.waitForStart();
 
-            if (sample == nullptr) {
-                // check if the input stream has ended
-                if (gst_app_sink_is_eos(m_appSink)) {
-                    if (m_running && !m_deviceLost)
-                        raiseError(QStringLiteral("Video stream has ended prematurely!"));
-                    break;
-                }
+            if (gst_element_set_state(pipeline.get(), GST_STATE_PLAYING) == GST_STATE_CHANGE_FAILURE) {
+                mod.raiseError(QStringLiteral("Failed to start image acquisition pipeline."));
+                return;
+            }
 
-                // we may have timed out, log the invalid samples and quite if this happens too often
-                if (m_running) {
-                    framesDropped++;
+            uint framesDropped = 0;
+            nanoseconds_t sysOffsetToMaster{0};
+            guint64 devOffsetToSysNs = 0;
+            uint64_t validFrameCount = 0;
+            while (mod.running()) {
+                g_autoptr(GstSample) sample = nullptr;
 
-                    LOG_WARNING(m_log, "Received invalid sample or timed out waiting for data (x{})", framesDropped);
-                    if (framesDropped > 10 && framesDropped > (m_fps / 2.0)) {
-                        // we already set a timeout of 3x the length it would take for the frame to be acquired, so
-                        // any threshold value here is already "3x worse"
-                        raiseError(QStringLiteral(
-                            "Too many frames have been missed! Please check the connection to the camera, "
-                            "and confirm it can output at the requested framerate."));
+                sample = gst_app_sink_try_pull_sample(appSink.get(), sampleTimeout);
+                const auto frameFetchTimeNs = mod.timer->timeSinceStartNsec();
+
+                if (sample == nullptr) {
+                    // the device is gone and the error was raised already, there is nothing left to do for us
+                    if (deviceLost->load())
+                        break;
+
+                    // check if the input stream has ended
+                    if (gst_app_sink_is_eos(appSink.get())) {
+                        if (mod.running() && !deviceLost->load())
+                            mod.raiseError(QStringLiteral("Video stream has ended prematurely!"));
                         break;
                     }
+
+                    // we may have timed out, log the invalid samples and quite if this happens too often
+                    if (mod.running()) {
+                        framesDropped++;
+
+                        LOG_WARNING(
+                            mod.log,
+                            "Received invalid sample or timed out waiting for data (x{})",
+                            framesDropped);
+                        if (framesDropped > 10 && framesDropped > (fps / 2.0)) {
+                            // we already set a timeout of 3x the length it would take for the frame to be acquired, so
+                            // any threshold value here is already "3x worse"
+                            mod.raiseError(QStringLiteral(
+                                "Too many frames have been missed! Please check the connection to the camera, "
+                                "and confirm it can output at the requested framerate."));
+                            break;
+                        }
+                    }
+
+                    continue;
                 }
 
-                continue;
-            }
+                const auto buffer = gst_sample_get_buffer(sample);
+                GstMapInfo info;
 
-            const auto buffer = gst_sample_get_buffer(sample);
-            GstMapInfo info;
+                gst_buffer_map(buffer, &info, GST_MAP_READ);
+                if (info.data == nullptr) {
+                    LOG_WARNING(mod.log, "Received buffer with no data!");
+                    gst_buffer_unmap(buffer, &info);
+                    continue;
+                }
 
-            gst_buffer_map(buffer, &info, GST_MAP_READ);
-            if (info.data == nullptr) {
-                LOG_WARNING(m_log, "Received buffer with no data!");
-                gst_buffer_unmap(buffer, &info);
-                continue;
-            }
+                // fetch buffer statistics for timestamp information
+                auto meta = gst_buffer_get_meta(buffer, g_type_from_name("TcamStatisticsMetaApi"));
+                if (G_UNLIKELY(meta == nullptr)) {
+                    gst_buffer_unmap(buffer, &info);
+                    mod.raiseError("No buffer metadata received from this camera - is it an Imaging Source camera?");
+                    break;
+                }
+                auto metaStruct = ((TcamStatisticsMeta *)meta)->structure;
 
-            // fetch buffer statistics for timestamp information
-            auto meta = gst_buffer_get_meta(buffer, g_type_from_name("TcamStatisticsMetaApi"));
-            if (G_UNLIKELY(meta == nullptr)) {
-                gst_buffer_unmap(buffer, &info);
-                raiseError("No buffer metadata received from this camera - is it an Imaging Source camera?");
-                break;
-            }
-            auto metaStruct = ((TcamStatisticsMeta *)meta)->structure;
+                guint64 captureTimeNs;
+                guint64 cameraTimeNs;
+                if (G_UNLIKELY(!gst_structure_get_uint64(metaStruct, "capture_time_ns", &captureTimeNs))) {
+                    if (validFrameCount == 0) {
+                        // mark as us not being able to do any time adjustments if no valid timestamps are received
+                        clockSync->setStrategies(TimeSyncStrategy::NONE);
+                        LOG_WARNING(mod.log, "Time sync disabled: No valid capture time received.");
+                    }
 
-            guint64 captureTimeNs;
-            guint64 cameraTimeNs;
-            if (G_UNLIKELY(!gst_structure_get_uint64(metaStruct, "capture_time_ns", &captureTimeNs))) {
+                    gst_buffer_unmap(buffer, &info);
+                    mod.raiseError("Failed to get capture time from buffer metadata");
+                    break;
+                }
+                if (G_UNLIKELY(!gst_structure_get_uint64(metaStruct, "camera_time_ns", &cameraTimeNs)))
+                    cameraTimeNs = 0;
+
                 if (validFrameCount == 0) {
-                    // mark as us not being able to do any time adjustments if no valid timestamps are received
-                    clockSync->setStrategies(TimeSyncStrategy::NONE);
-                    LOG_WARNING(m_log, "Time sync disabled: No valid capture time received.");
+                    // determine the base offset times to the master clock when retrieving the first 10 frames
+                    const auto firstFrameSysTimeNs = captureTimeNs;
+                    const auto firstFrameDevTimeNs = cameraTimeNs == 0 ? captureTimeNs : cameraTimeNs;
+
+                    sysOffsetToMaster = nanoseconds_t(
+                        (frameFetchTimeNs.count() - static_cast<int64_t>((1000.0 * 1000.0 * 1000.0 / fps) / 3))
+                        - (gint64)firstFrameSysTimeNs);
+
+                    devOffsetToSysNs = firstFrameSysTimeNs - firstFrameDevTimeNs;
                 }
 
+                // perform time synchronization
+                const auto frameSysTime = nanoseconds_t(captureTimeNs);
+                auto frameDevTimeNs = cameraTimeNs;
+                if (frameDevTimeNs == 0) {
+                    // no timestamp available, use the system timestamp
+                    frameDevTimeNs = frameSysTime.count();
+                } else {
+                    frameDevTimeNs += devOffsetToSysNs;
+                }
+                auto masterTime = std::chrono::duration_cast<microseconds_t>(frameSysTime + sysOffsetToMaster);
+                clockSync->processTimestamp(masterTime, nsecToUsec(nanoseconds_t(frameDevTimeNs)));
+
+                // read format information
+                GstCaps *caps = gst_sample_get_caps(sample);
+                const auto gS = gst_caps_get_structure(caps, 0);
+                const gchar *format_str = gst_structure_get_string(gS, "format");
+
+                // create our frame and push it to subscribers
+                Frame frame(validFrameCount);
+                frame.time = masterTime;
+                validFrameCount++;
+
+                if (g_strcmp0(format_str, "BGRx") == 0) {
+                    frame.mat.create(resolution, CV_8UC(4));
+                } else if (g_strcmp0(format_str, "GRAY8") == 0) {
+                    frame.mat.create(resolution, CV_8UC(1));
+                } else if (g_strcmp0(format_str, "GRAY16_LE") == 0) {
+                    frame.mat.create(resolution, CV_16UC(1));
+                } else {
+                    LOG_INFO(mod.log, "{}: Received buffer with unsupported format: {}", deviceName, format_str);
+                    gst_buffer_unmap(buffer, &info);
+                    continue;
+                }
+
+                // copy the image data, using the actual byte size of the matrix we created
+                const size_t frameBytes = frame.mat.total() * frame.mat.elemSize();
+                if (info.size < frameBytes) {
+                    LOG_WARNING(
+                        mod.log,
+                        "{}: Received {} buffer of {} bytes, but expected at least {} bytes. Frame dropped.",
+                        deviceName,
+                        format_str,
+                        info.size,
+                        frameBytes);
+                    gst_buffer_unmap(buffer, &info);
+                    continue;
+                }
+                memcpy(frame.mat.data, info.data, frameBytes);
+
+                outStream->push(frame);
+
+                // unmap our buffer - all other resources are cleaned up automatically
                 gst_buffer_unmap(buffer, &info);
-                raiseError("Failed to get capture time from buffer metadata");
-                break;
-            }
-            if (G_UNLIKELY(!gst_structure_get_uint64(metaStruct, "camera_time_ns", &cameraTimeNs)))
-                cameraTimeNs = 0;
-
-            if (validFrameCount == 0) {
-                // determine the base offset times to the master clock when retrieving the first 10 frames
-                const auto firstFrameSysTimeNs = captureTimeNs;
-                const auto firstFrameDevTimeNs = cameraTimeNs == 0 ? captureTimeNs : cameraTimeNs;
-
-                sysOffsetToMaster = nanoseconds_t(
-                    (frameFetchTimeNs.count() - static_cast<int64_t>((1000.0 * 1000.0 * 1000.0 / m_fps) / 3))
-                    - (gint64)firstFrameSysTimeNs);
-
-                devOffsetToSysNs = firstFrameSysTimeNs - firstFrameDevTimeNs;
             }
 
-            // perform time synchronization
-            const auto frameSysTime = nanoseconds_t(captureTimeNs);
-            auto frameDevTimeNs = cameraTimeNs;
-            if (frameDevTimeNs == 0) {
-                // no timestamp available, use the system timestamp
-                frameDevTimeNs = frameSysTime.count();
-            } else {
-                frameDevTimeNs += devOffsetToSysNs;
+            if (!deviceLost->load()) {
+                gst_element_set_state(pipeline.get(), GST_STATE_PAUSED);
+                gst_element_set_state(pipeline.get(), GST_STATE_READY);
             }
-            auto masterTime = std::chrono::duration_cast<microseconds_t>(frameSysTime + sysOffsetToMaster);
-            clockSync->processTimestamp(masterTime, nsecToUsec(nanoseconds_t(frameDevTimeNs)));
-
-            // read format information
-            GstCaps *caps = gst_sample_get_caps(sample);
-            const auto gS = gst_caps_get_structure(caps, 0);
-            const gchar *format_str = gst_structure_get_string(gS, "format");
-
-            // create our frame and push it to subscribers
-            Frame frame(validFrameCount);
-            frame.time = masterTime;
-            validFrameCount++;
-
-            if (g_strcmp0(format_str, "BGRx") == 0) {
-                frame.mat.create(m_resolution, CV_8UC(4));
-            } else if (g_strcmp0(format_str, "GRAY8") == 0) {
-                frame.mat.create(m_resolution, CV_8UC(1));
-            } else if (g_strcmp0(format_str, "GRAY16_LE") == 0) {
-                frame.mat.create(m_resolution, CV_16UC(1));
-            } else {
-                LOG_INFO(m_log, "{}: Received buffer with unsupported format: {}", m_device.str(), format_str);
-                gst_buffer_unmap(buffer, &info);
-                continue;
-            }
-
-            // copy the image data, using the actual byte size of the matrix we created
-            const size_t frameBytes = frame.mat.total() * frame.mat.elemSize();
-            if (info.size < frameBytes) {
-                LOG_WARNING(
-                    m_log,
-                    "{}: Received {} buffer of {} bytes, but expected at least {} bytes. Frame dropped.",
-                    m_device.str(),
-                    format_str,
-                    info.size,
-                    frameBytes);
-                gst_buffer_unmap(buffer, &info);
-                continue;
-            }
-            memcpy(frame.mat.data, info.data, frameBytes);
-
-            m_outStream->push(frame);
-
-            // unmap our buffer - all other resources are cleaned up automatically
-            gst_buffer_unmap(buffer, &info);
         }
-
-        if (!m_deviceLost) {
-            gst_element_set_state(m_pipeline, GST_STATE_PAUSED);
-            gst_element_set_state(m_pipeline, GST_STATE_READY);
-        }
-    }
+    };
 
     void stop() override
     {
-        // we may still be blocking on the GStreamer buffer pull, so
-        // we need to stop the pipeline here as well to make sure
-        // we don't deadlock
-        m_running = false;
+        // Our thread has finished at this point, so nothing is using the pipeline anymore
+        // and we can drop the references which the worker was holding on it.
+        if (auto worker = takeWorker<Worker>()) {
+            worker->appSink.reset();
+            worker->pipeline.reset();
+        }
+
+        // the pipeline of a device that has disappeared is of no use anymore
+        if (m_deviceLost->load())
+            m_ctlDialog->closePipeline();
 
         // we are not running anymore, so new device selections are possible again
         m_ctlDialog->setRunning(false);
@@ -364,9 +423,12 @@ public:
 
     void onDeviceLost(const QString &message)
     {
-        m_deviceLost = true;
-        stop();
-        m_ctlDialog->closePipeline();
+        m_deviceLost->store(true);
+
+        // If a run is active, our thread may be using the pipeline right now: Raising the error
+        // ends the run, and the pipeline is closed in stop(), once the thread is gone.
+        if (!hasActiveWorker())
+            m_ctlDialog->closePipeline();
         raiseError(message);
     }
 

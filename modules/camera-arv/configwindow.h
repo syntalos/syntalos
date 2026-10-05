@@ -23,6 +23,7 @@
 #include "ui_configwindow.h"
 
 #include "glvideowidget.h"
+#include "moduleworker.h"
 #include "qarv/qarvcamera.h"
 #include "qarv/qarvdecoder.h"
 
@@ -55,6 +56,14 @@ struct TransformParams {
     }
 };
 
+/**
+ * @brief The image transformation parameters which can be changed while a run is active
+ */
+struct LiveTransformParams {
+    int flip = -100;
+    bool invert = false;
+};
+
 class ArvConfigWindow : public QMainWindow, private Ui::ArvConfigWindowUI
 {
     Q_OBJECT
@@ -67,6 +76,7 @@ public:
 
     void setCameraInUseExternal(bool camInUse);
     TransformParams *currentTransformParams();
+    Syntalos::LiveValue<LiveTransformParams> liveTransformParams() const;
 
     void serializeSettings(QVariantHash &settings, QByteArray &camFeatures);
     void loadSettings(const QVariantHash &settings, const QByteArray &camFeatures);
@@ -140,6 +150,7 @@ private:
     QTimer *autoreadexposure;
     bool playing, started;
     TransformParams transformParams;
+    Syntalos::LiveValue<LiveTransformParams> m_liveTransform;
     QByteArray oldstate, oldgeometry;
     QSize oldsize;
     int statusTimeoutMsec;

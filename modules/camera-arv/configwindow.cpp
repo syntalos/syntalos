@@ -524,6 +524,11 @@ TransformParams *ArvConfigWindow::currentTransformParams()
     return &transformParams;
 }
 
+Syntalos::LiveValue<LiveTransformParams> ArvConfigWindow::liveTransformParams() const
+{
+    return m_liveTransform;
+}
+
 void ArvConfigWindow::toggleVideoPreview(bool start)
 {
     if (!camera)
@@ -646,6 +651,10 @@ void ArvConfigWindow::updateImageTransform()
 
     transformParams.rot = angle / 90;
     transformParams.invert = invertColors->isChecked();
+
+    // flipping and inverting is possible during a run as well, where the frames
+    // are processed by a different thread that must not read our parameters directly
+    m_liveTransform.set(LiveTransformParams{transformParams.flip, transformParams.invert});
 }
 
 void ArvConfigWindow::on_editExposureButton_clicked(bool checked)

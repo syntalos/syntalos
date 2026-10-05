@@ -30,6 +30,7 @@ GenericCameraSettingsDialog::GenericCameraSettingsDialog(Camera *camera, QWidget
     setWindowIcon(QIcon(":/icons/generic-config"));
     m_camera = camera;
     m_useResolutionList = false;
+    m_running = false;
 
     auto cameras = Camera::availableCameras();
     for (const auto &cameraInfo : cameras) {
@@ -94,8 +95,18 @@ void GenericCameraSettingsDialog::setPixelFormatName(const QString &pixFmtName)
 
 void GenericCameraSettingsDialog::setRunning(bool running)
 {
+    m_running = running;
     ui->cameraGroupBox->setEnabled(!running);
     ui->quirkGroupBox->setEnabled(!running);
+
+    // the camera is ours again: keep changes which the recording thread did not pick up anymore
+    if (!running)
+        m_liveControls.applyChanges(m_camera);
+}
+
+CameraLiveControls GenericCameraSettingsDialog::liveControls() const
+{
+    return m_liveControls;
 }
 
 void GenericCameraSettingsDialog::updateValues()
@@ -197,7 +208,11 @@ void GenericCameraSettingsDialog::refreshResolutions()
 
 void GenericCameraSettingsDialog::on_sbExposure_valueChanged(double arg1)
 {
-    m_camera->setExposure(arg1);
+    // while a run is active, the camera must only be touched by the thread that records from it
+    if (m_running)
+        m_liveControls.exposure.set(arg1);
+    else
+        m_camera->setExposure(arg1);
     ui->sliderExposure->setValue(arg1);
 }
 
@@ -208,7 +223,10 @@ void GenericCameraSettingsDialog::on_sliderExposure_valueChanged(int value)
 
 void GenericCameraSettingsDialog::on_sbBrightness_valueChanged(double arg1)
 {
-    m_camera->setBrightness(arg1);
+    if (m_running)
+        m_liveControls.brightness.set(arg1);
+    else
+        m_camera->setBrightness(arg1);
     ui->sliderBrightness->setValue(arg1);
 }
 
@@ -219,7 +237,10 @@ void GenericCameraSettingsDialog::on_sliderBrightness_valueChanged(int value)
 
 void GenericCameraSettingsDialog::on_sbContrast_valueChanged(double arg1)
 {
-    m_camera->setContrast(arg1);
+    if (m_running)
+        m_liveControls.contrast.set(arg1);
+    else
+        m_camera->setContrast(arg1);
     ui->sliderContrast->setValue(arg1);
 }
 
@@ -230,7 +251,10 @@ void GenericCameraSettingsDialog::on_sliderContrast_valueChanged(int value)
 
 void GenericCameraSettingsDialog::on_sbSaturation_valueChanged(double arg1)
 {
-    m_camera->setSaturation(arg1);
+    if (m_running)
+        m_liveControls.saturation.set(arg1);
+    else
+        m_camera->setSaturation(arg1);
     ui->sliderSaturation->setValue(arg1);
 }
 
@@ -241,7 +265,10 @@ void GenericCameraSettingsDialog::on_sliderSaturation_valueChanged(int value)
 
 void GenericCameraSettingsDialog::on_sbHue_valueChanged(double arg1)
 {
-    m_camera->setHue(arg1);
+    if (m_running)
+        m_liveControls.hue.set(arg1);
+    else
+        m_camera->setHue(arg1);
     ui->sliderHue->setValue(arg1);
 }
 
@@ -252,7 +279,10 @@ void GenericCameraSettingsDialog::on_sliderHue_valueChanged(int value)
 
 void GenericCameraSettingsDialog::on_sbGain_valueChanged(double arg1)
 {
-    m_camera->setGain(arg1);
+    if (m_running)
+        m_liveControls.gain.set(arg1);
+    else
+        m_camera->setGain(arg1);
     ui->sliderGain->setValue(arg1);
 }
 

@@ -34,7 +34,6 @@ private:
 
     FLIRCamera *m_camera;
     FLIRCamSettingsDialog *m_camSettingsWindow;
-    std::atomic_bool m_acqRunning;
 
     std::shared_ptr<DataStream<Frame>> m_outStream;
 
@@ -111,70 +110,78 @@ public:
         // start the stream
         m_outStream->start();
 
-        // no frame acquisition is currently running
-        m_acqRunning = false;
+        // The clock synchronizer is configured and started by our thread, once
+        // it has initialized the camera and knows its actual framerate.
+        setWorker(
+            Worker{
+                .camera = m_camera,
+                .outStream = m_outStream,
+                .clockSync = initClockSynchronizer(),
+            });
 
         statusMessage("Waiting.");
         return true;
     }
 
-    void runThread(OptionalWaitCondition *waitCondition) override
-    {
-        // initialize camera
-        if (!m_camera->initAcquisition()) {
-            raiseError(m_camera->lastError());
-            return;
-        }
-        const auto actualFramerate = m_camera->actualFramerate();
+    /**
+     * Runs the frame acquisition in the module's thread.
+     * The Spinnaker API has to be used by one thread only, so the camera is
+     * initialized and shut down here as well.
+     */
+    struct Worker {
+        WorkerContext mod{};
+        FLIRCamera *camera;
+        std::shared_ptr<DataStream<Frame>> outStream;
+        std::unique_ptr<SecondaryClockSynchronizer> clockSync;
 
-        // set up clock synchronizer
-        auto clockSync = initClockSynchronizer(actualFramerate);
-        clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD);
+        void run()
+        {
+            // initialize camera
+            if (!camera->initAcquisition()) {
+                mod.raiseError(camera->lastError());
+                return;
+            }
+            const auto actualFramerate = camera->actualFramerate();
 
-        // start the synchronizer
-        if (!clockSync->start()) {
-            raiseError(QStringLiteral("Unable to set up clock synchronizer!"));
-            return;
-        }
+            // set up clock synchronizer, the framerate the camera actually runs at is only known now
+            if (actualFramerate > 0)
+                clockSync->setExpectedClockFrequencyHz(actualFramerate);
+            clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD);
 
-        // wait until we actually start acquiring data
-        waitCondition->wait(this);
-
-        // we are obtaining frames now!
-        m_acqRunning = true;
-
-        // set up remaining pieces now that we are running, then start retrieving frames
-        statusMessage(QStringLiteral("Recording (max %1 FPS)").arg(qRound(actualFramerate), 4));
-        const auto clockSyncPtr = clockSync.get();
-        m_camera->setStartTime(m_syTimer->startTime());
-        while (m_running) {
-            Frame frame;
-            if (!m_camera->acquireFrame(frame, clockSyncPtr)) {
-                m_running = false;
-                raiseError(QStringLiteral("Unable to acquire frame: %1").arg(m_camera->lastError()));
-                continue;
+            // start the synchronizer
+            if (!clockSync->start()) {
+                mod.raiseError(QStringLiteral("Unable to set up clock synchronizer!"));
+                return;
             }
 
-            // emit this frame on our output port
-            m_outStream->push(frame);
+            // wait until we actually start acquiring data
+            mod.waitForStart();
+
+            // set up remaining pieces now that we are running, then start retrieving frames
+            mod.setStatusMessage(QStringLiteral("Recording (max %1 FPS)").arg(qRound(actualFramerate), 4));
+            const auto clockSyncPtr = clockSync.get();
+            camera->setStartTime(mod.timer->startTime());
+            while (mod.running()) {
+                Frame frame;
+                if (!camera->acquireFrame(frame, clockSyncPtr)) {
+                    mod.raiseError(QStringLiteral("Unable to acquire frame: %1").arg(camera->lastError()));
+                    break;
+                }
+
+                // emit this frame on our output port
+                outStream->push(frame);
+            }
+
+            // finalize clock synchronizer
+            clockSync->stop();
+
+            // stop camera
+            camera->endAcquisition();
         }
-
-        // finalize clock synchronizer
-        clockSync->stop();
-
-        // stop camera
-        m_camera->endAcquisition();
-
-        // we aren't getting new frames anymore
-        m_acqRunning = false;
-    }
+    };
 
     void stop() override
     {
-        m_running = false;
-        while (m_acqRunning) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-        };
         m_camSettingsWindow->setRunning(false);
         statusMessage(QString());
     }
