@@ -21,7 +21,6 @@
 
 #include <QEventLoop>
 #include <QTimer>
-#include <QQueue>
 
 #include "streams/subscriptionnotifier.h"
 
@@ -35,12 +34,8 @@ class GaldurModule : public AbstractModule
     Q_OBJECT
 private:
     std::shared_ptr<StreamInputPort<ControlCommand>> m_ctlPort;
-    std::shared_ptr<StreamSubscription<ControlCommand>> m_ctlSub;
 
     GaldurSettingsDialog *m_settingsDlg;
-
-    QQueue<QString> m_rawMessages;
-    std::mutex m_rawMsgMutex;
 
 public:
     explicit GaldurModule(QObject *parent = nullptr)
@@ -56,7 +51,7 @@ public:
 
     ModuleFeatures features() const final
     {
-        return ModuleFeature::SHOW_SETTINGS | ModuleFeature::CALL_UI_EVENTS;
+        return ModuleFeature::SHOW_SETTINGS;
     }
 
     ModuleDriverKind driver() const final
@@ -75,144 +70,186 @@ public:
     {
         m_settingsDlg->setRunning(true);
 
-        m_ctlSub.reset();
+        std::shared_ptr<StreamSubscription<ControlCommand>> ctlSub;
         if (m_ctlPort->hasSubscription())
-            m_ctlSub = m_ctlPort->subscription();
+            ctlSub = m_ctlPort->subscription();
 
-        m_rawMessages.clear();
+        setWorker(
+            Worker{
+                .ctlSub = ctlSub,
+                .showRawData = mainCallback([this](const QString &data) {
+                    m_settingsDlg->addRawData(data);
+                }),
+                .serialPort = m_settingsDlg->serialPort(),
+                .startImmediately = m_settingsDlg->startImmediately(),
+                .mode = m_settingsDlg->mode(),
+                .pulseDuration = m_settingsDlg->pulseDuration(),
+                .laserIntensity = m_settingsDlg->laserIntensity(),
+                .samplingFrequency = m_settingsDlg->samplingFrequency(),
+                .randomIntervals = m_settingsDlg->randomIntervals(),
+                .minimumInterval = m_settingsDlg->minimumInterval(),
+                .maximumInterval = m_settingsDlg->maximumInterval(),
+                .swrRefractoryTime = m_settingsDlg->swrRefractoryTime(),
+                .swrPowerThreshold = m_settingsDlg->swrPowerThreshold(),
+                .convolutionPeakThreshold = m_settingsDlg->convolutionPeakThreshold(),
+                .thetaPhase = m_settingsDlg->thetaPhase(),
+                .trainFrequency = m_settingsDlg->trainFrequency(),
+                .spikeDetectionWindow = m_settingsDlg->spikeDetectionWindow(),
+                .spikeTriggerFrequency = m_settingsDlg->spikeTriggerFrequency(),
+                .spikeStimCooldownTime = m_settingsDlg->spikeStimCooldownTime(),
+                .spikeThresholdValue = m_settingsDlg->spikeThresholdValue(),
+            });
 
         return true;
     }
 
     void start() override {}
 
-    void runThread(OptionalWaitCondition *waitCondition) final
-    {
-        // event loop for this thread
-        QEventLoop loop;
+    /**
+     * Controls the stimulation device, in a dedicated thread with an event loop of its own.
+     */
+    struct Worker {
+        WorkerContext mod{};
+        std::shared_ptr<StreamSubscription<ControlCommand>> ctlSub;
+        MainCallback<QString> showRawData;
 
-        const bool startImmediately = m_settingsDlg->startImmediately();
+        // settings, as selected by the user when the run was prepared
+        QString serialPort;
+        bool startImmediately;
+        LabrstimClient::Mode mode;
+        double pulseDuration;
+        double laserIntensity;
+        int samplingFrequency;
+        bool randomIntervals;
+        double minimumInterval;
+        double maximumInterval;
+        double swrRefractoryTime;
+        double swrPowerThreshold;
+        double convolutionPeakThreshold;
+        double thetaPhase;
+        double trainFrequency;
+        uint spikeDetectionWindow;
+        uint spikeTriggerFrequency;
+        uint spikeStimCooldownTime;
+        int spikeThresholdValue;
 
-        auto lsClient = std::make_unique<LabrstimClient>();
-        lsClient->setTrialDuration(-1); // infinite trial duration
-        lsClient->setMode(m_settingsDlg->mode());
-        lsClient->setPulseDuration(m_settingsDlg->pulseDuration());
-        lsClient->setLaserIntensity(m_settingsDlg->laserIntensity());
-        lsClient->setSamplingFrequency(m_settingsDlg->samplingFrequency());
-        lsClient->setRandomIntervals(m_settingsDlg->randomIntervals());
-        lsClient->setMinimumInterval(m_settingsDlg->minimumInterval());
-        lsClient->setMaximumInterval(m_settingsDlg->maximumInterval());
-        lsClient->setSwrRefractoryTime(m_settingsDlg->swrRefractoryTime());
-        lsClient->setSwrPowerThreshold(m_settingsDlg->swrPowerThreshold());
-        lsClient->setConvolutionPeakThreshold(m_settingsDlg->convolutionPeakThreshold());
-        lsClient->setThetaPhase(m_settingsDlg->thetaPhase());
-        lsClient->setTrainFrequency(m_settingsDlg->trainFrequency());
+        void run()
+        {
+            // event loop for this thread
+            QEventLoop loop;
 
-        lsClient->setSpikeDetectionWindow(m_settingsDlg->spikeDetectionWindow());
-        lsClient->setSpikeTriggerFrequency(m_settingsDlg->spikeTriggerFrequency());
-        lsClient->setSpikeStimCooldownTime(m_settingsDlg->spikeStimCooldownTime());
-        lsClient->setSpikeThresholdValue(m_settingsDlg->spikeThresholdValue());
+            auto lsClient = std::make_unique<LabrstimClient>();
+            lsClient->setTrialDuration(-1); // infinite trial duration
+            lsClient->setMode(mode);
+            lsClient->setPulseDuration(pulseDuration);
+            lsClient->setLaserIntensity(laserIntensity);
+            lsClient->setSamplingFrequency(samplingFrequency);
+            lsClient->setRandomIntervals(randomIntervals);
+            lsClient->setMinimumInterval(minimumInterval);
+            lsClient->setMaximumInterval(maximumInterval);
+            lsClient->setSwrRefractoryTime(swrRefractoryTime);
+            lsClient->setSwrPowerThreshold(swrPowerThreshold);
+            lsClient->setConvolutionPeakThreshold(convolutionPeakThreshold);
+            lsClient->setThetaPhase(thetaPhase);
+            lsClient->setTrainFrequency(trainFrequency);
 
-        connect(lsClient.get(), &LabrstimClient::newRawData, [this, &loop](const QString &data) {
-            const std::lock_guard<std::mutex> lock(m_rawMsgMutex);
-            m_rawMessages.enqueue(data);
+            lsClient->setSpikeDetectionWindow(spikeDetectionWindow);
+            lsClient->setSpikeTriggerFrequency(spikeTriggerFrequency);
+            lsClient->setSpikeStimCooldownTime(spikeStimCooldownTime);
+            lsClient->setSpikeThresholdValue(spikeThresholdValue);
 
-            // quit the loop if we stopped running
-            if (!m_running)
-                loop.quit();
-        });
-
-        connect(lsClient.get(), &LabrstimClient::error, [this, &loop](const QString &message) {
-            raiseError(message);
-            loop.quit();
-        });
-
-        if (lsClient->open(m_settingsDlg->serialPort())) {
-            setStatusMessage(
-                QStringLiteral("Connected to %1 (%2)").arg(m_settingsDlg->serialPort(), lsClient->clientVersion()));
-
-            // stop, just in case a previous run did not stop properly
-            lsClient->stopStimulation();
-        } else {
-            raiseError(QStringLiteral("Unable to connect: %1").arg(lsClient->lastError()));
-            return;
-        }
-
-        // trigger if we have new input data
-        std::unique_ptr<SubscriptionNotifier> notifier;
-        if (m_ctlSub) {
-            notifier = std::make_unique<SubscriptionNotifier>(m_ctlSub);
-            connect(notifier.get(), &SubscriptionNotifier::dataReceived, [this, &loop, &lsClient]() {
-                while (true) {
-                    const auto maybeCtlCmd = m_ctlSub->peekNext();
-                    if (!maybeCtlCmd.has_value())
-                        break;
-                    const auto &ctlCmd = maybeCtlCmd.value();
-
-                    if (ctlCmd.kind == ControlCommandKind::START) {
-                        setStatusMessage("Stimulating...");
-                        if (!lsClient->runStimulation()) {
-                            raiseError(lsClient->lastError());
-                            break;
-                        }
-                    } else if (ctlCmd.kind == ControlCommandKind::STOP) {
-                        setStatusMessage("Waiting.");
-                        if (!lsClient->stopStimulation()) {
-                            raiseError(lsClient->lastError());
-                            break;
-                        }
-                    }
-                }
+            QObject::connect(lsClient.get(), &LabrstimClient::newRawData, [this, &loop](const QString &data) {
+                // have the main thread display the message
+                showRawData(data);
 
                 // quit the loop if we stopped running
-                if (!m_running)
+                if (!mod.running())
                     loop.quit();
             });
-        }
 
-        // periodically check if we have to quit
-        QTimer quitTimer;
-        quitTimer.setInterval(200);
-        quitTimer.setSingleShot(false);
-        quitTimer.start();
-        connect(&quitTimer, &QTimer::timeout, [&loop, this]() {
-            if (!m_running)
+            QObject::connect(lsClient.get(), &LabrstimClient::error, [this, &loop](const QString &message) {
+                mod.raiseError(message);
                 loop.quit();
-        });
+            });
 
-        // wait until experiment starts
-        waitCondition->wait(this);
+            if (lsClient->open(serialPort)) {
+                mod.setStatusMessage(QStringLiteral("Connected to %1 (%2)").arg(serialPort, lsClient->clientVersion()));
 
-        if (startImmediately) {
-            if (!lsClient->runStimulation()) {
-                raiseError(lsClient->lastError());
-                if (m_ctlSub)
-                    m_ctlSub->disableNotify();
+                // stop, just in case a previous run did not stop properly
+                lsClient->stopStimulation();
+            } else {
+                mod.raiseError(QStringLiteral("Unable to connect: %1").arg(lsClient->lastError()));
                 return;
             }
-        } else {
-            setStatusMessage("Waiting for start command.");
+
+            // trigger if we have new input data
+            std::unique_ptr<SubscriptionNotifier> notifier;
+            if (ctlSub) {
+                notifier = std::make_unique<SubscriptionNotifier>(ctlSub);
+                QObject::connect(notifier.get(), &SubscriptionNotifier::dataReceived, [this, &loop, &lsClient]() {
+                    while (true) {
+                        const auto maybeCtlCmd = ctlSub->peekNext();
+                        if (!maybeCtlCmd.has_value())
+                            break;
+                        const auto &ctlCmd = maybeCtlCmd.value();
+
+                        if (ctlCmd.kind == ControlCommandKind::START) {
+                            mod.setStatusMessage("Stimulating...");
+                            if (!lsClient->runStimulation()) {
+                                mod.raiseError(lsClient->lastError());
+                                break;
+                            }
+                        } else if (ctlCmd.kind == ControlCommandKind::STOP) {
+                            mod.setStatusMessage("Waiting.");
+                            if (!lsClient->stopStimulation()) {
+                                mod.raiseError(lsClient->lastError());
+                                break;
+                            }
+                        }
+                    }
+
+                    // quit the loop if we stopped running
+                    if (!mod.running())
+                        loop.quit();
+                });
+            }
+
+            // periodically check if we have to quit
+            QTimer quitTimer;
+            quitTimer.setInterval(200);
+            quitTimer.setSingleShot(false);
+            quitTimer.start();
+            QObject::connect(&quitTimer, &QTimer::timeout, [&loop, this]() {
+                if (!mod.running())
+                    loop.quit();
+            });
+
+            // wait until experiment starts
+            mod.waitForStart();
+
+            if (startImmediately) {
+                if (!lsClient->runStimulation()) {
+                    mod.raiseError(lsClient->lastError());
+                    if (ctlSub)
+                        ctlSub->disableNotify();
+                    return;
+                }
+            } else {
+                mod.setStatusMessage("Waiting for start command.");
+            }
+
+            // run our internal event loop
+            loop.exec();
+
+            if (lsClient->isRunning())
+                lsClient->stopStimulation();
+
+            if (ctlSub)
+                ctlSub->disableNotify();
+            lsClient->close();
+            mod.setStatusMessage("Disconnected");
         }
-
-        // run our internal event loop
-        loop.exec();
-
-        if (lsClient->isRunning())
-            lsClient->stopStimulation();
-
-        if (m_ctlSub)
-            m_ctlSub->disableNotify();
-        lsClient->close();
-        setStatusMessage("Disconnected");
-    }
-
-    void processUiEvents() override
-    {
-        const std::lock_guard<std::mutex> lock(m_rawMsgMutex);
-        if (m_rawMessages.isEmpty())
-            return;
-        m_settingsDlg->addRawData(m_rawMessages.dequeue());
-    }
+    };
 
     void stop() override
     {

@@ -49,19 +49,14 @@ class FirmataIOModule : public AbstractModule
 
 private:
     FirmataSettingsDialog *m_settingsDialog;
-    std::atomic_bool m_stopped;
-
-    QHash<int, FmPin> m_pinMap;
 
     std::shared_ptr<StreamInputPort<LineCommand>> m_inLineCtl;
     std::shared_ptr<DataStream<LineReading>> m_outStream;
-    std::shared_ptr<StreamSubscription<LineCommand>> m_lineCtlSub;
 
 public:
     explicit FirmataIOModule(QObject *parent = nullptr)
         : AbstractModule(parent),
-          m_settingsDialog(nullptr),
-          m_stopped(true)
+          m_settingsDialog(nullptr)
     {
         m_settingsDialog = new FirmataSettingsDialog;
         addSettingsWindow(m_settingsDialog);
@@ -92,14 +87,18 @@ public:
 
     bool prepare(const RunInfo &) final
     {
-        // cleanup
-        m_pinMap.clear();
-
         // start event stream and see if we should listen to control commands
         m_outStream->start();
-        m_lineCtlSub.reset();
+        std::shared_ptr<StreamSubscription<LineCommand>> lineCtlSub;
         if (m_inLineCtl->hasSubscription())
-            m_lineCtlSub = m_inLineCtl->subscription();
+            lineCtlSub = m_inLineCtl->subscription();
+
+        setWorker(
+            Worker{
+                .serialDevice = m_settingsDialog->serialPort(),
+                .lineCtlSub = lineCtlSub,
+                .outStream = m_outStream,
+            });
 
         return true;
     }
@@ -109,178 +108,232 @@ public:
         AbstractModule::start();
     }
 
-    void runThread(OptionalWaitCondition *waitCondition) final
-    {
-        // event loop for this thread
-        QEventLoop loop;
+    /**
+     * Talks to the Firmata device, in a dedicated thread with an event loop of its own.
+     */
+    struct Worker {
+        WorkerContext mod{};
+        QString serialDevice;
+        std::shared_ptr<StreamSubscription<LineCommand>> lineCtlSub;
+        std::shared_ptr<DataStream<LineReading>> outStream;
 
-        // setup Firmata serial connection to the device
-        auto firmata = std::make_unique<SerialFirmata>(nullptr);
-        firmata->setLogger(m_log);
+        QHash<int, FmPin> pinMap{};
 
-        auto serialDevice = m_settingsDialog->serialPort();
-        if (serialDevice.isEmpty()) {
-            raiseError("Unable to find a Firmata serial device for programmable I/O to connect to. Can not continue.");
-            return;
+        void run()
+        {
+            // event loop for this thread
+            QEventLoop loop;
+
+            // setup Firmata serial connection to the device
+            auto firmata = std::make_unique<SerialFirmata>(nullptr);
+            firmata->setLogger(mod.log);
+
+            if (serialDevice.isEmpty()) {
+                mod.raiseError(
+                    "Unable to find a Firmata serial device for programmable I/O to connect to. Can not continue.");
+                return;
+            }
+
+            LOG_INFO(mod.log, "Loading Firmata interface: {}", serialDevice);
+            if (firmata->device().isEmpty()) {
+                if (!firmata->setDevice(serialDevice)) {
+                    mod.raiseError(QStringLiteral("Unable to open serial interface: %1").arg(firmata->statusText()));
+                    return;
+                }
+            }
+
+            // check if we can communicate with the Firmata serial device
+            firmata->reportProtocolVersion();
+            for (uint i = 0; i < 1000; i++) {
+                firmata->readAndParseData(10);
+                if (firmata->isReady())
+                    break;
+            }
+            if (!firmata->isReady() || firmata->statusText().contains("Error")) {
+                QString msg;
+                if (firmata->statusText().contains("Error"))
+                    msg = firmata->statusText();
+                else
+                    msg = QStringLiteral("Does the selected serial device use the Firmata protocol?");
+
+                mod.raiseError(QStringLiteral("Unable to initialize Firmata: %1").arg(msg));
+                return;
+            }
+
+            // connect to data received events
+            QObject::connect(
+                firmata.get(),
+                &SerialFirmata::digitalRead,
+                firmata.get(),
+                [this](uint8_t port, uint8_t value) {
+                    recvDigitalRead(port, value);
+                },
+                Qt::DirectConnection);
+            QObject::connect(
+                firmata.get(),
+                &SerialFirmata::digitalPinRead,
+                firmata.get(),
+                [this](uint8_t pin, bool value) {
+                    recvDigitalPinRead(pin, value);
+                },
+                Qt::DirectConnection);
+
+            // trigger if we have new input data
+            std::unique_ptr<SubscriptionNotifier> notifier;
+            if (lineCtlSub) {
+                notifier = std::make_unique<SubscriptionNotifier>(lineCtlSub);
+                QObject::connect(notifier.get(), &SubscriptionNotifier::dataReceived, [&loop, &firmata, this]() {
+                    for (uint i = 0; i < 4; i++) {
+                        if (!checkLineCommandReceived(firmata.get()))
+                            break;
+                    }
+
+                    // quit the loop if we stopped running
+                    if (!mod.running())
+                        loop.quit();
+                });
+            }
+
+            // periodically check if we have to quit
+            QTimer quitTimer;
+            quitTimer.setInterval(200);
+            quitTimer.setSingleShot(false);
+            quitTimer.start();
+            QObject::connect(&quitTimer, &QTimer::timeout, [&loop, this]() {
+                if (!mod.running())
+                    loop.quit();
+            });
+
+            // wait until we actually start acquiring data
+            mod.waitForStart();
+
+            // run our internal event loop
+            loop.exec();
+
+            lineCtlSub->disableNotify();
         }
 
-        LOG_INFO(m_log, "Loading Firmata interface: {}", serialDevice);
-        if (firmata->device().isEmpty()) {
-            if (!firmata->setDevice(serialDevice)) {
-                raiseError(QStringLiteral("Unable to open serial interface: %1").arg(firmata->statusText()));
-                return;
+        bool checkLineCommandReceived(SerialFirmata *firmata)
+        {
+            const auto maybeCtl = lineCtlSub->peekNext();
+            if (!maybeCtl.has_value())
+                return false;
+            const auto &ctl = maybeCtl.value();
+            switch (ctl.kind) {
+            case LineCommandKind::SET_MODE:
+                configureDigitalPin(firmata, ctl.lineId, ctl.flags);
+                break;
+            case LineCommandKind::WRITE_DIGITAL:
+                pinSetValue(firmata, ctl.lineId, ctl.value != 0);
+                break;
+            case LineCommandKind::WRITE_DIGITAL_PULSE: {
+                const auto durMs = std::chrono::duration_cast<milliseconds_t>(ctl.duration).count();
+                pinSignalPulse(firmata, ctl.lineId, static_cast<int>(durMs));
+                break;
+            }
+            default:
+                LOG_WARNING(
+                    mod.log,
+                    "Received unsupported LineCommand kind for Firmata: {}",
+                    static_cast<int>(ctl.kind));
+                break;
+            }
+
+            return true;
+        }
+
+        void configureDigitalPin(SerialFirmata *firmata, int lineId, LineModeFlags flags)
+        {
+            const bool isOutput = flags.hasFlag(LineModeFlag::IS_OUTPUT);
+            const bool isPullUp = flags.hasFlag(LineModeFlag::PULL_UP);
+
+            FmPin pin;
+            pin.kind = PinKind::Digital;
+            pin.id = static_cast<uint8_t>(lineId);
+            pin.output = isOutput;
+
+            if (pin.output) {
+                // initialize output pin
+                firmata->setPinMode(pin.id, IoMode::Output);
+                firmata->writeDigitalPin(pin.id, false);
+                LOG_INFO(mod.log, "Firmata: Pin {} set as output", lineId);
+            } else {
+                // connect input pin
+                if (isPullUp)
+                    firmata->setPinMode(pin.id, IoMode::PullUp);
+                else
+                    firmata->setPinMode(pin.id, IoMode::Input);
+
+                uint8_t port = pin.id >> 3;
+                firmata->reportDigitalPort(port, true);
+
+                LOG_INFO(mod.log, "Firmata: Pin {} set as input", lineId);
+            }
+
+            pinMap.insert(lineId, pin);
+        }
+
+        void pinSetValue(SerialFirmata *firmata, int pinId, bool value)
+        {
+            firmata->writeDigitalPin(pinId, value);
+        }
+
+        void pinSignalPulse(SerialFirmata *firmata, int pinId, int pulseDuration = 0)
+        {
+            if (pulseDuration <= 0)
+                pulseDuration = 50; // 50 msec is our default pulse length
+            else if (pulseDuration > 4000)
+                pulseDuration = 4000; // clamp pulse length at 4 sec max
+            pinSetValue(firmata, pinId, true);
+            delay(pulseDuration);
+            pinSetValue(firmata, pinId, false);
+        }
+
+        void recvDigitalRead(uint8_t port, uint8_t value)
+        {
+            const auto timestamp = mod.timer->timeSinceStartUsec();
+
+            // value of a digital port changed: 8 possible pin changes
+            const int first = port * 8;
+            const int last = first + 7;
+
+            LOG_DEBUG(mod.log, "Digital port read: {} ({} - {})", value, first, last);
+            for (const FmPin &p : pinMap.values()) {
+                if ((!p.output) && (p.kind != PinKind::Unknown)) {
+                    if ((p.id >= first) && (p.id <= last)) {
+                        LineReading r;
+                        r.time = timestamp;
+                        r.lineId = p.id;
+                        r.value = (value & (1 << (p.id - first))) ? 1 : 0;
+
+                        outStream->push(r);
+                    }
+                }
             }
         }
 
-        // check if we can communicate with the Firmata serial device
-        firmata->reportProtocolVersion();
-        for (uint i = 0; i < 1000; i++) {
-            firmata->readAndParseData(10);
-            if (firmata->isReady())
-                break;
+        void recvDigitalPinRead(uint8_t pin, bool value)
+        {
+            const auto timestamp = mod.timer->timeSinceStartUsec();
+
+            if (!pinMap.contains(pin)) {
+                LOG_WARNING(mod.log, "Received state change for unregistered pin: {}", pin);
+                return;
+            }
+
+            LineReading r;
+            r.time = timestamp;
+            r.lineId = pin;
+            r.value = value ? 1 : 0;
+
+            LOG_DEBUG(mod.log, "Digital pin read: {}={}", pin, value);
+            outStream->push(r);
         }
-        if (!firmata->isReady() || firmata->statusText().contains("Error")) {
-            QString msg;
-            if (firmata->statusText().contains("Error"))
-                msg = firmata->statusText();
-            else
-                msg = QStringLiteral("Does the selected serial device use the Firmata protocol?");
-
-            raiseError(QStringLiteral("Unable to initialize Firmata: %1").arg(msg));
-            return;
-        }
-
-        // connect to data received events
-        connect(
-            firmata.get(),
-            &SerialFirmata::digitalRead,
-            this,
-            &FirmataIOModule::recvDigitalRead,
-            Qt::DirectConnection);
-        connect(
-            firmata.get(),
-            &SerialFirmata::digitalPinRead,
-            this,
-            &FirmataIOModule::recvDigitalPinRead,
-            Qt::DirectConnection);
-
-        // trigger if we have new input data
-        std::unique_ptr<SubscriptionNotifier> notifier;
-        if (m_lineCtlSub) {
-            notifier = std::make_unique<SubscriptionNotifier>(m_lineCtlSub);
-            connect(notifier.get(), &SubscriptionNotifier::dataReceived, [&loop, &firmata, this]() {
-                for (uint i = 0; i < 4; i++) {
-                    if (!checkLineCommandReceived(firmata.get()))
-                        break;
-                }
-
-                // quit the loop if we stopped running
-                if (!m_running)
-                    loop.quit();
-            });
-        }
-
-        // periodically check if we have to quit
-        QTimer quitTimer;
-        quitTimer.setInterval(200);
-        quitTimer.setSingleShot(false);
-        quitTimer.start();
-        connect(&quitTimer, &QTimer::timeout, [&loop, this]() {
-            if (!m_running)
-                loop.quit();
-        });
-
-        // wait until we actually start acquiring data
-        m_stopped = false;
-        waitCondition->wait(this);
-
-        // run our internal event loop
-        loop.exec();
-
-        m_lineCtlSub->disableNotify();
-        m_stopped = true;
-    }
-
-    bool checkLineCommandReceived(SerialFirmata *firmata)
-    {
-        const auto maybeCtl = m_lineCtlSub->peekNext();
-        if (!maybeCtl.has_value())
-            return false;
-        const auto &ctl = maybeCtl.value();
-        switch (ctl.kind) {
-        case LineCommandKind::SET_MODE:
-            configureDigitalPin(firmata, ctl.lineId, ctl.flags);
-            break;
-        case LineCommandKind::WRITE_DIGITAL:
-            pinSetValue(firmata, ctl.lineId, ctl.value != 0);
-            break;
-        case LineCommandKind::WRITE_DIGITAL_PULSE: {
-            const auto durMs = std::chrono::duration_cast<milliseconds_t>(ctl.duration).count();
-            pinSignalPulse(firmata, ctl.lineId, static_cast<int>(durMs));
-            break;
-        }
-        default:
-            LOG_WARNING(m_log, "Received unsupported LineCommand kind for Firmata: {}", static_cast<int>(ctl.kind));
-            break;
-        }
-
-        return true;
-    }
-
-    void configureDigitalPin(SerialFirmata *firmata, int lineId, LineModeFlags flags)
-    {
-        const bool isOutput = flags.hasFlag(LineModeFlag::IS_OUTPUT);
-        const bool isPullUp = flags.hasFlag(LineModeFlag::PULL_UP);
-
-        FmPin pin;
-        pin.kind = PinKind::Digital;
-        pin.id = static_cast<uint8_t>(lineId);
-        pin.output = isOutput;
-
-        if (pin.output) {
-            // initialize output pin
-            firmata->setPinMode(pin.id, IoMode::Output);
-            firmata->writeDigitalPin(pin.id, false);
-            LOG_INFO(m_log, "Firmata: Pin {} set as output", lineId);
-        } else {
-            // connect input pin
-            if (isPullUp)
-                firmata->setPinMode(pin.id, IoMode::PullUp);
-            else
-                firmata->setPinMode(pin.id, IoMode::Input);
-
-            uint8_t port = pin.id >> 3;
-            firmata->reportDigitalPort(port, true);
-
-            LOG_INFO(m_log, "Firmata: Pin {} set as input", lineId);
-        }
-
-        m_pinMap.insert(lineId, pin);
-    }
-
-    void pinSetValue(SerialFirmata *firmata, int pinId, bool value)
-    {
-        firmata->writeDigitalPin(pinId, value);
-    }
-
-    void pinSignalPulse(SerialFirmata *firmata, int pinId, int pulseDuration = 0)
-    {
-        if (pulseDuration <= 0)
-            pulseDuration = 50; // 50 msec is our default pulse length
-        else if (pulseDuration > 4000)
-            pulseDuration = 4000; // clamp pulse length at 4 sec max
-        pinSetValue(firmata, pinId, true);
-        delay(pulseDuration);
-        pinSetValue(firmata, pinId, false);
-    }
+    };
 
     void stop() final
     {
         AbstractModule::stop();
-
-        // wait for our thread to finish
-        while (!m_stopped)
-            appProcessEvents();
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) final
@@ -292,49 +345,6 @@ public:
     {
         m_settingsDialog->setSerialPort(settings.value("serial_port").toString());
         return true;
-    }
-
-    void recvDigitalRead(uint8_t port, uint8_t value)
-    {
-        // WARNING: This method is called from a different thread!
-        const auto timestamp = m_syTimer->timeSinceStartUsec();
-
-        // value of a digital port changed: 8 possible pin changes
-        const int first = port * 8;
-        const int last = first + 7;
-
-        LOG_DEBUG(m_log, "Digital port read: {} ({} - {})", value, first, last);
-        for (const FmPin &p : m_pinMap.values()) {
-            if ((!p.output) && (p.kind != PinKind::Unknown)) {
-                if ((p.id >= first) && (p.id <= last)) {
-                    LineReading r;
-                    r.time = timestamp;
-                    r.lineId = p.id;
-                    r.value = (value & (1 << (p.id - first))) ? 1 : 0;
-
-                    m_outStream->push(r);
-                }
-            }
-        }
-    }
-
-    void recvDigitalPinRead(uint8_t pin, bool value)
-    {
-        // WARNING: This method is called from a different thread!
-        const auto timestamp = m_syTimer->timeSinceStartUsec();
-
-        if (!m_pinMap.contains(pin)) {
-            LOG_WARNING(m_log, "Received state change for unregistered pin: {}", pin);
-            return;
-        }
-
-        LineReading r;
-        r.time = timestamp;
-        r.lineId = pin;
-        r.value = value ? 1 : 0;
-
-        LOG_DEBUG(m_log, "Digital pin read: {}={}", pin, value);
-        m_outStream->push(r);
     }
 };
 

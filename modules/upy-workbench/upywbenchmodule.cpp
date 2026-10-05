@@ -57,20 +57,106 @@ SYNTALOS_MODULE(UPyWBenchModule);
 
 static constexpr std::chrono::seconds UPY_SERIAL_WRITE_TIMEOUT = std::chrono::seconds{6};
 
+static void setSerialPortParameters(QSerialPort *port, const QString &portName)
+{
+    port->setPortName(portName);
+    port->setBaudRate(QSerialPort::Baud115200);
+    port->setDataBits(QSerialPort::Data8);
+}
+
+static void serialClearIncoming(QSerialPort *port)
+{
+    // swallow all incoming data with a 10sec timeout
+    for (uint i = 0; i < 100; i++) {
+        port->readAll();
+        if (!port->waitForReadyRead(100))
+            break;
+    }
+
+    // clear incoming data
+    port->clear(QSerialPort::Input);
+}
+
+static void upyInterrupt(QSerialPort *port)
+{
+    // send a keyboard interrupt to the device
+    port->write("\x03");
+    port->flush();
+
+    // exit raw REPL mode, in case we are in it
+    port->write("\r");
+    port->write("\x02");
+    port->flush();
+}
+
+static void upySoftReset(QSerialPort *port)
+{
+    // interrupt any running code
+    upyInterrupt(port);
+
+    // exit raw repl, just in case we are in one
+    port->write("\r");
+    port->write("\x02");
+    port->flush();
+
+    // perform a soft-reset on the device
+    port->write("\r");
+    port->write("\x04");
+    port->flush();
+}
+
+static void upyRawReplSendCode(QSerialPort *port, const QString &code)
+{
+    // switch to raw REPL mode
+    port->write("\r");
+    port->write("\x01");
+    port->flush();
+
+    // send code
+    port->write(code.toUtf8());
+}
+
+static bool upyRawReplExecute(QSerialPort *port)
+{
+    // don't forward any incoming data and clear the internal buffer
+    port->blockSignals(true);
+    serialClearIncoming(port);
+
+    // execute code
+    port->write("\r");
+    port->write("\x04");
+    port->flush();
+
+    port->waitForReadyRead(20000);
+    if (port->read(2) != QStringLiteral("OK")) {
+        port->blockSignals(false);
+        return false;
+    }
+
+    // enable incoming data forwarding (& all other signals)
+    port->blockSignals(false);
+
+    return true;
+}
+
+static bool upyRawReplExecuteQuick(QSerialPort *port, const QString &code)
+{
+    // switch to raw REPL & send code
+    upyRawReplSendCode(port, code);
+
+    return upyRawReplExecute(port);
+}
+
 class UPyWBenchModule : public AbstractModule
 {
     Q_OBJECT
-
-signals:
-    void receivedUserData(const QByteArray &data);
 
 public:
     explicit UPyWBenchModule(QObject *parent = nullptr)
         : AbstractModule(parent),
           m_codeWindow(nullptr),
           m_timer(new QTimer(this)),
-          m_userSerial(new QSerialPort(this)),
-          m_stopped(true)
+          m_userSerial(new QSerialPort(this))
     {
         // set up code editor
         auto editor = kTextEditorInstance();
@@ -270,16 +356,6 @@ public:
         m_consoleWidget->setVisible(false);
         m_testRunAction->setEnabled(false);
 
-        // receive data from our thread while we are running
-        connect(
-            this,
-            &UPyWBenchModule::receivedUserData,
-            this,
-            [this](const QByteArray &data) {
-                m_consoleWidget->putData(data);
-            },
-            Qt::QueuedConnection);
-
         return {};
     }
 
@@ -356,96 +432,6 @@ public:
         selectSerialPort(selectedPort);
     }
 
-    static void setSerialPortParameters(QSerialPort *port, const QString &portName)
-    {
-        port->setPortName(portName);
-        port->setBaudRate(QSerialPort::Baud115200);
-        port->setDataBits(QSerialPort::Data8);
-    }
-
-    static void serialClearIncoming(QSerialPort *port)
-    {
-        // swallow all incoming data with a 10sec timeout
-        for (uint i = 0; i < 100; i++) {
-            port->readAll();
-            if (!port->waitForReadyRead(100))
-                break;
-        }
-
-        // clear incoming data
-        port->clear(QSerialPort::Input);
-    }
-
-    static void upyInterrupt(QSerialPort *port)
-    {
-        // send a keyboard interrupt to the device
-        port->write("\x03");
-        port->flush();
-
-        // exit raw REPL mode, in case we are in it
-        port->write("\r");
-        port->write("\x02");
-        port->flush();
-    }
-
-    static void upySoftReset(QSerialPort *port)
-    {
-        // interrupt any running code
-        upyInterrupt(port);
-
-        // exit raw repl, just in case we are in one
-        port->write("\r");
-        port->write("\x02");
-        port->flush();
-
-        // perform a soft-reset on the device
-        port->write("\r");
-        port->write("\x04");
-        port->flush();
-    }
-
-    static bool upyRawReplExecuteQuick(QSerialPort *port, const QString &code)
-    {
-        // switch to raw REPL & send code
-        upyRawReplSendCode(port, code);
-
-        return upyRawReplExecute(port);
-    }
-
-    static void upyRawReplSendCode(QSerialPort *port, const QString &code)
-    {
-        // switch to raw REPL mode
-        port->write("\r");
-        port->write("\x01");
-        port->flush();
-
-        // send code
-        port->write(code.toUtf8());
-    }
-
-    static bool upyRawReplExecute(QSerialPort *port)
-    {
-        // don't forward any incoming data and clear the internal buffer
-        port->blockSignals(true);
-        serialClearIncoming(port);
-
-        // execute code
-        port->write("\r");
-        port->write("\x04");
-        port->flush();
-
-        port->waitForReadyRead(20000);
-        if (port->read(2) != QStringLiteral("OK")) {
-            port->blockSignals(false);
-            return false;
-        }
-
-        // enable incoming data forwarding (& all other signals)
-        port->blockSignals(false);
-
-        return true;
-    }
-
     void setName(const QString &value) final
     {
         AbstractModule::setName(value);
@@ -460,15 +446,13 @@ public:
         m_testRunAction->setEnabled(false);
         m_devResetAction->setEnabled(false);
 
-        // we are not running yet
-        m_stopped = true;
-
         // close the serial connection that the user is using interactively
         m_devConnectAction->setChecked(false);
         if (m_userSerial->isOpen())
             m_userSerial->close();
 
         // start all streams
+        QHash<QString, std::shared_ptr<VariantDataStream>> outStreams;
         for (auto &p : outPorts()) {
             if (p->dataTypeId() == BaseDataType::SignalBlockI32 || p->dataTypeId() == BaseDataType::SignalBlockF32) {
                 auto stream = p->streamVar();
@@ -477,6 +461,9 @@ public:
             }
 
             p->startStream();
+
+            // the device selects the streams it sends data to by the ID of their port
+            outStreams.insert(p->id(), p->streamVar());
         }
 
         for (auto &p : inPorts()) {
@@ -487,277 +474,305 @@ public:
                 m_activeInPorts.push_back(trp);
         }
 
+        // prepare subscription list
+        std::vector<std::shared_ptr<StreamSubscription<TableRow>>> activeSubs;
+        QStringList activeInPortIds;
+        for (auto &p : m_activeInPorts) {
+            activeSubs.push_back(p->subscription());
+            activeInPortIds.append(p->id());
+        }
+
         // set up clock synchronizer
-        m_clockSync = initClockSynchronizer();
+        auto clockSync = initClockSynchronizer();
         // sensible amount of calibration points, since we do not know a framerate
-        m_clockSync->setCalibrationPointsCount(86);
-        m_clockSync->setTolerance(milliseconds_t(2));
-        m_clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD);
-        m_baseTimeOffset = microseconds_t(0);
+        clockSync->setCalibrationPointsCount(86);
+        clockSync->setTolerance(milliseconds_t(2));
+        clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD);
 
         // start the synchronizer
-        if (!m_clockSync->start()) {
+        if (!clockSync->start()) {
             raiseError(QStringLiteral("Unable to set up clock synchronizer!"));
             return false;
         }
+
+        // the script can still be edited while we are running, so our thread gets the text as it is now
+        setWorker(
+            Worker{
+                .serialDevice = m_serialSelector->currentData().toString(),
+                .commCode = m_commCode,
+                .userCode = m_codeView->document()->text(),
+                .activeSubs = std::move(activeSubs),
+                .activeInPortIds = activeInPortIds,
+                .outStreams = outStreams,
+                .clockSync = std::move(clockSync),
+                .showUserData = mainCallback([this](const QByteArray &data) {
+                    m_consoleWidget->putData(data);
+                }),
+            });
 
         m_consoleWidget->setVisible(true);
         m_consoleWidget->clear();
         return true;
     }
 
-    void processIncomingPortData(
-        const QJsonObject &obj,
-        const QHash<int, std::shared_ptr<VariantDataStream>> &streamMap,
-        microseconds_t &recvMasterTime)
-    {
-        // ignore empty requests
-        if (obj.isEmpty())
-            return;
-
-        // ignore any host commands that were echoed back
-        if (obj.contains("hc"))
-            return;
-
-        std::shared_ptr<VariantDataStream> stream;
-        auto portId = obj["p"].toInt(-1);
-        stream = streamMap.value(portId);
-
-        if (!stream) {
-            raiseError(QStringLiteral(
-                           "Unable to find port with ID %1, as requested by the device. Was the port "
-                           "properly registered with the host?")
-                           .arg(portId));
-            return;
-        }
-
-        if (stream->dataTypeId() == BaseDataType::TableRow) {
-            TableRow row;
-            for (const auto &e : obj["d"].toArray()) {
-                if (e.isDouble())
-                    row.append(numToString(e.toDouble()));
-                else
-                    row.append(e.toString().toStdString());
-            }
-
-            std::static_pointer_cast<DataStream<TableRow>>(stream)->push(row);
-            return;
-        }
-
-        bool isIntBlock = stream->dataTypeId() == BaseDataType::SignalBlockI32;
-        bool isFloatBlock = !isIntBlock && stream->dataTypeId() == BaseDataType::SignalBlockF32;
-
-        if (isIntBlock || isFloatBlock) {
-            const auto array = obj["d"].toArray();
-            const auto arrayLen = array.size();
-            const auto jTs = obj["t"];
-            if (!jTs.isUndefined()) {
-                const auto deviceTimestamp = microseconds_t(
-                    static_cast<int64_t>(jTs.toDouble() * 1000) - m_baseTimeOffset.count());
-
-                // synchronize
-                m_clockSync->processTimestamp(recvMasterTime, deviceTimestamp);
-            }
-
-            if (isIntBlock) {
-                SignalBlockI32 block(arrayLen);
-                for (int i = 0; i < arrayLen; i++) {
-                    block.data(i, 0) = array[i].toInt();
-                    block.timestamps(i, 0) = recvMasterTime.count();
-                }
-
-                std::static_pointer_cast<DataStream<SignalBlockI32>>(stream)->push(block);
-            } else {
-                SignalBlockF32 block(arrayLen);
-                for (int i = 0; i < arrayLen; i++) {
-                    block.data(i, 0) = array[i].toDouble();
-                    block.timestamps(i, 0) = recvMasterTime.count();
-                }
-
-                std::static_pointer_cast<DataStream<SignalBlockF32>>(stream)->push(block);
-            }
-        }
-    }
-
-    static void forwardInPortData(
-        QSerialPort *port,
-        const std::vector<std::shared_ptr<StreamSubscription<TableRow>>> &activeSubs)
-    {
-        for (size_t i = 0; i < activeSubs.size(); i++) {
-            if (!activeSubs[i]->hasPending())
-                continue;
-            auto maybeRow = activeSubs[i]->peekNext();
-            if (!maybeRow.has_value())
-                continue;
-            auto row = std::move(*maybeRow);
-            QJsonObject obj;
-            obj.insert("p", (qint64)i);
-            QJsonArray data;
-            for (const auto &e : row.data)
-                data.append(QString::fromStdString(e));
-            obj.insert("d", data);
-            port->write(QJsonDocument(obj).toJson(QJsonDocument::Compact));
-            port->write("\n");
-            port->flush();
-        }
-    }
-
-    void runThread(OptionalWaitCondition *waitCondition) final
-    {
-        // thread-only serial connection
-        QSerialPort serialPort;
-
-        const auto serialDevice = m_serialSelector->currentData().toString();
-        if (serialDevice.isEmpty()) {
-            raiseError("No serial port selected. Can not connect to the device!");
-            return;
-        }
-
-        setSerialPortParameters(&serialPort, serialDevice);
-        if (!serialPort.open(QIODevice::ReadWrite)) {
-            raiseError(QStringLiteral(
-                           "Failed to open serial port %1.\n"
-                           "Error: %2")
-                           .arg(serialPort.portName(), serialPort.errorString()));
-            return;
-        }
-
-        // reset the device to ensure we have a clean slate
-        upySoftReset(&serialPort);
-
-        // ignore any data the reset operation may have generated
-        serialClearIncoming(&serialPort);
-
-        // inject Syntalos communication code
-        if (!upyRawReplExecuteQuick(&serialPort, m_commCode)) {
-            raiseError(
-                "Failed to send code to the device. Check the log output. Is MicroPython flashed to the device?");
-            return;
-        }
-
-        // prepare subscription list
+    /**
+     * Runs the user's script on the device and exchanges data with it, in a dedicated thread.
+     */
+    struct Worker {
+        WorkerContext mod{};
+        QString serialDevice;
+        QString commCode;
+        QString userCode;
         std::vector<std::shared_ptr<StreamSubscription<TableRow>>> activeSubs;
-        for (auto &p : m_activeInPorts)
-            activeSubs.push_back(p->subscription());
+        QStringList activeInPortIds;
+        QHash<QString, std::shared_ptr<VariantDataStream>> outStreams;
+        std::unique_ptr<SecondaryClockSynchronizer> clockSync;
+        MainCallback<QByteArray> showUserData;
 
-        // send the user's code to the device
-        upyRawReplSendCode(&serialPort, m_codeView->document()->text());
+        microseconds_t baseTimeOffset = microseconds_t(0);
 
-        // we are ready!
-        m_stopped = false;
-        waitCondition->wait(this);
+        void processIncomingPortData(
+            const QJsonObject &obj,
+            const QHash<int, std::shared_ptr<VariantDataStream>> &streamMap,
+            microseconds_t &recvMasterTime)
+        {
+            // ignore empty requests
+            if (obj.isEmpty())
+                return;
 
-        // execute the previously transmitted code
-        upyRawReplExecute(&serialPort);
+            // ignore any host commands that were echoed back
+            if (obj.contains("hc"))
+                return;
 
-        bool isConfigDone = false;
-        bool isPortInfoSent = false;
-        QHash<int, std::shared_ptr<VariantDataStream>> streamMap;
+            std::shared_ptr<VariantDataStream> stream;
+            auto portId = obj["p"].toInt(-1);
+            stream = streamMap.value(portId);
 
-        while (m_running) {
-            if (!serialPort.waitForReadyRead(25)) {
-                forwardInPortData(&serialPort, activeSubs);
-                continue;
+            if (!stream) {
+                mod.raiseError(QStringLiteral(
+                                   "Unable to find port with ID %1, as requested by the device. Was the port "
+                                   "properly registered with the host?")
+                                   .arg(portId));
+                return;
             }
-            forwardInPortData(&serialPort, activeSubs);
-            if (!serialPort.canReadLine())
-                continue;
 
-            auto recvMasterTime = m_syTimer->timeSinceStartUsec();
-            const auto data = serialPort.readLine();
-
-            // check for error
-            if (data.contains("Traceback (most recent call last)")) {
-                // an error occurred, print everything to the console
-                emit receivedUserData(data);
-
-                for (uint i = 0; i < 20; i++) {
-                    if (!serialPort.waitForReadyRead(100))
-                        continue;
-                    emit receivedUserData(serialPort.readAll());
+            if (stream->dataTypeId() == BaseDataType::TableRow) {
+                TableRow row;
+                for (const auto &e : obj["d"].toArray()) {
+                    if (e.isDouble())
+                        row.append(numToString(e.toDouble()));
+                    else
+                        row.append(e.toString().toStdString());
                 }
 
-                raiseError("The device script failed with an error. Check the device console for details.");
-                break;
+                std::static_pointer_cast<DataStream<TableRow>>(stream)->push(row);
+                return;
             }
 
-            // check for regular output
-            if (!data.startsWith('{')) {
-                // output anything this isn't a JSON request to the console
-                emit receivedUserData(data);
-                continue;
-            }
+            bool isIntBlock = stream->dataTypeId() == BaseDataType::SignalBlockI32;
+            bool isFloatBlock = !isIntBlock && stream->dataTypeId() == BaseDataType::SignalBlockF32;
 
-            // we received a JSON object
-            const auto jo = QJsonDocument::fromJson(data);
+            if (isIntBlock || isFloatBlock) {
+                const auto array = obj["d"].toArray();
+                const auto arrayLen = array.size();
+                const auto jTs = obj["t"];
+                if (!jTs.isUndefined()) {
+                    const auto deviceTimestamp = microseconds_t(
+                        static_cast<int64_t>(jTs.toDouble() * 1000) - baseTimeOffset.count());
 
-            if (jo.isNull() || !jo.isObject()) {
-                emit receivedUserData(data);
-            } else {
-                if (isConfigDone) {
-                    processIncomingPortData(jo.object(), streamMap, recvMasterTime);
+                    // synchronize
+                    clockSync->processTimestamp(recvMasterTime, deviceTimestamp);
+                }
+
+                if (isIntBlock) {
+                    SignalBlockI32 block(arrayLen);
+                    for (int i = 0; i < arrayLen; i++) {
+                        block.data(i, 0) = array[i].toInt();
+                        block.timestamps(i, 0) = recvMasterTime.count();
+                    }
+
+                    std::static_pointer_cast<DataStream<SignalBlockI32>>(stream)->push(block);
                 } else {
-                    if (!isPortInfoSent) {
-                        // ensure the input line-reading pipeline is clear
-                        serialPort.write("\n");
-                        serialPort.flush();
+                    SignalBlockF32 block(arrayLen);
+                    for (int i = 0; i < arrayLen; i++) {
+                        block.data(i, 0) = array[i].toDouble();
+                        block.timestamps(i, 0) = recvMasterTime.count();
+                    }
 
-                        // notify the device about input ports
-                        for (size_t i = 0; i < m_activeInPorts.size(); i++) {
-                            QJsonObject obj;
-                            obj.insert("hc", "in-port");
-                            obj.insert("i", (qint64)i);
-                            obj.insert("p", m_activeInPorts[i]->id());
-                            serialPort.write(QJsonDocument(obj).toJson(QJsonDocument::Compact));
+                    std::static_pointer_cast<DataStream<SignalBlockF32>>(stream)->push(block);
+                }
+            }
+        }
+
+        static void forwardInPortData(
+            QSerialPort *port,
+            const std::vector<std::shared_ptr<StreamSubscription<TableRow>>> &activeSubs)
+        {
+            for (size_t i = 0; i < activeSubs.size(); i++) {
+                if (!activeSubs[i]->hasPending())
+                    continue;
+                auto maybeRow = activeSubs[i]->peekNext();
+                if (!maybeRow.has_value())
+                    continue;
+                auto row = std::move(*maybeRow);
+                QJsonObject obj;
+                obj.insert("p", (qint64)i);
+                QJsonArray data;
+                for (const auto &e : row.data)
+                    data.append(QString::fromStdString(e));
+                obj.insert("d", data);
+                port->write(QJsonDocument(obj).toJson(QJsonDocument::Compact));
+                port->write("\n");
+                port->flush();
+            }
+        }
+
+        void run()
+        {
+            // thread-only serial connection
+            QSerialPort serialPort;
+
+            if (serialDevice.isEmpty()) {
+                mod.raiseError("No serial port selected. Can not connect to the device!");
+                return;
+            }
+
+            setSerialPortParameters(&serialPort, serialDevice);
+            if (!serialPort.open(QIODevice::ReadWrite)) {
+                mod.raiseError(QStringLiteral(
+                                   "Failed to open serial port %1.\n"
+                                   "Error: %2")
+                                   .arg(serialPort.portName(), serialPort.errorString()));
+                return;
+            }
+
+            // reset the device to ensure we have a clean slate
+            upySoftReset(&serialPort);
+
+            // ignore any data the reset operation may have generated
+            serialClearIncoming(&serialPort);
+
+            // inject Syntalos communication code
+            if (!upyRawReplExecuteQuick(&serialPort, commCode)) {
+                mod.raiseError(
+                    "Failed to send code to the device. Check the log output. Is MicroPython flashed to the device?");
+                return;
+            }
+
+            // send the user's code to the device
+            upyRawReplSendCode(&serialPort, userCode);
+
+            // we are ready!
+            mod.waitForStart();
+
+            // execute the previously transmitted code
+            upyRawReplExecute(&serialPort);
+
+            bool isConfigDone = false;
+            bool isPortInfoSent = false;
+            QHash<int, std::shared_ptr<VariantDataStream>> streamMap;
+
+            while (mod.running()) {
+                if (!serialPort.waitForReadyRead(25)) {
+                    forwardInPortData(&serialPort, activeSubs);
+                    continue;
+                }
+                forwardInPortData(&serialPort, activeSubs);
+                if (!serialPort.canReadLine())
+                    continue;
+
+                auto recvMasterTime = mod.timer->timeSinceStartUsec();
+                const auto data = serialPort.readLine();
+
+                // check for error
+                if (data.contains("Traceback (most recent call last)")) {
+                    // an error occurred, print everything to the console
+                    showUserData(data);
+
+                    for (uint i = 0; i < 20; i++) {
+                        if (!serialPort.waitForReadyRead(100))
+                            continue;
+                        showUserData(serialPort.readAll());
+                    }
+
+                    mod.raiseError("The device script failed with an error. Check the device console for details.");
+                    break;
+                }
+
+                // check for regular output
+                if (!data.startsWith('{')) {
+                    // output anything this isn't a JSON request to the console
+                    showUserData(data);
+                    continue;
+                }
+
+                // we received a JSON object
+                const auto jo = QJsonDocument::fromJson(data);
+
+                if (jo.isNull() || !jo.isObject()) {
+                    showUserData(data);
+                } else {
+                    if (isConfigDone) {
+                        processIncomingPortData(jo.object(), streamMap, recvMasterTime);
+                    } else {
+                        if (!isPortInfoSent) {
+                            // ensure the input line-reading pipeline is clear
                             serialPort.write("\n");
                             serialPort.flush();
-                        }
-                        isPortInfoSent = true;
-                    }
 
-                    // receive information about output ports
-                    auto jd = jo.object();
-                    if (!jd.contains("dc") && jd.contains("d")) {
-                        // we are receiving data now, exist config mode
-                        isConfigDone = true;
-                        processIncomingPortData(jd, streamMap, recvMasterTime);
-                        continue;
-                    }
-
-                    const auto command = jd["dc"].toString();
-                    if (command == "new-out-port") {
-                        const auto portId = jd["n"].toString();
-                        auto oport = outPortById(portId);
-                        if (!oport) {
-                            raiseError(QStringLiteral(
-                                           "Device requested output port of ID '%1', but no such port has "
-                                           "been registered on the host!")
-                                           .arg(portId));
-                            break;
+                            // notify the device about input ports
+                            for (qsizetype i = 0; i < activeInPortIds.size(); i++) {
+                                QJsonObject obj;
+                                obj.insert("hc", "in-port");
+                                obj.insert("i", (qint64)i);
+                                obj.insert("p", activeInPortIds[i]);
+                                serialPort.write(QJsonDocument(obj).toJson(QJsonDocument::Compact));
+                                serialPort.write("\n");
+                                serialPort.flush();
+                            }
+                            isPortInfoSent = true;
                         }
-                        streamMap[jd["i"].toInt()] = oport->streamVar();
-                    } else if (command == "start-time") {
-                        m_baseTimeOffset = microseconds_t(static_cast<int64_t>(jd["t_ms"].toDouble() * 1000));
+
+                        // receive information about output ports
+                        auto jd = jo.object();
+                        if (!jd.contains("dc") && jd.contains("d")) {
+                            // we are receiving data now, exist config mode
+                            isConfigDone = true;
+                            processIncomingPortData(jd, streamMap, recvMasterTime);
+                            continue;
+                        }
+
+                        const auto command = jd["dc"].toString();
+                        if (command == "new-out-port") {
+                            const auto portId = jd["n"].toString();
+                            auto ostream = outStreams.value(portId);
+                            if (!ostream) {
+                                mod.raiseError(QStringLiteral(
+                                                   "Device requested output port of ID '%1', but no such port has "
+                                                   "been registered on the host!")
+                                                   .arg(portId));
+                                break;
+                            }
+                            streamMap[jd["i"].toInt()] = ostream;
+                        } else if (command == "start-time") {
+                            baseTimeOffset = microseconds_t(static_cast<int64_t>(jd["t_ms"].toDouble() * 1000));
+                        }
                     }
                 }
             }
-        }
 
-        // stop device program and clean up
-        upyInterrupt(&serialPort);
-        m_stopped = true;
-    }
+            // stop device program and clean up
+            upyInterrupt(&serialPort);
+        }
+    };
 
     void stop() override
     {
         AbstractModule::stop();
 
-        m_running = false;
-        while (!m_stopped) {
-            std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            appProcessEvents();
-        }
-        safeStopSynchronizer(m_clockSync);
+        // our thread has finished at this point, so nothing uses the synchronizer anymore
+        if (auto worker = takeWorker<Worker>())
+            safeStopSynchronizer(worker->clockSync);
 
         m_portEditAction->setEnabled(true);
         m_serialSelector->setEnabled(true);
@@ -840,10 +855,7 @@ private:
     qint64 m_bytesToWrite = 0;
     QString m_commCode;
 
-    std::atomic_bool m_stopped;
     std::vector<std::shared_ptr<StreamInputPort<TableRow>>> m_activeInPorts;
-    microseconds_t m_baseTimeOffset = microseconds_t(0);
-    std::unique_ptr<SecondaryClockSynchronizer> m_clockSync;
 };
 
 QString UPyWBenchModuleInfo::id() const

@@ -41,8 +41,6 @@ private:
     std::shared_ptr<DataStream<SignalBlockF32>> m_tempStream;
     SP210SettingsDialog *m_settingsDlg;
 
-    std::unique_ptr<SecondaryClockSynchronizer> m_clockSync;
-
 public:
     explicit SP210Module(QObject *parent = nullptr)
         : AbstractModule(parent)
@@ -92,160 +90,191 @@ public:
         m_tempStream->start();
 
         // set up clock synchronizer
-        m_clockSync = initClockSynchronizer(m_settingsDlg->samplingRate());
-        m_clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD);
+        const auto samplingRate = m_settingsDlg->samplingRate();
+        auto clockSync = initClockSynchronizer(samplingRate);
+        clockSync->setStrategies(TimeSyncStrategy::SHIFT_TIMESTAMPS_FWD | TimeSyncStrategy::SHIFT_TIMESTAMPS_BWD);
 
         // start the synchronizer
-        if (!m_clockSync->start()) {
+        if (!clockSync->start()) {
             raiseError(QStringLiteral("Unable to set up clock synchronizer!"));
             return false;
         }
+
+        setWorker(
+            Worker{
+                .paStream = m_paStream,
+                .tempStream = m_tempStream,
+                .clockSync = std::move(clockSync),
+                .serialPort = m_settingsDlg->serialPort(),
+                .zeroNoiseSuppression = m_settingsDlg->zeroNoiseSuppression(),
+                .zeroMode = m_settingsDlg->zeroMode(),
+                .samplingRate = samplingRate,
+            });
 
         setStateReady();
         return true;
     }
 
-    bool writeSerialCommand(
-        QSerialPort &serial,
-        const QByteArray &data,
-        bool replyExpected = true,
-        bool errorOnTimeout = true)
-    {
-        serial.write(data + "\n");
-        if (!serial.waitForBytesWritten(4 * 1000)) {
-            if (!errorOnTimeout)
+    /**
+     * Reads data from the pressure sensor, in a dedicated thread.
+     */
+    struct Worker {
+        WorkerContext mod{};
+        std::shared_ptr<DataStream<SignalBlockF32>> paStream;
+        std::shared_ptr<DataStream<SignalBlockF32>> tempStream;
+        std::unique_ptr<SecondaryClockSynchronizer> clockSync;
+
+        // settings, as selected by the user when the run was prepared
+        QString serialPort;
+        bool zeroNoiseSuppression;
+        QString zeroMode;
+        int samplingRate;
+
+        bool writeSerialCommand(
+            QSerialPort &serial,
+            const QByteArray &data,
+            bool replyExpected = true,
+            bool errorOnTimeout = true)
+        {
+            serial.write(data + "\n");
+            if (!serial.waitForBytesWritten(4 * 1000)) {
+                if (!errorOnTimeout)
+                    return false;
+                mod.raiseError(QStringLiteral("Timed out while trying to write data to device %1 (%2)")
+                                   .arg(serial.portName())
+                                   .arg(serial.errorString()));
                 return false;
-            raiseError(QStringLiteral("Timed out while trying to write data to device %1 (%2)")
-                           .arg(serial.portName())
-                           .arg(serial.errorString()));
-            return false;
-        }
-
-        if (replyExpected) {
-            QByteArray result;
-            while (serial.waitForReadyRead(500)) {
-                result += serial.readAll();
-                if (result.length() > 1024)
-                    break;
             }
 
-            if (!result.contains("C:" + data)) {
-                raiseError(QStringLiteral(
-                               "Command \"%1\" was not acknowledged by the device %2. Please check your connection!")
-                               .arg(QString::fromUtf8(data))
-                               .arg(serial.portName()));
-                return false;
-            }
-        }
+            if (replyExpected) {
+                QByteArray result;
+                while (serial.waitForReadyRead(500)) {
+                    result += serial.readAll();
+                    if (result.length() > 1024)
+                        break;
+                }
 
-        return true;
-    }
-
-    void runThread(OptionalWaitCondition *waitCondition) override
-    {
-        // do nothing if nobody consumes our data
-        if (!m_paStream->hasSubscribers() && m_tempStream->hasSubscribers())
-            return;
-
-        // configure serial device
-        QSerialPort serial;
-        serial.close();
-        serial.setBaudRate(QSerialPort::Baud115200);
-        serial.setStopBits(QSerialPort::OneStop);
-        serial.setPortName(m_settingsDlg->serialPort());
-
-        if (!serial.open(QIODevice::ReadWrite)) {
-            raiseError(QStringLiteral("Can't open %1, error code %2").arg(serial.portName()).arg(serial.error()));
-            return;
-        }
-
-        // configure settings
-        statusMessage("Configuring...");
-        if (!writeSerialCommand(
-                serial,
-                QStringLiteral("ZERO_NOISE_SUPPRESSION=%1")
-                    .arg(m_settingsDlg->zeroNoiseSuppression() ? "true" : "false")
-                    .toUtf8()))
-            return;
-        if (!writeSerialCommand(serial, QStringLiteral("ZERO_MODE=%1").arg(m_settingsDlg->zeroMode()).toUtf8()))
-            return;
-        if (!writeSerialCommand(serial, QStringLiteral("RATE=%1").arg(m_settingsDlg->samplingRate()).toUtf8()))
-            return;
-
-        const int blockSize = m_settingsDlg->samplingRate() / 10;
-        if (blockSize < 2) {
-            raiseError(QStringLiteral("Invalid data block size."));
-            return;
-        }
-
-        // wait until we actually start acquiring data
-        waitCondition->wait(this);
-
-        // start measuring
-        if (!writeSerialCommand(serial, "START", false))
-            return;
-        statusMessage("Reading data...");
-
-        SignalBlockF32 paBlock(blockSize, 1);
-        SignalBlockF32 cBlock(blockSize, 1);
-        int blockSampleIdx = 0;
-        while (m_running) {
-            if (!serial.waitForReadyRead(10 * 1000)) {
-                // try again if we timed out
-                continue;
+                if (!result.contains("C:" + data)) {
+                    mod.raiseError(
+                        QStringLiteral(
+                            "Command \"%1\" was not acknowledged by the device %2. Please check your connection!")
+                            .arg(QString::fromUtf8(data))
+                            .arg(serial.portName()));
+                    return false;
+                }
             }
 
-            QByteArray sensorDataRaw;
-            auto dataRecvTime = FUNC_DONE_TIMESTAMP(
-                m_syTimer->startTime(),
-                sensorDataRaw = serial.readLine().trimmed());
-            if (sensorDataRaw.isEmpty() || !sensorDataRaw.startsWith("D:"))
-                continue;
-
-            const auto parts = sensorDataRaw.mid(2).split(';');
-            if (parts.length() != 3)
-                continue;
-
-            // timestap by the device
-            const auto deviceTimestamp = microseconds_t(parts[0].toULong() * 1000);
-
-            // convert Millikelvin to °C
-            double temperatureC = (parts[1].toUInt() / 1000.0) - 273.15;
-
-            // convert pressure from µPa to mPa
-            double pressureMilliPa = parts[2].toLong() / 1000.0;
-
-            // adjust the received time if necessary, gather clock sync information
-            m_clockSync->processTimestamp(dataRecvTime, deviceTimestamp);
-            const uint dpTimestampMs = dataRecvTime.count() / 1000;
-
-            // write data to block
-            cBlock.data(blockSampleIdx, 0) = temperatureC;
-            cBlock.timestamps(blockSampleIdx, 0) = dpTimestampMs;
-            paBlock.data(blockSampleIdx, 0) = pressureMilliPa;
-            paBlock.timestamps(blockSampleIdx, 0) = dpTimestampMs;
-
-            blockSampleIdx++;
-            if (blockSampleIdx >= blockSize) {
-                blockSampleIdx = 0;
-
-                // submit data
-                m_paStream->push(paBlock);
-                m_tempStream->push(cBlock);
-            }
+            return true;
         }
 
-        // stop measuring
-        writeSerialCommand(serial, "STOP", false, false);
+        void run()
+        {
+            // do nothing if nobody consumes our data
+            if (!paStream->hasSubscribers() && tempStream->hasSubscribers())
+                return;
 
-        // clear remaining output from the serial buffer
-        while (serial.waitForReadyRead(500))
-            serial.readAll();
-    }
+            // configure serial device
+            QSerialPort serial;
+            serial.close();
+            serial.setBaudRate(QSerialPort::Baud115200);
+            serial.setStopBits(QSerialPort::OneStop);
+            serial.setPortName(serialPort);
+
+            if (!serial.open(QIODevice::ReadWrite)) {
+                mod.raiseError(
+                    QStringLiteral("Can't open %1, error code %2").arg(serial.portName()).arg(serial.error()));
+                return;
+            }
+
+            // configure settings
+            mod.setStatusMessage("Configuring...");
+            if (!writeSerialCommand(
+                    serial,
+                    QStringLiteral("ZERO_NOISE_SUPPRESSION=%1").arg(zeroNoiseSuppression ? "true" : "false").toUtf8()))
+                return;
+            if (!writeSerialCommand(serial, QStringLiteral("ZERO_MODE=%1").arg(zeroMode).toUtf8()))
+                return;
+            if (!writeSerialCommand(serial, QStringLiteral("RATE=%1").arg(samplingRate).toUtf8()))
+                return;
+
+            const int blockSize = samplingRate / 10;
+            if (blockSize < 2) {
+                mod.raiseError(QStringLiteral("Invalid data block size."));
+                return;
+            }
+
+            // wait until we actually start acquiring data
+            mod.waitForStart();
+
+            // start measuring
+            if (!writeSerialCommand(serial, "START", false))
+                return;
+            mod.setStatusMessage("Reading data...");
+
+            SignalBlockF32 paBlock(blockSize, 1);
+            SignalBlockF32 cBlock(blockSize, 1);
+            int blockSampleIdx = 0;
+            while (mod.running()) {
+                if (!serial.waitForReadyRead(10 * 1000)) {
+                    // try again if we timed out
+                    continue;
+                }
+
+                QByteArray sensorDataRaw;
+                auto dataRecvTime = FUNC_DONE_TIMESTAMP(
+                    mod.timer->startTime(),
+                    sensorDataRaw = serial.readLine().trimmed());
+                if (sensorDataRaw.isEmpty() || !sensorDataRaw.startsWith("D:"))
+                    continue;
+
+                const auto parts = sensorDataRaw.mid(2).split(';');
+                if (parts.length() != 3)
+                    continue;
+
+                // timestap by the device
+                const auto deviceTimestamp = microseconds_t(parts[0].toULong() * 1000);
+
+                // convert Millikelvin to °C
+                double temperatureC = (parts[1].toUInt() / 1000.0) - 273.15;
+
+                // convert pressure from µPa to mPa
+                double pressureMilliPa = parts[2].toLong() / 1000.0;
+
+                // adjust the received time if necessary, gather clock sync information
+                clockSync->processTimestamp(dataRecvTime, deviceTimestamp);
+                const uint dpTimestampMs = dataRecvTime.count() / 1000;
+
+                // write data to block
+                cBlock.data(blockSampleIdx, 0) = temperatureC;
+                cBlock.timestamps(blockSampleIdx, 0) = dpTimestampMs;
+                paBlock.data(blockSampleIdx, 0) = pressureMilliPa;
+                paBlock.timestamps(blockSampleIdx, 0) = dpTimestampMs;
+
+                blockSampleIdx++;
+                if (blockSampleIdx >= blockSize) {
+                    blockSampleIdx = 0;
+
+                    // submit data
+                    paStream->push(paBlock);
+                    tempStream->push(cBlock);
+                }
+            }
+
+            // stop measuring
+            writeSerialCommand(serial, "STOP", false, false);
+
+            // clear remaining output from the serial buffer
+            while (serial.waitForReadyRead(500))
+                serial.readAll();
+        }
+    };
 
     void stop() override
     {
-        safeStopSynchronizer(m_clockSync);
+        // our thread has finished at this point, so nothing uses the synchronizer anymore
+        if (auto worker = takeWorker<Worker>())
+            safeStopSynchronizer(worker->clockSync);
+
         m_settingsDlg->setRunning(false);
         statusMessage("Device stopped.");
     }

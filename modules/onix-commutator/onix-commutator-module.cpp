@@ -66,144 +66,167 @@ public:
     {
         m_settingsDlg->setRunning(true);
 
+        // do nothing if we do not have data input
+        if (!m_qIn->hasSubscription()) {
+            setStateDormant();
+            return true;
+        }
+
+        setWorker(
+            Worker{
+                .qSub = m_qIn->subscription(),
+                .serialPort = m_settingsDlg->serialPort(),
+                .statusLedEnabled = m_settingsDlg->statusLedEnabled(),
+                .speed = m_settingsDlg->speed(),
+                .acceleration = m_settingsDlg->acceleration(),
+            });
+
         setStateReady();
         return true;
     }
 
-    bool writeSerialCommand(
-        QSerialPort &serial,
-        const QByteArray &data,
-        bool replyExpected = true,
-        bool errorOnTimeout = true)
-    {
-        serial.write(data + "\n");
-        if (!serial.waitForBytesWritten(4 * 1000)) {
-            if (!errorOnTimeout)
+    /**
+     * Turns the commutator according to the received orientation data, in a dedicated thread.
+     */
+    struct Worker {
+        WorkerContext mod{};
+        std::shared_ptr<StreamSubscription<SignalBlockF32>> qSub;
+
+        // settings, as selected by the user when the run was prepared
+        QString serialPort;
+        bool statusLedEnabled;
+        double speed;
+        double acceleration;
+
+        bool writeSerialCommand(
+            QSerialPort &serial,
+            const QByteArray &data,
+            bool replyExpected = true,
+            bool errorOnTimeout = true)
+        {
+            serial.write(data + "\n");
+            if (!serial.waitForBytesWritten(4 * 1000)) {
+                if (!errorOnTimeout)
+                    return false;
+                mod.raiseError(QStringLiteral("Timed out while trying to write data to commutator %1 (%2)")
+                                   .arg(serial.portName())
+                                   .arg(serial.errorString()));
                 return false;
-            raiseError(QStringLiteral("Timed out while trying to write data to commutator %1 (%2)")
-                           .arg(serial.portName())
-                           .arg(serial.errorString()));
-            return false;
+            }
+
+            if (replyExpected) {
+                QByteArray result;
+                while (serial.waitForReadyRead(500)) {
+                    result += serial.readAll();
+                    if (result.length() > 1024)
+                        break;
+                }
+
+                if (!result.contains("C:" + data)) {
+                    mod.raiseError(
+                        QStringLiteral(
+                            "Command \"%1\" was not acknowledged by the device %2. Please check your connection!")
+                            .arg(QString::fromUtf8(data))
+                            .arg(serial.portName()));
+                    return false;
+                }
+            }
+
+            return true;
         }
 
-        if (replyExpected) {
-            QByteArray result;
-            while (serial.waitForReadyRead(500)) {
-                result += serial.readAll();
-                if (result.length() > 1024)
+        static double computeTurns(double currentAngle, double previousAngle)
+        {
+            double dAngle = currentAngle - previousAngle;
+
+            // calculate the rotation
+            double rotation = -dAngle / (2 * M_PI);
+
+            // adjust the rotation if it's greater than 0.5 (account for wrap-around)
+            if (std::abs(rotation) > 0.5)
+                rotation = std::abs(rotation) - 1;
+
+            return rotation;
+        }
+
+        void run()
+        {
+            const auto sigNamesArr = qSub->metadataValue("signal_names", MetaArray{});
+            QStringList signalNames;
+            for (const auto &v : sigNamesArr) {
+                if (const auto s = v.get<std::string>())
+                    signalNames << QString::fromStdString(*s);
+            }
+            const auto expectedSignalNames = QStringList() << "qw"
+                                                           << "qx"
+                                                           << "qy"
+                                                           << "qz";
+            if (signalNames != expectedSignalNames) {
+                mod.raiseError(QStringLiteral("Unexpected signal labels for quaternion input: %1. Expected %2.")
+                                   .arg(signalNames.join(", "))
+                                   .arg(expectedSignalNames.join(", ")));
+                return;
+            }
+
+            // configure serial device
+            QSerialPort serial;
+            serial.close();
+            serial.setBaudRate(QSerialPort::Baud115200);
+            serial.setStopBits(QSerialPort::OneStop);
+            serial.setPortName(serialPort);
+
+            if (!serial.open(QIODevice::ReadWrite)) {
+                mod.raiseError(
+                    QStringLiteral("Can't open %1, error code %2").arg(serial.portName()).arg(serial.error()));
+                return;
+            }
+
+            // configure settings
+            mod.setStatusMessage("Configuring...");
+
+            // configure commutator
+            if (!writeSerialCommand(
+                    serial,
+                    QStringLiteral("{enable: true, led: %1, speed: %2, accel: %3}")
+                        .arg(statusLedEnabled ? "true" : "false")
+                        .arg(speed, 0, 'f', 3)
+                        .arg(acceleration, 0, 'f', 3)
+                        .toUtf8(),
+                    false))
+                return;
+
+            // wait until experiment start, in case we haven't started yet
+            mod.waitForStart();
+
+            mod.setStatusMessage("Ready.");
+
+            double prevYaw2Pi = 0;
+            while (mod.running()) {
+                auto sblock = qSub->next();
+                if (!sblock.has_value())
+                    continue;
+
+                const auto qw = sblock->data(0, 0);
+                const auto qx = sblock->data(0, 1);
+                const auto qy = sblock->data(0, 2);
+                const auto qz = sblock->data(0, 3);
+
+                double yawEuler = atan2(2 * (qw * qz + qx * qy), 1 - 2 * (qy * qy + qz * qz));
+                double yaw2Pi = fmod(yawEuler + 2 * M_PI, 2 * M_PI);
+
+                auto turns = computeTurns(yaw2Pi, prevYaw2Pi);
+                if (std::abs(turns) < 0.001)
+                    continue;
+
+                prevYaw2Pi = yaw2Pi;
+                if (!writeSerialCommand(serial, QStringLiteral("{turns: %1}").arg(turns, 0, 'f', 3).toUtf8(), false))
                     break;
-            }
 
-            if (!result.contains("C:" + data)) {
-                raiseError(QStringLiteral(
-                               "Command \"%1\" was not acknowledged by the device %2. Please check your connection!")
-                               .arg(QString::fromUtf8(data))
-                               .arg(serial.portName()));
-                return false;
+                // display the change as status - potentially we should rate-limit this display in future?
+                mod.setStatusMessage(QStringLiteral("Turned %1 turns.").arg(turns, 0, 'f', 3));
             }
         }
-
-        return true;
-    }
-
-    static double computeTurns(double currentAngle, double previousAngle)
-    {
-        double dAngle = currentAngle - previousAngle;
-
-        // calculate the rotation
-        double rotation = -dAngle / (2 * M_PI);
-
-        // adjust the rotation if it's greater than 0.5 (account for wrap-around)
-        if (std::abs(rotation) > 0.5)
-            rotation = std::abs(rotation) - 1;
-
-        return rotation;
-    }
-
-    void runThread(OptionalWaitCondition *waitCondition) override
-    {
-        // do nothing if we do not have data input
-        if (!m_qIn->hasSubscription()) {
-            setStateDormant();
-            return;
-        }
-
-        auto qSub = m_qIn->subscription();
-
-        const auto sigNamesArr = qSub->metadataValue("signal_names", MetaArray{});
-        QStringList signalNames;
-        for (const auto &v : sigNamesArr) {
-            if (const auto s = v.get<std::string>())
-                signalNames << QString::fromStdString(*s);
-        }
-        const auto expectedSignalNames = QStringList() << "qw"
-                                                       << "qx"
-                                                       << "qy"
-                                                       << "qz";
-        if (signalNames != expectedSignalNames) {
-            raiseError(QStringLiteral("Unexpected signal labels for quaternion input: %1. Expected %2.")
-                           .arg(signalNames.join(", "))
-                           .arg(expectedSignalNames.join(", ")));
-            return;
-        }
-
-        // configure serial device
-        QSerialPort serial;
-        serial.close();
-        serial.setBaudRate(QSerialPort::Baud115200);
-        serial.setStopBits(QSerialPort::OneStop);
-        serial.setPortName(m_settingsDlg->serialPort());
-
-        if (!serial.open(QIODevice::ReadWrite)) {
-            raiseError(QStringLiteral("Can't open %1, error code %2").arg(serial.portName()).arg(serial.error()));
-            return;
-        }
-
-        // configure settings
-        statusMessage("Configuring...");
-
-        // configure commutator
-        if (!writeSerialCommand(
-                serial,
-                QStringLiteral("{enable: true, led: %1, speed: %2, accel: %3}")
-                    .arg(m_settingsDlg->statusLedEnabled() ? "true" : "false")
-                    .arg(m_settingsDlg->speed(), 0, 'f', 3)
-                    .arg(m_settingsDlg->acceleration(), 0, 'f', 3)
-                    .toUtf8(),
-                false))
-            return;
-
-        // wait until experiment start, in case we haven't started yet
-        waitCondition->wait(this);
-
-        statusMessage("Ready.");
-
-        double prevYaw2Pi = 0;
-        while (m_running) {
-            auto sblock = qSub->next();
-            if (!sblock.has_value())
-                continue;
-
-            const auto qw = sblock->data(0, 0);
-            const auto qx = sblock->data(0, 1);
-            const auto qy = sblock->data(0, 2);
-            const auto qz = sblock->data(0, 3);
-
-            double yawEuler = atan2(2 * (qw * qz + qx * qy), 1 - 2 * (qy * qy + qz * qz));
-            double yaw2Pi = fmod(yawEuler + 2 * M_PI, 2 * M_PI);
-
-            auto turns = computeTurns(yaw2Pi, prevYaw2Pi);
-            if (std::abs(turns) < 0.001)
-                continue;
-
-            prevYaw2Pi = yaw2Pi;
-            if (!writeSerialCommand(serial, QStringLiteral("{turns: %1}").arg(turns, 0, 'f', 3).toUtf8(), false))
-                break;
-
-            // display the change as status - potentially we should rate-limit this display in future?
-            statusMessage(QStringLiteral("Turned %1 turns.").arg(turns, 0, 'f', 3));
-        }
-    }
+    };
 
     void stop() override
     {

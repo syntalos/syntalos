@@ -33,8 +33,6 @@ private:
     std::shared_ptr<DataStream<Frame>> m_animalStream;
     std::shared_ptr<DataStream<TableRow>> m_dataStream;
 
-    QString m_subjectId;
-
 public:
     explicit TriLedTrackerModule(QObject *parent = nullptr)
         : AbstractModule(parent)
@@ -61,24 +59,19 @@ public:
 
     bool prepare(const RunInfo &info) override
     {
-        m_subjectId = info.subject.id;
-        if (m_subjectId.isEmpty())
-            m_subjectId = QStringLiteral("SIU"); // subject ID unknown
+        auto subjectId = info.subject.id;
+        if (subjectId.isEmpty())
+            subjectId = QStringLiteral("SIU"); // subject ID unknown
 
         m_dataStream->setSuggestedDataName(QStringLiteral("%1/triLedTrack").arg(datasetNameSuggestion()));
         m_trackStream->setSuggestedDataName(QStringLiteral("%1_trackvideo/trackVideo").arg(datasetNameSuggestion()));
         m_animalStream->setSuggestedDataName(QStringLiteral("%1_subjvid/subjInfoVideo").arg(datasetNameSuggestion()));
 
-        return true;
-    }
-
-    void runThread(OptionalWaitCondition *startWaitCondition) override
-    {
         // don't even try to do anything in case we are not subscribed to a
         // frame source
         if (!m_inPort->hasSubscription()) {
             setStateDormant();
-            return;
+            return true;
         }
 
         const double MAX_FPS = 30; // we never want more than 30fps for tracking
@@ -92,46 +85,74 @@ public:
         m_animalStream->start();
 
         // create new tracker and have it initialize the data output stream
-        auto tracker = new Tracker(m_dataStream, m_subjectId);
+        auto tracker = std::make_unique<Tracker>(m_dataStream, subjectId);
         if (!tracker->initialize()) {
             raiseError(tracker->lastError());
-            delete tracker;
-            return;
+            return false;
         }
 
-        // wait until we actually start
-        startWaitCondition->wait(this);
+        setWorker(
+            Worker{
+                .frameSub = frameSub,
+                .trackStream = m_trackStream,
+                .animalStream = m_animalStream,
+                .tracker = std::move(tracker),
+            });
 
-        while (m_running) {
-            const auto mFrame = frameSub->next();
-            // no value means the subscription has been terminated
-            if (!mFrame.has_value())
-                break;
-            const auto &frame = mFrame.value();
-
-            cv::Mat infoMat;
-            cv::Mat trackMat;
-            cv::Mat frameMat = frame.mat;
-            tracker->analyzeFrame(frameMat, usecToMsec(frame.time), &trackMat, &infoMat);
-
-            m_trackStream->push(Frame(trackMat, frame.time));
-            m_animalStream->push(Frame(infoMat, frame.time));
-        }
-
-        // store maze dimension metadata - since or metadata storage suggestion to possible
-        // table-saving modules is to store data in a set named after our module, we will
-        // possibly not create our default dataset here but instead fetch an already existing one.
-        // in that event, we "hijack" the dataset and add a few more attributes to it.
-        auto dset = createDefaultDataset();
-        if (dset.get() == nullptr)
-            return;
-        dset->insertAttribute("maze_dimensions", tracker->finalize());
-
-        delete tracker;
+        return true;
     }
+
+    /**
+     * Tracks the subject in the received frames, in a dedicated thread.
+     */
+    struct Worker {
+        WorkerContext mod{};
+        std::shared_ptr<StreamSubscription<Frame>> frameSub;
+        std::shared_ptr<DataStream<Frame>> trackStream;
+        std::shared_ptr<DataStream<Frame>> animalStream;
+        std::unique_ptr<Tracker> tracker;
+
+        // dimensions of the maze as found by the tracker, read by the module once the run has stopped
+        std::optional<MetaStringMap> mazeDimensions{};
+
+        void run()
+        {
+            // wait until we actually start
+            mod.waitForStart();
+
+            while (mod.running()) {
+                const auto mFrame = frameSub->next();
+                // no value means the subscription has been terminated
+                if (!mFrame.has_value())
+                    break;
+                const auto &frame = mFrame.value();
+
+                cv::Mat infoMat;
+                cv::Mat trackMat;
+                cv::Mat frameMat = frame.mat;
+                tracker->analyzeFrame(frameMat, usecToMsec(frame.time), &trackMat, &infoMat);
+
+                trackStream->push(Frame(trackMat, frame.time));
+                animalStream->push(Frame(infoMat, frame.time));
+            }
+
+            mazeDimensions = tracker->finalize();
+        }
+    };
 
     void stop() override
     {
+        // our thread has finished at this point, so we can fetch the result of the tracker
+        if (auto worker = takeWorker<Worker>(); worker && worker->mazeDimensions) {
+            // store maze dimension metadata - since or metadata storage suggestion to possible
+            // table-saving modules is to store data in a set named after our module, we will
+            // possibly not create our default dataset here but instead fetch an already existing one.
+            // in that event, we "hijack" the dataset and add a few more attributes to it.
+            auto dset = createDefaultDataset();
+            if (dset.get() != nullptr)
+                dset->insertAttribute("maze_dimensions", *worker->mazeDimensions);
+        }
+
         statusMessage(QStringLiteral("Tracker stopped."));
         AbstractModule::stop();
     }
