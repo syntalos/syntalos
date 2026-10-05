@@ -56,43 +56,57 @@ public:
 
     bool prepare(const RunInfo &) override
     {
-        if (m_frameIn->hasSubscription()) {
-            auto framesSub = m_frameIn->subscription();
-
-            // just copy the framerate from input to output port
-            m_frameOut->setMetadataValue("framerate", framesSub->metadataValue<double>("framerate", 0.0));
-
-            // do not forget to start active output channels
-            m_frameOut->start();
+        // we have nothing to do if nothing is connected to our input
+        if (!m_frameIn->hasSubscription()) {
+            setStateDormant();
+            return true;
         }
+        auto frameSub = m_frameIn->subscription();
+
+        // just copy the framerate from input to output port
+        m_frameOut->setMetadataValue("framerate", frameSub->metadataValue<double>("framerate", 0.0));
+
+        // do not forget to start active output channels
+        m_frameOut->start();
+
+        // hand everything our thread needs to the worker that will run in it
+        setWorker(
+            Worker{
+                .frameSub = frameSub,
+                .frameOut = m_frameOut,
+            });
 
         // success
         return true;
     }
 
-    void runThread(OptionalWaitCondition *startWaitCondition) override
-    {
-        StreamSubscription<Frame> *frameSub = nullptr;
-        if (m_frameIn->hasSubscription())
-            frameSub = m_frameIn->subscription().get();
+    /**
+     * Everything that runs in the module's thread goes into a worker.
+     *
+     * The worker is filled by the module in prepare() and then handed over to Syntalos,
+     * so it only has access to what is listed here - and not to the module itself,
+     * which lives in the main thread together with any user interface it may have.
+     */
+    struct Worker {
+        WorkerContext mod{};
+        std::shared_ptr<StreamSubscription<Frame>> frameSub;
+        std::shared_ptr<DataStream<Frame>> frameOut;
 
-        startWaitCondition->wait(this);
+        void run()
+        {
+            // tell Syntalos that we are ready, and wait until all modules are started together
+            mod.waitForStart();
 
-        if (!frameSub)
-            return;
+            while (mod.running()) {
+                auto maybeFrame = frameSub->next();
+                if (!maybeFrame.has_value())
+                    return; // end of stream
 
-        while (m_running) {
-            auto maybeFrame = frameSub->next();
-            if (!maybeFrame.has_value())
-                return; // end of stream
-
-            // just move input to output
-            auto frame = std::move(*maybeFrame);
-            m_frameOut->push(frame);
+                // just move input to output
+                frameOut->push(std::move(*maybeFrame));
+            }
         }
-    }
-
-private:
+    };
 };
 
 QString ExampleCppModuleInfo::id() const

@@ -48,10 +48,6 @@ private:
     std::shared_ptr<DataStream<TableRow>> m_tabOut;
 
     ClockSettingsDialog *m_settingsDlg;
-    TimeSyncFileWriter m_tsWriter;
-
-    struct timespec m_interval;
-    bool m_stopped;
 
 public:
     explicit ClockModule(QObject *parent = nullptr)
@@ -82,7 +78,6 @@ public:
 
     bool prepare(const RunInfo &) override
     {
-        m_stopped = true;
         m_tabOut->setSuggestedDataName(QStringLiteral("table-%1/time-pulses").arg(datasetNameSuggestion()));
         m_tabOut->setMetadataValue("table_header", MetaArray{"Time (µs)"});
 
@@ -92,104 +87,109 @@ public:
 
         // set nanosleep request
         const long long interval_ns = m_settingsDlg->pulseIntervalUs() * 1000;
-        m_interval.tv_sec = interval_ns / NSEC_IN_SEC;
-        m_interval.tv_nsec = interval_ns % NSEC_IN_SEC;
+        struct timespec interval;
+        interval.tv_sec = interval_ns / NSEC_IN_SEC;
+        interval.tv_nsec = interval_ns % NSEC_IN_SEC;
 
         // prepare pulse info writer
-        m_tsWriter.close();
-        m_tsWriter.setSyncMode(TSyncFileMode::CONTINUOUS);
-        m_tsWriter.setTimeNames("no", "master-time");
-        m_tsWriter.setTimeUnits(TSyncFileTimeUnit::INDEX, TSyncFileTimeUnit::MICROSECONDS);
-        m_tsWriter.setTimeDataTypes(TSyncFileDataType::UINT32, TSyncFileDataType::UINT64);
-        m_tsWriter.setChunkSize(
-            (m_settingsDlg->pulseIntervalUs() / 1000 / 1000) * 60 * 2); // new chunk about every 2min
+        auto tsWriter = std::make_unique<TimeSyncFileWriter>();
+        tsWriter->setSyncMode(TSyncFileMode::CONTINUOUS);
+        tsWriter->setTimeNames("no", "master-time");
+        tsWriter->setTimeUnits(TSyncFileTimeUnit::INDEX, TSyncFileTimeUnit::MICROSECONDS);
+        tsWriter->setTimeDataTypes(TSyncFileDataType::UINT32, TSyncFileDataType::UINT64);
+        tsWriter->setChunkSize((m_settingsDlg->pulseIntervalUs() / 1000 / 1000) * 60 * 2); // new chunk about every 2min
 
         // prepare dataset
         auto dstore = createDefaultDataset(name());
         if (dstore.get() == nullptr)
             return false;
-        m_tsWriter.setFileName(dstore->setDataFile("time-pulses.tsync"));
+        tsWriter->setFileName(dstore->setDataFile("time-pulses.tsync"));
         MetaStringMap userData;
         userData["interval_us"] = m_settingsDlg->pulseIntervalUs();
 
         // open writer
-        if (!m_tsWriter.open(name().toStdString(), dstore->collectionId(), userData)) {
-            raiseError(std::format("Unable to open timesync file {}", m_tsWriter.fileName()));
+        if (!tsWriter->open(name().toStdString(), dstore->collectionId(), userData)) {
+            raiseError(std::format("Unable to open timesync file {}", tsWriter->fileName()));
             return false;
         }
+
+        setWorker(
+            Worker{
+                .interval = interval,
+                .ctlOut = m_ctlOut,
+                .tabOut = m_tabOut,
+                .tsWriter = std::move(tsWriter),
+            });
 
         setStateReady();
         return true;
     }
 
-    void runThread(OptionalWaitCondition *startWaitCondition) final
-    {
-        struct timespec ts;
-        int r;
-        long index;
+    struct Worker {
+        WorkerContext mod{};
+        struct timespec interval;
+        std::shared_ptr<DataStream<ControlCommand>> ctlOut;
+        std::shared_ptr<DataStream<TableRow>> tabOut;
+        std::unique_ptr<TimeSyncFileWriter> tsWriter;
 
-        ControlCommand cmd;
-        cmd.kind = ControlCommandKind::STEP;
+        std::expected<void, std::string> run()
+        {
+            struct timespec ts;
+            int r;
+            long index;
 
-        std::vector<std::string> row;
-        row.push_back(std::string());
+            ControlCommand cmd;
+            cmd.kind = ControlCommandKind::STEP;
 
-        startWaitCondition->wait(this);
+            std::vector<std::string> row;
+            row.push_back(std::string());
 
-        r = clock_gettime(CLOCK_MONOTONIC, &ts);
-        if (G_UNLIKELY(r != 0)) {
-            m_running = false;
-            raiseError(std::format("Unable to obtain initial monotonic clock time: {}", std::strerror(errno)));
-            return;
-        }
-        ts = timespecAdd(ts, m_interval);
+            mod.waitForStart();
 
-        m_stopped = false;
-        index = 0;
-        while (m_running) {
-            r = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, nullptr);
-            if (G_UNLIKELY(r == -EINTR)) {
-                r = clock_gettime(CLOCK_MONOTONIC, &ts);
-                if (G_UNLIKELY(r != 0)) {
-                    m_running = false;
-                    raiseError(std::format("Unable to obtain monotonic clock time: {}", std::strerror(errno)));
-                    break;
-                }
-                continue;
-            }
-            if (G_UNLIKELY(r != 0)) {
-                m_running = false;
-                raiseError(std::format("Unable to nanosleep: {}", std::strerror(errno)));
-                break;
-            }
             r = clock_gettime(CLOCK_MONOTONIC, &ts);
-            if (G_UNLIKELY(r != 0)) {
-                m_running = false;
-                raiseError(std::format("Unable to obtain monotonic clock time: {}", std::strerror(errno)));
-                break;
+            if (G_UNLIKELY(r != 0))
+                return std::unexpected(
+                    std::format("Unable to obtain initial monotonic clock time: {}", std::strerror(errno)));
+            ts = timespecAdd(ts, interval);
+
+            index = 0;
+            while (mod.running()) {
+                r = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, nullptr);
+                if (G_UNLIKELY(r == -EINTR)) {
+                    r = clock_gettime(CLOCK_MONOTONIC, &ts);
+                    if (G_UNLIKELY(r != 0))
+                        return std::unexpected(
+                            std::format("Unable to obtain monotonic clock time: {}", std::strerror(errno)));
+                    continue;
+                }
+                if (G_UNLIKELY(r != 0))
+                    return std::unexpected(std::format("Unable to nanosleep: {}", std::strerror(errno)));
+                r = clock_gettime(CLOCK_MONOTONIC, &ts);
+                if (G_UNLIKELY(r != 0))
+                    return std::unexpected(
+                        std::format("Unable to obtain monotonic clock time: {}", std::strerror(errno)));
+
+                // set future expected clock time
+                ts = timespecAdd(ts, interval);
+
+                const auto tsUsec = mod.timer->timeSinceStartUsec().count();
+
+                ctlOut->push(cmd);
+                row[0] = numToString(tsUsec);
+                tabOut->push(TableRow(row));
+                tsWriter->writeTimes(++index, tsUsec);
             }
 
-            // set future expected clock time
-            ts = timespecAdd(ts, m_interval);
-
-            const auto tsUsec = m_syTimer->timeSinceStartUsec().count();
-
-            m_ctlOut->push(cmd);
-            row[0] = numToString(tsUsec);
-            m_tabOut->push(TableRow(row));
-            m_tsWriter.writeTimes(++index, tsUsec);
+            return {};
         }
-
-        m_stopped = true;
-    }
+    };
 
     void stop() override
     {
-        m_running = false;
-        while (!m_stopped) {
-            usleep(1000);
-        }
-        m_tsWriter.close();
+        // our thread has finished at this point, so the file can be completed
+        if (auto worker = takeWorker<Worker>())
+            worker->tsWriter->close();
+        AbstractModule::stop();
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override

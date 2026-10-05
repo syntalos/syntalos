@@ -36,6 +36,14 @@
 
 SYNTALOS_MODULE(DevelDataSourceModule)
 
+enum class FrameContent {
+    TEST_CARD, /// flat synthetic test card
+    CAMERA     /// smooth, slowly changing image with sensor-like noise
+};
+
+/// Weights of the low/high test frequency for each channel of a signal port
+using ChannelMix = std::vector<std::pair<double, double>>;
+
 class DataSourceModule : public AbstractModule
 {
     Q_OBJECT
@@ -50,44 +58,20 @@ private:
     std::shared_ptr<DataStream<SignalBlockI16>> m_int16Out;
     std::shared_ptr<DataStream<SignalBlockU16>> m_uint16Out;
 
-    enum class FrameContent {
-        TEST_CARD, /// flat synthetic test card
-        CAMERA     /// smooth, slowly changing image with sensor-like noise
-    };
-
-    /// Weights of the low/high test frequency for each channel of a signal port
-    using ChannelMix = std::vector<std::pair<double, double>>;
-
     int m_fps;
     QSize m_outFrameSize;
     bool m_colorVideo;
     FrameContent m_frameContent;
-    cv::Mat m_testCard;
-    cv::Mat m_scene;
-    std::vector<cv::Mat> m_noise;
-    microseconds_t m_prevFrameTime;
-
-    time_t m_prevRowTime;
     int m_rowsPerTick; /// table rows emitted per frame tick, 0 = one row every two seconds
 
     // sample-rate driven, deterministic signal generation
     double m_sampleRate;
     double m_freqLow;
     double m_freqHigh;
-    uint64_t m_sampleCount;
 
     // channel count of all signal ports, zero selects the default channel layout
     int m_signalChannels;
     double m_noiseLevel;
-    std::vector<float> m_noiseTable; /// deterministic Gaussian noise, indexed by sample and channel
-    ChannelMix m_floatMix;
-    ChannelMix m_int32Mix;
-    ChannelMix m_int16Mix;
-    ChannelMix m_uint16Mix;
-
-    // Edge-triggered digital line state for the LineReading output
-    static constexpr int kNumLines = 3;
-    int m_lineState[kNumLines];
 
 public:
     explicit DataSourceModule(QObject *parent = nullptr)
@@ -100,7 +84,6 @@ public:
           m_sampleRate(2000.0),
           m_freqLow(10.0),
           m_freqHigh(300.0),
-          m_sampleCount(0),
           m_signalChannels(0),
           m_noiseLevel(0.1)
     {
@@ -254,26 +237,25 @@ public:
         m_frameOut->setMetadataValue("framerate", (double)m_fps);
         m_frameOut->setMetadataValue("size", MetaSize(m_outFrameSize.width(), m_outFrameSize.height()));
         m_frameOut->start();
-        m_prevFrameTime = microseconds_t(0);
-        m_testCard.release();
-        m_scene.release();
-        m_noise.clear();
+
+        cv::Mat testCard;
+        cv::Mat scene;
+        std::vector<cv::Mat> noise;
         if (m_frameOut->hasSubscribers()) {
             if (m_frameContent == FrameContent::CAMERA)
-                createCameraScene();
+                createCameraScene(scene, noise);
             else
-                createTestCard();
+                testCard = createTestCard();
         }
 
         m_rowsOut->setSuggestedDataName(QStringLiteral("table-%1/testvalues").arg(datasetNameSuggestion()));
         m_rowsOut->setMetadataValue("table_header", MetaArray{"Time", "Tag", "Value"});
         m_rowsOut->start();
-        m_prevRowTime = 0;
 
-        m_sampleCount = 0;
+        ChannelMix floatMix;
         setupSignalChannels(
             m_floatOut,
-            m_floatMix,
+            floatMix,
             {
                 "Low",
                 "High",
@@ -285,9 +267,10 @@ public:
         m_floatOut->setMetadataValue("sample_rate", m_sampleRate);
         m_floatOut->start();
 
+        ChannelMix int32Mix;
         setupSignalChannels(
             m_int32Out,
-            m_int32Mix,
+            int32Mix,
             {
                 "Int Low"
         },
@@ -297,9 +280,10 @@ public:
         m_int32Out->setMetadataValue("sample_rate", m_sampleRate);
         m_int32Out->start();
 
+        ChannelMix int16Mix;
         setupSignalChannels(
             m_int16Out,
-            m_int16Mix,
+            int16Mix,
             {
                 "I16 Low",
                 "I16 High"
@@ -310,9 +294,10 @@ public:
         m_int16Out->setMetadataValue("sample_rate", m_sampleRate);
         m_int16Out->start();
 
+        ChannelMix uint16Mix;
         setupSignalChannels(
             m_uint16Out,
-            m_uint16Mix,
+            uint16Mix,
             {
                 "U16 Low",
                 "U16 High"
@@ -325,149 +310,362 @@ public:
 
         m_lcmdOut->start();
 
-        for (int i = 0; i < kNumLines; ++i)
-            m_lineState[i] = -1; // force an initial reading on the first evaluation
         m_lrdOut->setMetadataValue("time_unit", "microseconds");
         m_lrdOut->setMetadataValue("data_unit", "ttl");
         m_lrdOut->setMetadataValue("is_digital", true);
         m_lrdOut->start();
 
+        setWorker(
+            Worker{
+                .fps = m_fps,
+                .outFrameSize = m_outFrameSize,
+                .rowsPerTick = m_rowsPerTick,
+                .sampleRate = m_sampleRate,
+                .freqLow = m_freqLow,
+                .freqHigh = m_freqHigh,
+                .noiseLevel = m_noiseLevel,
+                .floatMix = std::move(floatMix),
+                .int32Mix = std::move(int32Mix),
+                .int16Mix = std::move(int16Mix),
+                .uint16Mix = std::move(uint16Mix),
+                .testCard = testCard,
+                .scene = scene,
+                .noise = std::move(noise),
+                .frameOut = m_frameOut,
+                .rowsOut = m_rowsOut,
+                .lcmdOut = m_lcmdOut,
+                .lrdOut = m_lrdOut,
+                .floatOut = m_floatOut,
+                .int32Out = m_int32Out,
+                .int16Out = m_int16Out,
+                .uint16Out = m_uint16Out,
+            });
+
         return true;
     }
 
-    void runThread(OptionalWaitCondition *startWaitCondition) override
-    {
-        startWaitCondition->wait(this);
+    /**
+     * Generates all test data in the module's thread.
+     */
+    struct Worker {
+        WorkerContext mod{};
 
-        size_t dataIndex = 0;
-        while (m_running) {
-            // we always pace the loop by the framerate, but only create data that somebody wants
-            const auto frameTime = waitForNextFrameTime(m_fps);
-            if (m_frameOut->hasSubscribers())
-                m_frameOut->push(createFrame(dataIndex, frameTime));
+        // Edge-triggered digital line state for the LineReading output
+        static constexpr int kNumLines = 3;
 
-            if (m_rowsPerTick > 0) {
-                for (int i = 0; i < m_rowsPerTick; ++i)
-                    m_rowsOut->push(createTablerow(dataIndex * m_rowsPerTick + i));
-            } else if (auto row = createTablerow()) {
-                m_rowsOut->push(row.value());
+        int fps;
+        QSize outFrameSize;
+        int rowsPerTick; /// table rows emitted per frame tick, 0 = one row every two seconds
+
+        // sample-rate driven, deterministic signal generation
+        double sampleRate;
+        double freqLow;
+        double freqHigh;
+        double noiseLevel;
+        ChannelMix floatMix;
+        ChannelMix int32Mix;
+        ChannelMix int16Mix;
+        ChannelMix uint16Mix;
+
+        // pre-rendered images the frames are created from
+        cv::Mat testCard;
+        cv::Mat scene;
+        std::vector<cv::Mat> noise;
+
+        std::shared_ptr<DataStream<Frame>> frameOut;
+        std::shared_ptr<DataStream<TableRow>> rowsOut;
+        std::shared_ptr<DataStream<LineCommand>> lcmdOut;
+        std::shared_ptr<DataStream<LineReading>> lrdOut;
+        std::shared_ptr<DataStream<SignalBlockF32>> floatOut;
+        std::shared_ptr<DataStream<SignalBlockI32>> int32Out;
+        std::shared_ptr<DataStream<SignalBlockI16>> int16Out;
+        std::shared_ptr<DataStream<SignalBlockU16>> uint16Out;
+
+        // state of the generators
+        microseconds_t prevFrameTime{0};
+        time_t prevRowTime = 0;
+        uint64_t sampleCount = 0;
+        std::vector<float> noiseTable{};         /// deterministic Gaussian noise, indexed by sample and channel
+        int lineState[kNumLines] = {-1, -1, -1}; /// -1 forces an initial reading on the first evaluation
+
+        void run()
+        {
+            mod.waitForStart();
+
+            size_t dataIndex = 0;
+            while (mod.running()) {
+                // we always pace the loop by the framerate, but only create data that somebody wants
+                const auto frameTime = waitForNextFrameTime(fps);
+                if (frameOut->hasSubscribers())
+                    frameOut->push(createFrame(dataIndex, frameTime));
+
+                if (rowsPerTick > 0) {
+                    for (int i = 0; i < rowsPerTick; ++i)
+                        rowsOut->push(createTablerow(dataIndex * rowsPerTick + i));
+                } else if (auto row = createTablerow()) {
+                    rowsOut->push(row.value());
+                }
+
+                const auto msec = mod.timer->timeSinceStartMsec().count();
+                if (((msec / 1000) % 3) == 0) {
+                    LineCommand lcmd(LineCommandKind::WRITE_DIGITAL, 2);
+                    lcmd.value = ((msec / 1000) % 2 == 0) ? 1 : 0;
+                    lcmdOut->push(lcmd);
+                }
+
+                // Edge-triggered LineReading output
+                {
+                    const auto nowUs = mod.timer->timeSinceStartUsec();
+                    const double sec = nowUs.count() / 1e6;
+                    const long secsInt = static_cast<long>(sec);
+
+                    int desired[kNumLines];
+                    desired[0] = secsInt % 2;                         // ~1 s high / ~1 s low
+                    desired[1] = (secsInt / 4) % 2;                   // toggles every 4 s -> long quiet gaps
+                    desired[2] = (std::fmod(sec, 5.0) < 0.1) ? 1 : 0; // brief pulse every 5 s
+
+                    for (int i = 0; i < kNumLines; ++i) {
+                        if (desired[i] == lineState[i])
+                            continue;
+                        lineState[i] = desired[i];
+
+                        LineReading lr;
+                        lr.lineId = static_cast<uint16_t>(i);
+                        lr.value = static_cast<uint32_t>(desired[i]);
+                        lr.time = nowUs;
+                        lrdOut->push(lr);
+                    }
+                }
+
+                // Deterministic, sample-rate-driven signal generation. Each value is a
+                // pure function of the running sample index, so a recorded run is exactly
+                // reproducible regardless of wall-clock pacing. One block of blockLen
+                // samples is emitted per loop iteration; the loop is paced to fps by
+                // the frame sleep above, so the effective rate is ~fps*blockLen.
+                const int blockLen = std::max(1, static_cast<int>(std::lround(sampleRate / fps)));
+                if (noiseTable.empty())
+                    noiseTable = createNoiseTable();
+
+                VectorXu64 timestamps(blockLen);
+                std::vector<double> lo(blockLen);
+                std::vector<double> hi(blockLen);
+                for (int i = 0; i < blockLen; ++i) {
+                    const uint64_t n = sampleCount + static_cast<uint64_t>(i);
+                    const double t = static_cast<double>(n) / sampleRate;
+
+                    timestamps[i] = static_cast<uint64_t>(std::llround(static_cast<double>(n) * 1e6 / sampleRate));
+                    lo[i] = 0.5 * std::sin(2.0 * M_PI * freqLow * t);
+                    hi[i] = 0.5 * std::sin(2.0 * M_PI * freqHigh * t);
+                }
+                const uint64_t blockStart = sampleCount;
+                sampleCount += static_cast<uint64_t>(blockLen);
+
+                if (floatOut->hasSubscribers())
+                    floatOut->push(
+                        createSignalBlock<SignalBlockF32>(
+                            timestamps,
+                            lo,
+                            hi,
+                            floatMix,
+                            noiseTable,
+                            noiseLevel,
+                            blockStart,
+                            [](double v) {
+                                return static_cast<float>(v);
+                            }));
+                if (int32Out->hasSubscribers())
+                    int32Out->push(
+                        createSignalBlock<SignalBlockI32>(
+                            timestamps,
+                            lo,
+                            hi,
+                            int32Mix,
+                            noiseTable,
+                            noiseLevel,
+                            blockStart,
+                            [](double v) {
+                                return static_cast<int32_t>(std::lround(1000.0 * v));
+                            }));
+                // signed 16-bit: exercise the negative half of the range as well
+                if (int16Out->hasSubscribers())
+                    int16Out->push(
+                        createSignalBlock<SignalBlockI16>(
+                            timestamps,
+                            lo,
+                            hi,
+                            int16Mix,
+                            noiseTable,
+                            noiseLevel,
+                            blockStart,
+                            [](double v) {
+                                return static_cast<int16_t>(std::lround(1000.0 * v));
+                            }));
+                if (uint16Out->hasSubscribers())
+                    uint16Out->push(
+                        createSignalBlock<SignalBlockU16>(
+                            timestamps,
+                            lo,
+                            hi,
+                            uint16Mix,
+                            noiseTable,
+                            noiseLevel,
+                            blockStart,
+                            [](double v) {
+                                return static_cast<uint16_t>(std::lround(2000.0 + 1000.0 * v));
+                            }));
+
+                dataIndex++;
             }
+        }
 
-            const auto msec = m_syTimer->timeSinceStartMsec().count();
-            if (((msec / 1000) % 3) == 0) {
-                LineCommand lcmd(LineCommandKind::WRITE_DIGITAL, 2);
-                lcmd.value = ((msec / 1000) % 2 == 0) ? 1 : 0;
-                m_lcmdOut->push(lcmd);
-            }
+        static constexpr size_t kNoiseTableSize = 1 << 16;
 
-            // Edge-triggered LineReading output
-            {
-                const auto nowUs = m_syTimer->timeSinceStartUsec();
-                const double sec = nowUs.count() / 1e6;
-                const long secsInt = static_cast<long>(sec);
+        /**
+         * A table of standard-normal samples with a fixed seed: the noise is a pure function
+         * of sample index and channel, so runs stay reproducible.
+         */
+        static std::vector<float> createNoiseTable()
+        {
+            std::vector<float> table(kNoiseTableSize);
+            std::mt19937 rng(0x5EED);
+            std::normal_distribution<float> dist(0.0f, 1.0f);
+            for (auto &v : table)
+                v = dist(rng);
+            return table;
+        }
 
-                int desired[kNumLines];
-                desired[0] = secsInt % 2;                         // ~1 s high / ~1 s low
-                desired[1] = (secsInt / 4) % 2;                   // toggles every 4 s -> long quiet gaps
-                desired[2] = (std::fmod(sec, 5.0) < 0.1) ? 1 : 0; // brief pulse every 5 s
-
-                for (int i = 0; i < kNumLines; ++i) {
-                    if (desired[i] == m_lineState[i])
-                        continue;
-                    m_lineState[i] = desired[i];
-
-                    LineReading lr;
-                    lr.lineId = static_cast<uint16_t>(i);
-                    lr.value = static_cast<uint32_t>(desired[i]);
-                    lr.time = nowUs;
-                    m_lrdOut->push(lr);
+        template<typename SB, typename Conv>
+        static SB createSignalBlock(
+            const VectorXu64 &timestamps,
+            const std::vector<double> &lo,
+            const std::vector<double> &hi,
+            const ChannelMix &mix,
+            const std::vector<float> &noise,
+            double noiseLevel,
+            uint64_t firstSample,
+            Conv convert)
+        {
+            const auto blockLen = lo.size();
+            SB sb(blockLen, mix.size());
+            sb.timestamps = timestamps;
+            // the signals swing +/- 0.5, the noise level is relative to that amplitude
+            const double noiseGain = noiseLevel * 0.5;
+            for (size_t c = 0; c < mix.size(); ++c) {
+                const auto [wLo, wHi] = mix[c];
+                // every channel walks the table at a different offset
+                const size_t noiseBase = static_cast<size_t>(firstSample) + c * 7919u;
+                for (size_t i = 0; i < blockLen; ++i) {
+                    const double n = noiseGain * noise[(noiseBase + i) & (kNoiseTableSize - 1)];
+                    sb.data(i, c) = convert(wLo * lo[i] + wHi * hi[i] + n);
                 }
             }
 
-            // Deterministic, sample-rate-driven signal generation. Each value is a
-            // pure function of the running sample index, so a recorded run is exactly
-            // reproducible regardless of wall-clock pacing. One block of blockLen
-            // samples is emitted per loop iteration; the loop is paced to m_fps by
-            // the frame sleep above, so the effective rate is ~m_fps*blockLen.
-            const int blockLen = std::max(1, static_cast<int>(std::lround(m_sampleRate / m_fps)));
-            if (m_noiseTable.empty())
-                m_noiseTable = createNoiseTable();
-
-            VectorXu64 timestamps(blockLen);
-            std::vector<double> lo(blockLen);
-            std::vector<double> hi(blockLen);
-            for (int i = 0; i < blockLen; ++i) {
-                const uint64_t n = m_sampleCount + static_cast<uint64_t>(i);
-                const double t = static_cast<double>(n) / m_sampleRate;
-
-                timestamps[i] = static_cast<uint64_t>(std::llround(static_cast<double>(n) * 1e6 / m_sampleRate));
-                lo[i] = 0.5 * std::sin(2.0 * M_PI * m_freqLow * t);
-                hi[i] = 0.5 * std::sin(2.0 * M_PI * m_freqHigh * t);
-            }
-            const uint64_t blockStart = m_sampleCount;
-            m_sampleCount += static_cast<uint64_t>(blockLen);
-
-            if (m_floatOut->hasSubscribers())
-                m_floatOut->push(
-                    createSignalBlock<SignalBlockF32>(
-                        timestamps,
-                        lo,
-                        hi,
-                        m_floatMix,
-                        m_noiseTable,
-                        m_noiseLevel,
-                        blockStart,
-                        [](double v) {
-                            return static_cast<float>(v);
-                        }));
-            if (m_int32Out->hasSubscribers())
-                m_int32Out->push(
-                    createSignalBlock<SignalBlockI32>(
-                        timestamps,
-                        lo,
-                        hi,
-                        m_int32Mix,
-                        m_noiseTable,
-                        m_noiseLevel,
-                        blockStart,
-                        [](double v) {
-                            return static_cast<int32_t>(std::lround(1000.0 * v));
-                        }));
-            // signed 16-bit: exercise the negative half of the range as well
-            if (m_int16Out->hasSubscribers())
-                m_int16Out->push(
-                    createSignalBlock<SignalBlockI16>(
-                        timestamps,
-                        lo,
-                        hi,
-                        m_int16Mix,
-                        m_noiseTable,
-                        m_noiseLevel,
-                        blockStart,
-                        [](double v) {
-                            return static_cast<int16_t>(std::lround(1000.0 * v));
-                        }));
-            if (m_uint16Out->hasSubscribers())
-                m_uint16Out->push(
-                    createSignalBlock<SignalBlockU16>(
-                        timestamps,
-                        lo,
-                        hi,
-                        m_uint16Mix,
-                        m_noiseTable,
-                        m_noiseLevel,
-                        blockStart,
-                        [](double v) {
-                            return static_cast<uint16_t>(std::lround(2000.0 + 1000.0 * v));
-                        }));
-
-            dataIndex++;
+            return sb;
         }
 
-        m_testCard.release();
-        m_scene.release();
-        m_noise.clear();
-    }
+        /**
+         * Sleep until the next frame is due, and return its acquisition timestamp.
+         */
+        microseconds_t waitForNextFrameTime(int fps)
+        {
+            const auto targetIntervalUsec = microseconds_t(static_cast<long>(std::round(1000000.0 / fps)));
+
+            // time when the next frame should be output
+            const auto nextFrameTime = prevFrameTime + targetIntervalUsec;
+            const auto startTime = mod.timer->timeSinceStartUsec();
+
+            // sleep until it's time for the next frame (if we're ahead of schedule)
+            if (startTime < nextFrameTime) {
+                const auto sleepDuration = nextFrameTime - startTime;
+                if (startTime.count() > 0)
+                    std::this_thread::sleep_for(sleepDuration);
+            }
+
+            // We pace by the nominal schedule to not drift, but stamp the frame with the time
+            // it was actually "acquired" at, like a camera would do.
+            prevFrameTime = nextFrameTime;
+            return mod.timer->timeSinceStartUsec();
+        }
+
+        Frame createFrame(size_t index, const microseconds_t &frameTime)
+        {
+            const auto width = outFrameSize.width();
+            const auto height = outFrameSize.height();
+
+            if (!scene.empty()) {
+                // pan slowly over the scene, independent of the framerate
+                const double sec = frameTime.count() / 1e6;
+                const cv::Rect view(
+                    static_cast<int>((scene.cols - width) * (0.5 + 0.5 * std::sin(2.0 * M_PI * sec / 20.0))),
+                    static_cast<int>((scene.rows - height) * (0.5 + 0.5 * std::cos(2.0 * M_PI * sec / 13.0))),
+                    width,
+                    height);
+
+                Frame frame(index);
+                frame.time = frameTime;
+                cv::addWeighted(scene(view), 1.0, noise[index % noise.size()], 1.0, -128.0, frame.mat);
+                cv::putText(
+                    frame.mat,
+                    "Frame: " + numToString(index),
+                    cv::Point(24, height / 2),
+                    cv::FONT_HERSHEY_SIMPLEX,
+                    1.2,
+                    cv::Scalar(249, 249, 249),
+                    2,
+                    cv::LINE_AA);
+                return frame;
+            }
+
+            // every frame needs its own pixel buffer, as consumers may hold on to the previous one
+            Frame frame(index);
+            frame.time = frameTime;
+            frame.mat = testCard.clone();
+            cv::putText(
+                frame.mat,
+                "Frame: " + numToString(index),
+                cv::Point(24, 240),
+                cv::FONT_HERSHEY_SIMPLEX,
+                1.2,
+                cv::Scalar(249, 249, 249),
+                2,
+                cv::LINE_AA);
+
+            return frame;
+        }
+
+        /**
+         * A row every two seconds, with a random value.
+         */
+        std::optional<TableRow> createTablerow()
+        {
+            const auto msec = mod.timer->timeSinceStartMsec().count();
+            if ((msec - prevRowTime) < 2000)
+                return std::nullopt;
+            prevRowTime = msec;
+
+            TableRow row;
+            row.reserve(3);
+            row.append(numToString(msec));
+            row.append((msec % 2) ? std::string("beta") : std::string("alpha"));
+            row.append(createRandomString(14).toStdString());
+
+            return row;
+        }
+
+        /**
+         * The n-th row of a high-rate stream. The value is derived from the row number,
+         * so creating it is cheap and the stream is reproducible.
+         */
+        TableRow createTablerow(size_t rowNumber)
+        {
+            TableRow row;
+            row.reserve(3);
+            row.append(numToString(mod.timer->timeSinceStartMsec().count()));
+            row.append((rowNumber % 2) ? std::string("beta") : std::string("alpha"));
+            row.append(numToString(rowNumber));
+            return row;
+        }
+    };
 
 private:
     static constexpr int kMinFrameEdge = 16;
@@ -514,58 +712,13 @@ private:
         stream->setMetadataValue("signal_names", names);
     }
 
-    static constexpr size_t kNoiseTableSize = 1 << 16;
-
-    /**
-     * A table of standard-normal samples with a fixed seed: the noise is a pure function
-     * of sample index and channel, so runs stay reproducible.
-     */
-    static std::vector<float> createNoiseTable()
-    {
-        std::vector<float> table(kNoiseTableSize);
-        std::mt19937 rng(0x5EED);
-        std::normal_distribution<float> dist(0.0f, 1.0f);
-        for (auto &v : table)
-            v = dist(rng);
-        return table;
-    }
-
-    template<typename SB, typename Conv>
-    static SB createSignalBlock(
-        const VectorXu64 &timestamps,
-        const std::vector<double> &lo,
-        const std::vector<double> &hi,
-        const ChannelMix &mix,
-        const std::vector<float> &noise,
-        double noiseLevel,
-        uint64_t firstSample,
-        Conv convert)
-    {
-        const auto blockLen = lo.size();
-        SB sb(blockLen, mix.size());
-        sb.timestamps = timestamps;
-        // the signals swing +/- 0.5, the noise level is relative to that amplitude
-        const double noiseGain = noiseLevel * 0.5;
-        for (size_t c = 0; c < mix.size(); ++c) {
-            const auto [wLo, wHi] = mix[c];
-            // every channel walks the table at a different offset
-            const size_t noiseBase = static_cast<size_t>(firstSample) + c * 7919u;
-            for (size_t i = 0; i < blockLen; ++i) {
-                const double n = noiseGain * noise[(noiseBase + i) & (kNoiseTableSize - 1)];
-                sb.data(i, c) = convert(wLo * lo[i] + wHi * hi[i] + n);
-            }
-        }
-
-        return sb;
-    }
-
     /**
      * Render a scene that looks roughly like camera data to an encoder: Soft color
      * gradients with a few brighter discs for edges. It is larger than the frame, so
      * we can slowly pan over it at runtime, and we add one of a few sensor-noise
      * images to each frame. That way, creating a frame stays cheap.
      */
-    void createCameraScene()
+    void createCameraScene(cv::Mat &scene, std::vector<cv::Mat> &noiseImages) const
     {
         constexpr int kNoiseCount = 4;
         const cv::Size frameSize(m_outFrameSize.width(), m_outFrameSize.height());
@@ -576,149 +729,47 @@ private:
         cv::Mat seed(6, 10, CV_8UC3);
         rng.fill(seed, cv::RNG::UNIFORM, cv::Scalar(85, 90, 60), cv::Scalar(140, 200, 230));
         cv::cvtColor(seed, seed, cv::COLOR_HSV2BGR);
-        cv::resize(seed, m_scene, sceneSize, 0, 0, cv::INTER_CUBIC);
+        cv::resize(seed, scene, sceneSize, 0, 0, cv::INTER_CUBIC);
 
         for (int i = 0; i < 14; ++i) {
             const cv::Point center(rng.uniform(0, sceneSize.width), rng.uniform(0, sceneSize.height));
             const auto radius = rng.uniform(sceneSize.height / 24, sceneSize.height / 7);
-            const auto color = cv::Scalar(m_scene.at<cv::Vec3b>(center)) * rng.uniform(1.15, 1.5);
-            cv::circle(m_scene, center, radius, color, cv::FILLED, cv::LINE_AA);
+            const auto color = cv::Scalar(scene.at<cv::Vec3b>(center)) * rng.uniform(1.15, 1.5);
+            cv::circle(scene, center, radius, color, cv::FILLED, cv::LINE_AA);
         }
         if (!m_colorVideo)
-            cv::cvtColor(m_scene, m_scene, cv::COLOR_BGR2GRAY);
+            cv::cvtColor(scene, scene, cv::COLOR_BGR2GRAY);
 
         // noise is centered around 128, so we can apply it with a single saturating operation
         for (int i = 0; i < kNoiseCount; ++i) {
-            cv::Mat noise(frameSize, m_scene.type());
+            cv::Mat noise(frameSize, scene.type());
             rng.fill(noise, cv::RNG::NORMAL, 128, 5);
-            m_noise.push_back(noise);
+            noiseImages.push_back(noise);
         }
-    }
-
-    /**
-     * Sleep until the next frame is due, and return its acquisition timestamp.
-     */
-    microseconds_t waitForNextFrameTime(int fps)
-    {
-        const auto targetIntervalUsec = microseconds_t(static_cast<long>(std::round(1000000.0 / fps)));
-
-        // time when the next frame should be output
-        const auto nextFrameTime = m_prevFrameTime + targetIntervalUsec;
-        const auto startTime = m_syTimer->timeSinceStartUsec();
-
-        // sleep until it's time for the next frame (if we're ahead of schedule)
-        if (startTime < nextFrameTime) {
-            const auto sleepDuration = nextFrameTime - startTime;
-            if (startTime.count() > 0)
-                std::this_thread::sleep_for(sleepDuration);
-        }
-
-        // We pace by the nominal schedule to not drift, but stamp the frame with the time
-        // it was actually "acquired" at, like a camera would do.
-        m_prevFrameTime = nextFrameTime;
-        return m_syTimer->timeSinceStartUsec();
-    }
-
-    Frame createFrame(size_t index, const microseconds_t &frameTime)
-    {
-        const auto width = m_outFrameSize.width();
-        const auto height = m_outFrameSize.height();
-
-        if (!m_scene.empty()) {
-            // pan slowly over the scene, independent of the framerate
-            const double sec = frameTime.count() / 1e6;
-            const cv::Rect view(
-                static_cast<int>((m_scene.cols - width) * (0.5 + 0.5 * std::sin(2.0 * M_PI * sec / 20.0))),
-                static_cast<int>((m_scene.rows - height) * (0.5 + 0.5 * std::cos(2.0 * M_PI * sec / 13.0))),
-                width,
-                height);
-
-            Frame frame(index);
-            frame.time = frameTime;
-            cv::addWeighted(m_scene(view), 1.0, m_noise[index % m_noise.size()], 1.0, -128.0, frame.mat);
-            cv::putText(
-                frame.mat,
-                "Frame: " + numToString(index),
-                cv::Point(24, height / 2),
-                cv::FONT_HERSHEY_SIMPLEX,
-                1.2,
-                cv::Scalar(249, 249, 249),
-                2,
-                cv::LINE_AA);
-            return frame;
-        }
-
-        // every frame needs its own pixel buffer, as consumers may hold on to the previous one
-        Frame frame(index);
-        frame.time = frameTime;
-        frame.mat = m_testCard.clone();
-        cv::putText(
-            frame.mat,
-            "Frame: " + numToString(index),
-            cv::Point(24, 240),
-            cv::FONT_HERSHEY_SIMPLEX,
-            1.2,
-            cv::Scalar(249, 249, 249),
-            2,
-            cv::LINE_AA);
-
-        return frame;
     }
 
     /**
      * Pre-render the static part of the test card once; frames are stamped copies of it,
      * which is far cheaper than drawing the card for every frame.
      */
-    void createTestCard()
+    cv::Mat createTestCard() const
     {
         const auto width = m_outFrameSize.width();
         const auto height = m_outFrameSize.height();
 
         // blue background
-        m_testCard = cv::Mat(height, width, CV_8UC3, cv::Scalar(67, 42, 30));
+        cv::Mat testCard(height, width, CV_8UC3, cv::Scalar(67, 42, 30));
 
         // green rectangle
-        cv::rectangle(m_testCard, cv::Point(10, 10), cv::Point(width - 10, height - 10), cv::Scalar(96, 174, 40), 4);
+        cv::rectangle(testCard, cv::Point(10, 10), cv::Point(width - 10, height - 10), cv::Scalar(96, 174, 40), 4);
 
         // vertical and horizontal orange lines
-        cv::line(m_testCard, cv::Point(width / 2, 0), cv::Point(width / 2, height), cv::Scalar(0, 116, 247), 4);
-        cv::line(m_testCard, cv::Point(0, height / 2), cv::Point(width, height / 2), cv::Scalar(0, 116, 247), 4);
+        cv::line(testCard, cv::Point(width / 2, 0), cv::Point(width / 2, height), cv::Scalar(0, 116, 247), 4);
+        cv::line(testCard, cv::Point(0, height / 2), cv::Point(width, height / 2), cv::Scalar(0, 116, 247), 4);
 
         if (!m_colorVideo)
-            cv::cvtColor(m_testCard, m_testCard, cv::COLOR_BGR2GRAY);
-    }
-
-    /**
-     * A row every two seconds, with a random value.
-     */
-    std::optional<TableRow> createTablerow()
-    {
-        const auto msec = m_syTimer->timeSinceStartMsec().count();
-        if ((msec - m_prevRowTime) < 2000)
-            return std::nullopt;
-        m_prevRowTime = msec;
-
-        TableRow row;
-        row.reserve(3);
-        row.append(numToString(msec));
-        row.append((msec % 2) ? std::string("beta") : std::string("alpha"));
-        row.append(createRandomString(14).toStdString());
-
-        return row;
-    }
-
-    /**
-     * The n-th row of a high-rate stream. The value is derived from the row number,
-     * so creating it is cheap and the stream is reproducible.
-     */
-    TableRow createTablerow(size_t rowNumber)
-    {
-        TableRow row;
-        row.reserve(3);
-        row.append(numToString(m_syTimer->timeSinceStartMsec().count()));
-        row.append((rowNumber % 2) ? std::string("beta") : std::string("alpha"));
-        row.append(numToString(rowNumber));
-        return row;
+            cv::cvtColor(testCard, testCard, cv::COLOR_BGR2GRAY);
+        return testCard;
     }
 };
 
