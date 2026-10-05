@@ -219,7 +219,8 @@ public:
     {
         m_channelState[id] = enabled;
 
-        if (m_running) {
+        // The ports are frozen as soon as a run is prepared
+        if (hasActiveWorker()) {
             // The dialog locks unchecked boxes off during a run, so this
             // signal only fires for channels with an output column.
             for (auto &g : m_groups) {
@@ -307,6 +308,12 @@ public:
             }
         }
 
+        // every column starts the run un-muted. From here on the GUI may mute columns
+        for (auto &g : m_groups) {
+            for (int oc = 0; oc < g.channelsPerSample; ++oc)
+                g.mutedOutputColumns[oc].store(false, std::memory_order_relaxed);
+        }
+
         // hand everything our thread needs for this run over to it
         setWorker(
             Worker{
@@ -347,12 +354,6 @@ public:
 
         void run()
         {
-            // Reset mute atomics at run start: every column starts un-muted.
-            for (auto &g : groups) {
-                for (int oc = 0; oc < g.channelsPerSample; ++oc)
-                    g.mutedOutputColumns[oc].store(false, std::memory_order_relaxed);
-            }
-
             // Build the per-pump chunk vector (one entry per group). The board
             // fills numSamples / samples / sampleIndices in place every call.
             // chunk.channelsPerSample is the HARDWARE width (rawChannelsPerSample),
@@ -377,6 +378,7 @@ public:
             microseconds_t acqStartTimestamp;
             if (!board->startAcquisition(acqStartTimestamp)) {
                 mod.raiseError(QStringLiteral("Failed to start acquisition."));
+                board->stopAcquisition(); // the board may have been started in part
                 return;
             }
 
