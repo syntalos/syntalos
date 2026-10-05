@@ -210,7 +210,8 @@ public:
             // run our internal event loop
             loop.exec();
 
-            lineCtlSub->disableNotify();
+            if (lineCtlSub)
+                lineCtlSub->disableNotify();
         }
 
         bool checkLineCommandReceived(SerialFirmata *firmata)
