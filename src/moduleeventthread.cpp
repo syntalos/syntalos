@@ -20,7 +20,9 @@
 #include "moduleeventthread.h"
 
 #include <algorithm>
+#include <atomic>
 #include <glib.h>
+#include <mutex>
 #include <thread>
 
 #include "datactl/priv/rtkit.h"
@@ -70,13 +72,17 @@ public:
     ~Private() {}
 
     QString threadName;
-    bool running;
-    bool failed;
+    std::atomic_bool running;
+    std::atomic_bool failed;
     QuillLogger *log;
 
     bool threadActive;
     std::thread thread;
-    std::atomic<GMainLoop *> activeLoop;
+
+    // The context of the event loop, for as long as the thread has one. The mutex keeps
+    // the thread from disposing of the context while it is woken up to stop.
+    std::mutex contextMutex;
+    GMainContext *activeContext{nullptr};
 
     bool realtimeRequested{false};
     int niceness{0};
@@ -89,7 +95,6 @@ ModuleEventThread::ModuleEventThread(const QString &threadName, QObject *parent)
     : QObject(parent),
       d(new ModuleEventThread::Private)
 {
-    d->activeLoop = nullptr;
     d->running = false;
     d->failed = false;
     d->threadActive = false;
@@ -283,8 +288,10 @@ void ModuleEventThread::moduleEventThreadFunc(
 
     g_autoptr(GMainContext) context = g_main_context_new();
     g_main_context_push_thread_default(context);
-    g_autoptr(GMainLoop) loop = g_main_loop_new(context, FALSE);
-    d->activeLoop = loop;
+    {
+        const std::lock_guard<std::mutex> lock(d->contextMutex);
+        d->activeContext = context;
+    }
 
     // add event sources
     std::vector<std::unique_ptr<TimerEventPayload>> intervalPayloads;
@@ -379,22 +386,22 @@ void ModuleEventThread::moduleEventThreadFunc(
 
     if (mods.isEmpty()) {
         LOG_INFO(d->log, "All evented modules are idle, shutting down their thread.");
-        d->activeLoop = nullptr;
         goto out;
     }
 
     // immediately return in case other modules have already failed
-    if (d->failed) {
-        d->activeLoop = nullptr;
+    if (d->failed)
         goto out;
-    }
 
     // if we are already stopped, do nothing
     if (!d->running)
         goto out;
 
-    // run the event loop
-    g_main_loop_run(loop);
+    // Run the event loop until we are asked to stop. The request is this flag plus a wakeup of
+    // the context, and a wakeup that arrives before we wait for events makes the next iteration
+    // return immediately. So a stop request can not get lost, no matter how early it comes.
+    while (d->running)
+        g_main_context_iteration(context, TRUE);
 
     // cleanup and process remaining events
     tpWaitStart = symaster_clock::now();
@@ -404,7 +411,10 @@ void ModuleEventThread::moduleEventThreadFunc(
     }
 
 out:
-    d->activeLoop = nullptr;
+    {
+        const std::lock_guard<std::mutex> lock(d->contextMutex);
+        d->activeContext = nullptr;
+    }
 
     // clean up sources (shouldn't be necessary, but we do it anyway)
     for (const auto &pl : intervalPayloads) {
@@ -465,8 +475,12 @@ void ModuleEventThread::shutdownThread()
     if (!d->threadActive)
         return;
     d->running = false;
-    if (d->activeLoop != nullptr)
-        g_main_loop_quit(d->activeLoop);
+    {
+        // wake up the event loop, so it notices that it should stop
+        const std::lock_guard<std::mutex> lock(d->contextMutex);
+        if (d->activeContext != nullptr)
+            g_main_context_wakeup(d->activeContext);
+    }
     d->thread.join();
     d->threadActive = false;
 }
