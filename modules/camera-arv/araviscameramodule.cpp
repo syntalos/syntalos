@@ -73,7 +73,7 @@ public:
             &ArvConfigWindow::cameraSelected,
             this,
             [this](const std::shared_ptr<QArvCamera> &camera, const std::shared_ptr<QArvDecoder> &decoder) {
-                if (m_running) {
+                if (hasWorker()) {
                     // safeguard, this should actually never be possible to happen
                     raiseError(QStringLiteral("Cannot change camera while running!"));
                     return;
