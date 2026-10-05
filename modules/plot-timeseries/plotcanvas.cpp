@@ -233,7 +233,8 @@ public:
     Private() = default;
 
     QTimer *updateTimer = nullptr;
-    std::mutex dataMutex;
+
+    std::mutex dataMutex; // Guards the ports, channels and graphs
     ImVec4 clearColor = ImColor(38, 38, 42);
     QtImGui::RenderRef qigr = nullptr;
     ImPlotContext *impCtx = nullptr;
@@ -474,7 +475,7 @@ void PlotCanvas::tombstoneChannels(const std::set<size_t> &removed)
 
 void PlotCanvas::unregisterPort(const std::string &portId)
 {
-    const std::lock_guard<std::mutex> lock(d->dataMutex);
+    std::unique_lock<std::mutex> lock(d->dataMutex);
     d->ports.erase(portId);
 
     // remove channels belonging to this port
@@ -487,6 +488,7 @@ void PlotCanvas::unregisterPort(const std::string &portId)
         return;
 
     tombstoneChannels(removed);
+    lock.unlock();
     Q_EMIT layoutChanged();
 }
 
@@ -527,7 +529,7 @@ ssize_t PlotCanvas::findChannelIndex(const std::string &portId, int colIdx) cons
 
 void PlotCanvas::updatePortChannels(const std::string &portId, const std::vector<std::string> &signalNames)
 {
-    const std::lock_guard<std::mutex> lock(d->dataMutex);
+    std::unique_lock<std::mutex> lock(d->dataMutex);
 
     // Channel identity within a port is the signal name:
     // the source may add or remove signals, shifting the remaining ones' columns.
@@ -572,16 +574,18 @@ void PlotCanvas::updatePortChannels(const std::string &portId, const std::vector
     if (!removed.empty())
         tombstoneChannels(removed);
 
+    lock.unlock();
     Q_EMIT layoutChanged();
 }
 
 void PlotCanvas::clearAll()
 {
-    const std::lock_guard<std::mutex> lock(d->dataMutex);
+    std::unique_lock<std::mutex> lock(d->dataMutex);
     d->ports.clear();
     d->channels.clear();
     d->graphs.clear();
     d->nextGraphId = 1;
+    lock.unlock();
     Q_EMIT layoutChanged();
 }
 
@@ -598,7 +602,7 @@ void PlotCanvas::clearRuntimeData()
 
 int PlotCanvas::ensureChannel(const std::string &portId, int colIdx, const std::string &signalName)
 {
-    const std::lock_guard<std::mutex> lock(d->dataMutex);
+    std::unique_lock<std::mutex> lock(d->dataMutex);
     const auto existing = findChannelIndex(portId, colIdx);
     if (existing >= 0) {
         // refresh signalName if it changed
@@ -608,12 +612,14 @@ int PlotCanvas::ensureChannel(const std::string &portId, int colIdx, const std::
     }
 
     const int idx = appendChannel(portId, colIdx, signalName);
+    lock.unlock();
     Q_EMIT layoutChanged();
     return idx;
 }
 
 bool PlotCanvas::channelEnabled(int channelIndex) const
 {
+    const std::lock_guard<std::mutex> lock(d->dataMutex);
     if (channelIndex < 0 || channelIndex >= (int)d->channels.size())
         return false;
     return d->channels[channelIndex].enabled;
@@ -621,9 +627,9 @@ bool PlotCanvas::channelEnabled(int channelIndex) const
 
 void PlotCanvas::setChannelEnabled(int channelIndex, bool enabled)
 {
+    const std::lock_guard<std::mutex> lock(d->dataMutex);
     if (channelIndex < 0 || channelIndex >= (int)d->channels.size())
         return;
-    const std::lock_guard<std::mutex> lock(d->dataMutex);
     auto &c = d->channels[channelIndex];
     if (c.enabled == enabled)
         return;
@@ -717,17 +723,25 @@ void PlotCanvas::appendBlockI(
     }
 }
 
-int PlotCanvas::graphIdForChannel(int channelIndex) const
+// caller must hold the data mutex
+static int findGraphIdForChannel(const std::vector<Graph> &graphs, int channelIndex)
 {
-    for (const auto &g : d->graphs) {
+    for (const auto &g : graphs) {
         if (std::find(g.channels.begin(), g.channels.end(), channelIndex) != g.channels.end())
             return g.id;
     }
     return 0;
 }
 
+int PlotCanvas::graphIdForChannel(int channelIndex) const
+{
+    const std::lock_guard<std::mutex> lock(d->dataMutex);
+    return findGraphIdForChannel(d->graphs, channelIndex);
+}
+
 int PlotCanvas::graphIndexById(int graphId) const
 {
+    // caller must hold d->dataMutex
     for (int i = 0; i < (int)d->graphs.size(); ++i)
         if (d->graphs[i].id == graphId)
             return i;
@@ -736,6 +750,7 @@ int PlotCanvas::graphIndexById(int graphId) const
 
 void PlotCanvas::moveChannelToGraph(int channelIndex, int destGraphId)
 {
+    std::unique_lock<std::mutex> lock(d->dataMutex);
     const int destIdx = graphIndexById(destGraphId);
     if (destIdx < 0)
         return;
@@ -758,11 +773,14 @@ void PlotCanvas::moveChannelToGraph(int channelIndex, int destGraphId)
         return;
     d->graphs[destIdx2].channels.push_back(channelIndex);
 
+    lock.unlock();
     Q_EMIT layoutChanged();
 }
 
 void PlotCanvas::createGraphWithChannel(int channelIndex)
 {
+    std::unique_lock<std::mutex> lock(d->dataMutex);
+
     // remove from any current graph
     for (auto it = d->graphs.begin(); it != d->graphs.end();) {
         std::erase(it->channels, channelIndex);
@@ -776,12 +794,13 @@ void PlotCanvas::createGraphWithChannel(int channelIndex)
     g.id = d->nextGraphId++;
     g.channels.push_back(channelIndex);
     d->graphs.push_back(g);
+    lock.unlock();
     Q_EMIT layoutChanged();
 }
 
 void PlotCanvas::resetLayoutOneChannelPerGraph()
 {
-    const std::lock_guard<std::mutex> lock(d->dataMutex);
+    std::unique_lock<std::mutex> lock(d->dataMutex);
     d->graphs.clear();
     for (int i = 0; i < (int)d->channels.size(); ++i) {
         if (d->channels[i].portId.empty())
@@ -791,17 +810,20 @@ void PlotCanvas::resetLayoutOneChannelPerGraph()
         g.channels.push_back(i);
         d->graphs.push_back(g);
     }
+    lock.unlock();
     Q_EMIT layoutChanged();
 }
 
 int PlotCanvas::channelCount() const
 {
+    const std::lock_guard<std::mutex> lock(d->dataMutex);
     return (int)d->channels.size();
 }
 
 PlotCanvas::ChannelInfo PlotCanvas::channelInfo(int channelIndex) const
 {
     ChannelInfo info;
+    const std::lock_guard<std::mutex> lock(d->dataMutex);
     if (channelIndex < 0 || channelIndex >= (int)d->channels.size())
         return info;
     const auto &c = d->channels[channelIndex];
@@ -810,12 +832,13 @@ PlotCanvas::ChannelInfo PlotCanvas::channelInfo(int channelIndex) const
     info.signalName = c.signalName;
     info.digital = c.digital;
     info.enabled = c.enabled;
-    info.graphId = graphIdForChannel(channelIndex);
+    info.graphId = findGraphIdForChannel(d->graphs, channelIndex);
     return info;
 }
 
 QVariantList PlotCanvas::saveChannels() const
 {
+    const std::lock_guard<std::mutex> lock(d->dataMutex);
     QVariantList out;
     for (const auto &c : d->channels) {
         if (c.portId.empty())
@@ -833,6 +856,7 @@ QVariantList PlotCanvas::saveChannels() const
 
 QVariantList PlotCanvas::saveGraphs() const
 {
+    const std::lock_guard<std::mutex> lock(d->dataMutex);
     QVariantList out;
     for (const auto &g : d->graphs) {
         QVariantHash gh;
@@ -880,7 +904,7 @@ void PlotCanvas::loadChannels(const QVariantList &v)
 
 void PlotCanvas::loadGraphs(const QVariantList &v)
 {
-    const std::lock_guard<std::mutex> lock(d->dataMutex);
+    std::unique_lock<std::mutex> lock(d->dataMutex);
     d->graphs.clear();
     int maxId = 0;
     for (const auto &item : v) {
@@ -910,6 +934,7 @@ void PlotCanvas::loadGraphs(const QVariantList &v)
     d->nextGraphId = maxId + 1;
     if (d->nextGraphId < 1)
         d->nextGraphId = 1;
+    lock.unlock();
     Q_EMIT layoutChanged();
 }
 
@@ -1520,11 +1545,14 @@ void PlotCanvas::paintGL()
         }
 
         // EndPlot refreshed gs.yMin/yMax via the Y axis link; persist the Y state back to the graph
-        if (gs.origIdx >= 0 && gs.origIdx < (int)d->graphs.size()) {
-            auto &g = d->graphs[gs.origIdx];
-            g.yAuto = gs.yAuto;
-            g.yMin = gs.yMin;
-            g.yMax = gs.yMax;
+        {
+            const std::lock_guard<std::mutex> lock(d->dataMutex);
+            if (gs.origIdx >= 0 && gs.origIdx < (int)d->graphs.size()) {
+                auto &g = d->graphs[gs.origIdx];
+                g.yAuto = gs.yAuto;
+                g.yMin = gs.yMin;
+                g.yMax = gs.yMax;
+            }
         }
 
         if (idx < nVis - 1) {
@@ -1532,7 +1560,8 @@ void PlotCanvas::paintGL()
             ImGui::InvisibleButton(splitId.c_str(), ImVec2(-1, kSplitterHeight));
             if (ImGui::IsItemActive()) {
                 const float dy = ImGui::GetIO().MouseDelta.y;
-                if (dy != 0.0f) {
+                const std::lock_guard<std::mutex> lock(d->dataMutex);
+                if (dy != 0.0f && gs.origIdx >= 0 && gs.origIdx < (int)d->graphs.size()) {
                     auto &gA = d->graphs[gs.origIdx];
                     gA.sizeWeight = std::max(kMinGraphWeight, gA.sizeWeight + (dy / kMinGraphHeight));
                     gs.sizeWeight = gA.sizeWeight;
