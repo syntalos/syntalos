@@ -57,7 +57,7 @@ public:
 
     explicit MLinkModule(QObject *parent = nullptr);
     ~MLinkModule() override;
-    bool initialize() override;
+    std::expected<void, QString> initialize() override;
 
     ModuleDriverKind driver() const override;
     virtual ModuleFeatures features() const override;

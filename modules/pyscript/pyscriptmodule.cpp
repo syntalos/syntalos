@@ -194,22 +194,22 @@ public:
         m_scriptWindow->setWindowTitle(QStringLiteral("%1 - Editor").arg(name()));
     }
 
-    bool initialize() override
+    std::expected<void, QString> initialize() override
     {
         // id() is not set during construction, so resolve the worker binary here
         // when the module identity is available.
         setPyWorkerBinary(m_runInGdbAction->isChecked());
 
         if (moduleBinary().isEmpty()) {
-            raiseError("Unable to find Python worker binary. Is Syntalos installed correctly?");
-            return false;
+            return std::unexpected(
+                QStringLiteral("Unable to find Python worker binary. Is Syntalos installed correctly?"));
         }
 
         if (!ensureBaseVirtualEnv())
-            return false;
+            return std::unexpected(QStringLiteral("The shared Python virtual environment is not available."));
 
         setInitialized();
-        return true;
+        return {};
     }
 
     void showSettingsUi() final

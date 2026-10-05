@@ -578,21 +578,20 @@ MLinkModule::MLinkModule(QObject *parent)
     });
 }
 
-bool MLinkModule::initialize()
+std::expected<void, QString> MLinkModule::initialize()
 {
     // propagate the (potentially updated) logger
     d->log = m_log;
 
     if (moduleBinary().isEmpty()) {
-        raiseError("Unable to find module binary. Is the module installed correctly?");
-        return false;
+        return std::unexpected(QStringLiteral("Unable to find module binary. Is the module installed correctly?"));
     }
 
     // Ensure the module process is running. This will also call resetConnection()
     // to initialize the connection at this point, since only now do we know the
     // module ID and index and can react to & recover from errors properly.
     if (!runProcess())
-        return false;
+        return std::unexpected(QStringLiteral("Unable to start the worker process of this module."));
 
     return AbstractModule::initialize();
 }

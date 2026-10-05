@@ -95,7 +95,7 @@ IntanRhxModule::~IntanRhxModule()
         delete m_ctlWindow;
 }
 
-bool IntanRhxModule::initialize()
+std::expected<void, QString> IntanRhxModule::initialize()
 {
     if (m_boardSelectDlg->getControlWindow() == nullptr)
         m_boardSelectDlg->exec();
@@ -104,14 +104,12 @@ bool IntanRhxModule::initialize()
     m_sysState = m_boardSelectDlg->systemState();
     m_controllerIntf = m_boardSelectDlg->getControllerInterface();
     if (m_ctlWindow == nullptr) {
-        raiseError(QStringLiteral("No reference to control window found. This is an internal error."));
-        return false;
+        return std::unexpected(QStringLiteral("No reference to control window found. This is an internal error."));
     }
     m_ctlWindow->setWindowIcon(m_modIcon);
 
     if ((m_sysState == nullptr) || (m_controllerIntf == nullptr)) {
-        raiseError(QStringLiteral("Failed to initialize module."));
-        return false;
+        return std::unexpected(QStringLiteral("Failed to initialize the Intan RHX controller interface."));
     }
 
     m_chanExportDlg = new ChanExportDialog(m_sysState);
@@ -132,7 +130,7 @@ bool IntanRhxModule::initialize()
                              QMessageBox::Ok);
     }
 
-    return true;
+    return {};
 }
 
 ModuleFeatures IntanRhxModule::features() const

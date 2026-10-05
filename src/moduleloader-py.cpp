@@ -179,11 +179,10 @@ public:
         return true;
     }
 
-    bool initialize() override
+    std::expected<void, QString> initialize() override
     {
         if (m_mainPyFname.isEmpty()) {
-            raiseError("No Python script file set for this module.");
-            return false;
+            return std::unexpected(QStringLiteral("No Python script file set for this module."));
         }
 
         if (m_useVEnv && QFile::exists(QStringLiteral("%1/requirements.txt").arg(m_pyModDir))) {
@@ -202,11 +201,13 @@ public:
                         .arg(name(), id()),
                     QMessageBox::Yes | QMessageBox::No);
                 if (reply == QMessageBox::No)
-                    return false;
+                    return std::unexpected(
+                        QStringLiteral("The Python virtual environment for this module is not available."));
 
                 processUiEvents();
                 if (!installVirtualEnv(false))
-                    return false;
+                    return std::unexpected(
+                        QStringLiteral("The Python virtual environment for this module is not available."));
             } else if (venvStatus == PyVirtualEnvStatus::REQUIREMENTS_CHANGED) {
                 const auto reply = QMessageBox::question(
                     nullptr,
@@ -221,14 +222,15 @@ public:
                 // we reuse the old environment if the user selected "No"
                 if (reply == QMessageBox::No) {
                     if (!ensurePythonCodeRunning())
-                        return false;
+                        return std::unexpected(QStringLiteral("Unable to start the Python code of this module."));
                     setInitialized();
-                    return true;
+                    return {};
                 }
 
                 processUiEvents();
                 if (!installVirtualEnv(true))
-                    return false;
+                    return std::unexpected(
+                        QStringLiteral("The Python virtual environment for this module is not available."));
             } else if (venvStatus == PyVirtualEnvStatus::INTERPRETER_MISSING) {
                 QMessageBox::information(
                     nullptr,
@@ -240,15 +242,16 @@ public:
 
                 processUiEvents();
                 if (!installVirtualEnv(true))
-                    return false;
+                    return std::unexpected(
+                        QStringLiteral("The Python virtual environment for this module is not available."));
             }
         }
 
         if (!ensurePythonCodeRunning())
-            return false;
+            return std::unexpected(QStringLiteral("Unable to start the Python code of this module."));
 
         setInitialized();
-        return true;
+        return {};
     }
 
     bool prepare(const RunInfo &info) override

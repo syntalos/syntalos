@@ -75,7 +75,7 @@ public:
         return ModuleFeature::REALTIME | ModuleFeature::SHOW_SETTINGS;
     }
 
-    bool initialize() override
+    std::expected<void, QString> initialize() override
     {
         // update dialog logger
         m_ctlDialog->setLogger(m_log);
@@ -95,7 +95,7 @@ public:
                 QMessageBox::Ok);
         }
 
-        return true;
+        return {};
     }
 
     void showSettingsUi() override

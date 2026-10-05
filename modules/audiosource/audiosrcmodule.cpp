@@ -85,7 +85,7 @@ public:
         deletePipeline();
     }
 
-    bool initialize() override
+    std::expected<void, QString> initialize() override
     {
         setupPipeline();
         return AbstractModule::initialize();

@@ -63,7 +63,7 @@ public:
         delete m_camera;
     }
 
-    bool initialize() override
+    std::expected<void, QString> initialize() override
     {
         m_camera->setLogger(m_log);
         return AbstractModule::initialize();

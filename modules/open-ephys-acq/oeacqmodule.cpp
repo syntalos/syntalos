@@ -130,7 +130,7 @@ public:
         return ModuleDriverKind::THREAD_DEDICATED;
     }
 
-    bool initialize() override
+    std::expected<void, QString> initialize() override
     {
         // Load the simulation backend initially, so some backend is always available
         setupBackend();
@@ -198,7 +198,7 @@ public:
         refreshChannelInventoryFromBoard();
 
         addSettingsWindow(m_settingsDlg);
-        return true;
+        return {};
     }
 
     /**

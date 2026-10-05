@@ -66,7 +66,7 @@ public:
         m_modIcon = modInfo->icon();
     }
 
-    bool initialize() final
+    std::expected<void, QString> initialize() final
     {
         m_configWindow = new ArvConfigWindow(m_log);
         m_configWindow->setWindowIcon(m_modIcon);
@@ -90,7 +90,7 @@ public:
         // set initial window titles
         setName(name());
 
-        return true;
+        return {};
     }
 
     ~AravisCameraModule() override = default;

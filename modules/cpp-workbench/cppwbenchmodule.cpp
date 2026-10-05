@@ -212,7 +212,7 @@ public:
         }
     }
 
-    bool initialize() override
+    std::expected<void, QString> initialize() override
     {
         QString pkgConfPath, ldLibPath, incPath;
         findSyntalosLibraryPaths(pkgConfPath, ldLibPath, incPath);
@@ -240,7 +240,7 @@ public:
         m_termWidget->startShellProgram();
 
         setInitialized();
-        return true;
+        return {};
     }
 
     void setName(const QString &value) final

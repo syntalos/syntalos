@@ -74,7 +74,7 @@ public:
                             QObject *parent = nullptr);
     ~IntanRhxModule();
 
-    bool initialize() override;
+    std::expected<void, QString> initialize() override;
 
     ModuleFeatures features() const override;
     ModuleDriverKind driver() const override;

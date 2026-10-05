@@ -831,12 +831,23 @@ AbstractModule *Engine::createModule(const QString &id, const QString &name)
     // safely initialize it now.
     mod->setState(ModuleState::INITIALIZING);
     qApp->processEvents();
-    if (!mod->initialize()) {
+
+    // collect anything the module reports while it initializes, so we can show all details in case it fails
+    QStringList initErrors;
+    const auto initErrorConn = connect(mod, &AbstractModule::error, this, [&initErrors](const QString &message) {
+        initErrors.append(message);
+    });
+    const auto initResult = mod->initialize();
+    disconnect(initErrorConn);
+
+    if (!initResult.has_value()) {
+        if (!initResult.error().isEmpty() && !initErrors.contains(initResult.error()))
+            initErrors.prepend(initResult.error());
         reportCriticalError(
             d->parentWidget,
             QStringLiteral("Module initialization failed"),
             QStringLiteral("Failed to initialize module '%1', it can not be added. %2")
-                .arg(mod->id(), mod->lastError()));
+                .arg(mod->id(), initErrors.join(QStringLiteral(" "))));
         removeModule(mod);
         emit moduleInitDone();
         return nullptr;

@@ -237,11 +237,11 @@ public:
         });
     }
 
-    bool initialize() override
+    std::expected<void, QString> initialize() override
     {
         // start with no input ports; the user picks exactly one type in the settings
         updatePortConfiguration();
-        return true;
+        return {};
     }
 
     void updatePortConfiguration()

@@ -59,10 +59,10 @@ public:
         }
     }
 
-    bool initialize() override
+    std::expected<void, QString> initialize() override
     {
         m_camSettingsWindow->updateValues();
-        return true;
+        return {};
     }
 
     ~FLIRCameraMod()

@@ -264,7 +264,7 @@ public:
         return ModuleDriverKind::THREAD_DEDICATED;
     }
 
-    bool initialize() override
+    std::expected<void, QString> initialize() override
     {
         setInitialized();
         m_consoleWidget->setVisible(false);
@@ -280,7 +280,7 @@ public:
             },
             Qt::QueuedConnection);
 
-        return true;
+        return {};
     }
 
     void usbHotplugEvent(UsbHotplugEventKind) override

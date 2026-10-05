@@ -148,10 +148,10 @@ public:
         return 8;
     }
 
-    bool initialize() override
+    std::expected<void, QString> initialize() override
     {
         updatePortConfiguration();
-        return true;
+        return {};
     }
 
     void updatePortConfiguration()

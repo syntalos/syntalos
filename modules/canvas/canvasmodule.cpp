@@ -77,7 +77,7 @@ public:
         m_cvView->setWindowIcon(modInfo->icon());
     }
 
-    bool initialize() override
+    std::expected<void, QString> initialize() override
     {
         m_cvView->setLogger(m_log);
         return AbstractModule::initialize();

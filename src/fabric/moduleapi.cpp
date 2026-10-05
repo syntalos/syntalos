@@ -585,7 +585,6 @@ public:
     std::atomic<ModuleState> state;
     QString id;
     QString name;
-    QString lastError;
     QVariantHash runStatistics;
     int modIndex;
     uint potentialNoaffinityCPUCount;
@@ -705,11 +704,11 @@ void AbstractModule::updateCommonStreamMetadata()
     }
 }
 
-bool AbstractModule::initialize()
+std::expected<void, QString> AbstractModule::initialize()
 {
     assert(!initialized());
     setInitialized();
-    return true;
+    return {};
 }
 
 void AbstractModule::start()
@@ -921,11 +920,6 @@ void AbstractModule::inputPortConnected(VarStreamInputPort *)
 void AbstractModule::updateStartWaitCondition(OptionalWaitCondition *)
 {
     /* do nothing */
-}
-
-QString AbstractModule::lastError() const
-{
-    return d->lastError;
 }
 
 QVariantHash AbstractModule::runStatistics() const
@@ -1384,7 +1378,6 @@ void AbstractModule::raiseError(const QString &message)
         return;
     }
 
-    d->lastError = message;
     setState(ModuleState::ERROR);
     LOG_ERROR(m_log, "Error raised by '{}': {}", name(), message);
     Q_EMIT error(message);
