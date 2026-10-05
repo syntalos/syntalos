@@ -235,14 +235,9 @@ public:
             loop.quit();
         });
 
-        auto iface = new QDBusInterface(
-            EQUEUE_DBUS_SERVICE,
-            "/",
-            EQUEUE_DBUS_MANAGERINTF,
-            QDBusConnection::sessionBus(),
-            this);
+        QDBusInterface iface(EQUEUE_DBUS_SERVICE, "/", EQUEUE_DBUS_MANAGERINTF, QDBusConnection::sessionBus());
 
-        if (!iface->isValid()) {
+        if (!iface.isValid()) {
             // service is not available, start detached queue processor
             // (will not do anything if process is already running)
             QProcess equeueProc;
@@ -256,7 +251,7 @@ public:
 
             // try to reach the encode helper a bunch of times
             for (uint i = 0; i < 10; i++) {
-                if (iface->isValid())
+                if (iface.isValid())
                     break;
                 QCoreApplication::processEvents();
                 timer.start(2000);
@@ -264,7 +259,7 @@ public:
             }
         }
 
-        if (!iface->isValid()) {
+        if (!iface.isValid()) {
             raiseError(QStringLiteral(
                            "Unable to connect to the encode queue service via D-Bus. "
                            "Videos of this run will remain unencoded. Did the encoding service crash? Message: %1")
@@ -273,7 +268,7 @@ public:
         }
 
         // set maximum number of parallel encoding jobs
-        iface->call("setParallelCount", m_settingsDialog->deferredEncodingParallelCount());
+        iface.call("setParallelCount", m_settingsDialog->deferredEncodingParallelCount());
 
         // display some "project name" useful for humans
         const auto time = QDateTime::currentDateTime();
@@ -310,7 +305,7 @@ public:
             mdata["save-timestamps"] = m_settingsDialog->saveTimestamps();
             mdata["video-container"] = static_cast<int>(m_settingsDialog->videoContainer());
 
-            QDBusReply<bool> reply = iface->call(
+            QDBusReply<bool> reply = iface.call(
                 "enqueueVideo",
                 projectName,
                 QString::fromStdString(vidDataset->pathForDataPart(dataPart)),
@@ -321,7 +316,7 @@ public:
         }
 
         if (m_settingsDialog->deferredEncodingInstantStart()) {
-            QDBusReply<bool> reply = iface->call("processVideos");
+            QDBusReply<bool> reply = iface.call("processVideos");
             if (!reply.isValid() || !reply.value())
                 LOG_WARNING(m_log, "Unable to request immediate video encoding: {}", reply.error().message());
         }
