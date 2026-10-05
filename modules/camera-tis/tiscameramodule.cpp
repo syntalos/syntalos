@@ -157,8 +157,17 @@ public:
             return false;
         }
 
+        // the dialog has no pipeline if it failed to open the camera, or if no format was selected for it
+        const auto pipeline = m_ctlDialog->pipeline();
+        const auto videoSink = m_ctlDialog->videoSink();
+        const auto caps = m_ctlDialog->currentCaps();
+        if (pipeline == nullptr || videoSink == nullptr || caps == nullptr) {
+            raiseError(
+                "Unable to continue: The camera could not be opened. Please select the camera and its format again.");
+            return false;
+        }
+
         m_ctlDialog->setRunning(true);
-        auto caps = m_ctlDialog->currentCaps();
         GstStructure *structure = gst_caps_get_structure(caps, 0);
 
         int value;
@@ -197,8 +206,8 @@ public:
         // valid for it no matter what happens to the dialog's pipeline during the run.
         setWorker(
             Worker{
-                .pipeline = GstObjectRef<GstElement>(GST_ELEMENT(gst_object_ref(m_ctlDialog->pipeline()))),
-                .appSink = GstObjectRef<GstAppSink>(GST_APP_SINK(gst_object_ref(m_ctlDialog->videoSink()))),
+                .pipeline = GstObjectRef<GstElement>(GST_ELEMENT(gst_object_ref(pipeline))),
+                .appSink = GstObjectRef<GstAppSink>(GST_APP_SINK(gst_object_ref(videoSink))),
                 .resolution = m_resolution,
                 .fps = m_fps,
                 .deviceName = m_device.str(),
