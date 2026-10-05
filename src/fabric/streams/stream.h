@@ -153,6 +153,19 @@ public:
     virtual void forcePushNullopt() = 0;
 
     /**
+     * @brief Make blocking reads return once no more data is pending.
+     *
+     * After this was called, next() returns std::nullopt instead of waiting when the
+     * subscription has no pending data.
+     */
+    virtual void interrupt() = 0;
+
+    /**
+     * @brief Let blocking reads wait for data again, reversing interrupt().
+     */
+    virtual void clearInterrupt() = 0;
+
+    /**
      * @brief If this subscription is a type-conversion view, return the underlying
      * source-typed subscription it adapts; otherwise return nullptr.
      *
@@ -246,7 +259,14 @@ public:
         if (!m_active && m_queue.peek() == nullptr)
             return std::nullopt;
         std::optional<T> data;
-        m_queue.wait_dequeue(data);
+
+        // We wait in slices, so a consumer that is waiting for data which will never
+        // arrive can be woken up via interrupt() without anything having to be pushed
+        // into the queue by a thread that is not its producer.
+        while (!m_queue.wait_dequeue_timed(data, NEXT_WAIT_SLICE_USEC)) {
+            if (m_interrupted.load(std::memory_order_relaxed))
+                return std::nullopt;
+        }
         return data;
     }
 
@@ -477,7 +497,20 @@ public:
         m_queue.emplace(std::nullopt);
     }
 
+    void interrupt() override
+    {
+        m_interrupted = true;
+    }
+
+    void clearInterrupt() override
+    {
+        m_interrupted = false;
+    }
+
 private:
+    // maximum time a blocking next() call waits before checking if it was interrupted
+    static constexpr std::int64_t NEXT_WAIT_SLICE_USEC = 100 * 1000;
+
     DataStream<T> *m_stream;
     BlockingReaderWriterQueue<std::optional<T>> m_queue;
     int m_eventfd;
@@ -485,6 +518,7 @@ private:
     std::atomic_bool m_notifyPending;
     std::atomic_bool m_active;
     std::atomic_bool m_suspended;
+    std::atomic_bool m_interrupted{false};
     std::atomic_uint m_throttle;
     std::atomic_uint m_skippedElements;
     std::atomic<uint64_t> m_receivedCount{0};
@@ -587,6 +621,7 @@ private:
         // consumer (the subscribing module, or the engine acting on its behalf), and a producer
         // (re)starting its stream must not override that decision.
         m_active = true;
+        m_interrupted = false;
         m_throttle = 0;
         m_notifyPending = false;
         m_receivedCount.store(0, std::memory_order_relaxed);
@@ -1048,6 +1083,16 @@ public:
     void forcePushNullopt() override
     {
         m_inner->forcePushNullopt();
+    }
+
+    void interrupt() override
+    {
+        m_inner->interrupt();
+    }
+
+    void clearInterrupt() override
+    {
+        m_inner->clearInterrupt();
     }
 
     std::shared_ptr<VariantStreamSubscription> sourceSubscriptionVar() override
