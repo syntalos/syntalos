@@ -2509,6 +2509,28 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
         .isEphemeral = d->runIsEphemeral,
     };
 
+    // a worker can only be run if it fits the way the module asked to be executed
+    const auto verifyModuleWorker = [](AbstractModule *mod) {
+        const auto worker = mod->workerHolder();
+        if (worker == nullptr)
+            return true;
+
+        const auto driver = mod->driver();
+        const bool driverMatches = worker->isThreadWorker() ? (driver == ModuleDriverKind::THREAD_DEDICATED)
+                                                            : (driver == ModuleDriverKind::EVENTS_DEDICATED
+                                                               || driver == ModuleDriverKind::EVENTS_SHARED);
+        if (driverMatches)
+            return true;
+
+        mod->raiseError(
+            QStringLiteral("The module has set a worker that %1, but its driver is '%2'. This is a bug in the module.")
+                .arg(
+                    worker->isThreadWorker() ? QStringLiteral("needs a dedicated thread")
+                                             : QStringLiteral("is driven by events"),
+                    driverKindToString(driver)));
+        return false;
+    };
+
     for (auto &mod : modOrder.start) {
         // Prepare module. At this point it should have a timer,
         // the location where data is saved and be in the PREPARING state.
@@ -2552,8 +2574,16 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
         mod->clearDataReceivedEventRegistrations();
         mod->clearRunStatistics();
 
+        // The worker of a module is run-scoped as well, drop any that was not claimed after the last run.
+        mod->setWorkerActive(false);
+        mod->setWorkerHolder(nullptr);
+        for (const auto &iport : mod->inPorts()) {
+            if (iport->hasSubscription())
+                iport->subscriptionVar()->clearInterrupt();
+        }
+
         // prepare the module
-        if (!mod->prepare(runInfo)) {
+        if (!mod->prepare(runInfo) || !verifyModuleWorker(mod)) {
             initSuccessful = false;
             d->failed = true;
             d->runFailedReason = QStringLiteral("Prepare step failed for: %1(%2)").arg(mod->id(), mod->name());
@@ -2686,6 +2716,7 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
             // We create the dedicated module threads as QThread, as it is a bit more convenient and
             // sometimes efficients for modules to have access to an Qt event loop.
             // (SyThread can either be a pure pthread, or a QThread)
+            mod->setWorkerActive(mod->workerHolder() != nullptr);
             auto modThread = std::make_unique<SyThread>(td, mod, startWaitCondition.get());
             dThreads.push_back(std::move(modThread));
         }
@@ -2716,6 +2747,9 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
                     evRtPriority = std::max(evRtPriority, mod->defaultRealtimePriority());
                 }
                 evNiceness = std::min(evNiceness, mod->defaultThreadNiceness());
+
+                // the event thread runs the worker's callbacks from now on
+                mod->setWorkerActive(mod->workerHolder() != nullptr);
             }
 
             std::shared_ptr<ModuleEventThread> evThread(new ModuleEventThread(evThreadKey));
@@ -2838,8 +2872,13 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
                     && (mod->driver() != ModuleDriverKind::EVENTS_SHARED))
                     continue;
 
-                if (mod->state() != ModuleState::DORMANT)
+                if (mod->state() != ModuleState::DORMANT) {
+                    // the workers of all modules are still waiting for the start signal,
+                    // so a module may give its worker some last details in start()
+                    mod->setWorkerStartPhase(true);
                     mod->start();
+                    mod->setWorkerStartPhase(false);
+                }
 
                 // ensure modules are in their "running" state now, or
                 // have themselves declared "dormant" (meaning they won't be used at all)
@@ -2873,8 +2912,13 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
                     || (mod->driver() == ModuleDriverKind::EVENTS_SHARED))
                     continue;
 
-                if (mod->state() != ModuleState::DORMANT)
+                if (mod->state() != ModuleState::DORMANT) {
+                    // the workers of all modules are still waiting for the start signal,
+                    // so a module may give its worker some last details in start()
+                    mod->setWorkerStartPhase(true);
                     mod->start();
+                    mod->setWorkerStartPhase(false);
+                }
 
                 // work around bad modules which don't set this on their own in start()
                 if (mod->state() != ModuleState::ERROR) {
@@ -2980,129 +3024,25 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
         }
     };
 
-    // Send the stop command to a module and terminate its outgoing streams
-    const auto stopModule = [this, &lastPhaseTimepoint](AbstractModule *mod) {
-        lastPhaseTimepoint = d->timer->currentTimePoint();
-
-        // send the stop command
-        mod->stop();
-        QCoreApplication::processEvents();
-
-        // safeguard against bad modules which don't stop running their
-        // thread loops on their own
-        mod->m_running = false;
-
-        // ensure modules really have terminated all their outgoing streams,
-        // because if they didn't do that, connected modules may not be able to exit
-        for (auto const &port : mod->outPorts())
-            port->stopStream();
-
-        // ensure modules display the correct state after we stopped a run
-        if (mod->state() != ModuleState::IDLE && mod->state() != ModuleState::ERROR)
-            mod->setState(ModuleState::IDLE);
-
-        LOG_INFO(d->log, "Module '{}' stopped in {} msec", mod->name(), timeDiffToNowMsec(lastPhaseTimepoint).count());
-    };
-
-    // join an event thread, then stop all modules that were running on it
-    QSet<QString> stoppedEvThreads;
-    const auto stopEventThread = [this, &evThreads, &lastPhaseTimepoint, &stopModule, &stoppedEvThreads](
-                                     const QString &evThreadKey,
-                                     const QList<AbstractModule *> &evMods) {
-        const auto evThread = evThreads.value(evThreadKey);
-        stoppedEvThreads.insert(evThreadKey);
-        if (evThread) {
-            emitStatusMessage(QStringLiteral("Waiting for event thread `%1`...").arg(evThread->threadName()));
-            lastPhaseTimepoint = d->timer->currentTimePoint();
-            evThread->stop();
-            LOG_INFO(
-                d->log,
-                "Event thread '{}' stopped in {} msec",
-                evThreadKey,
-                timeDiffToNowMsec(lastPhaseTimepoint).count());
-        } else {
-            LOG_WARNING(d->log, "No event thread found for module group '{}'.", evThreadKey);
-        }
-
-        for (auto evMod : evMods) {
-            emitStatusMessage(QStringLiteral("Stopping '%1'...").arg(evMod->name()));
-            stopModule(evMod);
-        }
-    };
-
-    QHash<AbstractModule *, QString> modEvThreadKey;
-    for (auto it = eventModules.constBegin(); it != eventModules.constEnd(); ++it) {
-        for (auto evMod : it.value())
-            modEvThreadKey.insert(evMod, it.key());
-    }
-    // event-driven modules whose inputs have been drained, but which are waiting
-    // for the thread they are running on to be joined before they can be stopped
-    QHash<QString, QList<AbstractModule *>> pendingEvThreadMods;
-
-    // send stop command to all active modules in their designated stop order
-    for (auto &mod : modOrder.stop) {
-        emitStatusMessage(QStringLiteral("Stopping '%1'...").arg(mod->name()));
-        waitForInputsDrained(mod);
-
-        const auto evThreadKey = modEvThreadKey.value(mod);
-        if (evThreadKey.isEmpty()) {
-            stopModule(mod);
-            continue;
-        }
-
-        // An event thread must be joined before any module running on it is stopped, but
-        // joining it also cuts off all other modules on that thread, which may still have
-        // upstream modules running. So we defer stopping event-driven modules until the last
-        // module on their thread comes up in the stop order: At that point, all their
-        // upstream modules have been stopped and their inputs have been drained.
-        auto &pendingMods = pendingEvThreadMods[evThreadKey];
-        pendingMods.append(mod);
-        if (pendingMods.size() < eventModules.value(evThreadKey).size())
-            continue;
-
-        stopEventThread(evThreadKey, pendingEvThreadMods.take(evThreadKey));
-    }
-
-    // stop any event thread (and its modules) that may not have been covered by the module stop order
-    for (auto it = evThreads.constBegin(); it != evThreads.constEnd(); ++it) {
-        if (stoppedEvThreads.contains(it.key()))
-            continue;
-        LOG_WARNING(d->log, "Event thread '{}' was not stopped via module stop order.", it.key());
-        stopEventThread(it.key(), pendingEvThreadMods.take(it.key()));
-    }
-
-    // Wake up all threads again, just in case one is still stuck waiting
-    // for the start condition.
-    // This can happen to module threads, as well as to the stream exporter that we
-    // are about to stop next.
+    // Wake up all threads again, just in case one is still stuck waiting for the start condition.
+    // This can happen to module threads if we never started, as well as to the stream exporter.
+    // We have to do this before stopping any module, as a thread has to be joined before its module is stopped.
     startWaitCondition->wakeAll();
 
-    // Stop the stream exporter: it shares subscription objects (and their SPSC
-    // queues) with module input ports. The exporter thread acts as the sole
-    // consumer of those queues, so shutdownThread() must complete (joining the
-    // exporter thread) before clearPending() is called on any subscription
-    // below (otherwise two threads would both dequeue from the same queue,
-    // causing an assertion failure or worse).
-    emitStatusMessage(QStringLiteral("Stopping IPC stream exporter..."));
-    streamExporter->stop();
-    streamExporter.reset();
+    // Join the dedicated thread of a module, waiting for it to terminate.
+    // Some modules may be stuck in their threads, so we try our absolute best to not
+    // make Syntalos hang while failing to join a misbehaving thread.
+    // Ultimately though we must join the thread, so we will just give up eventually.
+    const auto joinModuleThread = [&](AbstractModule *mod) {
+        const auto threadIdx = threadedModules.indexOf(mod);
+        if (threadIdx < 0 || static_cast<size_t>(threadIdx) >= dThreads.size())
+            return;
+        auto &thread = dThreads[threadIdx];
+        if (!thread || thread->joined())
+            return;
 
-    lastPhaseTimepoint = d->timer->currentTimePoint();
-
-    // join all dedicated module threads with the main thread again, waiting for them to terminate
-    emitStatusMessage(QStringLiteral("Joining remaining threads."));
-    for (size_t i = 0; i < dThreads.size(); i++) {
-        auto &thread = dThreads[i];
-        if (!thread)
-            continue;
-
-        auto mod = threadedModules[i];
         emitStatusMessage(QStringLiteral("Waiting for '%1'...").arg(mod->name()));
         qApp->processEvents();
-
-        // Some modules may be stuck in their threads, so we try our absolute best to not
-        // make Syntalos hang while failing to join a misbehaving thread.
-        // Ultimately though we must join the thread, so we will just give up eventually.
 
         // wait ~20sec for the thread to join
         bool threadJoined = false;
@@ -3113,20 +3053,23 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
                 break;
         }
         if (threadJoined)
-            continue;
+            return;
 
         // if we are here, we failed to join the thread
         LOG_WARNING(d->log, "Failed to join thread for '{}' in time, trying to break deadlock...", mod->name());
         emitStatusMessage(QStringLiteral("Waiting for '%1' (⚠️ possibly dead / unrecoverable)...").arg(mod->name()));
         qApp->processEvents();
 
-        // let's try to send its inputs a nullopt
-        for (auto inPort : mod->inPorts()) {
-            if (!inPort->hasSubscription())
-                continue;
-            auto sub = inPort->subscriptionVar();
-            if (!sub->hasPending())
-                sub->forcePushNullopt();
+        // A thread which is run by a worker had its inputs interrupted already. For any other
+        // thread, let's try to send its inputs a nullopt.
+        if (mod->workerHolder() == nullptr) {
+            for (auto inPort : mod->inPorts()) {
+                if (!inPort->hasSubscription())
+                    continue;
+                auto sub = inPort->subscriptionVar();
+                if (!sub->hasPending())
+                    sub->forcePushNullopt();
+            }
         }
 
         if (!thread->joinTimeout(15)) {
@@ -3166,6 +3109,145 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
 
         qApp->processEvents();
         thread->join();
+    };
+
+    // Stop a module and terminate its outgoing streams.
+    // If the module is run by a worker in a dedicated thread, the thread is joined before
+    // the module is told to stop, so stop() never runs concurrently with the worker.
+    const auto stopModule = [&](AbstractModule *mod, bool notifyAboutToStop) {
+        lastPhaseTimepoint = d->timer->currentTimePoint();
+
+        // let the module ask whatever it is attached to to stop, while its worker is still running
+        if (notifyAboutToStop) {
+            mod->preStop();
+            QCoreApplication::processEvents();
+        }
+
+        const auto worker = mod->workerHolder();
+        if (worker != nullptr && worker->isThreadWorker()) {
+            // ask the worker to finish, and wake it up in case it waits for data that will not arrive
+            mod->m_running = false;
+            for (const auto &iport : mod->inPorts()) {
+                if (iport->hasSubscription())
+                    iport->subscriptionVar()->interrupt();
+            }
+            joinModuleThread(mod);
+            mod->setWorkerActive(false);
+        }
+
+        // send the stop command
+        mod->stop();
+
+        // A worker only lives for one run. If the module did not claim it in stop(), we drop it now,
+        // so it does not keep subscriptions, streams and datasets of this run alive.
+        mod->setWorkerHolder(nullptr);
+        QCoreApplication::processEvents();
+
+        // safeguard against bad modules which don't stop running their
+        // thread loops on their own
+        mod->m_running = false;
+
+        // ensure modules really have terminated all their outgoing streams,
+        // because if they didn't do that, connected modules may not be able to exit
+        for (auto const &port : mod->outPorts())
+            port->stopStream();
+
+        // ensure modules display the correct state after we stopped a run
+        if (mod->state() != ModuleState::IDLE && mod->state() != ModuleState::ERROR)
+            mod->setState(ModuleState::IDLE);
+
+        LOG_INFO(d->log, "Module '{}' stopped in {} msec", mod->name(), timeDiffToNowMsec(lastPhaseTimepoint).count());
+    };
+
+    // join an event thread, then stop all modules that were running on it
+    QSet<QString> stoppedEvThreads;
+    const auto stopEventThread = [this, &evThreads, &lastPhaseTimepoint, &stopModule, &stoppedEvThreads](
+                                     const QString &evThreadKey,
+                                     const QList<AbstractModule *> &evMods) {
+        const auto evThread = evThreads.value(evThreadKey);
+        stoppedEvThreads.insert(evThreadKey);
+
+        for (auto evMod : evMods)
+            evMod->preStop();
+
+        if (evThread) {
+            emitStatusMessage(QStringLiteral("Waiting for event thread `%1`...").arg(evThread->threadName()));
+            lastPhaseTimepoint = d->timer->currentTimePoint();
+            evThread->stop();
+            LOG_INFO(
+                d->log,
+                "Event thread '{}' stopped in {} msec",
+                evThreadKey,
+                timeDiffToNowMsec(lastPhaseTimepoint).count());
+        } else {
+            LOG_WARNING(d->log, "No event thread found for module group '{}'.", evThreadKey);
+        }
+
+        for (auto evMod : evMods) {
+            emitStatusMessage(QStringLiteral("Stopping '%1'...").arg(evMod->name()));
+            evMod->setWorkerActive(false);
+            stopModule(evMod, false);
+        }
+    };
+
+    QHash<AbstractModule *, QString> modEvThreadKey;
+    for (auto it = eventModules.constBegin(); it != eventModules.constEnd(); ++it) {
+        for (auto evMod : it.value())
+            modEvThreadKey.insert(evMod, it.key());
+    }
+    // event-driven modules whose inputs have been drained, but which are waiting
+    // for the thread they are running on to be joined before they can be stopped
+    QHash<QString, QList<AbstractModule *>> pendingEvThreadMods;
+
+    // send stop command to all active modules in their designated stop order
+    for (auto &mod : modOrder.stop) {
+        emitStatusMessage(QStringLiteral("Stopping '%1'...").arg(mod->name()));
+        waitForInputsDrained(mod);
+
+        const auto evThreadKey = modEvThreadKey.value(mod);
+        if (evThreadKey.isEmpty()) {
+            stopModule(mod, true);
+            continue;
+        }
+
+        // An event thread must be joined before any module running on it is stopped, but
+        // joining it also cuts off all other modules on that thread, which may still have
+        // upstream modules running. So we defer stopping event-driven modules until the last
+        // module on their thread comes up in the stop order: At that point, all their
+        // upstream modules have been stopped and their inputs have been drained.
+        auto &pendingMods = pendingEvThreadMods[evThreadKey];
+        pendingMods.append(mod);
+        if (pendingMods.size() < eventModules.value(evThreadKey).size())
+            continue;
+
+        stopEventThread(evThreadKey, pendingEvThreadMods.take(evThreadKey));
+    }
+
+    // stop any event thread (and its modules) that may not have been covered by the module stop order
+    for (auto it = evThreads.constBegin(); it != evThreads.constEnd(); ++it) {
+        if (stoppedEvThreads.contains(it.key()))
+            continue;
+        LOG_WARNING(d->log, "Event thread '{}' was not stopped via module stop order.", it.key());
+        stopEventThread(it.key(), pendingEvThreadMods.take(it.key()));
+    }
+
+    // Stop the stream exporter: it shares subscription objects (and their SPSC
+    // queues) with module input ports. The exporter thread acts as the sole
+    // consumer of those queues, so shutdownThread() must complete (joining the
+    // exporter thread) before clearPending() is called on any subscription
+    // below (otherwise two threads would both dequeue from the same queue,
+    // causing an assertion failure or worse).
+    emitStatusMessage(QStringLiteral("Stopping IPC stream exporter..."));
+    streamExporter->stop();
+    streamExporter.reset();
+
+    lastPhaseTimepoint = d->timer->currentTimePoint();
+
+    // join all dedicated module threads which have not been joined when their module was stopped
+    emitStatusMessage(QStringLiteral("Joining remaining threads."));
+    for (auto mod : threadedModules) {
+        joinModuleThread(mod);
+        mod->setWorkerActive(false);
     }
 
     LOG_INFO(d->log, "All (non-event) engine threads joined in {} msec", timeDiffToNowMsec(lastPhaseTimepoint).count());
@@ -3192,6 +3274,10 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
     // to store data in.
     for (auto &mod : modOrder.start)
         mod->setStorageGroup(nullptr);
+
+    // make sure no worker survives the run, even if its module was not part of the stop order
+    for (auto &mod : modOrder.start)
+        mod->setWorkerHolder(nullptr);
 
     if (d->saveInternal) {
         emitStatusMessage(QStringLiteral("Finalizing internal dataset..."));

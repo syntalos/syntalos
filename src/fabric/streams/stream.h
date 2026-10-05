@@ -149,9 +149,6 @@ public:
         return v.has_value() ? v->template getOr<MT>(std::move(fallback)) : std::move(fallback);
     }
 
-    // used internally by Syntalos
-    virtual void forcePushNullopt() = 0;
-
     /**
      * @brief Make blocking reads return once no more data is pending.
      *
@@ -490,11 +487,6 @@ public:
         // apply
         m_throttle = newThrottle;
         m_skippedElements = 0;
-    }
-
-    void forcePushNullopt() override
-    {
-        m_queue.emplace(std::nullopt);
     }
 
     void interrupt() override
@@ -1079,11 +1071,6 @@ public:
     }
 
     using VariantStreamSubscription::metadataValue;
-
-    void forcePushNullopt() override
-    {
-        m_inner->forcePushNullopt();
-    }
 
     void interrupt() override
     {
