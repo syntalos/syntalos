@@ -41,6 +41,11 @@ static inline struct timespec timespecAdd(const struct timespec &t1, const struc
     return (struct timespec){.tv_sec = sec, .tv_nsec = nsec};
 }
 
+static inline bool timespecLess(const struct timespec &t1, const struct timespec &t2)
+{
+    return t1.tv_sec < t2.tv_sec || (t1.tv_sec == t2.tv_sec && t1.tv_nsec < t2.tv_nsec);
+}
+
 class ClockModule : public AbstractModule
 {
 private:
@@ -152,9 +157,20 @@ public:
                     std::format("Unable to obtain initial monotonic clock time: {}", std::strerror(errno)));
             ts = timespecAdd(ts, interval);
 
+            // we sleep in slices, so a stop request is noticed even during a long interval
+            constexpr struct timespec sleepSlice = {.tv_sec = 0, .tv_nsec = 250 * 1000 * 1000};
+
             index = 0;
             while (mod.running()) {
-                r = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, &ts, nullptr);
+                struct timespec now;
+                r = clock_gettime(CLOCK_MONOTONIC, &now);
+                if (G_UNLIKELY(r != 0))
+                    return std::unexpected(
+                        std::format("Unable to obtain monotonic clock time: {}", std::strerror(errno)));
+                const auto sliceEnd = timespecAdd(now, sleepSlice);
+                const bool pulseDue = !timespecLess(sliceEnd, ts);
+
+                r = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, pulseDue ? &ts : &sliceEnd, nullptr);
                 if (G_UNLIKELY(r == -EINTR)) {
                     r = clock_gettime(CLOCK_MONOTONIC, &ts);
                     if (G_UNLIKELY(r != 0))
@@ -164,6 +180,8 @@ public:
                 }
                 if (G_UNLIKELY(r != 0))
                     return std::unexpected(std::format("Unable to nanosleep: {}", std::strerror(errno)));
+                if (!pulseDue)
+                    continue;
                 r = clock_gettime(CLOCK_MONOTONIC, &ts);
                 if (G_UNLIKELY(r != 0))
                     return std::unexpected(
