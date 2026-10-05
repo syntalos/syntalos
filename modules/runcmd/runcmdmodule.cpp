@@ -46,8 +46,26 @@ public:
         m_settings = new RunCmdSettingsDlg;
         addSettingsWindow(m_settings);
 
-        // register event function to check for the current process every 1.5s
-        registerTimedEvent(&RunCmdModule::runEvent, milliseconds_t(1500));
+        // Be notified when our process is gone. The connections are queued, so the process object has
+        // completed its own bookkeeping by the time we look at it.
+        connect(
+            m_proc,
+            &QProcess::finished,
+            this,
+            [this]() {
+                onProcessEnded();
+            },
+            Qt::QueuedConnection);
+        connect(
+            m_proc,
+            &QProcess::errorOccurred,
+            this,
+            [this](QProcess::ProcessError error) {
+                // a process which did not start will never finish, all other errors do not end it
+                if (error == QProcess::FailedToStart)
+                    onProcessEnded();
+            },
+            Qt::QueuedConnection);
 
         // if we are in a Flatpak sandbox, we can run a command within it or outside of it
         m_inSandbox = isInFlatpakSandbox();
@@ -58,7 +76,8 @@ public:
 
     ModuleDriverKind driver() const override
     {
-        return ModuleDriverKind::EVENTS_SHARED;
+        // we only watch a process, which the main thread can do
+        return ModuleDriverKind::NONE;
     }
 
     ModuleFeatures features() const override
@@ -159,29 +178,40 @@ public:
         setStatusMessage("Process running.");
     }
 
-    void runEvent(int &intervalMsec)
+    void onProcessEnded()
     {
-        if (m_proc->state() != QProcess::Running) {
-            // we are not running anymore - check for errors
-            if (m_proc->exitStatus() == QProcess::CrashExit) {
-                raiseError(
-                    QStringLiteral("The process %1 crashed: %2").arg(m_proc->program()).arg(m_proc->errorString()));
-            } else {
-                if (m_proc->exitCode() != 0)
-                    raiseError(QStringLiteral("The process %1 failed with exit code: %2")
-                                   .arg(m_proc->program())
-                                   .arg(m_proc->exitCode()));
-            }
+        // we only care if the process ends while a run is active, when the run is stopped we end it ourselves
+        if (!m_running)
+            return;
+        // ignore a late notification about a process of a previous run
+        if (m_proc->state() != QProcess::NotRunning)
+            return;
 
-            setStatusMessage("Process terminated.");
-            setStateDormant();
-            // we don't have to run again, our process is dead
-            intervalMsec = -1;
+        // we are not running anymore - check for errors
+        bool failed = false;
+        if (m_proc->exitStatus() == QProcess::CrashExit) {
+            raiseError(QStringLiteral("The process %1 crashed: %2").arg(m_proc->program()).arg(m_proc->errorString()));
+            failed = true;
+        } else {
+            if (m_proc->exitCode() != 0) {
+                raiseError(QStringLiteral("The process %1 failed with exit code: %2")
+                               .arg(m_proc->program())
+                               .arg(m_proc->exitCode()));
+                failed = true;
+            }
         }
+
+        setStatusMessage("Process terminated.");
+        // an error has put us into the error state, which we must keep
+        if (!failed)
+            setStateDormant();
     }
 
     void stop() override
     {
+        // the run is over, the process ending is expected from here on
+        m_running = false;
+
         if (m_proc->state() != QProcess::Running)
             return;
 
