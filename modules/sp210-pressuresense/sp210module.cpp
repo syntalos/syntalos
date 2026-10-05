@@ -76,6 +76,12 @@ public:
 
     bool prepare(const RunInfo &) override
     {
+        // do nothing if nobody consumes our data
+        if (!m_paStream->hasSubscribers() && !m_tempStream->hasSubscribers()) {
+            setStateDormant();
+            return true;
+        }
+
         m_settingsDlg->setRunning(true);
 
         m_paStream->setMetadataValue("signal_names", MetaArray{"Pressure"});
@@ -169,10 +175,6 @@ public:
 
         void run()
         {
-            // do nothing if nobody consumes our data
-            if (!paStream->hasSubscribers() && tempStream->hasSubscribers())
-                return;
-
             // configure serial device
             QSerialPort serial;
             serial.close();
