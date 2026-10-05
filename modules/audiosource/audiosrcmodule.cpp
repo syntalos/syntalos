@@ -20,6 +20,8 @@
 #include "audiosrcmodule.h"
 #include "QtSvg/qsvgrenderer.h"
 
+#include <algorithm>
+#include <atomic>
 #include <QDir>
 #include <QFileInfo>
 #include <QMessageBox>
@@ -39,6 +41,52 @@ SYNTALOS_MODULE(AudioSourceModule)
 static gboolean audiosrc_pipeline_watch_func(GstBus *bus, GstMessage *message, gpointer udata);
 static void audiosrc_decodebin_pad_added(GstElement *decodebin, GstPad *pad, gpointer udata);
 
+/**
+ * Seek back to the start of the file. When looping is enabled, a segment seek is
+ * performed, so we get a SEGMENT_DONE message instead of EOS and can continue
+ * playback without a gap.
+ */
+static bool audioSeekToStart(GstElement *pipeline, bool fileMode, bool loopFile, bool flush)
+{
+    if (pipeline == nullptr || !fileMode)
+        return false;
+
+    auto flags = static_cast<GstSeekFlags>(loopFile ? GST_SEEK_FLAG_SEGMENT : GST_SEEK_FLAG_NONE);
+    if (flush)
+        flags = static_cast<GstSeekFlags>(flags | GST_SEEK_FLAG_FLUSH);
+    return gst_element_seek(
+        pipeline,
+        1.0,
+        GST_FORMAT_TIME,
+        flags,
+        GST_SEEK_TYPE_SET,
+        0,
+        GST_SEEK_TYPE_NONE,
+        GST_CLOCK_TIME_NONE);
+}
+
+static void audioSetPlayState(GstElement *pipeline, bool fileMode, bool loopFile, ControlCommandKind kind)
+{
+    if (pipeline == nullptr)
+        return;
+    if (kind == ControlCommandKind::START) {
+        gst_element_set_state(pipeline, GST_STATE_PLAYING);
+    } else if (kind == ControlCommandKind::PAUSE) {
+        gst_element_set_state(pipeline, GST_STATE_PAUSED);
+    } else if (kind == ControlCommandKind::STOP) {
+        gst_element_set_state(pipeline, GST_STATE_PAUSED);
+        // in file mode, STOP rewinds the sample, while PAUSE keeps its position
+        audioSeekToStart(pipeline, fileMode, loopFile, true);
+    }
+}
+
+struct GstObjectUnref {
+    void operator()(gpointer obj) const
+    {
+        gst_object_unref(obj);
+    }
+};
+
 class AudioSourceModule : public AbstractModule
 {
     Q_OBJECT
@@ -47,9 +95,9 @@ private:
     AudioSettingsDialog *m_settingsDialog;
 
     std::shared_ptr<StreamInputPort<ControlCommand>> m_ctlPort;
-    std::shared_ptr<StreamSubscription<ControlCommand>> m_ctlIn;
 
-    ControlCommandKind m_prevCommand;
+    std::shared_ptr<std::atomic<ControlCommandKind>> m_prevCommand;
+    std::shared_ptr<std::atomic_bool> m_pipelineFailed;
 
     GstElement *m_audioSource;
     GstElement *m_audioSink;
@@ -64,7 +112,8 @@ public:
     explicit AudioSourceModule(ModuleInfo *modInfo, QObject *parent = nullptr)
         : AbstractModule(parent),
           m_settingsDialog(nullptr),
-          m_prevCommand(ControlCommandKind::STOP),
+          m_prevCommand(std::make_shared<std::atomic<ControlCommandKind>>(ControlCommandKind::STOP)),
+          m_pipelineFailed(std::make_shared<std::atomic_bool>(false)),
           m_audioSource(nullptr),
           m_audioSink(nullptr),
           m_pipeline(nullptr),
@@ -280,28 +329,9 @@ public:
         return true;
     }
 
-    /**
-     * Seek back to the start of the file. When looping is enabled, a segment seek is
-     * performed, so we get a SEGMENT_DONE message instead of EOS and can continue
-     * playback without a gap.
-     */
     bool seekToStart(bool flush)
     {
-        if (m_pipeline == nullptr || !m_fileMode)
-            return false;
-
-        auto flags = static_cast<GstSeekFlags>(m_loopFile ? GST_SEEK_FLAG_SEGMENT : GST_SEEK_FLAG_NONE);
-        if (flush)
-            flags = static_cast<GstSeekFlags>(flags | GST_SEEK_FLAG_FLUSH);
-        return gst_element_seek(
-            m_pipeline,
-            1.0,
-            GST_FORMAT_TIME,
-            flags,
-            GST_SEEK_TYPE_SET,
-            0,
-            GST_SEEK_TYPE_NONE,
-            GST_CLOCK_TIME_NONE);
+        return audioSeekToStart(m_pipeline, m_fileMode, m_loopFile, flush);
     }
 
     void onSegmentDone()
@@ -329,7 +359,7 @@ public:
         LOG_DEBUG(m_log, "Reached end of audio file, stopping and rewinding.");
         gst_element_set_state(m_pipeline, GST_STATE_PAUSED);
         seekToStart(true);
-        m_prevCommand = ControlCommandKind::STOP;
+        m_prevCommand->store(ControlCommandKind::STOP);
     }
 
     void deletePipeline()
@@ -355,28 +385,20 @@ public:
 
     void failPipeline(const QString &errorMessage)
     {
-        deletePipeline();
-        raiseError(errorMessage);
-    }
+        if (hasActiveWorker()) {
+            // Our worker may be using the pipeline right now, so we only tell it to keep its hands off:
+            // Raising the error ends the run, and the pipeline is deleted in stop(), once the worker is gone.
+            m_pipelineFailed->store(true);
 
-    ControlCommandKind prevCommand() const
-    {
-        return m_prevCommand;
-    }
-
-    void setPlayStateFromCommand(ControlCommandKind kind)
-    {
-        if (m_pipeline == nullptr)
-            return;
-        if (kind == ControlCommandKind::START) {
-            gst_element_set_state(m_pipeline, GST_STATE_PLAYING);
-        } else if (kind == ControlCommandKind::PAUSE) {
-            gst_element_set_state(m_pipeline, GST_STATE_PAUSED);
-        } else if (kind == ControlCommandKind::STOP) {
-            gst_element_set_state(m_pipeline, GST_STATE_PAUSED);
-            // in file mode, STOP rewinds the sample, while PAUSE keeps its position
-            seekToStart(true);
+            // we do not want to hear anything else from this pipeline
+            if (m_busWatchId != 0) {
+                g_source_remove(m_busWatchId);
+                m_busWatchId = 0;
+            }
+        } else {
+            deletePipeline();
         }
+        raiseError(errorMessage);
     }
 
     bool prepare(const RunInfo &) override
@@ -384,14 +406,7 @@ public:
         if (m_pipeline == nullptr)
             setupPipeline();
 
-        if (m_ctlPort->hasSubscription()) {
-            m_ctlIn = m_ctlPort->subscription();
-            if (m_ctlIn.get() != nullptr)
-                registerDataReceivedEvent(&AudioSourceModule::onControlReceived, m_ctlIn);
-        } else {
-            m_ctlIn.reset();
-        }
-
+        m_pipelineFailed->store(false);
         if (!resetPipeline())
             return false;
 
@@ -436,6 +451,23 @@ public:
                 m_settingsDialog->volume());
         }
 
+        // the pipeline is ready, so we can hand it to the worker that will apply the control commands
+        if (m_ctlPort->hasSubscription()) {
+            auto ctlIn = m_ctlPort->subscription();
+            if (ctlIn.get() != nullptr) {
+                setWorker(
+                    Worker{
+                        .ctlIn = ctlIn,
+                        .pipeline = std::unique_ptr<GstElement, GstObjectUnref>(
+                            GST_ELEMENT(gst_object_ref(m_pipeline))),
+                        .fileMode = m_fileMode,
+                        .loopFile = m_loopFile,
+                        .prevCommand = m_prevCommand,
+                        .pipelineFailed = m_pipelineFailed,
+                    });
+            }
+        }
+
         return true;
     }
 
@@ -443,43 +475,105 @@ public:
     {
         if (m_settingsDialog->startImmediately()) {
             gst_element_set_state(m_pipeline, GST_STATE_PLAYING);
-            m_prevCommand = ControlCommandKind::START;
+            m_prevCommand->store(ControlCommandKind::START);
         } else {
             gst_element_set_state(m_pipeline, GST_STATE_PAUSED);
-            m_prevCommand = ControlCommandKind::STOP;
+            m_prevCommand->store(ControlCommandKind::STOP);
         }
         AbstractModule::start();
     }
 
+    /**
+     * Applies control commands to the audio pipeline, in the event loop the module is assigned to.
+     *
+     * Commands are applied right when they arrive, so their timing does not depend on how busy
+     * the main thread is. The worker holds a reference of its own on the pipeline, and changing
+     * the state of a GStreamer element is safe to do from any thread.
+     */
+    struct Worker {
+        WorkerContext mod{};
+        std::shared_ptr<StreamSubscription<ControlCommand>> ctlIn;
+        std::unique_ptr<GstElement, GstObjectUnref> pipeline;
+        bool fileMode;
+        bool loopFile;
+
+        // the state to return to after a timed command, also set by the main
+        // thread when the run is started and when a file has finished playing
+        std::shared_ptr<std::atomic<ControlCommandKind>> prevCommand;
+
+        // set by the main thread once the pipeline has failed and must not be used anymore
+        std::shared_ptr<std::atomic_bool> pipelineFailed;
+
+        WorkerTimer resetTimer{};
+        std::vector<gint64> resetTimes{}; // when the timed commands that are in effect end
+
+        void setup(WorkerEvents &ev)
+        {
+            ev.onData(ctlIn, [this] {
+                onControlReceived();
+            });
+            resetTimer = ev.timer([this] {
+                onResetTimeout();
+            });
+        }
+
+        void onControlReceived()
+        {
+            const auto maybeCtl = ctlIn->peekNext();
+            if (!maybeCtl.has_value())
+                return;
+            if (pipelineFailed->load())
+                return;
+
+            const auto &ctl = maybeCtl.value();
+
+            audioSetPlayState(pipeline.get(), fileMode, loopFile, ctl.kind);
+            if (ctl.duration.count() == 0) {
+                prevCommand->store(ctl.kind);
+            } else {
+                resetTimes.push_back(g_get_monotonic_time() + (ctl.duration.count() * 1000));
+                armResetTimer();
+            }
+        }
+
+        void onResetTimeout()
+        {
+            // every timed command that has run out resets the state, like it would do on its own
+            const auto now = g_get_monotonic_time();
+            const auto dueCount = std::erase_if(resetTimes, [now](gint64 resetTime) {
+                return resetTime <= now;
+            });
+            if (dueCount > 0 && !pipelineFailed->load())
+                audioSetPlayState(pipeline.get(), fileMode, loopFile, prevCommand->load());
+
+            armResetTimer();
+        }
+
+        void armResetTimer()
+        {
+            if (resetTimes.empty())
+                return;
+            const auto nextReset = *std::min_element(resetTimes.begin(), resetTimes.end());
+            resetTimer.start(microseconds_t(std::max<gint64>(nextReset - g_get_monotonic_time(), 0)));
+        }
+    };
+
     void stop() override
     {
-        // this will terminate the thread
         m_running = false;
+
+        // Our worker has finished at this point, and its timers with it. Dropping the worker
+        // also drops the reference it was holding on the pipeline.
+        takeWorker<Worker>();
+
+        // a pipeline that has failed during the run is of no use anymore
+        if (m_pipelineFailed->load()) {
+            deletePipeline();
+            return;
+        }
 
         if (m_pipeline != nullptr)
             gst_element_set_state(m_pipeline, GST_STATE_PAUSED);
-    }
-
-    static gboolean onResetTimerTimeout(gpointer udata)
-    {
-        auto self = static_cast<AudioSourceModule *>(udata);
-        self->setPlayStateFromCommand(self->prevCommand());
-        return G_SOURCE_REMOVE;
-    }
-
-    void onControlReceived()
-    {
-        const auto maybeCtl = m_ctlIn->peekNext();
-        if (!maybeCtl.has_value())
-            return;
-
-        const auto &ctl = maybeCtl.value();
-
-        setPlayStateFromCommand(ctl.kind);
-        if (ctl.duration.count() == 0)
-            m_prevCommand = ctl.kind;
-        else
-            g_timeout_add_full(G_PRIORITY_HIGH, ctl.duration.count(), &onResetTimerTimeout, this, nullptr);
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override

@@ -3060,16 +3060,10 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
         emitStatusMessage(QStringLiteral("Waiting for '%1' (⚠️ possibly dead / unrecoverable)...").arg(mod->name()));
         qApp->processEvents();
 
-        // A thread which is run by a worker had its inputs interrupted already. For any other
-        // thread, let's try to send its inputs a nullopt.
-        if (mod->workerHolder() == nullptr) {
-            for (auto inPort : mod->inPorts()) {
-                if (!inPort->hasSubscription())
-                    continue;
-                auto sub = inPort->subscriptionVar();
-                if (!sub->hasPending())
-                    sub->forcePushNullopt();
-            }
+        // make sure the thread is not just waiting for data that will never arrive
+        for (const auto &inPort : mod->inPorts()) {
+            if (inPort->hasSubscription())
+                inPort->subscriptionVar()->interrupt();
         }
 
         if (!thread->joinTimeout(15)) {
