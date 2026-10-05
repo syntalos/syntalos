@@ -66,6 +66,7 @@ public:
         int64_t chunkSize,
         int nCols,
         QStringList dimNames = {});
+    ~ZarrV3Array();
 
     /**
      * Create the on-disk directory layout and open the shard file for writing.

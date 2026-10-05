@@ -80,6 +80,13 @@ ZarrV3Array::ZarrV3Array(
     }
 }
 
+ZarrV3Array::~ZarrV3Array()
+{
+    // finalize() frees the compression context, but an array may be dropped without being finalized
+    if (m_cctx != nullptr)
+        ZSTD_freeCCtx(m_cctx);
+}
+
 std::expected<void, QString> ZarrV3Array::open()
 {
     // Create the shard directory layout and open the shard file for writing.
