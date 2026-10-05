@@ -39,6 +39,28 @@ test('sy-test-waitcondition',
 )
 
 #
+# Module Worker Test
+#
+test_modworker_moc_src = ['test-moduleworker.cpp']
+test_modworker_moc = qt.compile_moc(
+    sources: test_modworker_moc_src,
+    headers: ['../src/moduleeventthread.h'],
+)
+test_modworker_exe = executable('test-moduleworker',
+                                [test_modworker_moc_src, test_modworker_moc,
+                                 # the event loop that runs event-driven workers is part of the engine
+                                 '../src/moduleeventthread.cpp'],
+                                dependencies: [syntalos_fabric_dep,
+                                               glib_dep,
+                                               qt_test_dep]
+)
+test('sy-test-moduleworker',
+     test_modworker_exe,
+     env: test_env,
+     is_parallel: true,
+)
+
+#
 # Basic Stream Performance Test
 #
 test_streamperf_moc_src = ['test-streamperf.cpp']

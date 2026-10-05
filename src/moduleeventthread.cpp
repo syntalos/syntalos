@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -33,18 +33,29 @@ class TimerEventPayload
 public:
     uint interval{0};
     AbstractModule *module{};
-    intervalEventFunc_t fn{};
+    WorkerTimedEventFn fn{};
 
     ModuleEventThread *self{};
     GSource *source{};
     GMainContext *context{};
 };
 
+class OneShotEventPayload
+{
+public:
+    AbstractModule *module{};
+    WorkerDataEventFn fn{};
+    std::shared_ptr<detail::WorkerTimerState> timer;
+
+    ModuleEventThread *self{};
+    GSource *source{};
+};
+
 class RecvDataEventPayload
 {
 public:
     AbstractModule *module{};
-    recvDataEventFunc_t fn{};
+    WorkerDataEventFn fn{};
 
     ModuleEventThread *self{};
     GSource *source{};
@@ -121,7 +132,7 @@ static gboolean timerEventDispatch(gpointer udata)
 {
     const auto pl = static_cast<TimerEventPayload *>(udata);
     int interval = pl->interval;
-    std::invoke(pl->fn, pl->module, interval);
+    pl->fn(interval);
 
     if (pl->module->state() == ModuleState::ERROR) {
         // ewww, this module failed. suspend execution
@@ -165,6 +176,35 @@ static gboolean recvDataEventDispatch(gpointer udata)
 
     return TRUE;
 }
+
+static gboolean oneshot_event_dispatch(gpointer udata)
+{
+    const auto pl = static_cast<OneShotEventPayload *>(udata);
+    pl->fn();
+
+    if (pl->module->state() == ModuleState::ERROR) {
+        // ewww, this module failed. suspend execution
+        pl->self->setFailed(true);
+        LOG_INFO(pl->self->logger(), "Module '{}' failed in event loop. Stopping.", pl->module->name());
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+static gboolean oneshot_timer_source_dispatch(GSource *source, GSourceFunc callback, gpointer user_data)
+{
+    // We only fire once: disarm before running the callback, so it can arm the timer again.
+    g_source_set_ready_time(source, -1);
+    return callback(user_data);
+}
+
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
+// a source without prepare and check functions is dispatched when its ready time has come
+static GSourceFuncs oneshot_timer_source_funcs =
+    {.prepare = NULL, .check = NULL, .dispatch = oneshot_timer_source_dispatch, .finalize = NULL};
+#pragma GCC diagnostic pop
 
 typedef struct {
     GSource source;
@@ -249,45 +289,86 @@ void ModuleEventThread::moduleEventThreadFunc(
     // add event sources
     std::vector<std::unique_ptr<TimerEventPayload>> intervalPayloads;
     std::vector<std::unique_ptr<RecvDataEventPayload>> recvDataPayloads;
-    for (const auto &mod : mods) {
-        // add "timer" event sources
-        for (const auto &ev : mod->intervalEventCallbacks()) {
-            if (ev.second < 0)
-                continue;
+    const auto addTimedEvent = [&](AbstractModule *mod, int interval, WorkerTimedEventFn fn) {
+        if (interval < 0)
+            return;
 
-            auto pl = std::make_unique<TimerEventPayload>();
-            pl->interval = ev.second;
-            pl->module = mod;
-            pl->fn = ev.first;
-            pl->self = this;
-            pl->context = context;
-            pl->source = g_timeout_source_new(pl->interval);
-            g_source_set_callback(pl->source, &timerEventDispatch, pl.get(), NULL);
-            g_source_attach(pl->source, context);
-            intervalPayloads.push_back(std::move(pl));
-        }
+        auto pl = std::make_unique<TimerEventPayload>();
+        pl->interval = interval;
+        pl->module = mod;
+        pl->fn = std::move(fn);
+        pl->self = this;
+        pl->context = context;
+        pl->source = g_timeout_source_new(pl->interval);
+        g_source_set_callback(pl->source, &timerEventDispatch, pl.get(), NULL);
+        g_source_attach(pl->source, context);
+        intervalPayloads.push_back(std::move(pl));
+    };
 
-        // add "received data in subscription" event sources
-        for (const auto &ev : mod->recvDataEventCallbacks()) {
-            auto sub = ev.second;
+    const auto addDataEvent =
+        [&](AbstractModule *mod, const std::shared_ptr<VariantStreamSubscription> &sub, WorkerDataEventFn fn) {
             if (sub == nullptr) {
                 LOG_CRITICAL(
                     d->log,
                     "Bad event destination in module '{}'. Was the event subscription valid?",
                     mod->name());
-                continue;
+                return;
             }
             int eventfd = sub->enableNotify();
 
             auto pl = std::make_unique<RecvDataEventPayload>();
             pl->module = mod;
-            pl->fn = ev.first;
+            pl->fn = std::move(fn);
             pl->self = this;
             pl->source = efd_signal_source_new(eventfd, sub.get());
             g_source_set_callback(pl->source, &recvDataEventDispatch, pl.get(), NULL);
             g_source_attach(pl->source, context);
             recvDataPayloads.push_back(std::move(pl));
+        };
+
+    std::vector<std::unique_ptr<OneShotEventPayload>> oneShotPayloads;
+    const auto addOneShotEvent =
+        [&](AbstractModule *mod, const std::shared_ptr<detail::WorkerTimerState> &timer, WorkerDataEventFn fn) {
+            auto pl = std::make_unique<OneShotEventPayload>();
+            pl->module = mod;
+            pl->fn = std::move(fn);
+            pl->timer = timer;
+            pl->self = this;
+            pl->source = g_source_new(&oneshot_timer_source_funcs, sizeof(GSource));
+            g_source_set_ready_time(pl->source, -1);
+            g_source_set_callback(pl->source, &oneshot_event_dispatch, pl.get(), NULL);
+            g_source_attach(pl->source, context);
+
+            // from now on, the worker can start the timer via its handle
+            {
+                const std::lock_guard<std::mutex> lock(timer->mutex);
+                timer->arm = [source = pl->source](std::int64_t delayUsec) {
+                    g_source_set_ready_time(source, delayUsec < 0 ? -1 : g_get_monotonic_time() + delayUsec);
+                };
+            }
+            oneShotPayloads.push_back(std::move(pl));
+        };
+
+    for (const auto &mod : mods) {
+        // events of the module's worker
+        if (const auto worker = mod->workerHolder()) {
+            for (const auto &ev : worker->events().timedEvents())
+                addTimedEvent(mod, ev.intervalMsec, ev.fn);
+            for (const auto &ev : worker->events().dataEvents())
+                addDataEvent(mod, ev.subscription, ev.fn);
+            for (const auto &ev : worker->events().oneShotEvents())
+                addOneShotEvent(mod, ev.timer, ev.fn);
         }
+
+        // events registered directly by the module
+        for (const auto &ev : mod->intervalEventCallbacks()) {
+            const auto fn = ev.first;
+            addTimedEvent(mod, ev.second, [mod, fn](int &interval) {
+                std::invoke(fn, mod, interval);
+            });
+        }
+        for (const auto &ev : mod->recvDataEventCallbacks())
+            addDataEvent(mod, ev.second, ev.first);
     }
 
     // wait for us to start
@@ -339,6 +420,15 @@ out:
         g_source_unref(pl->source);
     }
     for (const auto &pl : recvDataPayloads) {
+        g_source_destroy(pl->source);
+        g_source_unref(pl->source);
+    }
+    for (const auto &pl : oneShotPayloads) {
+        // the timer handle may outlive us, so it must not reach the source anymore
+        {
+            const std::lock_guard<std::mutex> lock(pl->timer->mutex);
+            pl->timer->arm = nullptr;
+        }
         g_source_destroy(pl->source);
         g_source_unref(pl->source);
     }

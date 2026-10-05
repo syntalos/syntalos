@@ -49,6 +49,7 @@ class OptionalWaitCondition
 {
     friend class Engine;
     friend class TestWaitCondition;
+    friend class TestModuleWorker;
 
 public:
     OptionalWaitCondition();

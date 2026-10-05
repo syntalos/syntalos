@@ -602,6 +602,13 @@ public:
     bool initialized;
 
     ModuleModifiers modifiers;
+
+    // Worker thread components
+    std::unique_ptr<detail::WorkerHolderBase> worker;
+    std::atomic_bool workerActive{false};
+    std::atomic_bool workerParked{false}; // the worker thread waits (or is about to wait) for the start signal
+    bool workerStartPhase{false};         // the engine is calling start() on this module
+    OptionalWaitCondition *workerStartCondition{nullptr};
 };
 
 static constexpr std::string SY_ANON_MOD_LOGGER_NAME = "mod.new";
@@ -725,8 +732,97 @@ void AbstractModule::start()
 
 void AbstractModule::runThread(OptionalWaitCondition *waitCondition)
 {
-    // prevent blocking forever if a threaded module is started without overriding this method
-    waitCondition->wait(this);
+    // unless a module overrides this function, its thread runs the worker that it has set for the run
+    runWorker(waitCondition);
+}
+
+void AbstractModule::runWorker(OptionalWaitCondition *startWaitCondition)
+{
+    auto worker = d->worker.get();
+    if (worker == nullptr || !worker->isThreadWorker()) {
+        // prevent the engine from waiting forever on a threaded module which has no work for this run
+        startWaitCondition->wait(this);
+        return;
+    }
+
+    d->workerStartCondition = startWaitCondition;
+    d->workerParked = false;
+    const auto res = worker->run();
+    d->workerStartCondition = nullptr;
+    if (!res.has_value())
+        raiseError(res.error());
+}
+
+void AbstractModule::workerWaitForStart()
+{
+    if (d->workerStartCondition == nullptr)
+        return;
+
+    // from here on the worker thread does not touch the worker until it is released, which
+    // is what allows the module to modify it in start()
+    d->workerParked = true;
+    d->workerStartCondition->wait(this);
+}
+
+detail::WorkerHolderBase *AbstractModule::workerHolder() const
+{
+    return d->worker.get();
+}
+
+void AbstractModule::bindWorkerContext(WorkerContext &ctx)
+{
+    ctx.m_mod = this;
+    ctx.m_running = &m_running;
+    ctx.m_modName = d->name;
+    ctx.log = m_log;
+    ctx.timer = m_syTimer;
+}
+
+void AbstractModule::setWorkerHolder(std::unique_ptr<detail::WorkerHolderBase> holder)
+{
+    if (d->workerActive) {
+        LOG_CRITICAL(m_log, "Module {} tried to replace its worker while it was running. This is a bug.", name());
+        return;
+    }
+    d->worker = std::move(holder);
+    d->workerParked = false;
+}
+
+bool AbstractModule::hasActiveWorker() const
+{
+    return d->worker != nullptr;
+}
+
+bool AbstractModule::workerFinished() const
+{
+    return !d->workerActive;
+}
+
+bool AbstractModule::workerModifiable() const
+{
+    // nothing runs the worker yet (or anymore)
+    if (!d->workerActive)
+        return true;
+    if (!d->workerStartPhase || d->worker == nullptr)
+        return false;
+
+    // event callbacks only run once the start signal was given, a thread has to be waiting for it
+    return !d->worker->isThreadWorker() || d->workerParked;
+}
+
+void AbstractModule::setWorkerStartPhase(bool startPhase)
+{
+    d->workerStartPhase = startPhase;
+}
+
+void AbstractModule::setWorkerActive(bool active)
+{
+    d->workerActive = active;
+}
+
+void AbstractModule::preStop()
+{
+    /* do nothing */
 }
 
 void AbstractModule::processUiEvents()

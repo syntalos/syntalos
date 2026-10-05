@@ -23,6 +23,8 @@ syntalos_fabric_src = [
     'mlinkmodule.cpp',
     'moduleapi.h',
     'moduleapi.cpp',
+    'moduleworker.h',
+    'moduleworker.cpp',
     'optionalwaitcondition.h',
     'optionalwaitcondition.cpp',
     'porteditordialog.h',

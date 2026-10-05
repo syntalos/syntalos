@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2016-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2016-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -27,6 +27,7 @@
 #include <functional>
 
 #include "modconfig.h"
+#include "moduleworker.h"
 #include "optionalwaitcondition.h"
 #include "streams/stream.h"
 #include "datactl/datatypes.h"
@@ -85,9 +86,9 @@ Q_DECLARE_OPERATORS_FOR_FLAGS(ModuleFeatures)
  */
 enum class ModuleDriverKind {
     NONE,             /// Module will be run in the main (GUI) thread
-    THREAD_DEDICATED, /// Module wants to run in a dedicated thread
-    EVENTS_DEDICATED, /// Module shares a thread(pool) with other modules of its kind, via an event loop
-    EVENTS_SHARED     /// Module shares a thread(pool) with arbitrary other modules, actions are triggered by events
+    THREAD_DEDICATED, /// The module's worker runs in a dedicated thread
+    EVENTS_DEDICATED, /// The module's worker shares a thread(pool) with other modules of its kind, via an event loop
+    EVENTS_SHARED     /// The module's worker shares a thread(pool) with arbitrary other modules, via an event loop
 };
 
 QString driverKindToString(ModuleDriverKind kind);
@@ -489,6 +490,8 @@ class Q_DECL_EXPORT AbstractModule : public QObject
     Q_OBJECT
     friend class Engine;
     friend class MLinkModule;
+    friend class WorkerContext;
+    friend class TestModuleWorker;
 
 public:
     explicit AbstractModule(const ModuleInfo *info = nullptr, QObject *parent = nullptr);
@@ -712,9 +715,21 @@ public:
     virtual void processUiEvents();
 
     /**
+     * @brief Called when a run is about to be stopped.
+     *
+     * This method is called in the main thread while the worker of this module is
+     * still running, right before the engine asks it to stop and waits for it to finish.
+     * It can be used to ask an external entity to stop producing data, or to unblock a
+     * worker that is waiting on something the engine does not know about.
+     */
+    virtual void preStop();
+
+    /**
      * @brief Stop running an experiment.
      * Stop execution of an experiment. This method is called after
-     * prepare() was run.
+     * prepare() was run. If the module has set a worker for this run, the
+     * worker has finished by the time this method is called and can be retrieved
+     * with takeWorker().
      */
     virtual void stop();
 
@@ -813,6 +828,13 @@ public:
     std::shared_ptr<VarStreamInputPort> inPortById(const QString &id) const;
     std::shared_ptr<StreamOutputPort> outPortById(const QString &id) const;
 
+    /**
+     * @brief The worker that was set for the current run, if any.
+     *
+     * This is used by the engine to run the worker, modules must not call it.
+     */
+    detail::WorkerHolderBase *workerHolder() const;
+
     QList<QPair<intervalEventFunc_t, int>> intervalEventCallbacks() const;
     QList<QPair<recvDataEventFunc_t, std::shared_ptr<VariantStreamSubscription>>> recvDataEventCallbacks() const;
 
@@ -852,6 +874,115 @@ protected:
     void setStatusMessage(const QString &message);
     void setStatusMessage(const std::string &message);
     void setStatusMessage(const char *message);
+
+    /**
+     * @brief Set the worker that does the work of this module in the upcoming run.
+     *
+     * A worker is a plain struct with a `WorkerContext mod{};` member. It contains everything that the
+     * module's thread (or event loop) has access to: Values copied from the module's settings,
+     * stream subscriptions and output streams, and handles like LiveValue or MainCallback
+     * to communicate with the main thread during the run.
+     * The worker is moved away from the module, which can not access it while it is running.
+     *
+     * A worker with a run() function is executed in a dedicated thread (the module's driver must
+     * be ModuleDriverKind::THREAD_DEDICATED), a worker with a setup(WorkerEvents &) function
+     * registers callbacks that are run in an event loop (ModuleDriverKind::EVENTS_DEDICATED
+     * or ModuleDriverKind::EVENTS_SHARED). setup() is called by this function, in the main thread.
+     *
+     * This function must be called in prepare(). Once the run has stopped, the worker
+     * can be obtained again with takeWorker().
+     */
+    template<typename W>
+        requires(!std::is_reference_v<W>)
+    void setWorker(W &&worker)
+    {
+        static_assert(WorkerDeclared<W>, "A module worker struct must have a `WorkerContext mod{};` member.");
+        static_assert(
+            std::is_aggregate_v<W>,
+            "A module worker must be a plain struct without constructors, base classes or private members.");
+        static_assert(
+            ThreadWorker<W> != EventWorker<W>,
+            "A module worker must have either a run() or a setup(WorkerEvents &) function.");
+
+        auto holder = std::make_unique<detail::WorkerHolder<W>>(std::move(worker));
+        bindWorkerContext(holder->worker.mod);
+        holder->setupEvents();
+        setWorkerHolder(std::move(holder));
+    }
+
+    /**
+     * @brief Hand late information to the worker, right before the run starts.
+     *
+     * Some things a worker needs are only known once the run is about to start, like
+     * a dataset that is named after stream metadata which is only final at that point.
+     * This function calls @p fn with the worker that was set in prepare(), so the module can
+     * complete it. It is intended to be called in start(): At that point, a worker with a thread
+     * of its own is parked waiting for the start signal and no event callback has run yet, so
+     * the worker can be modified safely. At any later point the request is refused.
+     *
+     * @return true if the worker was modified.
+     */
+    template<typename W, typename Fn>
+        requires std::invocable<Fn &, W &>
+    bool modifyWorker(Fn &&fn)
+    {
+        auto holder = dynamic_cast<detail::WorkerHolder<W> *>(workerHolder());
+        if (holder == nullptr)
+            return false;
+        if (!workerModifiable()) {
+            LOG_CRITICAL(
+                m_log,
+                "Module {} tried to modify its worker while it may be running. A worker can only be modified in "
+                "start(), and only if it waits for the start signal.",
+                name());
+            return false;
+        }
+
+        fn(holder->worker);
+        return true;
+    }
+
+    /**
+     * @brief Retrieve the worker of the last run.
+     *
+     * Returns the worker that was set with setWorker(), so the module can read back any
+     * results it has collected. This is only possible once the worker has finished, so this
+     * function is intended to be called in stop(). If no worker of the requested type exists,
+     * an empty value is returned.
+     */
+    template<typename W>
+    std::optional<W> takeWorker()
+    {
+        auto holder = dynamic_cast<detail::WorkerHolder<W> *>(workerHolder());
+        if (holder == nullptr)
+            return std::nullopt;
+        if (!workerFinished()) {
+            LOG_CRITICAL(m_log, "Module {} tried to take its worker while it was still running.", name());
+            return std::nullopt;
+        }
+
+        std::optional<W> worker(std::move(holder->worker));
+        setWorkerHolder(nullptr);
+        return worker;
+    }
+
+    /**
+     * @brief True while this module has a worker for a run.
+     */
+    bool hasActiveWorker() const;
+
+    /**
+     * @brief Wrap a function so that a worker can have it executed in the main thread.
+     *
+     * The returned callback can be handed to a worker. When the worker calls it, the arguments
+     * are copied and the function is run later by the main thread's event loop, where it
+     * may safely access the module and its user interface.
+     */
+    template<typename Fn>
+    auto mainCallback(Fn &&fn)
+    {
+        return makeMainCallback(std::function{std::forward<Fn>(fn)});
+    }
 
     /**
      * @brief Report a module-specific value for the statistics of the current run
@@ -1164,6 +1295,21 @@ private:
     Q_DISABLE_COPY(AbstractModule)
     class Private;
     std::unique_ptr<Private> d;
+
+    template<typename R, typename... Args>
+    MainCallback<std::decay_t<Args>...> makeMainCallback(std::function<R(Args...)> fn)
+    {
+        return MainCallback<std::decay_t<Args>...>(this, std::move(fn));
+    }
+
+    void bindWorkerContext(WorkerContext &ctx);
+    void setWorkerHolder(std::unique_ptr<detail::WorkerHolderBase> holder);
+    bool workerFinished() const;
+    bool workerModifiable() const;
+    void setWorkerStartPhase(bool startPhase);
+    void setWorkerActive(bool active);
+    void runWorker(OptionalWaitCondition *startWaitCondition);
+    void workerWaitForStart();
 
     QMap<QString, std::shared_ptr<StreamOutputPort>> m_outPorts;
     QMap<QString, std::shared_ptr<VarStreamInputPort>> m_inPorts;
