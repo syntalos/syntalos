@@ -125,7 +125,7 @@ MainWindow::MainWindow(QWidget *parent)
                 setStatusText(myGreeting.value("msg", "Hello World!").toString().trimmed());
                 m_statusBarLabel->setToolTip(myGreeting.value("source", "Unknown").toString().trimmed());
                 // reset tooltip after 24 seconds
-                QTimer::singleShot(24 * 1000, [&]() {
+                QTimer::singleShot(24 * 1000, this, [this]() {
                     m_statusBarLabel->setToolTip(QString());
                 });
             }
@@ -413,9 +413,7 @@ MainWindow::MainWindow(QWidget *parent)
             this,
             QStringLiteral("Initialization failed"),
             QStringLiteral("Unable to initialize the Syntalos engine. Can not continue. Please report this issue!"));
-        QTimer::singleShot(0, [&]() {
-            qApp->quit();
-        });
+        QTimer::singleShot(0, qApp, &QCoreApplication::quit);
     }
 
     // timer to update various time display during a run
@@ -1928,9 +1926,7 @@ void MainWindow::on_actionUsbDevices_triggered()
             runHostExecutable("usbview", QStringList(), false);
         else
             QProcess::startDetached("xdg-open", QStringList() << "appstream:com.kroah.usbview");
-        QTimer::singleShot(0, [&]() {
-            dlg.close();
-        });
+        QTimer::singleShot(0, &dlg, &QDialog::close);
     });
 
     layout.addWidget(&buttonBox);

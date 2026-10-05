@@ -131,7 +131,7 @@ void EnumWidget::update()
         }
 
         if (value == "Once") {
-            QTimer::singleShot(500, [this]() {
+            QTimer::singleShot(500, this, [this]() {
                 emit this->update_category(get_category().c_str());
             });
         }
@@ -148,7 +148,7 @@ void EnumWidget::drop_down_changed(const QString &entry)
     // itself will also soon have a different value
     // update the category until the property has a different value
     if (entry == "Once") {
-        QTimer::singleShot(500, [this]() {
+        QTimer::singleShot(500, this, [this]() {
             emit this->update_category(get_category().c_str());
         });
     }

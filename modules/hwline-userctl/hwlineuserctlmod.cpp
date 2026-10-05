@@ -62,7 +62,7 @@ public:
 
     void start() override
     {
-        QTimer::singleShot(1500, [&] {
+        QTimer::singleShot(1500, this, [this] {
             m_ctlDialog->initializeAllPins();
         });
 
