@@ -58,6 +58,7 @@ class RecvDataEventPayload
 public:
     AbstractModule *module{};
     WorkerDataEventFn fn{};
+    std::shared_ptr<VariantStreamSubscription> sub;
 
     ModuleEventThread *self{};
     GSource *source{};
@@ -326,6 +327,7 @@ void ModuleEventThread::moduleEventThreadFunc(
             auto pl = std::make_unique<RecvDataEventPayload>();
             pl->module = mod;
             pl->fn = std::move(fn);
+            pl->sub = sub;
             pl->self = this;
             pl->source = efd_signal_source_new(eventfd, sub.get());
             g_source_set_callback(pl->source, &recvDataEventDispatch, pl.get(), NULL);
@@ -396,6 +398,12 @@ void ModuleEventThread::moduleEventThreadFunc(
     // if we are already stopped, do nothing
     if (!d->running)
         goto out;
+
+    // The run is not held back until we have enabled the notifications of our subscriptions, so
+    // a producer may have sent data before we did. Nothing has woken us up for such data, and
+    // nothing would until more data arrives, so we look for it once ourselves.
+    for (const auto &pl : recvDataPayloads)
+        pl->sub->rearmNotifyIfPending();
 
     // Run the event loop until we are asked to stop. The request is this flag plus a wakeup of
     // the context, and a wakeup that arrives before we wait for events makes the next iteration
