@@ -239,7 +239,7 @@ static bool launchProgramNC3Fallback(const QString &exePath, int *pidfd_out)
  */
 bool launchProgramPidFd(const QString &exePath, int *pidfd_out)
 {
-    struct clone_args cl_args = {0};
+    struct clone_args cl_args = {};
     int pidfd;
     pid_t parent_tid = -1;
 

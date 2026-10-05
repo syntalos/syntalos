@@ -77,16 +77,16 @@ struct ProfileRef {
  */
 struct StepRecord : ProfileRef {
     int level = 0;
-    StepVerdict verdict;
-    StepResult result;
+    StepVerdict verdict{};
+    StepResult result{};
 };
 
 /**
  * @brief The outcome of one dimension/profile ladder
  */
 struct LadderRecord : ProfileRef {
-    LadderOutcome outcome;
-    QList<StepRecord> steps;
+    LadderOutcome outcome{};
+    QList<StepRecord> steps{};
 };
 
 /**

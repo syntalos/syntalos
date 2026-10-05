@@ -303,6 +303,8 @@ static gboolean efd_signal_source_dispatch(GSource *source, GSourceFunc callback
     return result_continue;
 }
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmissing-field-initializers"
 static GSourceFuncs efd_source_funcs =
     {.prepare = efd_signal_source_prepare, .check = NULL, .dispatch = efd_signal_source_dispatch, .finalize = NULL};
 
@@ -343,6 +345,7 @@ static gboolean iox_fd_source_dispatch(GSource *source, GSourceFunc callback, gp
 
 static GSourceFuncs iox_fd_source_funcs =
     {.prepare = efd_signal_source_prepare, .check = NULL, .dispatch = iox_fd_source_dispatch, .finalize = NULL};
+#pragma GCC diagnostic pop
 
 static GSource *iox_fd_source_new(int fd)
 {

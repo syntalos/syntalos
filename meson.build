@@ -103,8 +103,6 @@ add_project_arguments(
     '-Werror=format-security',
     '-Werror=suggest-override',
 
-    '-Wno-missing-field-initializers',
-    '-Wno-error=missing-field-initializers',
     '-Wno-unused-parameter',
     '-Wno-error=unused-parameter',
 

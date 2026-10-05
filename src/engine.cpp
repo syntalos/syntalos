@@ -207,7 +207,7 @@ public:
         if (m_threadBackend == BackendQThread) {
             return m_qThread->wait(seconds * MS_PER_S);
         } else {
-            struct timespec ts = {0};
+            struct timespec ts = {};
 
             if (clock_gettime(CLOCK_REALTIME, &ts) == -1) {
                 LOG_CRITICAL(getEngineLog, "Unable to obtain absolute time since epoch!");
