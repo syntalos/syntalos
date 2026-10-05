@@ -299,6 +299,9 @@ static constexpr int DISK_CHECK_INTERVAL_FAST_MSEC = 10 * 1000;
 static constexpr int SUBBUF_PEAK_SAMPLE_INTERVAL_MSEC = 1000;
 static constexpr uint SUBBUF_HEAT_EVAL_EVERY_N_SAMPLES = 5;
 
+// How long the thread of a module may take to finish before we go on and stop the other modules first
+static constexpr int MODULE_STOP_GRACE_SEC = 2;
+
 class EngineResourceMonitorData
 {
 public:
@@ -3030,27 +3033,31 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
     // Some modules may be stuck in their threads, so we try our absolute best to not
     // make Syntalos hang while failing to join a misbehaving thread.
     // Ultimately though we must join the thread, so we will just give up eventually.
-    const auto joinModuleThread = [&](AbstractModule *mod) {
+    // If we are not patient, the thread only gets a moment to finish, and false is returned if it did not.
+    const auto joinModuleThread = [&](AbstractModule *mod, bool patient) {
         const auto threadIdx = threadedModules.indexOf(mod);
         if (threadIdx < 0 || static_cast<size_t>(threadIdx) >= dThreads.size())
-            return;
+            return true;
         auto &thread = dThreads[threadIdx];
         if (!thread || thread->joined())
-            return;
+            return true;
 
         emitStatusMessage(QStringLiteral("Waiting for '%1'...").arg(mod->name()));
         qApp->processEvents();
 
         // wait ~20sec for the thread to join
+        const int waitSec = patient ? 20 : MODULE_STOP_GRACE_SEC;
         bool threadJoined = false;
-        for (int tc = 0; tc < 20; tc++) {
+        for (int tc = 0; tc < waitSec; tc++) {
             qApp->processEvents();
             threadJoined = thread->joinTimeout(1);
             if (threadJoined)
                 break;
         }
         if (threadJoined)
-            return;
+            return true;
+        if (!patient)
+            return false;
 
         // if we are here, we failed to join the thread
         LOG_WARNING(d->log, "Failed to join thread for '{}' in time, trying to break deadlock...", mod->name());
@@ -3100,32 +3107,12 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
 
         qApp->processEvents();
         thread->join();
+        return true;
     };
 
-    // Stop a module and terminate its outgoing streams.
-    // If the module is run by a worker in a dedicated thread, the thread is joined before
-    // the module is told to stop, so stop() never runs concurrently with the worker.
-    const auto stopModule = [&](AbstractModule *mod, bool notifyAboutToStop) {
-        lastPhaseTimepoint = d->timer->currentTimePoint();
-
-        // let the module ask whatever it is attached to to stop, while its worker is still running
-        if (notifyAboutToStop) {
-            mod->preStop();
-            QCoreApplication::processEvents();
-        }
-
-        const auto worker = mod->workerHolder();
-        if (worker != nullptr && worker->isThreadWorker()) {
-            // ask the worker to finish, and wake it up in case it waits for data that will not arrive
-            mod->m_running = false;
-            for (const auto &iport : mod->inPorts()) {
-                if (iport->hasSubscription())
-                    iport->subscriptionVar()->interrupt();
-            }
-            joinModuleThread(mod);
-            mod->setWorkerActive(false);
-        }
-
+    // Tell a module that the run has ended and terminate its outgoing streams.
+    // If the module is run by a worker in a dedicated thread, that thread must have been joined already.
+    const auto finishModuleStop = [&](AbstractModule *mod) {
         // send the stop command
         mod->stop();
 
@@ -3148,6 +3135,45 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
             mod->setState(ModuleState::IDLE);
 
         LOG_INFO(d->log, "Module '{}' stopped in {} msec", mod->name(), timeDiffToNowMsec(lastPhaseTimepoint).count());
+    };
+
+    // Modules with a thread that did not finish shortly after it was asked to. A module must not be
+    // stopped while its thread is still running, but one slow thread should not keep all modules that
+    // come after it running either. So these modules are stopped last.
+    QList<AbstractModule *> slowModules;
+
+    // Stop a module.
+    // If the module is run by a worker in a dedicated thread, the thread is joined before
+    // the module is told to stop, so stop() never runs concurrently with the worker.
+    const auto stopModule = [&](AbstractModule *mod, bool notifyAboutToStop) {
+        lastPhaseTimepoint = d->timer->currentTimePoint();
+
+        // let the module ask whatever it is attached to to stop, while its worker is still running
+        if (notifyAboutToStop) {
+            mod->preStop();
+            QCoreApplication::processEvents();
+        }
+
+        const auto worker = mod->workerHolder();
+        if (worker != nullptr && worker->isThreadWorker()) {
+            // ask the worker to finish, and wake it up in case it waits for data that will not arrive
+            mod->m_running = false;
+            for (const auto &iport : mod->inPorts()) {
+                if (iport->hasSubscription())
+                    iport->subscriptionVar()->interrupt();
+            }
+            if (!joinModuleThread(mod, false)) {
+                LOG_WARNING(
+                    d->log,
+                    "The thread of '{}' takes its time to finish, stopping the other modules first.",
+                    mod->name());
+                slowModules.append(mod);
+                return;
+            }
+            mod->setWorkerActive(false);
+        }
+
+        finishModuleStop(mod);
     };
 
     // join an event thread, then stop all modules that were running on it
@@ -3222,6 +3248,15 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
         stopEventThread(it.key(), pendingEvThreadMods.take(it.key()));
     }
 
+    // All other modules are stopped, so now we can wait for the ones with a slow thread.
+    // They have all been asked to finish already, so the time they take does not add up.
+    for (auto mod : slowModules) {
+        lastPhaseTimepoint = d->timer->currentTimePoint();
+        joinModuleThread(mod, true);
+        mod->setWorkerActive(false);
+        finishModuleStop(mod);
+    }
+
     // Stop the stream exporter: it shares subscription objects (and their SPSC
     // queues) with module input ports. The exporter thread acts as the sole
     // consumer of those queues, so shutdownThread() must complete (joining the
@@ -3237,7 +3272,7 @@ bool Engine::runInternal(const QString &exportDirPath, const Uuid &recordingIdOv
     // join all dedicated module threads which have not been joined when their module was stopped
     emitStatusMessage(QStringLiteral("Joining remaining threads."));
     for (auto mod : threadedModules) {
-        joinModuleThread(mod);
+        joinModuleThread(mod, true);
         mod->setWorkerActive(false);
     }
 
