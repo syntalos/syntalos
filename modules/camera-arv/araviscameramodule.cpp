@@ -198,16 +198,11 @@ public:
                 guint64 devOffsetToSysNs = 0;
                 std::atomic_uint fpsWindowFrameCount{0};
 
-                // The flip & invert settings in use, the frame callback updates them when
-                // they are changed in the settings window.
-                LiveTransformParams transform;
-
                 // Buffer the decoder writes into, recycled between frames. Only ever touched
                 // from the Aravis frame callback, which Aravis runs single-threaded.
                 cv::Mat decodeBuf;
             };
             auto acqState = std::make_shared<AcqState>();
-            acqState->transform = liveTransform.get();
 
             // display the connected camera model
             QString cameraStatus;
@@ -290,17 +285,15 @@ public:
                     return;
                 }
 
-                // pick up changes the user has made in the settings window
-                if (const auto transform = liveTransform.takeIfChanged())
-                    acqState->transform = *transform;
-
-                if (acqState->transform.invert) {
+                // flipping and inverting may be changed in the settings window during the run
+                const auto transform = liveTransform.get();
+                if (transform.invert) {
                     int bits = img.depth() == CV_8U ? 8 : 16;
                     cv::subtract((1 << bits) - 1, img, img);
                 }
 
-                if (acqState->transform.flip != -100)
-                    cv::flip(img, img, acqState->transform.flip);
+                if (transform.flip != -100)
+                    cv::flip(img, img, transform.flip);
 
                 switch (rotation) {
                 case 1:
