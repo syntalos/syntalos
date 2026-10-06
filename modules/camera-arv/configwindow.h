@@ -148,7 +148,7 @@ private:
     QRect roirange, roidefault;
     QPair<double, double> gainrange, exposurerange;
     QTimer *autoreadexposure;
-    bool playing, started;
+    bool playing, started, externalUse;
     TransformParams transformParams;
     Syntalos::LiveValue<LiveTransformParams> m_liveTransform;
     QByteArray oldstate, oldgeometry;

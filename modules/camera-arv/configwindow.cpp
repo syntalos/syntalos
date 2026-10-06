@@ -49,7 +49,8 @@ ArvConfigWindow::ArvConfigWindow(Syntalos::QuillLogger *logger, QWidget *parent)
       camera(nullptr),
       decoder(nullptr),
       playing(false),
-      started(false)
+      started(false),
+      externalUse(false)
 {
     setupUi(this);
     on_statusTimeoutSpinbox_valueChanged(statusTimeoutSpinbox->value());
@@ -188,7 +189,7 @@ void ArvConfigWindow::readAllValues()
         pixelFormatSelector->addItem(formatnames.at(i), formats.at(i));
     auto format = camera->getPixelFormat();
     pixelFormatSelector->setCurrentIndex(pixelFormatSelector->findData(format));
-    pixelFormatSelector->setEnabled(noofframes > 1 && !started);
+    pixelFormatSelector->setEnabled(noofframes > 1 && !started && !externalUse);
     pixelFormatSelector->blockSignals(false);
 
     QSize binsize = camera->getBinning();
@@ -493,12 +494,6 @@ void ArvConfigWindow::setCameraInUse(bool camInUse)
 
     for (auto wgt : protectedWidgets)
         wgt->setEnabled(!camInUse);
-
-    started = camInUse;
-    if (!camInUse) {
-        if (camera)
-            camera->setFPS(fpsSpinbox->value());
-    }
 }
 
 void ArvConfigWindow::setCameraInUseExternal(bool camInUse)
@@ -507,13 +502,11 @@ void ArvConfigWindow::setCameraInUseExternal(bool camInUse)
     toggleVideoPreview(false);
     videoWidget->setImage();
 
-    // Update realFps, an externally started run is never a preview
-    // action and we need to ensure this value reflects what the user
-    // has set in case it is later used to restore the framerate.
-    if (camera)
-        m_realFps = camera->getFPS();
-
+    // An external run is not a preview: it must not touch the preview state,
+    // and must leave the camera's framerate exactly as the user has set it.
+    externalUse = camInUse;
     setCameraInUse(camInUse);
+    pixelFormatSelector->setEnabled(!camInUse && pixelFormatSelector->count() > 1);
     rotationSelector->setEnabled(!camInUse);
     roiBox->setEnabled(!camInUse);
     playButton->setEnabled(!camInUse);
@@ -535,9 +528,10 @@ void ArvConfigWindow::toggleVideoPreview(bool start)
         return;
 
     setEnabled(false);
-    if (start && !started) {
+    if (start && !started && !externalUse) {
         updateDecoder();
         if (decoder) {
+            started = true;
             setCameraInUse(true);
 
             Q_EMIT cameraSelected(camera, decoder);
@@ -550,6 +544,8 @@ void ArvConfigWindow::toggleVideoPreview(bool start)
             pixelFormatSelector->setEnabled(false);
             const auto acqRes = camera->startAcquisition();
             if (!acqRes) {
+                started = false;
+                camera->setFPS(m_realFps);
                 setCameraInUse(false);
                 pixelFormatSelector->setEnabled(pixelFormatSelector->count() > 1);
                 QMessageBox::warning(
