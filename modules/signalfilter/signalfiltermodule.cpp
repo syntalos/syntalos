@@ -125,16 +125,11 @@ static bool validateStagesLive(const std::vector<FilterStage> &stages, double sa
 }
 
 /**
- * Settings that can be changed while a run is in progress.
- * The revisions tell the worker which part of the settings was changed since it last looked.
+ * The channels to filter, as selected by the user.
  */
-struct LiveFilterSettings {
-    std::vector<FilterStage> stages;
-    uint64_t stagesRev = 0;
-
-    bool useAllChannels = true;
+struct ChannelSelection {
+    bool useAll = true;
     std::set<int> channels;
-    uint64_t maskRev = 0;
 };
 
 class SignalFilterModule : public AbstractModule
@@ -151,7 +146,8 @@ private:
 
     // Live reconfiguration. The GUI thread deposits the desired channel/stage
     // config here; the worker applies it at a block boundary.
-    LiveValue<LiveFilterSettings> m_liveSettings;
+    LiveValue<std::vector<FilterStage>> m_liveStages;
+    LiveValue<ChannelSelection> m_liveChannels;
 
 public:
     explicit SignalFilterModule(SignalFilterModuleInfo *modInfo, QObject *parent = nullptr)
@@ -254,12 +250,9 @@ public:
             return false;
         }
 
-        // start from the current settings, discarding any live updates queued before this run started
-        m_liveSettings = LiveValue<LiveFilterSettings>(LiveFilterSettings{
-            .stages = stages,
-            .useAllChannels = useAllChannels,
-            .channels = selectedChannels,
-        });
+        // the worker starts from the current settings, so any live update deposited before this run is void
+        m_liveStages = LiveValue<std::vector<FilterStage>>();
+        m_liveChannels = LiveValue<ChannelSelection>();
 
         setWorker(
             Worker{
@@ -269,7 +262,8 @@ public:
                 .sampleRate = sampleRate,
                 .useAllChannels = useAllChannels,
                 .selectedChannels = selectedChannels,
-                .liveSettings = m_liveSettings,
+                .liveStages = m_liveStages,
+                .liveChannels = m_liveChannels,
             });
 
         setStateReady();
@@ -292,9 +286,8 @@ public:
         // Live reconfiguration. The GUI thread deposits the desired channel/stage
         // config here; we apply it at a block boundary. The per-sample hot path
         // never locks — it only reads the already-applied pipeline state.
-        LiveValue<LiveFilterSettings> liveSettings;
-        uint64_t appliedStagesRev = 0;
-        uint64_t appliedMaskRev = 0;
+        LiveValue<std::vector<FilterStage>> liveStages;
+        LiveValue<ChannelSelection> liveChannels;
 
         void setup(WorkerEvents &ev)
         {
@@ -323,17 +316,10 @@ public:
 
         void applyLiveUpdates()
         {
-            const auto maybeSettings = liveSettings.takeIfChanged();
-            if (!maybeSettings.has_value())
-                return;
-            const auto &ls = *maybeSettings;
-
-            if (ls.stagesRev != appliedStagesRev) {
-                appliedStagesRev = ls.stagesRev;
-
+            if (const auto stages = liveStages.takeIfChanged()) {
                 QString err;
-                if (validateStagesLive(ls.stages, sampleRate, &err)) {
-                    pipeline.setStages(ls.stages); // forces a rebuild on the next block
+                if (validateStagesLive(*stages, sampleRate, &err)) {
+                    pipeline.setStages(*stages); // forces a rebuild on the next block
                 } else {
                     // Keep the previous (valid) filter running; the dialog already
                     // flags the problem inline, so just note it in the log.
@@ -341,11 +327,9 @@ public:
                 }
             }
 
-            if (ls.maskRev != appliedMaskRev) {
-                appliedMaskRev = ls.maskRev;
-
-                useAllChannels = ls.useAllChannels;
-                selectedChannels = ls.channels;
+            if (const auto selection = liveChannels.takeIfChanged()) {
+                useAllChannels = selection->useAll;
+                selectedChannels = selection->channels;
                 const int nc = pipeline.channelCount();
                 if (nc > 0)
                     pipeline.setChannelMask(maskFor(nc));
@@ -518,23 +502,16 @@ private:
 
     void queueLiveChannelUpdate()
     {
-        if (!m_running)
-            return; // not running: prepare() reads the dialog directly
-        auto ls = m_liveSettings.get();
-        ls.useAllChannels = m_settingsDlg->useAllChannels();
-        ls.channels = parseChannelRanges(m_settingsDlg->channelSelectionText());
-        ls.maskRev++;
-        m_liveSettings.set(std::move(ls));
+        m_liveChannels.set(
+            ChannelSelection{
+                .useAll = m_settingsDlg->useAllChannels(),
+                .channels = parseChannelRanges(m_settingsDlg->channelSelectionText()),
+            });
     }
 
     void queueLiveStageUpdate()
     {
-        if (!m_running)
-            return;
-        auto ls = m_liveSettings.get();
-        ls.stages = m_settingsDlg->stages();
-        ls.stagesRev++;
-        m_liveSettings.set(std::move(ls));
+        m_liveStages.set(m_settingsDlg->stages());
     }
 
     static QVariantHash stageToVariant(const FilterStage &st)
