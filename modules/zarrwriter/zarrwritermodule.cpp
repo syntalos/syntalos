@@ -632,9 +632,11 @@ public:
         auto worker = takeWorker<Worker>();
         setRunStatistic(QStringLiteral("items_written"), worker ? worker->itemsWritten : qint64(0));
 
-        if (!worker || !worker->writeData)
+        if (!worker)
             return;
 
+        // The arrays are completed even if the worker stopped writing because of an error: What was
+        // written up to that point is still valid data, and finalize() leaves an array in an error state alone.
         if (worker->tsArray && !worker->tsArray->finalize())
             raiseError(QStringLiteral("Failed to finalize Zarr timestamps array"));
         if (worker->dataArray && !worker->dataArray->finalize())
