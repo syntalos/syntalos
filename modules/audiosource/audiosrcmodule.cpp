@@ -20,7 +20,6 @@
 #include "audiosrcmodule.h"
 #include "QtSvg/qsvgrenderer.h"
 
-#include <algorithm>
 #include <atomic>
 #include <QDir>
 #include <QFileInfo>
@@ -504,8 +503,7 @@ public:
         // set by the main thread once the pipeline has failed and must not be used anymore
         std::shared_ptr<std::atomic_bool> pipelineFailed;
 
-        WorkerTimer resetTimer{};
-        std::vector<gint64> resetTimes{}; // when the timed commands that are in effect end
+        WorkerTimer resetTimer{}; // ends the timed command that is in effect
 
         void setup(WorkerEvents &ev)
         {
@@ -528,33 +526,16 @@ public:
             const auto &ctl = maybeCtl.value();
 
             audioSetPlayState(pipeline.get(), fileMode, loopFile, ctl.kind);
-            if (ctl.duration.count() == 0) {
+            if (ctl.duration.count() == 0)
                 prevCommand->store(ctl.kind);
-            } else {
-                resetTimes.push_back(g_get_monotonic_time() + (ctl.duration.count() * 1000));
-                armResetTimer();
-            }
+            else
+                resetTimer.start(ctl.duration); // a new timed command supersedes one that is still in effect
         }
 
         void onResetTimeout()
         {
-            // every timed command that has run out resets the state, like it would do on its own
-            const auto now = g_get_monotonic_time();
-            const auto dueCount = std::erase_if(resetTimes, [now](gint64 resetTime) {
-                return resetTime <= now;
-            });
-            if (dueCount > 0 && !pipelineFailed->load())
+            if (!pipelineFailed->load())
                 audioSetPlayState(pipeline.get(), fileMode, loopFile, prevCommand->load());
-
-            armResetTimer();
-        }
-
-        void armResetTimer()
-        {
-            if (resetTimes.empty())
-                return;
-            const auto nextReset = *std::min_element(resetTimes.begin(), resetTimes.end());
-            resetTimer.start(microseconds_t(std::max<gint64>(nextReset - g_get_monotonic_time(), 0)));
         }
     };
 
