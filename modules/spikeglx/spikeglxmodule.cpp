@@ -134,7 +134,7 @@ private:
 
     SpikeGLXSettingsDialog *m_settingsDlg;
     /// Client for the actions of the settings dialog, which are only available between runs.
-    /// Every run uses a client of its own, which is created in prepare() and owned by its worker.
+    /// Our connection to SpikeGLX, used by the settings dialog between runs and by the worker during a run
     Sglx::Client m_client;
     std::atomic_bool m_dialogBusy{false};
     bool m_runActive = false;
@@ -271,12 +271,12 @@ public:
                     std::vector<StreamInfo> streams;
                     QString err;
                     if (auto running = m_client.isRunning(); running && !*running) {
-                        if (auto r = ensureDevicesSelected(m_client, devString); !r) {
+                        if (auto r = ensureDevicesSelected(devString); !r) {
                             streamsText = qstr(r.error());
                             break;
                         }
                     }
-                    if (!enumerateStreams(m_client, streams, err)) {
+                    if (!enumerateStreams(streams, err)) {
                         streamsText = err;
                         break;
                     }
@@ -318,10 +318,10 @@ public:
      * configured, remotely perform "Detect" and "Verify | Save" with it.
      * Must only be called while SpikeGLX is idle.
      */
-    Sglx::Client::Result<void> ensureDevicesSelected(Sglx::Client &client, const QString &devString)
+    Sglx::Client::Result<void> ensureDevicesSelected(const QString &devString)
     {
         // probe whether parameters were validated at all
-        auto np = client.streamCount(Sglx::JS_IM);
+        auto np = m_client.streamCount(Sglx::JS_IM);
         if (np || np.error().find("never validated") == std::string::npos)
             return {};
 
@@ -333,7 +333,7 @@ public:
                     "happen automatically."));
 
         LOG_INFO(m_log, "SpikeGLX parameters are not validated, selecting devices: {}", devString);
-        if (auto r = client.selectDevices(devString.toStdString(), 1); !r) {
+        if (auto r = m_client.selectDevices(devString.toStdString(), 1); !r) {
             auto err = "Remote device detection failed: " + r.error();
             if (r.error().find("already in use") != std::string::npos)
                 err +=
@@ -348,11 +348,11 @@ public:
      * Query the layout of all enabled streams from SpikeGLX.
      * Works while SpikeGLX is idle, as long as its parameters were validated.
      */
-    bool enumerateStreams(Sglx::Client &client, std::vector<StreamInfo> &streams, QString &error)
+    bool enumerateStreams(std::vector<StreamInfo> &streams, QString &error)
     {
         streams.clear();
         for (const int js : {Sglx::JS_IM, Sglx::JS_OB, Sglx::JS_NI}) {
-            auto np = client.streamCount(js);
+            auto np = m_client.streamCount(js);
             if (!np) {
                 error = qstr(np.error());
                 return false;
@@ -362,14 +362,14 @@ public:
                 si.sid = Sglx::StreamId{js, ip};
                 si.name = SglxUtils::streamName(si.sid);
 
-                auto rate = client.sampleRate(si.sid);
+                auto rate = m_client.sampleRate(si.sid);
                 if (!rate) {
                     error = QStringLiteral("%1: %2").arg(si.name, qstr(rate.error()));
                     return false;
                 }
                 si.sampleRate = *rate;
 
-                auto counts = client.acqChanCounts(si.sid);
+                auto counts = m_client.acqChanCounts(si.sid);
                 if (!counts) {
                     error = QStringLiteral("%1: %2").arg(si.name, qstr(counts.error()));
                     return false;
@@ -378,11 +378,11 @@ public:
                 for (const auto c : si.acqCounts)
                     si.totalChans += c;
 
-                if (auto saved = client.saveChans(si.sid))
+                if (auto saved = m_client.saveChans(si.sid))
                     si.savedChans = static_cast<int>(saved->size());
 
                 if (js != Sglx::JS_NI) {
-                    if (auto sn = client.streamSN(si.sid)) {
+                    if (auto sn = m_client.streamSN(si.sid)) {
                         si.serial = qstr(sn->serial);
                         si.slotOrType = sn->slotOrType;
                     }
@@ -449,11 +449,6 @@ public:
             return false;
         }
 
-        // Every run talks to SpikeGLX via a client of its own, which is handed over to the worker
-        // of the run once we are done preparing. The connection that the settings dialog may have
-        // left open is closed, so we still never have more than one connection to SpikeGLX.
-        m_client.close();
-        auto client = std::make_unique<Sglx::Client>();
         bool sglxRunStartedByUs = false;
 
         m_runActive = true;
@@ -461,10 +456,10 @@ public:
         auto cleanupOnFailure = qScopeGuard([&] {
             if (sglxRunStartedByUs) {
                 LOG_INFO(m_log, "Stopping the SpikeGLX run again after failed preparation");
-                if (auto r = client->stopRun(); !r)
+                if (auto r = m_client.stopRun(); !r)
                     LOG_WARNING(m_log, "Unable to stop SpikeGLX run: {}", r.error());
                 else
-                    setPlaceholderRunName(*client, m_log);
+                    setPlaceholderRunName(m_client, m_log);
                 sglxRunStartedByUs = false;
             }
             m_runActive = false;
@@ -488,7 +483,7 @@ public:
 
         // connect
         setStatusMessage(QStringLiteral("Connecting to %1:%2…").arg(host).arg(port));
-        if (auto r = client->connect(
+        if (auto r = m_client.connect(
                 host.toStdString(),
                 port,
                 std::chrono::milliseconds(m_settingsDlg->connectTimeoutMs()));
@@ -496,9 +491,9 @@ public:
             raiseError(std::format("Unable to connect to SpikeGLX: {}", r.error()));
             return false;
         }
-        LOG_INFO(m_log, "Connected to {} on {}:{}", client->version(), host, port);
+        LOG_INFO(m_log, "Connected to {} on {}:{}", m_client.version(), host, port);
 
-        auto initialized = client->isInitialized();
+        auto initialized = m_client.isInitialized();
         if (!initialized) {
             raiseError(qstr(initialized.error()));
             return false;
@@ -510,7 +505,7 @@ public:
             return false;
         }
 
-        auto running = client->isRunning();
+        auto running = m_client.isRunning();
         if (!running) {
             raiseError(qstr(running.error()));
             return false;
@@ -537,7 +532,7 @@ public:
 
         // device detection & parameter validation
         if (!*running) {
-            if (auto r = ensureDevicesSelected(*client, m_settingsDlg->deviceString()); !r) {
+            if (auto r = ensureDevicesSelected(m_settingsDlg->deviceString()); !r) {
                 raiseError(qstr(r.error()));
                 return false;
             }
@@ -545,7 +540,7 @@ public:
 
         // stream layout
         QString err;
-        if (!enumerateStreams(*client, m_streams, err)) {
+        if (!enumerateStreams(m_streams, err)) {
             raiseError(QStringLiteral("Unable to query SpikeGLX streams: %1").arg(err));
             return false;
         }
@@ -558,13 +553,13 @@ public:
         auto dataset = createDefaultDataset(name());
         if (!dataset)
             return false;
-        dataset->insertAttribute("spikeglx_version", client->version());
+        dataset->insertAttribute("spikeglx_version", m_client.version());
         dataset->insertAttribute("host", host.toStdString());
         dataset->insertAttribute("port", static_cast<int64_t>(port));
         dataset->insertAttribute("run_control", runControlModeString(mode)); // effective control mode
         if (!m_settingsDlg->deviceString().isEmpty())
             dataset->insertAttribute("device_string", m_settingsDlg->deviceString().toStdString());
-        if (auto addrs = client->probeAddrs())
+        if (auto addrs = m_client.probeAddrs())
             dataset->insertAttribute("probe_addresses", *addrs);
         dataset->insertAttribute("timestamp_method", "polled-tcp");
         dataset->insertAttribute("live_data_enabled", fetchEnabled);
@@ -602,7 +597,7 @@ public:
         m_portsMeta.clear();
         if (fetchEnabled) {
             for (auto &fs : fetchStreams) {
-                if (!configureFetchStream(fs, *client, fetchMaxBlockMs))
+                if (!configureFetchStream(fs, fetchMaxBlockMs))
                     return false;
 
                 // our thread starts the synchronizer once it has taken the reference point of the stream
@@ -671,21 +666,21 @@ public:
         const auto runName = makeRunName(info, dataset);
         if (mode == RunControlMode::FullControl) {
             setStatusMessage(QStringLiteral("Starting SpikeGLX run '%1'…").arg(runName));
-            if (auto r = client->startRun(runName.toStdString()); !r) {
+            if (auto r = m_client.startRun(runName.toStdString()); !r) {
                 raiseError(QStringLiteral("Unable to start SpikeGLX run '%1': %2").arg(runName, qstr(r.error())));
                 return false;
             }
             sglxRunStartedByUs = true;
 
-            if (!waitForStreams(*client, fetchEnabled, fetchStreams, syncStreams, 30000))
+            if (!waitForStreams(fetchEnabled, fetchStreams, syncStreams, 30000))
                 return false;
         } else {
-            if (auto rn = client->runName())
+            if (auto rn = m_client.runName())
                 dataset->insertAttribute("run_name", rn->c_str());
         }
 
         // store SpikeGLX's parameters, now that the run is started and all of them are available
-        if (auto params = client->params()) {
+        if (auto params = m_client.params()) {
             MetaStringMap pm;
             for (const auto &[k, v] : *params)
                 pm.insert(k, MetaValue(v));
@@ -708,7 +703,7 @@ public:
         // hand the connection and everything else our thread needs for this run over to it
         setWorker(
             Worker{
-                .client = std::move(client),
+                .client = &m_client,
                 .mode = mode,
                 .syncIntervalMs = syncIntervalMs,
                 .fetchEnabled = fetchEnabled,
@@ -748,7 +743,7 @@ public:
      * Resolve a configured live-data entry against the real stream layout and
      * set the metadata of its output port.
      */
-    bool configureFetchStream(FetchStream &fs, Sglx::Client &client, int fetchMaxBlockMs)
+    bool configureFetchStream(FetchStream &fs, int fetchMaxBlockMs)
     {
         const auto *si = findStream(fs.sid);
         if (!si) {
@@ -815,8 +810,8 @@ public:
         double scale = 1.0;
         const bool digital = fs.digital;
         if (!digital) {
-            auto first = client.i16ToVolts(fs.sid, fs.absChans.front());
-            auto last = client.i16ToVolts(fs.sid, fs.absChans.back());
+            auto first = m_client.i16ToVolts(fs.sid, fs.absChans.front());
+            auto last = m_client.i16ToVolts(fs.sid, fs.absChans.back());
             if (!first || !last) {
                 raiseError(QStringLiteral("Unable to query channel scaling for '%1': %2")
                                .arg(fs.streamName, qstr(first ? last.error() : first.error())));
@@ -920,7 +915,6 @@ public:
      * streams we touch deliver samples.
      */
     bool waitForStreams(
-        Sglx::Client &client,
         bool fetchEnabled,
         const std::vector<FetchStream> &fetchStreams,
         const std::vector<SyncStream> &syncStreams,
@@ -940,7 +934,7 @@ public:
         timer.start();
         while (timer.elapsed() < timeoutMs) {
             appProcessEvents();
-            auto running = client.isRunning();
+            auto running = m_client.isRunning();
             if (!running) {
                 raiseError(qstr(running.error()));
                 return false;
@@ -948,7 +942,7 @@ public:
             if (*running) {
                 bool allUp = true;
                 for (const auto &sid : touched) {
-                    auto cnt = client.sampleCount(sid);
+                    auto cnt = m_client.sampleCount(sid);
                     if (!cnt) {
                         allUp = false;
                         break;
@@ -972,9 +966,9 @@ public:
         WorkerContext mod{};
         using RunControlMode = SpikeGLXSettingsDialog::RunControlMode;
 
-        // The connection to SpikeGLX of this run. It is established in prepare() and then handed over
-        // to us, so this worker is the only user of the client for as long as it exists.
-        std::unique_ptr<Sglx::Client> client;
+        // The connection to SpikeGLX. The settings dialog is locked while a run is active, so this
+        // worker is the only user of the client for as long as it exists.
+        Sglx::Client *client;
 
         // settings snapshot for the current run
         RunControlMode mode; /// effective mode of the current run
@@ -1515,7 +1509,6 @@ public:
             }
         }
 
-        // this closes the connection of the run as well
         worker.reset();
 
         m_runActive = false;
