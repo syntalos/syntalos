@@ -199,12 +199,12 @@ public:
         m_settingsDlg->setAvailableEntries(signalNames);
 
         // convert user signal selection into indices
-        QSet<int> selectedIndices;
+        QList<int> selectedIndices;
         if (!m_settingsDlg->recordAllData()) {
             const auto recSet = m_settingsDlg->recordedEntriesSet();
             for (int i = 0; i < signalNames.count(); i++) {
                 if (recSet.contains(signalNames[i]))
-                    selectedIndices.insert(i);
+                    selectedIndices.append(i);
             }
         }
 
@@ -264,7 +264,7 @@ public:
         std::shared_ptr<EDLDataset> currentDSet{};
         std::unique_ptr<KCompressionDevice> compDev{};
         std::unique_ptr<QTextStream> textStream{};
-        QSet<int> selectedIndices{};
+        QList<int> selectedIndices{};
         bool initFile = false;
 
         void setup(WorkerEvents &ev)
