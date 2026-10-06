@@ -171,15 +171,10 @@ public:
                 const bool pulseDue = !timespecLess(sliceEnd, ts);
 
                 r = clock_nanosleep(CLOCK_MONOTONIC, TIMER_ABSTIME, pulseDue ? &ts : &sliceEnd, nullptr);
-                if (G_UNLIKELY(r == -EINTR)) {
-                    r = clock_gettime(CLOCK_MONOTONIC, &ts);
-                    if (G_UNLIKELY(r != 0))
-                        return std::unexpected(
-                            std::format("Unable to obtain monotonic clock time: {}", std::strerror(errno)));
-                    continue;
-                }
+                if (G_UNLIKELY(r == EINTR))
+                    continue; // we were interrupted by a signal, just go back to sleep until the same time
                 if (G_UNLIKELY(r != 0))
-                    return std::unexpected(std::format("Unable to nanosleep: {}", std::strerror(errno)));
+                    return std::unexpected(std::format("Unable to nanosleep: {}", std::strerror(r)));
                 if (!pulseDue)
                     continue;
                 r = clock_gettime(CLOCK_MONOTONIC, &ts);
