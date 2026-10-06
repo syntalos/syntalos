@@ -205,22 +205,12 @@ public:
             }
 
             // Register event callbacks only for the connected channel subscriptions
-            if (channelSubs[0])
-                ev.onData(channelSubs[0], [this] {
-                    onChannelReceived(0);
-                });
-            if (channelSubs[1])
-                ev.onData(channelSubs[1], [this] {
-                    onChannelReceived(1);
-                });
-            if (channelSubs[2])
-                ev.onData(channelSubs[2], [this] {
-                    onChannelReceived(2);
-                });
-            if (channelSubs[3])
-                ev.onData(channelSubs[3], [this] {
-                    onChannelReceived(3);
-                });
+            for (size_t ch = 0; ch < channelSubs.size(); ++ch) {
+                if (channelSubs[ch])
+                    ev.onData(channelSubs[ch], [this, ch] {
+                        onChannelReceived(ch);
+                    });
+            }
         }
 
         void onMainFrameReceived()
