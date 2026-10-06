@@ -493,10 +493,10 @@ public:
 
                 if (selectedIndices.isEmpty()) {
                     for (int k = 0; k < data.data.cols(); ++k)
-                        (*textStream) << "," << intToJsonValue(data.data(i, k));
+                        (*textStream) << "," << floatToJsonValue(data.data(i, k));
                 } else {
                     for (const auto &k : selectedIndices)
-                        (*textStream) << "," << intToJsonValue(data.data(i, k));
+                        (*textStream) << "," << floatToJsonValue(data.data(i, k));
                 }
                 (*textStream) << "]";
             }
@@ -522,10 +522,10 @@ public:
 
                 if (selectedIndices.isEmpty()) {
                     for (int k = 0; k < data.data.cols(); ++k)
-                        (*textStream) << "," << floatToJsonValue(data.data(i, k));
+                        (*textStream) << "," << intToJsonValue(data.data(i, k));
                 } else {
                     for (const auto &k : selectedIndices)
-                        (*textStream) << "," << floatToJsonValue(data.data(i, k));
+                        (*textStream) << "," << intToJsonValue(data.data(i, k));
                 }
                 (*textStream) << "]";
             }
