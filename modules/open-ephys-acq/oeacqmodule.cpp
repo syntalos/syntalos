@@ -143,7 +143,8 @@ public:
     std::expected<void, QString> initialize() override
     {
         // Load the simulation backend initially, so some backend is always available
-        setupBackend();
+        if (!setupBackend())
+            return std::unexpected(QStringLiteral("No acquisition board backend could be set up."));
 
         // Register a TTL trigger input port. Upstream modules can push
         // LineCommand events here to fire one of the board's digital output lines.
