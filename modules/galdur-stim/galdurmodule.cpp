@@ -230,8 +230,6 @@ public:
             if (startImmediately) {
                 if (!lsClient->runStimulation()) {
                     mod.raiseError(lsClient->lastError());
-                    if (ctlSub)
-                        ctlSub->disableNotify();
                     return;
                 }
             } else {
@@ -244,8 +242,6 @@ public:
             if (lsClient->isRunning())
                 lsClient->stopStimulation();
 
-            if (ctlSub)
-                ctlSub->disableNotify();
             lsClient->close();
             mod.setStatusMessage("Disconnected");
         }
