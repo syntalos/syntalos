@@ -24,26 +24,6 @@
 
 SYNTALOS_MODULE(PlotSeriesModule)
 
-template<typename T>
-class PlotSubscriptionDetails
-{
-public:
-    explicit PlotSubscriptionDetails(std::shared_ptr<StreamInputPort<T>> newPort)
-        : port(newPort),
-          timestampDivisor(1000)
-    {
-        sub = port->subscription();
-        portId = port->id().toStdString();
-    }
-
-    std::shared_ptr<StreamInputPort<T>> port;
-    std::shared_ptr<StreamSubscription<T>> sub;
-    std::string portId;
-
-    std::string yLabel = "y";
-    double timestampDivisor;
-};
-
 /**
  * State the worker keeps for each subscription it reads data from.
  */
@@ -68,11 +48,6 @@ class PlotSeriesModule : public AbstractModule
 {
     Q_OBJECT
 private:
-    // the subscriptions of the current run, to apply their metadata once the run starts
-    std::vector<PlotSubscriptionDetails<SignalBlockF32>> m_fpSubs;
-    std::vector<PlotSubscriptionDetails<SignalBlockI32>> m_intSubs;
-    std::vector<PlotSubscriptionDetails<LineReading>> m_lrSubs;
-
     PlotWindow *m_plotWindow;
 
 public:
@@ -103,10 +78,6 @@ public:
 
     bool prepare(const RunInfo &) override
     {
-        m_fpSubs.clear();
-        m_intSubs.clear();
-        m_lrSubs.clear();
-
         auto canvas = m_plotWindow->canvas();
         canvas->clearRuntimeData();
 
@@ -130,33 +101,29 @@ public:
 
             // Register port on the canvas with default divisor; updated in start()
             // once metadata is available.
-            canvas->registerPort(port->id().toStdString(), 1000.0, "y");
+            const auto portId = port->id().toStdString();
+            canvas->registerPort(portId, 1000.0, "y");
 
             if (port->dataTypeName() == "SignalBlockF32") {
-                PlotSubscriptionDetails<SignalBlockF32> sd(
-                    std::static_pointer_cast<StreamInputPort<SignalBlockF32>>(port));
+                auto sub = std::static_pointer_cast<StreamInputPort<SignalBlockF32>>(port)->subscription();
 
                 // prevent receiving more than 4k items/s to safeguard a bit against overflows
-                sd.sub->setThrottleItemsPerSec(4000);
-                m_fpSubs.push_back(sd);
-                worker.fpSubs.push_back({.sub = sd.sub, .portId = sd.portId});
+                sub->setThrottleItemsPerSec(4000);
+                worker.fpSubs.push_back({.sub = std::move(sub), .portId = portId});
             } else if (port->dataTypeName() == "SignalBlockI32") {
-                PlotSubscriptionDetails<SignalBlockI32> sd(
-                    std::static_pointer_cast<StreamInputPort<SignalBlockI32>>(port));
+                auto sub = std::static_pointer_cast<StreamInputPort<SignalBlockI32>>(port)->subscription();
 
                 // prevent receiving more than 4k items/s
-                sd.sub->setThrottleItemsPerSec(4000);
-                m_intSubs.push_back(sd);
-                worker.intSubs.push_back({.sub = sd.sub, .portId = sd.portId});
+                sub->setThrottleItemsPerSec(4000);
+                worker.intSubs.push_back({.sub = std::move(sub), .portId = portId});
             } else if (port->dataTypeName() == "LineReading") {
-                PlotSubscriptionDetails<LineReading> sd(std::static_pointer_cast<StreamInputPort<LineReading>>(port));
-                m_lrSubs.push_back(sd);
-                worker.lrSubs.push_back({.sub = sd.sub, .portId = sd.portId});
+                auto sub = std::static_pointer_cast<StreamInputPort<LineReading>>(port)->subscription();
+                worker.lrSubs.push_back({.sub = std::move(sub), .portId = portId});
             }
         }
 
         // we are only active if we have something subscribed
-        if (!m_fpSubs.empty() || !m_intSubs.empty() || !m_lrSubs.empty())
+        if (!worker.fpSubs.empty() || !worker.intSubs.empty() || !worker.lrSubs.empty())
             setWorker(std::move(worker));
 
         // success
@@ -164,34 +131,37 @@ public:
         return true;
     }
 
-    template<typename T>
-    void applyMetadataForSubscription(PlotSubscriptionDetails<T> &sd)
+    void applyMetadataForSubscription(const std::shared_ptr<VarStreamInputPort> &port)
     {
-        const auto timeUnitStr = sd.sub->metadataValue("time_unit", std::string{"milliseconds"});
+        const auto sub = port->subscriptionVar();
+        const auto portId = port->id().toStdString();
+
+        double timestampDivisor = 1000;
+        const auto timeUnitStr = sub->metadataValue("time_unit", std::string{"milliseconds"});
         if (timeUnitStr == "seconds")
-            sd.timestampDivisor = 1;
+            timestampDivisor = 1;
         else if (timeUnitStr == "milliseconds")
-            sd.timestampDivisor = 1000;
+            timestampDivisor = 1000;
         else if (timeUnitStr == "microseconds")
-            sd.timestampDivisor = 1000 * 1000;
+            timestampDivisor = 1000 * 1000;
         else if (timeUnitStr == "index") {
-            const auto sampleRate = sd.sub->metadataValue("sample_rate", -1.0);
+            const auto sampleRate = sub->metadataValue("sample_rate", -1.0);
             if (sampleRate < 0) {
                 raiseError(QStringLiteral(
                                "The signal-series on port %1 provides timestamps at indices, but no "
                                "\"sample_rate\" metadata value.\n"
                                "This value is needed to calculate timestamps. This is a bug in the module "
                                "we receive data from.")
-                               .arg(sd.port->title()));
+                               .arg(port->title()));
                 return;
             }
-            sd.timestampDivisor = sampleRate;
+            timestampDivisor = sampleRate;
         }
 
-        const auto yLabel = sd.sub->metadataValue("data_unit", std::string{"y"});
-        const double dataScale = sd.sub->metadataValue("data_scale", 1.0);
-        const double dataOffset = sd.sub->metadataValue("data_offset", 0.0);
-        m_plotWindow->canvas()->registerPort(sd.portId, sd.timestampDivisor, yLabel, dataScale, dataOffset);
+        const auto yLabel = sub->metadataValue("data_unit", std::string{"y"});
+        const double dataScale = sub->metadataValue("data_scale", 1.0);
+        const double dataOffset = sub->metadataValue("data_offset", 0.0);
+        m_plotWindow->canvas()->registerPort(portId, timestampDivisor, yLabel, dataScale, dataOffset);
 
         // Pre-create channel entries from any signal_names metadata so the table
         // is populated before data starts flowing, and reconcile against the
@@ -200,51 +170,56 @@ public:
         // and signals no longer present are removed.
         // Only do this when signal_names is provided; otherwise channels are
         // discovered by column as data flows and must not be wiped here.
-        const auto sigNamesArr = sd.sub->metadataValue("signal_names", MetaArray{});
+        const auto sigNamesArr = sub->metadataValue("signal_names", MetaArray{});
         std::vector<std::string> signalNames;
         int colIdx = 0;
         for (const auto &v : sigNamesArr) {
             std::string name = "ch" + std::to_string(colIdx);
-            if (const auto s = v.template get<std::string>())
+            if (const auto s = v.get<std::string>())
                 name = *s;
             signalNames.push_back(name);
             ++colIdx;
         }
         if (!signalNames.empty())
-            m_plotWindow->canvas()->updatePortChannels(sd.portId, signalNames);
+            m_plotWindow->canvas()->updatePortChannels(portId, signalNames);
     }
 
-    void applyLineReadingMetadata(PlotSubscriptionDetails<LineReading> &sd)
+    void applyLineReadingMetadata(const std::shared_ptr<VarStreamInputPort> &port)
     {
-        const auto timeUnitStr = sd.sub->metadataValue("time_unit", std::string{"microseconds"});
+        const auto sub = port->subscriptionVar();
+
+        double timestampDivisor = 1000;
+        const auto timeUnitStr = sub->metadataValue("time_unit", std::string{"microseconds"});
         if (timeUnitStr == "seconds")
-            sd.timestampDivisor = 1;
+            timestampDivisor = 1;
         else if (timeUnitStr == "milliseconds")
-            sd.timestampDivisor = 1000;
+            timestampDivisor = 1000;
         else if (timeUnitStr == "microseconds")
-            sd.timestampDivisor = 1000 * 1000;
+            timestampDivisor = 1000 * 1000;
 
         // LineReading events carry absolute timestamps, so "index" mode does not apply.
-        sd.yLabel = sd.sub->metadataValue("data_unit", std::string{"ttl"});
+        const auto yLabel = sub->metadataValue("data_unit", std::string{"ttl"});
         // Register the canvas port (= this module input port) with the resolved
         // divisor. Per-line channels are created lazily as events for each lineId arrive,
         // so they group correctly in the channel table.
         // LineReading is edge-triggered, so mark the port to keep its traces visible while
         // a line stays quiet (sampleAndHold = true).
-        m_plotWindow->canvas()->registerPort(sd.portId, sd.timestampDivisor, sd.yLabel, 1.0, 0.0, true);
+        m_plotWindow->canvas()->registerPort(port->id().toStdString(), timestampDivisor, yLabel, 1.0, 0.0, true);
     }
 
     void start() override
     {
         m_plotWindow->setRunning(true);
 
-        // apply all metadata
-        for (auto &sd : m_fpSubs)
-            applyMetadataForSubscription(sd);
-        for (auto &sd : m_intSubs)
-            applyMetadataForSubscription(sd);
-        for (auto &sd : m_lrSubs)
-            applyLineReadingMetadata(sd);
+        // apply the metadata of all connected inputs, which is final now
+        for (const auto &port : inPorts()) {
+            if (!port->hasSubscription())
+                continue;
+            if (port->dataTypeName() == "LineReading")
+                applyLineReadingMetadata(port);
+            else
+                applyMetadataForSubscription(port);
+        }
 
         m_plotWindow->refreshChannelTable();
     }
