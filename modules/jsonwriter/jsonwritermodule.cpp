@@ -359,7 +359,12 @@ public:
             return "t";
         }
 
-        void initJsonFile()
+        /**
+         * Write the file header.
+         * Returns false if the columns of the data are unknown. That is an error, unless we
+         * are forced to write a file anyway.
+         */
+        bool initJsonFile(bool force = false)
         {
             QStringList columns;
             QString timeUnit;
@@ -404,15 +409,16 @@ public:
                         << QStringLiteral("value");
                 break;
             default:
-                return;
+                return false;
             }
 
             if (columns.isEmpty()) {
-                mod.raiseError(
-                    "Unable to determine the data columns - the data source may not have set the "
-                    "required `signal_names` or `table_header` metadata. Please ensure the sending module "
-                    "emits the correct metadata!");
-                return;
+                if (!force)
+                    mod.raiseError(
+                        "Unable to determine the data columns - the data source may not have set the "
+                        "required `signal_names` or `table_header` metadata. Please ensure the sending module "
+                        "emits the correct metadata!");
+                return false;
             }
 
             if (isrcKind == InputSourceKind::FLOAT || isrcKind == InputSourceKind::INT32) {
@@ -466,6 +472,7 @@ public:
 
             // try to write the header to disk as soon as we can
             stream.flush();
+            return true;
         }
 
         void writeEntryStart(const VectorXu64 &timestamps, int i)
@@ -592,8 +599,12 @@ public:
 
         // our event thread is done at this point, so we can complete the file
         if (auto worker = takeWorker<Worker>()) {
-            // write terminator
             if (worker->textStream.get() != nullptr) {
+                // if no data arrived at all, we still leave a valid file behind: the header without any rows
+                if (worker->writeData && worker->initFile)
+                    worker->writeData = worker->initJsonFile(true);
+
+                // write terminator
                 if (worker->writeData)
                     (*worker->textStream) << "\n]}\n";
                 worker->textStream->flush();
