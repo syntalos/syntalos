@@ -211,14 +211,11 @@ public:
                 .fps = m_fps,
                 .deviceName = m_device.str(),
                 .deviceLost = m_deviceLost,
-                .showCameraName = mainCallback([this]() {
-                    setCameraNameStatus();
-                }),
                 .outStream = m_outStream,
                 .clockSync = std::move(clockSync),
             });
 
-        statusMessage("Waiting.");
+        setCameraNameStatus();
         return true;
     }
 
@@ -236,14 +233,11 @@ public:
         double fps;
         std::string deviceName;
         std::shared_ptr<std::atomic_bool> deviceLost;
-        MainCallback<> showCameraName;
         std::shared_ptr<DataStream<Frame>> outStream;
         std::unique_ptr<SecondaryClockSynchronizer> clockSync;
 
         void run()
         {
-            showCameraName();
-
             // We can carry one second of data or 15 frames in the queue
             // Timestamps are read and calculated backwards from the buffer statistics.
             gst_app_sink_set_max_buffers(appSink.get(), fps > 15 ? static_cast<uint>(std::ceil(fps)) + 1 : 15);
@@ -416,10 +410,7 @@ public:
     {
         // Our thread has finished at this point, so nothing is using the pipeline anymore
         // and we can drop the references which the worker was holding on it.
-        if (auto worker = takeWorker<Worker>()) {
-            worker->appSink.reset();
-            worker->pipeline.reset();
-        }
+        takeWorker<Worker>();
 
         // the pipeline of a device that has disappeared is of no use anymore
         if (m_deviceLost->exchange(false))
