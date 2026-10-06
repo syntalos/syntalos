@@ -38,6 +38,7 @@
 #include <chrono>
 #include <cmath>
 #include <memory>
+#include <utility>
 #include <vector>
 #include <atomic>
 
@@ -231,6 +232,7 @@ public:
                     break;
                 }
             }
+            m_channelStateChangedInRun = true;
             return;
         }
 
@@ -578,6 +580,10 @@ public:
 
         AbstractModule::stop();
         setSettingsRunActive(false);
+
+        // a channel that was muted during the run is disabled for real now, like a toggle while idle does
+        if (std::exchange(m_channelStateChangedInRun, false))
+            rebuildOutputPorts();
     }
 
     void serializeSettings(const QString &, QVariantHash &settings, QByteArray &) override
@@ -1232,6 +1238,7 @@ private:
     // off). Entries for currently-unplugged channels are kept on purpose so the
     // preference persists across replug.
     QHash<QString, bool> m_channelState;
+    bool m_channelStateChangedInRun{false};
 };
 
 QString OpenEphysAcqModuleInfo::id() const
