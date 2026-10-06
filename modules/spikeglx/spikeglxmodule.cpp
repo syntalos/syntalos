@@ -991,11 +991,8 @@ public:
         TestSubject subject;
         bool isEphemeralRun;
         QString experimentId;
-        QString instanceId; /// ID of this Syntalos instance, sent to SpikeGLX so it knows who controlled it
-        bool sglxRunStartedByUs;
-
-        /// set once our thread was launched; the module has to stop the SpikeGLX run if that never happened
-        bool threadStarted = false;
+        QString instanceId;      /// ID of this Syntalos instance, sent to SpikeGLX so it knows who controlled it
+        bool sglxRunStartedByUs; /// the module stops the SpikeGLX run if this is still set when the worker is done
 
         /**
          * Turn the digital words of one fetch into LineReading edge events.
@@ -1137,8 +1134,6 @@ public:
 
         void run()
         {
-            threadStarted = true;
-
             bool failed = false;
             bool gateOpened = false;
 
@@ -1500,20 +1495,17 @@ public:
         // and everything else that it has used in this run back.
         auto worker = takeWorker<Worker>();
 
-        if (worker && !worker->threadStarted) {
-            // Our thread was never launched, because the run was aborted while modules were
-            // still preparing (the engine only starts the module threads once every module
-            // has prepared successfully, but calls stop() on all of them regardless).
-            // Nothing else talks to SpikeGLX in this case, so we issue the commands that the
-            // thread epilogue would have issued right here.
-            LOG_INFO(m_log, "Run was aborted before it started, stopping the SpikeGLX run again");
-            if (worker->sglxRunStartedByUs) {
-                if (auto r = worker->client->stopRun(); !r)
-                    LOG_WARNING(m_log, "Unable to stop SpikeGLX run: {}", r.error());
-                else
-                    setPlaceholderRunName(*worker->client, m_log);
-                worker->sglxRunStartedByUs = false;
-            }
+        if (worker && worker->sglxRunStartedByUs) {
+            // The SpikeGLX run we started is still going. Either our thread was never launched,
+            // because the run was aborted while modules were still preparing (the engine only
+            // starts the module threads once every module has prepared successfully, but calls
+            // stop() on all of them regardless), or the thread failed to stop it in its epilogue.
+            // Nothing else talks to SpikeGLX at this point, so we issue the command here.
+            LOG_INFO(m_log, "The SpikeGLX run is still active, stopping it");
+            if (auto r = worker->client->stopRun(); !r)
+                LOG_WARNING(m_log, "Unable to stop SpikeGLX run: {}", r.error());
+            else
+                setPlaceholderRunName(*worker->client, m_log);
         }
 
         if (worker) {
