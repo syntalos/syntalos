@@ -33,12 +33,19 @@
 #undef SY_RESTORE_QT_SIGNALS
 #endif
 
+#include <cerrno>
 #include <climits>
+#include <csignal>
 #include <cstdlib>
+#include <cstring>
+#include <fcntl.h>
 #include <format>
+#include <mutex>
+#include <sys/prctl.h>
 #include <sys/resource.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+#include <thread>
 #include <unistd.h>
 
 #include <pthread.h>
@@ -399,6 +406,84 @@ bool setCurrentThreadNiceness(int nice)
     return true;
 }
 
+/*
+ * The kernel's realtime watchdog sends SIGXCPU to a SCHED_RR/FIFO thread once it has
+ * consumed the soft RLIMIT_RTTIME of CPU time without ever sleeping, and SIGKILL once
+ * it passes the hard limit. The hard limit is fixed by rtkit, so we place the soft limit
+ * below it and use the signal to demote the thread before the kernel kills the process.
+ *
+ * The handler runs on the offending thread. It may only use syscalls, so it hands the
+ * thread name to a watcher thread through a pipe, which then emits the log message.
+ */
+static int g_rtOverusePipe[2] = {-1, -1};
+static constexpr size_t RT_THREAD_NAME_LEN = 16;
+
+static constexpr rlim_t softRTTimeLimit(rlim_t hardLimit)
+{
+    return (hardLimit * 7) / 10;
+}
+
+static void rtOveruseHandler(int)
+{
+    const int savedErrno = errno;
+    // SIGXCPU is also raised for RLIMIT_CPU, only act on threads that are actually realtime
+    if ((sched_getscheduler(0) & ~SCHED_RESET_ON_FORK) != SCHED_OTHER) {
+        // rtkit elevates with SCHED_RESET_ON_FORK, and clearing that flag needs CAP_SYS_NICE
+        sched_param sp = {};
+        sched_setscheduler(0, SCHED_OTHER | SCHED_RESET_ON_FORK, &sp);
+
+        // the kernel raises the process-wide soft limit by one second with every SIGXCPU, which
+        // puts it above the hard limit - re-arm it, or the next offending thread gets killed
+        struct rlimit rlim = {};
+        if (getrlimit(RLIMIT_RTTIME, &rlim) == 0) {
+            rlim.rlim_cur = softRTTimeLimit(rlim.rlim_max);
+            setrlimit(RLIMIT_RTTIME, &rlim);
+        }
+
+        char name[RT_THREAD_NAME_LEN] = {};
+        prctl(PR_GET_NAME, name);
+        [[maybe_unused]] const auto ret = ::write(g_rtOverusePipe[1], name, sizeof(name));
+    }
+    errno = savedErrno;
+}
+
+static bool installRTOveruseHandler()
+{
+    static std::once_flag once;
+    static bool installed = false;
+    std::call_once(once, [] {
+        if (pipe2(g_rtOverusePipe, O_CLOEXEC) != 0) {
+            SY_LOG_WARNING(logRtKit, "Unable to create realtime watchdog pipe: {}", strerror(errno));
+            return;
+        }
+        struct sigaction sa = {};
+        sa.sa_handler = rtOveruseHandler;
+        sigemptyset(&sa.sa_mask);
+        sa.sa_flags = SA_RESTART;
+        if (sigaction(SIGXCPU, &sa, nullptr) != 0) {
+            SY_LOG_WARNING(logRtKit, "Unable to install SIGXCPU handler: {}", strerror(errno));
+            return;
+        }
+        std::thread([] {
+            pthread_setname_np(pthread_self(), "rt-watchdog");
+            char name[RT_THREAD_NAME_LEN + 1] = {};
+            while (::read(g_rtOverusePipe[0], name, RT_THREAD_NAME_LEN) == RT_THREAD_NAME_LEN) {
+                struct rlimit rlim = {};
+                getrlimit(RLIMIT_RTTIME, &rlim);
+                SY_LOG_ERROR(
+                    logRtKit,
+                    "Thread '{}' computed for more than {} ms without blocking while realtime and was demoted to "
+                    "normal scheduling for the rest of the run. "
+                    "Move heavy work out of realtime threads, or raise the RtKit RTTimeUSecMax limit.",
+                    name,
+                    rlim.rlim_cur / 1000);
+            }
+        }).detach();
+        installed = true;
+    });
+    return installed;
+}
+
 bool setCurrentThreadRealtime(int priority)
 {
     struct rlimit rlim = {};
@@ -410,11 +495,21 @@ bool setCurrentThreadRealtime(int priority)
         return false;
     }
 
-    rlim.rlim_cur = rlim.rlim_max = maxRTTimeUsec;
+    // we lower the soft limit, because otherwise SIGXCPU would arrive with a SIGKILL,
+    // leaving us no time to react to that condition
+    rlim.rlim_max = maxRTTimeUsec;
+    rlim.rlim_cur = installRTOveruseHandler() ? softRTTimeLimit(maxRTTimeUsec) : maxRTTimeUsec;
     if (setrlimit(RLIMIT_RTTIME, &rlim) < 0) {
         SY_LOG_WARNING(logRtKit, "Failed to set RLIMIT_RTTIME: {}", strerror(errno));
         return false;
     }
+
+    // the kernel sends SIGXCPU to the whole process, and only prefers the offending thread
+    // if it does not block the signal - so make sure our handler runs on this thread
+    sigset_t sigs;
+    sigemptyset(&sigs);
+    sigaddset(&sigs, SIGXCPU);
+    pthread_sigmask(SIG_UNBLOCK, &sigs, nullptr);
 
     const auto maxRTPrio = rtkit.queryMaxRealtimePriority();
     if (priority > maxRTPrio) {

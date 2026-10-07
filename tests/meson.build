@@ -166,6 +166,23 @@ test('sy-test-resourceinfo',
 )
 
 #
+# RtKit realtime watchdog test
+#
+test_rtkit_moc_src = ['test-rtkit.cpp']
+test_rtkit_moc = qt.compile_moc(sources: test_rtkit_moc_src)
+test_rtkit_exe = executable('test-rtkit',
+    [test_rtkit_moc_src, test_rtkit_moc],
+    include_directories: [include_directories('../src')],
+    dependencies: [syntalos_fabric_dep,
+                   qt_test_dep]
+)
+test('sy-test-rtkit',
+    test_rtkit_exe,
+    env: test_env,
+    is_parallel: false,
+)
+
+#
 # MetaValue tests
 #
 test_metavalue_moc_src = ['test-metavalue.cpp']
