@@ -143,6 +143,18 @@ public:
     int quality() const;
     void setQuality(int q);
 
+    /**
+     * Encoding speed/efficiency preset. Codecs without presets return false from
+     * hasPreset(). Supported codecs define an inclusive integer range in which
+     * larger values consistently mean faster encoding at lower efficiency.
+     */
+    bool hasPreset() const;
+    int presetMin() const;
+    int presetMax() const;
+    int preset() const;
+    QString presetDisplayName() const;
+    void setPreset(int preset);
+
     int bitrateKbps() const;
     void setBitrateKbps(int bitrate);
 
