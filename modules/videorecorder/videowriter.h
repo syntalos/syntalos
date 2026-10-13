@@ -143,6 +143,9 @@ public:
     int quality() const;
     void setQuality(int q);
 
+    int svtAv1Preset() const;
+    void setSvtAv1Preset(int preset);
+
     int bitrateKbps() const;
     void setBitrateKbps(int bitrate);
 

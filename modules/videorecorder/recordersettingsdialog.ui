@@ -632,6 +632,82 @@
         <item row="3" column="1">
          <widget class="QComboBox" name="renderNodeComboBox"/>
         </item>
+        <item row="4" column="0">
+         <widget class="QLabel" name="svtAv1PresetLabel">
+          <property name="text">
+           <string>SVT-AV1 Preset</string>
+          </property>
+          <property name="buddy">
+           <cstring>svtAv1PresetSlider</cstring>
+          </property>
+         </widget>
+        </item>
+        <item row="4" column="1">
+         <widget class="QWidget" name="svtAv1PresetWidget" native="true">
+          <layout class="QHBoxLayout" name="horizontalLayout_svtAv1Preset">
+           <property name="spacing">
+            <number>2</number>
+           </property>
+           <property name="leftMargin">
+            <number>0</number>
+           </property>
+           <property name="topMargin">
+            <number>0</number>
+           </property>
+           <property name="rightMargin">
+            <number>0</number>
+           </property>
+           <property name="bottomMargin">
+            <number>0</number>
+           </property>
+           <item>
+            <widget class="QSlider" name="svtAv1PresetSlider">
+             <property name="maximum">
+              <number>13</number>
+             </property>
+             <property name="value">
+              <number>8</number>
+             </property>
+             <property name="orientation">
+              <enum>Qt::Orientation::Horizontal</enum>
+             </property>
+             <property name="tickPosition">
+              <enum>QSlider::TickPosition::TicksBothSides</enum>
+             </property>
+             <property name="tickInterval">
+              <number>1</number>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="svtAv1PresetValLabel">
+             <property name="text">
+              <string>8</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="svtAv1PresetInfoButton">
+             <property name="text">
+              <string/>
+             </property>
+             <property name="icon">
+              <iconset theme="dialog-information"/>
+             </property>
+             <property name="iconSize">
+              <size>
+               <width>16</width>
+               <height>16</height>
+              </size>
+             </property>
+             <property name="flat">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+        </item>
        </layout>
       </item>
      </layout>
@@ -791,6 +867,8 @@
   <tabstop>exactColorsCheckBox</tabstop>
   <tabstop>exactColorsInfoButton</tabstop>
   <tabstop>vaapiCheckBox</tabstop>
+  <tabstop>svtAv1PresetSlider</tabstop>
+  <tabstop>svtAv1PresetInfoButton</tabstop>
   <tabstop>qualitySlider</tabstop>
   <tabstop>bitrateSpinBox</tabstop>
   <tabstop>radioButtonQuality</tabstop>

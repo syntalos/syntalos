@@ -634,6 +634,8 @@ public:
         settings.insert("bitrate_kbps", codecProps.bitrateKbps());
         settings.insert("quality", codecProps.quality());
         settings.insert("mode", CodecProperties::modeToString(codecProps.mode()));
+        if (codecProps.codec() == VideoCodec::AV1)
+            settings.insert("svt_av1_preset", codecProps.svtAv1Preset());
         if (codecProps.useVaapi())
             settings.insert("render_node", codecProps.renderNode());
 
@@ -663,6 +665,8 @@ public:
         codecProps.setUseVaapi(settings.value("vaapi_enabled").toBool());
         codecProps.setBitrateKbps(settings.value("bitrate_kbps", codecProps.bitrateKbps()).toInt());
         codecProps.setQuality(settings.value("quality", codecProps.quality()).toInt());
+        if (codec == VideoCodec::AV1)
+            codecProps.setSvtAv1Preset(settings.value("svt_av1_preset", codecProps.svtAv1Preset()).toInt());
         if (codecProps.useVaapi())
             codecProps.setRenderNode(settings.value("render_node").toString());
 

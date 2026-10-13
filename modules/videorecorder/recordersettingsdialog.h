@@ -89,12 +89,15 @@ private slots:
     void on_encodeAfterRunCheckBox_toggled(bool checked);
 
     void on_qualitySlider_valueChanged(int value);
+    void on_svtAv1PresetSlider_valueChanged(int value);
+    void on_svtAv1PresetInfoButton_clicked();
     void on_bitrateSpinBox_valueChanged(int arg1);
     void on_radioButtonBitrate_toggled(bool checked);
 
 private:
     void updateLosslessUiState();
     void updateExactColorsUiState();
+    void updateSvtAv1PresetUiState();
     QString exactColorsSummary() const;
 
     Ui::RecorderSettingsDialog *ui;

@@ -188,6 +188,12 @@ void RecorderSettingsDialog::setCodecProps(CodecProperties props)
         ui->qualitySlider->setValue(m_codecProps.quality());
     }
     ui->bitrateSpinBox->setValue(m_codecProps.bitrateKbps());
+    {
+        const QSignalBlocker blocker(ui->svtAv1PresetSlider);
+        ui->svtAv1PresetSlider->setValue(m_codecProps.svtAv1Preset());
+    }
+    ui->svtAv1PresetValLabel->setText(QString::number(m_codecProps.svtAv1Preset()));
+    updateSvtAv1PresetUiState();
 
     // other properties
     {
@@ -449,6 +455,14 @@ void RecorderSettingsDialog::on_vaapiCheckBox_toggled(bool checked)
 
     updateLosslessUiState();
     updateExactColorsUiState();
+    updateSvtAv1PresetUiState();
+}
+
+void RecorderSettingsDialog::updateSvtAv1PresetUiState()
+{
+    const bool visible = m_codecProps.codec() == VideoCodec::AV1 && !m_codecProps.useVaapi();
+    ui->svtAv1PresetLabel->setVisible(visible);
+    ui->svtAv1PresetWidget->setVisible(visible);
 }
 
 void RecorderSettingsDialog::on_renderNodeComboBox_currentIndexChanged(int index)
@@ -524,6 +538,28 @@ void RecorderSettingsDialog::on_qualitySlider_valueChanged(int value)
         realVal = value * -1;
     m_codecProps.setQuality(realVal);
     ui->qualityValLabel->setText(QString::number(realVal));
+}
+
+void RecorderSettingsDialog::on_svtAv1PresetSlider_valueChanged(int value)
+{
+    m_codecProps.setSvtAv1Preset(value);
+    ui->svtAv1PresetValLabel->setText(QString::number(m_codecProps.svtAv1Preset()));
+}
+
+void RecorderSettingsDialog::on_svtAv1PresetInfoButton_clicked()
+{
+    QMessageBox::information(
+        this,
+        QStringLiteral("Information on SVT-AV1 presets"),
+        QStringLiteral(
+            "<html>"
+            "The preset controls the balance between encoding speed and compression efficiency. "
+            "Lower values spend more CPU time for better quality and compression; higher values encode faster."
+            "<br/><br/>"
+            "Start at <b>8</b>. Increase the value if recording can not keep up, or decrease it if CPU headroom "
+            "is available."
+            "<br/><br/>"
+            "SVT-AV1's default was <b>10</b> in version 2.3 and changed to <b>8</b> in 3.x."));
 }
 
 void RecorderSettingsDialog::on_bitrateSpinBox_valueChanged(int b)

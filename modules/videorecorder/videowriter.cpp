@@ -280,6 +280,7 @@ public:
     int qualityMin;
     int qualityMax;
     int quality;
+    int svtAv1Preset;
 
     int bitrate;
 };
@@ -301,6 +302,8 @@ CodecProperties::CodecProperties(VideoCodec codec)
     d->quality = 0;
     d->qualityMin = 0;
     d->qualityMax = 0;
+    // SVT-AV1 used preset 10 by default through 2.3 and changed its default to 8 in 3.x.
+    d->svtAv1Preset = 8;
     d->renderNode = QStringLiteral("/dev/dri/renderD128");
 
     switch (codec) {
@@ -401,6 +404,8 @@ CodecProperties::CodecProperties(const QVariantHash &v)
     setUseVaapi(v["use-vaapi"].toBool());
     setMode(static_cast<EncoderMode>(v["mode"].toInt()));
     setQuality(v["quality"].toInt());
+    if (d->codec == VideoCodec::AV1)
+        setSvtAv1Preset(v.value("svt-av1-preset", svtAv1Preset()).toInt());
     d->renderNode = v.value("render-node", QString()).toString();
 }
 
@@ -415,6 +420,8 @@ QVariantHash CodecProperties::toVariant() const
     v["use-vaapi"] = QVariant::fromValue(d->useVaapi);
     v["mode"] = QVariant::fromValue(static_cast<int>(d->mode));
     v["quality"] = QVariant::fromValue(d->quality);
+    if (d->codec == VideoCodec::AV1)
+        v["svt-av1-preset"] = QVariant::fromValue(d->svtAv1Preset);
     if (d->useVaapi)
         v["render-node"] = QVariant::fromValue(d->renderNode);
 
@@ -572,6 +579,16 @@ int CodecProperties::quality() const
 void CodecProperties::setQuality(int q)
 {
     d->quality = q;
+}
+
+int CodecProperties::svtAv1Preset() const
+{
+    return d->svtAv1Preset;
+}
+
+void CodecProperties::setSvtAv1Preset(int preset)
+{
+    d->svtAv1Preset = std::clamp(preset, 0, 13);
 }
 
 int CodecProperties::bitrateKbps() const
@@ -917,6 +934,9 @@ void VideoWriter::initializeInternal()
     AVDictionary *codecopts = nullptr;
     const bool useVaapi = d->codecProps.useVaapi();
     bool wantSvtAv1Lossless = false;
+
+    if (d->codecProps.codec() == VideoCodec::AV1 && !useVaapi)
+        av_dict_set_int(&codecopts, "preset", d->codecProps.svtAv1Preset(), 0);
 
     // normalize the lossless setting first, so all rate-control decisions below
     // act on what we are actually going to do
