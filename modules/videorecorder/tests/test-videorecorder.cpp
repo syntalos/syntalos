@@ -42,6 +42,12 @@ private slots:
     void encoderPresetCompatibility();
     void svtAv1PresetConfig_data();
     void svtAv1PresetConfig();
+    void svtAv1ParallelismSemantics_data();
+    void svtAv1ParallelismSemantics();
+    void svtAv1ParallelismLevel_data();
+    void svtAv1ParallelismLevel();
+    void svtAv1ParameterComposition_data();
+    void svtAv1ParameterComposition();
     void codecPresetProperties();
     void presetEncode_data();
     void presetEncode();
@@ -402,6 +408,79 @@ void TestVideoRecorder::svtAv1PresetConfig()
     QCOMPARE(unknownConfig.defaultValue, 8);
 }
 
+void TestVideoRecorder::svtAv1ParallelismSemantics_data()
+{
+    QTest::addColumn<QString>("version");
+    QTest::addColumn<bool>("usesLevels");
+
+    QTest::newRow("pre-2.3") << QStringLiteral("SVT-AV1 Encoder Lib v2.2.1") << false;
+    QTest::newRow("2.3") << QStringLiteral("SVT-AV1 Encoder Lib v2.3.0") << true;
+    QTest::newRow("3.0") << QStringLiteral("3.0.0") << true;
+    QTest::newRow("future-major") << QStringLiteral("v4.0.0") << true;
+    QTest::newRow("unknown") << QStringLiteral("unknown") << false;
+}
+
+void TestVideoRecorder::svtAv1ParallelismSemantics()
+{
+    QFETCH(QString, version);
+    QFETCH(bool, usesLevels);
+
+    const auto versionBytes = version.toLatin1();
+    QCOMPARE(VideoWriterPrivate::svtAv1UsesParallelismLevels(versionBytes.constData()), usesLevels);
+    QVERIFY(!VideoWriterPrivate::svtAv1UsesParallelismLevels(nullptr));
+}
+
+void TestVideoRecorder::svtAv1ParallelismLevel_data()
+{
+    QTest::addColumn<int>("threadBudget");
+    QTest::addColumn<int>("parallelismLevel");
+
+    QTest::newRow("disabled") << 0 << 0;
+    QTest::newRow("one") << 1 << 1;
+    QTest::newRow("two") << 2 << 2;
+    QTest::newRow("three") << 3 << 3;
+    QTest::newRow("five") << 5 << 3;
+    QTest::newRow("six") << 6 << 4;
+    QTest::newRow("eleven") << 11 << 4;
+    QTest::newRow("twelve") << 12 << 5;
+    QTest::newRow("twenty-three") << 23 << 5;
+    QTest::newRow("twenty-four") << 24 << 6;
+    QTest::newRow("large") << 128 << 6;
+}
+
+void TestVideoRecorder::svtAv1ParallelismLevel()
+{
+    QFETCH(int, threadBudget);
+    QFETCH(int, parallelismLevel);
+
+    QCOMPARE(VideoWriterPrivate::svtAv1ParallelismLevel(threadBudget), parallelismLevel);
+}
+
+void TestVideoRecorder::svtAv1ParameterComposition_data()
+{
+    QTest::addColumn<QString>("parameters");
+    QTest::addColumn<QString>("parameter");
+    QTest::addColumn<QString>("expected");
+
+    QTest::newRow("first") << QString{} << QStringLiteral("lp=4") << QStringLiteral("lp=4");
+    QTest::newRow("after-lossless") << QStringLiteral("lossless=1") << QStringLiteral("lp=4")
+                                     << QStringLiteral("lossless=1:lp=4");
+    QTest::newRow("preserve-existing") << QStringLiteral("fast-decode=1:lossless=1")
+                                        << QStringLiteral("lp=5")
+                                        << QStringLiteral("fast-decode=1:lossless=1:lp=5");
+}
+
+void TestVideoRecorder::svtAv1ParameterComposition()
+{
+    QFETCH(QString, parameters);
+    QFETCH(QString, parameter);
+    QFETCH(QString, expected);
+
+    QCOMPARE(
+        VideoWriterPrivate::appendSvtAv1Parameter(parameters.toStdString(), parameter.toStdString()),
+        expected.toStdString());
+}
+
 void TestVideoRecorder::codecPresetProperties()
 {
     for (const auto codec : {VideoCodec::Raw, VideoCodec::FFV1, VideoCodec::FFVHuff, VideoCodec::MPEG4}) {
@@ -519,6 +598,8 @@ void TestVideoRecorder::presetEncode()
     CodecProperties codecProps(static_cast<VideoCodec>(codec));
     codecProps.setLossless(lossless);
     codecProps.setPreset(codecProps.presetMax());
+    if (codec == static_cast<int>(VideoCodec::AV1))
+        codecProps.setThreadCount(12);
 
     VideoWriter writer;
     writer.setContainer(VideoContainer::Matroska);

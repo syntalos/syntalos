@@ -9,6 +9,8 @@
 
 #include <algorithm>
 #include <optional>
+#include <string>
+#include <string_view>
 #include <utility>
 
 extern "C" {
@@ -40,6 +42,9 @@ struct PresetConfig {
 PresetConfig svtAv1PresetConfig(
     const char *runtimeVersion,
     std::optional<std::pair<int, int>> optionRange = std::nullopt);
+bool svtAv1UsesParallelismLevels(const char *runtimeVersion);
+int svtAv1ParallelismLevel(int threadBudget);
+std::string appendSvtAv1Parameter(std::string_view parameters, std::string_view parameter);
 
 } // namespace VideoWriterPrivate
 

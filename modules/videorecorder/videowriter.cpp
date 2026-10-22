@@ -301,6 +301,57 @@ VideoWriterPrivate::PresetConfig VideoWriterPrivate::svtAv1PresetConfig(
     return config;
 }
 
+/** Return whether SVT-AV1 interprets lp as a parallelism level rather than a processor count. */
+bool VideoWriterPrivate::svtAv1UsesParallelismLevels(const char *runtimeVersion)
+{
+    const auto version = vw_parse_version(runtimeVersion);
+    if (!version)
+        return false;
+
+    const auto [major, minor] = *version;
+    return major > 2 || (major == 2 && minor >= 3);
+}
+
+int VideoWriterPrivate::svtAv1ParallelismLevel(int threadBudget)
+{
+    if (threadBudget <= 0)
+        return 0;
+    if (threadBudget <= 2)
+        return threadBudget;
+    if (threadBudget <= 5)
+        return 3;
+    if (threadBudget <= 11)
+        return 4;
+    if (threadBudget <= 23)
+        return 5;
+    return 6;
+}
+
+std::string VideoWriterPrivate::appendSvtAv1Parameter(
+    std::string_view parameters,
+    std::string_view parameter)
+{
+    if (parameters.empty())
+        return std::string(parameter);
+    if (parameter.empty())
+        return std::string(parameters);
+
+    std::string result;
+    result.reserve(parameters.size() + parameter.size() + 1);
+    result.append(parameters);
+    result.push_back(':');
+    result.append(parameter);
+    return result;
+}
+
+static void vw_append_svtav1_parameter(AVDictionary **codecopts, std::string_view parameter)
+{
+    const auto *entry = av_dict_get(*codecopts, "svtav1-params", nullptr, 0);
+    const auto parameters = VideoWriterPrivate::appendSvtAv1Parameter(
+        entry == nullptr ? std::string_view{} : std::string_view(entry->value), parameter);
+    av_dict_set(codecopts, "svtav1-params", parameters.c_str(), 0);
+}
+
 static const QStringList &vw_x26x_preset_names()
 {
     static const QStringList names = {
@@ -1137,7 +1188,12 @@ void VideoWriter::initializeInternal()
     // details.
     d->vstrm->time_base = d->cctx->time_base;
 
-    if (d->codecProps.threadCount() > 0)
+    const bool isSvtAv1 = strcmp(vcodec->name, "libsvtav1") == 0;
+    const char *svtAv1RuntimeVersion =
+        isSvtAv1 && svt_av1_get_version != nullptr ? svt_av1_get_version() : nullptr;
+    const bool useSvtAv1ParallelismLevels =
+        isSvtAv1 && VideoWriterPrivate::svtAv1UsesParallelismLevels(svtAv1RuntimeVersion);
+    if (d->codecProps.threadCount() > 0 && !useSvtAv1ParallelismLevels)
         d->cctx->thread_count = d->codecProps.threadCount() > 16 ? 16 : d->codecProps.threadCount();
 
     if (d->codecProps.codec() == VideoCodec::Raw) {
@@ -1261,7 +1317,7 @@ void VideoWriter::initializeInternal()
             // SVT-AV1 has no "lossless" AVOption, and its lowest CRF value is *not* lossless.
             // Truly lossless coding has to be requested through the encoder's own parameter
             // list and requires SVT-AV1 >= 3.0
-            av_dict_set(&codecopts, "svtav1-params", "lossless=1", 0);
+            vw_append_svtav1_parameter(&codecopts, "lossless=1");
             wantSvtAv1Lossless = true;
             break;
         case VideoCodec::VP9:
@@ -1283,6 +1339,13 @@ void VideoWriter::initializeInternal()
         }
     } else if (d->codecProps.codec() == VideoCodec::HEVC) {
         d->cctx->gop_size = 32;
+    }
+
+    if (useSvtAv1ParallelismLevels && d->codecProps.threadCount() > 0) {
+        const auto parameter = std::format(
+            "lp={}",
+            VideoWriterPrivate::svtAv1ParallelismLevel(d->codecProps.threadCount()));
+        vw_append_svtav1_parameter(&codecopts, parameter);
     }
 
     if (d->codecProps.codec() == VideoCodec::VP9 && !useVaapi) {
