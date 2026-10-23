@@ -1353,8 +1353,9 @@ void MainWindow::updateExportDirDisplay()
         ui->exportBaseDirLabel->setFont(font);
     }
 
-    // we can run as soon as we have a valid base directory
-    if (!m_engine->isRunning())
+    // we can run as soon as we have a valid base directory, but must not
+    // re-enable the run action while a run is still being prepared
+    if (!m_engine->isActive())
         setRunPossible(true);
 
     palette = QApplication::palette(ui->exportDirLabel);

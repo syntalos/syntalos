@@ -1366,8 +1366,14 @@
    <property name="text">
     <string>Run</string>
    </property>
+   <property name="toolTip">
+    <string>Start run (Ctrl+Space)</string>
+   </property>
    <property name="shortcut">
     <string>Ctrl+Space</string>
+   </property>
+   <property name="autoRepeat">
+    <bool>false</bool>
    </property>
   </action>
   <action name="actionStop">
@@ -1378,8 +1384,14 @@
    <property name="text">
     <string>Stop</string>
    </property>
+   <property name="toolTip">
+    <string>Stop run (Ctrl+Space)</string>
+   </property>
    <property name="shortcut">
-    <string>Space</string>
+    <string>Ctrl+Space</string>
+   </property>
+   <property name="autoRepeat">
+    <bool>false</bool>
    </property>
   </action>
   <action name="actionProjectOpen">
