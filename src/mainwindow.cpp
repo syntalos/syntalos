@@ -44,6 +44,8 @@
 #include <QToolButton>
 #include <memory>
 #include <optional>
+#include <KActionCategory>
+#include <KActionCollection>
 
 #ifdef SY_PREFER_WAYLAND
 #include <Winpos/WindowPositioner.h>
@@ -328,6 +330,9 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->actionAbout, &QAction::triggered, this, &MainWindow::aboutActionTriggered);
     connect(ui->actionGlobalConfig, &QAction::triggered, this, &MainWindow::globalConfigActionTriggered);
 
+    // set up the run toggle and apply the user's keyboard shortcuts
+    setupActionCollection();
+
     // the benchmark tool is optional, only offer it if it was built
     ui->actionBenchmark->setVisible(false);
 #ifdef SY_HAVE_BENCHMARK_TOOL
@@ -477,6 +482,38 @@ void MainWindow::applySelectedAppStyle(bool updateIcons)
     // update icons in case we switched between a dark and light style
     if (updateIcons)
         updateIconStyles();
+}
+
+void MainWindow::setupActionCollection()
+{
+    // add a dedicated action to toggle a run state between started/stopped
+    m_toggleRunAction = new QAction(QStringLiteral("Start/Stop Run"), this);
+    m_toggleRunAction->setObjectName(QStringLiteral("actionStartStop"));
+    m_toggleRunAction->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Space));
+    m_toggleRunAction->setAutoRepeat(false);
+    addAction(m_toggleRunAction);
+    connect(m_toggleRunAction, &QAction::triggered, this, &MainWindow::runStopActionTriggered);
+
+    // register all actions that can have user-defined shortcuts, their object
+    // names serve as stable identifiers for the stored shortcuts
+    m_actionCollection = new KActionCollection(this);
+    const auto addCategory = [this](const QString &text, std::initializer_list<QAction *> actions) {
+        auto category = new KActionCategory(text, m_actionCollection);
+        for (auto action : actions)
+            category->addAction(action->objectName(), action);
+    };
+    addCategory(QStringLiteral("Run"), {m_toggleRunAction, ui->actionRun, ui->actionStop, ui->actionRunTemp});
+    addCategory(
+        QStringLiteral("File"),
+        {ui->actionProjectNew, ui->actionProjectOpen, ui->actionProjectSave, ui->actionProjectSaveAs, ui->actionQuit});
+    addCategory(QStringLiteral("Test Subjects"), {ui->actionSubjectsLoad, ui->actionSubjectsSave});
+    addCategory(QStringLiteral("Project"), {ui->actionEditComment, ui->actionProjectDetails});
+    addCategory(QStringLiteral("Diagnostics"), {ui->actionShowLog});
+
+    // apply the user preferences, overriding the defaults
+    for (auto action : m_actionCollection->actions())
+        KActionCollection::setDefaultShortcuts(action, action->shortcuts());
+    m_actionCollection->readSettings();
 }
 
 void MainWindow::setRunPossible(bool enabled)
@@ -684,6 +721,15 @@ void MainWindow::stopActionTriggered()
     showBusyIndicatorProcessing();
     QApplication::processEvents();
     m_engine->stop();
+}
+
+void MainWindow::runStopActionTriggered()
+{
+    // the run action is never enabled while a run can be stopped
+    if (ui->actionStop->isEnabled())
+        ui->actionStop->trigger();
+    else if (ui->actionRun->isEnabled())
+        ui->actionRun->trigger();
 }
 
 void MainWindow::onActionNetControllerToggled(bool checked)
@@ -1284,7 +1330,7 @@ void MainWindow::on_actionProjectDetails_toggled(bool arg1)
 
 void MainWindow::globalConfigActionTriggered()
 {
-    GlobalConfigDialog gcDlg(this);
+    GlobalConfigDialog gcDlg(m_actionCollection, this);
 
     // react to user color scheme changes instantly
     connect(&gcDlg, &GlobalConfigDialog::defaultColorSchemeChanged, [&]() {

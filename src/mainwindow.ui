@@ -1367,10 +1367,7 @@
     <string>Run</string>
    </property>
    <property name="toolTip">
-    <string>Start run (Ctrl+Space)</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+Space</string>
+    <string>Start run</string>
    </property>
    <property name="autoRepeat">
     <bool>false</bool>
@@ -1385,10 +1382,7 @@
     <string>Stop</string>
    </property>
    <property name="toolTip">
-    <string>Stop run (Ctrl+Space)</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+Space</string>
+    <string>Stop run</string>
    </property>
    <property name="autoRepeat">
     <bool>false</bool>

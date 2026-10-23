@@ -34,12 +34,15 @@ namespace Syntalos
 class SoundCuePlayer;
 }
 
+class KActionCollection;
+class KShortcutsEditor;
+
 class GlobalConfigDialog : public QDialog
 {
     Q_OBJECT
 
 public:
-    explicit GlobalConfigDialog(QWidget *parent = nullptr);
+    explicit GlobalConfigDialog(KActionCollection *shortcutActions, QWidget *parent = nullptr);
     ~GlobalConfigDialog();
 
 private slots:
@@ -83,5 +86,6 @@ private:
     Ui::GlobalConfigDialog *ui;
     Syntalos::GlobalConfig *m_gc;
     Syntalos::SoundCuePlayer *m_soundPlayer;
+    KShortcutsEditor *m_shortcutsEditor;
     bool m_acceptChanges;
 };

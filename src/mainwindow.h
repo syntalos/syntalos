@@ -36,6 +36,7 @@ class ModuleManager;
 class ModuleIndicator;
 class QSvgWidget;
 class QSettings;
+class KActionCollection;
 
 namespace Syntalos
 {
@@ -145,6 +146,7 @@ private slots:
     void runActionTriggered(const Uuid &recordIdOverride);
     void temporaryRunActionTriggered();
     void stopActionTriggered();
+    void runStopActionTriggered();
 
     void onActionNetControllerToggled(bool checked);
     void onActionNetListenerToggled(bool checked);
@@ -222,6 +224,8 @@ private:
     QList<ExportPathComponent> exportDirLayoutFromUi() const;
     void changeExportDirLayout(const QList<ExportPathComponent> &layout);
 
+    void setupActionCollection();
+
     void setRunPossible(bool enabled);
     void updateManualRunPossible();
     void setRunUiControlStates(bool engineRunning, bool stopPossible);
@@ -255,6 +259,9 @@ private:
 
     QLabel *m_statusBarLabel;
     QSvgWidget *m_busyIndicator;
+
+    KActionCollection *m_actionCollection;
+    QAction *m_toggleRunAction;
 
     TestSubjectListModel *m_subjectList;
     ExperimenterListModel *m_experimenterList;

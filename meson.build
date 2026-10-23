@@ -278,6 +278,7 @@ kfarchive_dep = dependency('KF6Archive')
 kfconfigwidgets_dep = dependency('KF6ConfigWidgets')
 kftexteditor_dep = dependency('KF6TextEditor')
 kfwidgetsaddons_dep = dependency('KF6WidgetsAddons')
+kfxmlgui_dep = dependency('KF6XmlGui')
 
 pipewire_dep = dependency('libpipewire-0.3', version: '>= 0.3.48')
 

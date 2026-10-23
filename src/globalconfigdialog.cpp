@@ -30,6 +30,7 @@
 #include <QSignalBlocker>
 #include <QStandardPaths>
 #include <QToolButton>
+#include <KShortcutsEditor>
 
 #include "appstyle.h"
 #include "datactl/priv/rtkit.h"
@@ -37,7 +38,7 @@
 
 using namespace Syntalos;
 
-GlobalConfigDialog::GlobalConfigDialog(QWidget *parent)
+GlobalConfigDialog::GlobalConfigDialog(KActionCollection *shortcutActions, QWidget *parent)
     : QDialog(parent),
       ui(new Ui::GlobalConfigDialog),
       m_acceptChanges(false)
@@ -76,6 +77,23 @@ GlobalConfigDialog::GlobalConfigDialog(QWidget *parent)
 
     // sounds section
     setupSoundCueControls();
+
+    // shortcuts section, changes are applied to the actions right away and saved by the
+    // editor itself (the action collection reads them back on startup)
+    m_shortcutsEditor = new KShortcutsEditor(
+        ui->pageShortcuts,
+        KShortcutsEditor::WindowAction | KShortcutsEditor::ApplicationAction,
+        KShortcutsEditor::LetterShortcutsDisallowed);
+    m_shortcutsEditor->addCollection(shortcutActions, QStringLiteral("Syntalos"));
+    ui->vlPageShortcuts->insertWidget(
+        ui->vlPageShortcuts->indexOf(ui->lblCaptionShortcutsIntro) + 1,
+        m_shortcutsEditor,
+        1);
+    connect(m_shortcutsEditor, &KShortcutsEditor::keyChange, m_shortcutsEditor, &KShortcutsEditor::save);
+    connect(ui->btnShortcutDefaults, &QPushButton::clicked, this, [this]() {
+        m_shortcutsEditor->allDefault();
+        m_shortcutsEditor->save();
+    });
 
     // advanced section
     ui->defaultNicenessSpinBox->setMaximum(20);

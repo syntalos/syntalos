@@ -139,6 +139,7 @@ syntalos_exe = executable('syntalos',
 
         kfarchive_dep,
         kfconfigwidgets_dep,
+        kfxmlgui_dep,
 
         quill_dep,
         libusb_dep,

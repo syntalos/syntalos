@@ -98,6 +98,14 @@
        </item>
        <item>
         <property name="text">
+         <string>Shortcuts</string>
+        </property>
+        <property name="icon">
+         <iconset theme="configure-shortcuts"/>
+        </property>
+       </item>
+       <item>
+        <property name="text">
          <string>Advanced</string>
         </property>
         <property name="icon">
@@ -1111,6 +1119,75 @@
           </item>
          </layout>
         </widget>
+       </widget>
+       <widget class="QWidget" name="pageShortcuts">
+        <layout class="QVBoxLayout" name="vlPageShortcuts">
+         <property name="spacing">
+          <number>8</number>
+         </property>
+         <property name="leftMargin">
+          <number>18</number>
+         </property>
+         <property name="topMargin">
+          <number>18</number>
+         </property>
+         <property name="rightMargin">
+          <number>18</number>
+         </property>
+         <property name="bottomMargin">
+          <number>18</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="lblPageTitleShortcuts">
+           <property name="font">
+            <font>
+             <pointsize>14</pointsize>
+             <bold>true</bold>
+            </font>
+           </property>
+           <property name="text">
+            <string>Shortcuts</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="lblCaptionShortcutsIntro">
+           <property name="text">
+            <string>Keyboard shortcuts work while the Syntalos main window is focused.</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="hlShortcutButtons">
+           <item>
+            <spacer name="hSpacerShortcutButtons">
+             <property name="orientation">
+              <enum>Qt::Orientation::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+           <item>
+            <widget class="QPushButton" name="btnShortcutDefaults">
+             <property name="text">
+              <string>Reset to Defaults</string>
+             </property>
+             <property name="icon">
+              <iconset theme="document-revert"/>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
        </widget>
        <widget class="QScrollArea" name="pageAdvanced">
         <property name="frameShape">
