@@ -353,6 +353,9 @@ void initializeSyLogSystem(quill::LogLevel consoleLogLevel, const QString &logDi
     // we want to log UTF-8 characters, so disable sanitization
     backendOptn.check_printable_char = {};
 
+    // the 100µs default wakes the idle backend ~6k times/s; a few ms of log latency is fine for us
+    backendOptn.sleep_duration = std::chrono::milliseconds{5};
+
     // start Quill's async logging backend
     quill::Backend::start(backendOptn);
 
@@ -383,6 +386,10 @@ void initializeSyLogSystem(quill::LogLevel consoleLogLevel, const QString &logDi
     static IoxLogger ioxLogForwarder = IoxLogger();
     iox2::set_logger(ioxLogForwarder);
     iox2::set_log_level(consoleLogLevel <= quill::LogLevel::Debug ? iox2::LogLevel::Debug : iox2::LogLevel::Info);
+
+    // set log level for any statically initialized loggers
+    for (auto *logger : quill::Frontend::get_all_loggers())
+        logger->set_log_level(consoleLogLevel);
 }
 
 void shutdownSyLogSystem()
