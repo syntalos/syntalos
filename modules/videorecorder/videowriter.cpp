@@ -18,18 +18,23 @@
  */
 
 #include "videowriter.h"
+#include "videowriter_p.h"
 
 #include <QDateTime>
 #include <QFileInfo>
-#include <atomic>
+#include <QStringList>
 #include <algorithm>
+#include <atomic>
 #include <cmath>
+#include <cstdio>
 #include <fstream>
 #include <iostream>
+#include <optional>
 #include <queue>
 #include <string.h>
 #include <systemd/sd-device.h>
 #include <thread>
+#include <utility>
 #include <opencv2/opencv.hpp>
 extern "C" {
 #include <libavcodec/avcodec.h>
@@ -38,9 +43,12 @@ extern "C" {
 #include <libavutil/avconfig.h>
 #include <libavutil/avutil.h>
 #include <libavutil/imgutils.h>
+#include <libavutil/opt.h>
 #include <libavutil/pixdesc.h>
 #include <libswscale/swscale.h>
 }
+
+extern "C" const char *svt_av1_get_version() __attribute__((weak));
 
 #include "datactl/tsyncfile.h"
 #include "ffmpeg-utils.h"
@@ -152,16 +160,162 @@ static AVCodecID vw_codec_id_for(VideoCodec codec)
 /**
  * Find the software encoder that we use for the given codec.
  *
- * We only use SVT-AV1 for AV1 encoding, because it is much faster and even
- * produced better quality images while encoding live (aom-av1 is not really
- * suitable for live encoding tasks).
+ * Prefer the encoder implementations whose preset semantics CodecProperties
+ * describes, then preserve the previous generic FFmpeg lookup as a fallback.
+ * AV1 remains restricted to SVT-AV1 because libaom is unsuitable for the live
+ * encoding workload this module targets.
  */
+const AVCodec *VideoWriterPrivate::findSoftwareEncoder(
+    VideoCodec codec,
+    EncoderByNameFinder findByName,
+    EncoderByIdFinder findById)
+{
+    const char *preferredName = nullptr;
+    switch (codec) {
+    case VideoCodec::AV1:
+        // Unlike the other codecs, AV1 intentionally requires SVT-AV1. The
+        // generic fallback may select libaom, which is unsuitable for the live
+        // encoding workload this module targets.
+        return findByName("libsvtav1");
+    case VideoCodec::VP9:
+        preferredName = "libvpx-vp9";
+        break;
+    case VideoCodec::H264:
+        preferredName = "libx264";
+        break;
+    case VideoCodec::HEVC:
+        preferredName = "libx265";
+        break;
+    default:
+        break;
+    }
+
+    if (preferredName != nullptr) {
+        if (const auto *preferred = findByName(preferredName))
+            return preferred;
+    }
+    return findById(vw_codec_id_for(codec));
+}
+
 static const AVCodec *vw_find_sw_encoder(VideoCodec codec)
 {
-    const auto codecId = vw_codec_id_for(codec);
-    if (codecId == AV_CODEC_ID_AV1)
-        return avcodec_find_encoder_by_name("libsvtav1");
-    return avcodec_find_encoder(codecId);
+    return VideoWriterPrivate::findSoftwareEncoder(codec, avcodec_find_encoder_by_name, avcodec_find_encoder);
+}
+
+bool VideoWriterPrivate::encoderSupportsPreset(VideoCodec codec, const AVCodec *encoder)
+{
+    if (encoder == nullptr || encoder->name == nullptr)
+        return false;
+
+    switch (codec) {
+    case VideoCodec::AV1:
+        return strcmp(encoder->name, "libsvtav1") == 0;
+    case VideoCodec::VP9:
+        return strcmp(encoder->name, "libvpx-vp9") == 0;
+    case VideoCodec::H264:
+        return strcmp(encoder->name, "libx264") == 0;
+    case VideoCodec::HEVC:
+        return strcmp(encoder->name, "libx265") == 0;
+    default:
+        return false;
+    }
+}
+
+/**
+ * Return the user-facing range of an integer encoder option.
+ *
+ * FFmpeg builds the private option table against the encoder library version it
+ * supports, so this also accounts for option ranges that changed between codec
+ * library releases. Negative values are reserved for encoder defaults or debug
+ * modes and are intentionally not exposed in the settings dialog.
+ */
+static std::optional<std::pair<int, int>> vw_encoder_int_option_range(const AVCodec *codec, const char *name)
+{
+    if (codec == nullptr || codec->priv_class == nullptr)
+        return std::nullopt;
+
+    const AVClass *privClass = codec->priv_class;
+    const AVOption *option = av_opt_find(&privClass, name, nullptr, 0, AV_OPT_SEARCH_FAKE_OBJ);
+    if (option == nullptr || option->type != AV_OPT_TYPE_INT)
+        return std::nullopt;
+
+    const int minimum = std::max(0, static_cast<int>(option->min));
+    const int maximum = static_cast<int>(option->max);
+    if (maximum <= minimum)
+        return std::nullopt;
+
+    return std::pair{minimum, maximum};
+}
+
+/** Parse the first major.minor version embedded in a runtime version string. */
+static std::optional<std::pair<int, int>> vw_parse_version(const char *version)
+{
+    if (version == nullptr)
+        return std::nullopt;
+
+    while (*version != '\0') {
+        if (*version >= '0' && *version <= '9') {
+            int major = 0;
+            int minor = 0;
+            if (std::sscanf(version, "%d.%d", &major, &minor) == 2)
+                return std::pair{major, minor};
+        }
+        ++version;
+    }
+    return std::nullopt;
+}
+
+/**
+ * Return the effective SVT-AV1 preset range and default.
+ *
+ * FFmpeg's option range can include compatibility aliases from the SVT-AV1
+ * version against which it was built. Restrict that range using the loaded
+ * runtime version. FFmpeg also represents the library default as the sentinel
+ * -2, so select the corresponding numeric default here.
+ */
+VideoWriterPrivate::PresetConfig VideoWriterPrivate::svtAv1PresetConfig(
+    const char *runtimeVersion,
+    std::optional<std::pair<int, int>> optionRange)
+{
+    PresetConfig config{0, 13, 8};
+    if (optionRange) {
+        config.minimum = optionRange->first;
+        config.maximum = optionRange->second;
+    }
+
+    if (const auto version = vw_parse_version(runtimeVersion)) {
+        const auto [major, minor] = *version;
+        if (major >= 3) {
+            // SVT-AV1 3.0 removed another preset and made M10 the highest
+            // distinct random-access preset. Higher accepted values are
+            // compatibility aliases.
+            config.maximum = std::min(config.maximum, 10);
+        } else if (major == 2 && minor >= 3) {
+            // Since 2.3, M12 and M13 both map to M11.
+            config.maximum = std::min(config.maximum, 11);
+            config.defaultValue = 10;
+        }
+    }
+
+    config.defaultValue = config.clamp(config.defaultValue);
+    return config;
+}
+
+static const QStringList &vw_x26x_preset_names()
+{
+    static const QStringList names = {
+        QStringLiteral("placebo"),
+        QStringLiteral("veryslow"),
+        QStringLiteral("slower"),
+        QStringLiteral("slow"),
+        QStringLiteral("medium"),
+        QStringLiteral("fast"),
+        QStringLiteral("faster"),
+        QStringLiteral("veryfast"),
+        QStringLiteral("superfast"),
+        QStringLiteral("ultrafast"),
+    };
+    return names;
 }
 
 /**
@@ -280,6 +434,11 @@ public:
     int qualityMin;
     int qualityMax;
     int quality;
+    int presetMin;
+    int presetMax;
+    int preset;
+    bool presetExplicit;
+    QStringList presetNames;
 
     int bitrate;
 };
@@ -301,6 +460,10 @@ CodecProperties::CodecProperties(VideoCodec codec)
     d->quality = 0;
     d->qualityMin = 0;
     d->qualityMax = 0;
+    d->presetMin = 0;
+    d->presetMax = 0;
+    d->preset = 0;
+    d->presetExplicit = false;
     d->renderNode = QStringLiteral("/dev/dri/renderD128");
 
     switch (codec) {
@@ -333,6 +496,17 @@ CodecProperties::CodecProperties(VideoCodec codec)
         d->qualityMax = 0;
         d->qualityMin = 63;
 
+        if (const auto *encoder = vw_find_sw_encoder(codec);
+            VideoWriterPrivate::encoderSupportsPreset(codec, encoder)) {
+            const char *runtimeVersion = svt_av1_get_version == nullptr ? nullptr : svt_av1_get_version();
+            const auto config = VideoWriterPrivate::svtAv1PresetConfig(
+                runtimeVersion,
+                vw_encoder_int_option_range(encoder, "preset"));
+            d->presetMin = config.minimum;
+            d->presetMax = config.maximum;
+            d->preset = config.defaultValue;
+        }
+
         break;
 
     case VideoCodec::VP9:
@@ -345,6 +519,19 @@ CodecProperties::CodecProperties(VideoCodec codec)
         d->qualityMin = 63;
         d->bitrate = 128 * 1000;
 
+        if (const auto *encoder = vw_find_sw_encoder(codec);
+            VideoWriterPrivate::encoderSupportsPreset(codec, encoder)) {
+            // libvpx also accepts negative cpu-used values, but those are slower
+            // experimental modes rather than useful live-encoding presets.
+            d->presetMin = 0;
+            d->presetMax = 8;
+            if (const auto range = vw_encoder_int_option_range(encoder, "cpu-used")) {
+                d->presetMin = range->first;
+                d->presetMax = range->second;
+            }
+            d->preset = std::clamp(6, d->presetMin, d->presetMax);
+        }
+
         break;
 
     case VideoCodec::H264:
@@ -356,6 +543,12 @@ CodecProperties::CodecProperties(VideoCodec codec)
         d->qualityMax = 0;
         d->qualityMin = 51;
 
+        if (VideoWriterPrivate::encoderSupportsPreset(codec, vw_find_sw_encoder(codec))) {
+            d->presetNames = vw_x26x_preset_names();
+            d->presetMax = d->presetNames.size() - 1;
+            d->preset = d->presetNames.indexOf(QStringLiteral("medium"));
+        }
+
         break;
 
     case VideoCodec::HEVC:
@@ -366,6 +559,12 @@ CodecProperties::CodecProperties(VideoCodec codec)
         d->quality = 24;
         d->qualityMax = 0;
         d->qualityMin = 51;
+
+        if (VideoWriterPrivate::encoderSupportsPreset(codec, vw_find_sw_encoder(codec))) {
+            d->presetNames = vw_x26x_preset_names();
+            d->presetMax = d->presetNames.size() - 1;
+            d->preset = d->presetNames.indexOf(QStringLiteral("veryfast"));
+        }
 
         break;
 
@@ -401,6 +600,8 @@ CodecProperties::CodecProperties(const QVariantHash &v)
     setUseVaapi(v["use-vaapi"].toBool());
     setMode(static_cast<EncoderMode>(v["mode"].toInt()));
     setQuality(v["quality"].toInt());
+    if (hasPreset() && v.contains("preset"))
+        setPreset(v.value("preset").toInt());
     d->renderNode = v.value("render-node", QString()).toString();
 }
 
@@ -415,6 +616,8 @@ QVariantHash CodecProperties::toVariant() const
     v["use-vaapi"] = QVariant::fromValue(d->useVaapi);
     v["mode"] = QVariant::fromValue(static_cast<int>(d->mode));
     v["quality"] = QVariant::fromValue(d->quality);
+    if (hasPreset())
+        v["preset"] = QVariant::fromValue(d->preset);
     if (d->useVaapi)
         v["render-node"] = QVariant::fromValue(d->renderNode);
 
@@ -485,6 +688,14 @@ void CodecProperties::setLossless(bool enabled)
     case Option:
         d->lossless = enabled;
         break;
+    }
+
+    // Before presets were user-configurable, lossy HEVC explicitly used
+    // "veryfast", while lossless HEVC kept libx265's "medium" default. Preserve
+    // both defaults until the user or a saved setting selects a preset.
+    if (d->codec == VideoCodec::HEVC && hasPreset() && !d->presetExplicit) {
+        const auto presetName = d->lossless ? QStringLiteral("medium") : QStringLiteral("veryfast");
+        d->preset = d->presetNames.indexOf(presetName);
     }
 }
 
@@ -572,6 +783,42 @@ int CodecProperties::quality() const
 void CodecProperties::setQuality(int q)
 {
     d->quality = q;
+}
+
+bool CodecProperties::hasPreset() const
+{
+    return d->presetMax > d->presetMin;
+}
+
+int CodecProperties::presetMin() const
+{
+    return d->presetMin;
+}
+
+int CodecProperties::presetMax() const
+{
+    return d->presetMax;
+}
+
+int CodecProperties::preset() const
+{
+    return d->preset;
+}
+
+QString CodecProperties::presetDisplayName() const
+{
+    const int nameIndex = d->preset - d->presetMin;
+    if (nameIndex >= 0 && nameIndex < d->presetNames.size())
+        return d->presetNames.at(nameIndex);
+    return QString::number(d->preset);
+}
+
+void CodecProperties::setPreset(int preset)
+{
+    if (!hasPreset())
+        return;
+    d->preset = std::clamp(preset, d->presetMin, d->presetMax);
+    d->presetExplicit = true;
 }
 
 int CodecProperties::bitrateKbps() const
@@ -918,6 +1165,29 @@ void VideoWriter::initializeInternal()
     const bool useVaapi = d->codecProps.useVaapi();
     bool wantSvtAv1Lossless = false;
 
+    // The preset exposed in CodecProperties is codec-independent. Translation to
+    // the concrete encoder option remains here because not every encoder represents
+    // presets as an integer AVOption (x264/x265 use names, for example).
+    if (d->codecProps.hasPreset() && !useVaapi
+        && VideoWriterPrivate::encoderSupportsPreset(d->codecProps.codec(), vcodec)) {
+        switch (d->codecProps.codec()) {
+        case VideoCodec::AV1:
+            av_dict_set_int(&codecopts, "preset", d->codecProps.preset(), 0);
+            break;
+        case VideoCodec::VP9:
+            av_dict_set_int(&codecopts, "cpu-used", d->codecProps.preset(), 0);
+            break;
+        case VideoCodec::H264:
+        case VideoCodec::HEVC: {
+            const auto presetName = d->codecProps.presetDisplayName().toUtf8();
+            av_dict_set(&codecopts, "preset", presetName.constData(), 0);
+            break;
+        }
+        default:
+            break;
+        }
+    }
+
     // normalize the lossless setting first, so all rate-control decisions below
     // act on what we are actually going to do
     if (d->codecProps.codec() == VideoCodec::FFV1 || d->codecProps.codec() == VideoCodec::FFVHuff
@@ -1011,14 +1281,8 @@ void VideoWriter::initializeInternal()
         default:
             break;
         }
-    } else {
-        // not lossless
-
-        if (d->codecProps.codec() == VideoCodec::HEVC) {
-            d->cctx->gop_size = 32;
-            if (!useVaapi)
-                av_dict_set(&codecopts, "preset", "veryfast", 0);
-        }
+    } else if (d->codecProps.codec() == VideoCodec::HEVC) {
+        d->cctx->gop_size = 32;
     }
 
     if (d->codecProps.codec() == VideoCodec::VP9 && !useVaapi) {
@@ -1034,7 +1298,6 @@ void VideoWriter::initializeInternal()
 
         av_dict_set(&codecopts, "quality", "realtime", 0);
         av_dict_set(&codecopts, "deadline", "realtime", 0);
-        av_dict_set_int(&codecopts, "speed", 6, 0);
         av_dict_set_int(&codecopts, "tile-columns", 3, 0);
         av_dict_set_int(&codecopts, "frame-parallel", 1, 0);
         av_dict_set_int(&codecopts, "static-thresh", 0, 0);
