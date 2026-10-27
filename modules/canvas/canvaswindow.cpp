@@ -397,7 +397,7 @@ void CanvasWindow::updateHistogram()
     // Determine if we need to swap red and blue channels for correct histogram display.
     // The histogram widget expects RGB order, but we may have BGR data on desktop OpenGL.
     // Sadly, OpenCV provides no way to query the colorspace/order of a cv::Mat.
-#if defined(QT_OPENGL_ES)
+#if QT_CONFIG(opengles2)
     constexpr bool swapRedBlue = false; // GLES images are already converted to RGB
 #else
     constexpr bool swapRedBlue = true; // Desktop GL images are BGR, need to swap for display

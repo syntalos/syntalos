@@ -27,11 +27,10 @@
 #include <QSurfaceFormat>
 #include <opencv2/opencv.hpp>
 #include <cmath>
-#include <cstring>
 
 #include "fabric/logging.h"
 
-#if defined(QT_OPENGL_ES)
+#if QT_CONFIG(opengles2)
 #define USE_GLES 1
 #else
 #undef USE_GLES
@@ -98,14 +97,14 @@ class ImageViewWidget::Private
 {
 public:
     Private()
-        : highlightSaturation(false),
+        : imageChanged(false),
+          highlightSaturation(false),
           textureId(0),
           textureWidth(0),
           textureHeight(0),
           textureChannels(0),
           textureDepth(-1),
           textureDataType(GL_UNSIGNED_BYTE),
-          bytesPerElement(1),
           textureFormat(GL_RGB),
           textureInternalFormat(GL_RGB),
           lastAspectRatio(-1.0f),
@@ -113,18 +112,15 @@ public:
           lastBgColor(-1.0f, -1.0f, -1.0f, -1.0f),
           uniLocAspectRatio(-1),
           uniLocBgColor(-1),
-          uniLocShowSaturation(-1),
-          pboIndex(0),
-          pboSize(0),
-          pboReady(false)
+          uniLocShowSaturation(-1)
     {
-        pboIds[0] = pboIds[1] = 0;
     }
 
     ~Private() = default;
 
     QVector4D bgColorVec;
-    cv::Mat glImage; // Image reference (possibly color-converted on GLES)
+    cv::Mat glImage;   // Image reference (possibly color-converted on GLES)
+    bool imageChanged; // Whether glImage needs to be uploaded to the texture
 
     bool highlightSaturation;
 
@@ -141,7 +137,6 @@ public:
     int textureWidth, textureHeight, textureChannels;
     int textureDepth;       // OpenCV depth type of the current texture (e.g. CV_8U)
     GLenum textureDataType; // GL upload type matching textureDepth
-    int bytesPerElement;    // bytes per channel element: 1 for 8-bit, 2 for 16-bit
     GLenum textureFormat;
     GLenum textureInternalFormat;
 
@@ -153,17 +148,10 @@ public:
     int uniLocBgColor;
     int uniLocShowSaturation;
 
-    // Pixel Buffer Objects for async texture uploads
-    GLuint pboIds[2]; // Double buffering
-    int pboIndex;
-    size_t pboSize;
-    bool pboReady; // true once PBO[pboIndex] has been primed with valid data
-
     void setupTextureFormat(int channels, int depth)
     {
         const bool is16bit = (depth == CV_16U);
         textureDataType = is16bit ? GL_UNSIGNED_SHORT : GL_UNSIGNED_BYTE;
-        bytesPerElement = is16bit ? 2 : 1;
 
         // clang-format off
         // (formatter created buggy result for this section)
@@ -243,13 +231,6 @@ void ImageViewWidget::cleanupGL()
         d->textureChannels = 0;
         d->textureDepth = -1;
     }
-    if (d->pboIds[0] != 0) {
-        glDeleteBuffers(2, d->pboIds);
-        d->pboIds[0] = d->pboIds[1] = 0;
-        d->pboSize = 0;
-        d->pboIndex = 0;
-    }
-    d->pboReady = false;
 
     // Destroy the context-bound GL objects, they can not be carried over
     d->vao.reset();
@@ -295,7 +276,7 @@ void ImageViewWidget::initializeGL()
             this,
             QStringLiteral("Unable to initialize OpenGL"),
             QStringLiteral(
-                "Unable to compiler or link OpenGL shader or initialize vertex array object. Your system needs at "
+                "Unable to compile or link OpenGL shader or initialize vertex array object. Your system needs at "
                 "least OpenGL 4.1 or GLES 3.2 to run this application.\n"
                 "You may want to try to upgrade your graphics drivers, or check the application log for details."),
             QMessageBox::Ok);
@@ -321,12 +302,6 @@ void ImageViewWidget::initializeGL()
 
     d->vbo->release();
     d->vao->release();
-
-    // Initialize PBOs for async texture uploads (if supported)
-    d->pboIds[0] = d->pboIds[1] = 0;
-    if (context()->hasExtension("GL_ARB_pixel_buffer_object") || context()->format().majorVersion() >= 3) {
-        glGenBuffers(2, d->pboIds);
-    }
 
     // Cache uniform locations to avoid per-frame string lookups (glGetUniformLocation)
     d->uniLocAspectRatio = d->shaderProgram->uniformLocation("aspectRatio");
@@ -369,6 +344,7 @@ void ImageViewWidget::renderImage()
     const auto depth = d->glImage.depth();
 
     // Setup or recreate texture when dimensions, channel count, or bit-depth change
+    bool textureCreated = false;
     if (d->textureId == 0 || d->textureWidth != imgWidth || d->textureHeight != imgHeight
         || d->textureChannels != channels || d->textureDepth != depth) {
         if (d->textureId != 0)
@@ -411,87 +387,17 @@ void ImageViewWidget::renderImage()
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_SWIZZLE_B, GL_BLUE);
         }
 
-        // (Re-)allocate PBOs to match the new image size and data type
-        if (d->pboIds[0] != 0) {
-            const size_t dataSize = (size_t)imgWidth * imgHeight * channels * d->bytesPerElement;
-            d->pboSize = dataSize;
-            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[0]);
-            glBufferData(GL_PIXEL_UNPACK_BUFFER, dataSize, nullptr, GL_STREAM_DRAW);
-            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[1]);
-            glBufferData(GL_PIXEL_UNPACK_BUFFER, dataSize, nullptr, GL_STREAM_DRAW);
-            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-        }
-
-        // Force warm-up path on next upload so we never read from an uninitialised PBO
-        d->pboReady = false;
+        textureCreated = true;
     } else {
         glBindTexture(GL_TEXTURE_2D, d->textureId);
     }
 
-    // Upload texture data
-    // Set OpenGL unpack state to handle row stride
-    const int unpackRowLengthPx = static_cast<int>(d->glImage.step / d->glImage.elemSize());
-    glPixelStorei(GL_UNPACK_ROW_LENGTH, unpackRowLengthPx);
+    // Upload texture data only if we have a new image, other repaints (e.g. on resize) reuse the texture
+    if (d->imageChanged || textureCreated) {
+        // Set OpenGL unpack state to handle row stride
+        const int unpackRowLengthPx = static_cast<int>(d->glImage.step / d->glImage.elemSize());
+        glPixelStorei(GL_UNPACK_ROW_LENGTH, unpackRowLengthPx);
 
-    // PBO staging uses contiguous memcpy into the upload buffer; for non-contiguous
-    // Mats that would scramble rows. Fall back to direct upload in that case.
-    const bool usePboUpload = (d->pboIds[0] != 0) && d->glImage.isContinuous();
-    if (usePboUpload) {
-        if (!d->pboReady) {
-            // Warm-up: upload this frame directly so no garbage is shown, then fill PBO[0]
-            // so the regular double-buffered pipeline can start on the very next frame.
-            glTexSubImage2D(
-                GL_TEXTURE_2D,
-                0,
-                0,
-                0,
-                imgWidth,
-                imgHeight,
-                d->textureFormat,
-                d->textureDataType,
-                d->glImage.data);
-
-            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[0]);
-            auto *ptr = static_cast<GLubyte *>(glMapBufferRange(
-                GL_PIXEL_UNPACK_BUFFER,
-                0,
-                d->pboSize,
-                GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT));
-            if (ptr) {
-                std::memcpy(ptr, d->glImage.data, d->pboSize);
-                glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
-            }
-            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-            d->pboIndex = 0; // PBO[0] holds current frame; GPU will read it next frame
-            d->pboReady = true;
-        } else {
-            // Double-buffered async upload:
-            //   GPU reads the texture from readIdx (last frame's data written by CPU)
-            //   CPU simultaneously writes the new frame into writeIdx
-            const int readIdx = d->pboIndex;
-            const int writeIdx = 1 - d->pboIndex;
-
-            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[readIdx]);
-            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, imgWidth, imgHeight, d->textureFormat, d->textureDataType, nullptr);
-
-            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, d->pboIds[writeIdx]);
-            auto *ptr = static_cast<GLubyte *>(glMapBufferRange(
-                GL_PIXEL_UNPACK_BUFFER,
-                0,
-                d->pboSize,
-                GL_MAP_WRITE_BIT | GL_MAP_INVALIDATE_BUFFER_BIT | GL_MAP_UNSYNCHRONIZED_BIT));
-            if (ptr) {
-                std::memcpy(ptr, d->glImage.data, d->pboSize);
-                glUnmapBuffer(GL_PIXEL_UNPACK_BUFFER);
-            } else {
-                // Fallback if buffer mapping is unavailable
-                glBufferSubData(GL_PIXEL_UNPACK_BUFFER, 0, d->pboSize, d->glImage.data);
-            }
-            glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
-            d->pboIndex = writeIdx;
-        }
-    } else {
-        // Direct texture upload (no PBO support)
         glTexSubImage2D(
             GL_TEXTURE_2D,
             0,
@@ -502,6 +408,7 @@ void ImageViewWidget::renderImage()
             d->textureFormat,
             d->textureDataType,
             d->glImage.data);
+        d->imageChanged = false;
     }
 
     // Render
@@ -586,6 +493,7 @@ bool ImageViewWidget::showImage(const cv::Mat &mat)
     if (!d->glImage.isContinuous() || d->glImage.isSubmatrix())
         d->glImage = d->glImage.clone();
 
+    d->imageChanged = true;
     update();
     return true;
 }
