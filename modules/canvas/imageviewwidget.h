@@ -32,6 +32,15 @@ public:
 
 public slots:
     bool showImage(const cv::Mat &mat);
+
+    /**
+     * @brief The currently displayed image, as it is uploaded to the GPU.
+     *
+     * Its depth is 8-bit or 16-bit unsigned, and color images have 4 channels
+     * (BGRA on desktop OpenGL, RGBA on GLES).
+     * The returned matrix may share memory with an internal buffer that the next
+     * showImage() call overwrites, so clone it if you need to keep it.
+     */
     [[nodiscard]] cv::Mat currentImage() const;
 
     void setMinimumSize(const QSize &size);

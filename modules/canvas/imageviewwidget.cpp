@@ -119,7 +119,8 @@ public:
     ~Private() = default;
 
     QVector4D bgColorVec;
-    cv::Mat glImage;   // Image reference (possibly color-converted on GLES)
+    cv::Mat glImage;   // Image reference (possibly converted for upload)
+    cv::Mat bgraImage; // Reusable buffer for the BGRA version of 3-channel images
     bool imageChanged; // Whether glImage needs to be uploaded to the texture
 
     bool highlightSaturation;
@@ -448,10 +449,10 @@ bool ImageViewWidget::showImage(const cv::Mat &mat)
         return false;
 
 #ifdef USE_GLES
-    // On GLES, we need to convert BGR/BGRA to RGB/RGBA on the CPU
-    // since GLES doesn't support GL_BGR/GL_BGRA formats
+    // On GLES, we need to convert BGR/BGRA to RGBA on the CPU since GLES doesn't
+    // support GL_BGR/GL_BGRA formats (and GPUs have no 3-byte pixel format anyway)
     if (mat.channels() == 3) {
-        cv::cvtColor(mat, d->glImage, cv::COLOR_BGR2RGB);
+        cv::cvtColor(mat, d->glImage, cv::COLOR_BGR2RGBA);
     } else if (mat.channels() == 4) {
         cv::cvtColor(mat, d->glImage, cv::COLOR_BGRA2RGBA);
     } else {
@@ -485,6 +486,14 @@ bool ImageViewWidget::showImage(const cv::Mat &mat)
         } else if (depth != CV_8U && depth != CV_16U) {
             d->glImage.convertTo(d->glImage, CV_8U);
         }
+    }
+
+    // GPUs have no 3-byte pixel format, so drivers expand 3-channel images on upload, and at least
+    // Mesa does that with slow generic code. OpenCV's SIMD conversion is several times faster.
+    // This only appends an alpha channel and keeps the BGR channel order.
+    if (d->glImage.channels() == 3) {
+        cv::cvtColor(d->glImage, d->bgraImage, cv::COLOR_BGR2BGRA);
+        d->glImage = d->bgraImage;
     }
 #endif
 
