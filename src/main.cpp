@@ -28,6 +28,7 @@
 #include <QCommandLineParser>
 #include <QDBusConnection>
 #include <QDir>
+#include <QSurfaceFormat>
 #include <QTimer>
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wzero-as-null-pointer-constant"
@@ -72,6 +73,15 @@ int main(int argc, char *argv[])
 
     // Debugging: Tune the Glibc allocator parameters
     //! configureGlibcAllocator();
+
+#if !QT_CONFIG(opengles2)
+    // the shaders need OpenGL 4.1 in core profile, which some platforms only provide if requested
+    // explicitly. This must be set before QApplication exists, so context sharing keeps working.
+    QSurfaceFormat glFormat;
+    glFormat.setVersion(4, 1);
+    glFormat.setProfile(QSurfaceFormat::CoreProfile);
+    QSurfaceFormat::setDefaultFormat(glFormat);
+#endif
 
     // set up GUI application and application details
     QApplication app(argc, argv);
