@@ -1454,7 +1454,11 @@ void MainWindow::onModuleCreated(ModuleInfo *, AbstractModule *mod)
 void MainWindow::onElapsedTimeUpdate()
 {
     const auto elapsedTime = m_engine->currentRunElapsedTime();
-    ui->elapsedTimeLabel->setText(QTime::fromMSecsSinceStartOfDay(elapsedTime.count()).toString("hh:mm:ss"));
+    const auto elapsedSecs = std::chrono::duration_cast<std::chrono::seconds>(elapsedTime).count();
+    ui->elapsedTimeLabel->setText(QStringLiteral("%1:%2:%3")
+                                      .arg(elapsedSecs / 3600, 2, 10, QLatin1Char('0'))
+                                      .arg((elapsedSecs / 60) % 60, 2, 10, QLatin1Char('0'))
+                                      .arg(elapsedSecs % 60, 2, 10, QLatin1Char('0')));
 
     if (m_isIntervalRun) {
         // stop the current run in interval mode when its maximum runtime was reached
