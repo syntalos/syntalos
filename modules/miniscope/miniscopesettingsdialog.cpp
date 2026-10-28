@@ -30,11 +30,15 @@
 using namespace Syntalos;
 using namespace Miniscope;
 
-MiniscopeSettingsDialog::MiniscopeSettingsDialog(Miniscope::Miniscope *mscope, QWidget *parent)
+MiniscopeSettingsDialog::MiniscopeSettingsDialog(
+    Miniscope::Miniscope *mscope,
+    Syntalos::QuillLogger *logger,
+    QWidget *parent)
     : QDialog(parent),
       ui(new Ui::MiniscopeSettingsDialog),
       m_initDone(false),
-      m_mscope(mscope)
+      m_mscope(mscope),
+      m_log(logger)
 {
     ui->setupUi(this);
     setWindowIcon(QIcon(":/icons/generic-config"));
@@ -66,6 +70,11 @@ MiniscopeSettingsDialog::~MiniscopeSettingsDialog()
     delete ui;
 }
 
+void MiniscopeSettingsDialog::setLogger(Syntalos::QuillLogger *logger)
+{
+    m_log = logger;
+}
+
 void MiniscopeSettingsDialog::readCurrentValues()
 {
     ui->sbCamId->setValue(m_mscope->scopeCamId());
@@ -73,8 +82,10 @@ void MiniscopeSettingsDialog::readCurrentValues()
     ui->accAlphaSpinBox->setValue(m_mscope->bgAccumulateAlpha());
     setDeviceType(qstr(m_mscope->deviceType()));
 
-    for (const auto &w : m_controls)
-        w->setValue(m_mscope->controlValue(w->controlId()));
+    for (const auto &w : m_controls) {
+        if (const auto value = m_mscope->controlValue(w->controlId()))
+            w->setValue(*value);
+    }
 }
 
 void MiniscopeSettingsDialog::applyValues()
@@ -82,16 +93,25 @@ void MiniscopeSettingsDialog::applyValues()
     for (const auto &w : m_controls) {
         if (w->controlId() == "frameRate")
             continue;
-        m_mscope->setControlValue(w->controlId(), w->value());
+        if (const auto res = m_mscope->setControlValue(w->controlId(), w->value()); !res)
+            LOG_WARNING(m_log, "Unable to re-apply Miniscope control value: {}", res.error());
     }
+}
+
+Miniscope::Result MiniscopeSettingsDialog::submitValues()
+{
+    for (const auto &w : m_controls) {
+        if (const auto res = m_mscope->setControlValue(w->controlId(), w->value()); !res)
+            return res;
+    }
+
+    return {};
 }
 
 void MiniscopeSettingsDialog::setRunning(bool running)
 {
     m_mscope->setBgAccumulateAlpha(ui->accAlphaSpinBox->value());
     for (const auto &w : m_controls) {
-        if (running)
-            m_mscope->setControlValue(w->controlId(), w->value());
         if (w->controlId() == "frameRate")
             w->setEnabled(!running);
     }
@@ -151,7 +171,8 @@ void MiniscopeSettingsDialog::on_deviceTypeCB_currentIndexChanged(int index)
         const auto w = new MSControlWidget(ctl, ui->gbDeviceCtls);
         m_controlsLayout->insertWidget(0, w);
         connect(w, &MSControlWidget::valueChanged, [&](const QString &id, double value) {
-            m_mscope->setControlValue(id.toStdString(), value);
+            if (const auto res = m_mscope->setControlValue(id.toStdString(), value); !res)
+                LOG_WARNING(m_log, "Unable to change Miniscope control value: {}", res.error());
         });
         m_controls.append(w);
     }

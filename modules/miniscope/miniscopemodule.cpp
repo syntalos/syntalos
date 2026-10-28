@@ -41,7 +41,7 @@ private:
     std::shared_ptr<DataStream<SignalBlockF32>> m_bnoVecOut;
     std::shared_ptr<DataStream<TableRow>> m_bnoTabOut;
 
-    std::vector<float> m_lastOrientationVec;
+    std::optional<Quaternion> m_lastOrientation;
 
     QTimer *m_evTimer;
     std::unique_ptr<SecondaryClockSynchronizer> m_clockSync;
@@ -74,23 +74,23 @@ public:
         m_valChangeLogFile = new QFile();
 
         m_miniscope = new Miniscope::Miniscope();
-        m_settingsDialog = new MiniscopeSettingsDialog(m_miniscope);
+        m_settingsDialog = new MiniscopeSettingsDialog(m_miniscope, m_log);
         m_settingsDialog->setWindowIcon(modInfo->icon());
         addSettingsWindow(m_settingsDialog);
 
         m_miniscope->setScopeCamId(0);
         setName(name());
 
-        m_miniscope->setOnFrame(&on_newRawFrame, this);
-        m_miniscope->setOnDisplayFrame(&on_newDisplayFrame, this);
-        m_miniscope->setOnControlValueChange(&on_controlValueChanged, this);
+        m_miniscope->setOnFrame(std::bind_front(&MiniscopeModule::on_newRawFrame, this));
+        m_miniscope->setOnDisplayFrame(std::bind_front(&MiniscopeModule::on_newDisplayFrame, this));
+        m_miniscope->setOnControlValueChange(std::bind_front(&MiniscopeModule::on_controlValueChanged, this));
 
         m_evTimer = new QTimer(this);
         m_evTimer->setInterval(200);
         connect(m_evTimer, &QTimer::timeout, this, &MiniscopeModule::checkMSStatus);
 
         // show status messages
-        m_miniscope->setOnStatusMessage([&](const std::string &msg, void *) {
+        m_miniscope->setOnStatusMessage([&](const std::string &msg) {
             setStatusMessage(msg);
         });
     }
@@ -111,6 +111,13 @@ public:
         return ModuleFeature::SHOW_SETTINGS;
     }
 
+    std::expected<void, QString> initialize() override
+    {
+        // update dialog logger
+        m_settingsDialog->setLogger(m_log);
+        return AbstractModule::initialize();
+    }
+
     void setName(const QString &name) override
     {
         AbstractModule::setName(name);
@@ -127,6 +134,9 @@ public:
     {
         // do not accept any frames yet
         m_acceptFrames = false;
+
+        // forward the first orientation of this run, even if it equals the last one of the previous run
+        m_lastOrientation.reset();
 
         // obtain logfile location to write control change information to
         auto dstore = createDefaultDataset();
@@ -172,6 +182,10 @@ public:
 
         // re-apply previously adjusted control settings and disable
         // controls we don't want changed
+        if (const auto res = m_settingsDialog->submitValues(); !res) {
+            raiseError(res.error());
+            return false;
+        }
         m_settingsDialog->setRunning(true);
 
         // we need to set the framerate-related stuff after the miniscope has been started, so
@@ -235,94 +249,83 @@ public:
         AbstractModule::start();
     }
 
-    static void on_newRawFrame(
-        const cv::Mat &mat,
-        milliseconds_t &frameTime,
-        const milliseconds_t &masterRecvTime,
-        const milliseconds_t &deviceTime,
-        const std::vector<float> &orientation,
-        void *udata)
+    void on_newRawFrame(const RawFrame &rawFrame, milliseconds_t &frameTime)
     {
-        const auto self = static_cast<MiniscopeModule *>(udata);
-        if (!self->m_acceptFrames) {
-            self->m_acceptFrames = self->m_running ? self->m_miniscope->captureStartTimeInitialized() : false;
-            if (!self->m_acceptFrames)
+        if (!m_acceptFrames) {
+            m_acceptFrames = m_running ? m_miniscope->captureStartTimeInitialized() : false;
+            if (!m_acceptFrames)
                 return;
         }
         // use synchronizer to synchronize time
-        auto updatedFrameTime = std::chrono::duration_cast<microseconds_t>(masterRecvTime);
-        self->m_clockSync->processTimestamp(updatedFrameTime, deviceTime);
+        auto updatedFrameTime = std::chrono::duration_cast<microseconds_t>(rawFrame.masterTimestamp);
+        m_clockSync->processTimestamp(updatedFrameTime, rawFrame.deviceTimestamp);
         frameTime = usecToMsec(updatedFrameTime);
 
         // we don't want to forward dropped frames
-        if (mat.empty())
+        if (rawFrame.image.empty())
             return;
 
-        self->m_rawOut->push(Frame(mat, self->m_recFrameCount++, updatedFrameTime));
+        m_rawOut->push(Frame(rawFrame.image, m_recFrameCount++, updatedFrameTime));
 
-        if (orientation[4] < 0.05) {
-            if (self->m_lastOrientationVec == orientation)
-                return;
-            self->m_lastOrientationVec = orientation;
+        // the orientation is only set if the reading was valid, and we only forward changes
+        if (rawFrame.orientation && rawFrame.orientation != m_lastOrientation) {
+            m_lastOrientation = rawFrame.orientation;
+            const auto &q = *rawFrame.orientation;
 
-            if (self->m_bnoTabOut->isActive()) {
+            if (m_bnoTabOut->isActive()) {
                 const auto row = TableRow(
                     {numToString(updatedFrameTime.count()),
-                     numToString(orientation[0]),
-                     numToString(orientation[1]),
-                     numToString(orientation[2]),
-                     numToString(orientation[3])});
-                self->m_bnoTabOut->push(row);
+                     numToString(q.w),
+                     numToString(q.x),
+                     numToString(q.y),
+                     numToString(q.z)});
+                m_bnoTabOut->push(row);
             }
 
-            if (self->m_bnoVecOut->isActive()) {
+            if (m_bnoVecOut->isActive()) {
                 SignalBlockF32 sblock(1, 4);
                 sblock.timestamps(0, 0) = updatedFrameTime.count();
-                sblock.data(0, 0) = orientation[0];
-                sblock.data(0, 1) = orientation[1];
-                sblock.data(0, 2) = orientation[2];
-                sblock.data(0, 3) = orientation[3];
+                sblock.data(0, 0) = q.w;
+                sblock.data(0, 1) = q.x;
+                sblock.data(0, 2) = q.y;
+                sblock.data(0, 3) = q.z;
 
-                self->m_bnoVecOut->push(sblock);
+                m_bnoVecOut->push(sblock);
             }
         }
     }
 
-    static void on_newDisplayFrame(const cv::Mat &mat, const milliseconds_t &time, void *udata)
+    void on_newDisplayFrame(const cv::Mat &mat, const milliseconds_t &time)
     {
-        const auto self = static_cast<MiniscopeModule *>(udata);
-        if (!self->m_acceptFrames)
+        if (!m_acceptFrames)
             return;
-        self->m_dispOut->push(Frame(mat, msecToUsec(time)));
+        m_dispOut->push(Frame(mat, msecToUsec(time)));
     }
 
-    static void on_controlValueChanged(const std::string &id, double dispValue, double devValue, void *udata)
+    void on_controlValueChanged(const std::string &id, double dispValue, double devValue)
     {
-        const auto self = static_cast<MiniscopeModule *>(udata);
-        if (!self->m_valChangeLogFile->isOpen())
+        if (!m_valChangeLogFile->isOpen())
             return;
 
-        auto timestamp = self->m_syTimer->timeSinceStartMsec().count();
-        if (!self->m_running)
+        auto timestamp = m_syTimer->timeSinceStartMsec().count();
+        if (!m_running)
             timestamp = 0;
 
-        QTextStream tsout(self->m_valChangeLogFile);
+        QTextStream tsout(m_valChangeLogFile);
         tsout << timestamp << ";" << qstr(id) << ";" << dispValue << ";" << devValue << ";"
               << "\n";
     }
 
     void checkMSStatus()
     {
-        if (!m_miniscope->isRunning()) {
-            if (const auto error = m_miniscope->lastError()) {
-                raiseError(error.value());
-                m_evTimer->stop();
-                return;
-            }
+        // acquisition may have stopped on its own, find out why
+        if (const auto res = m_miniscope->runResult(); res && !*res) {
+            raiseError(res->error());
+            m_evTimer->stop();
+            return;
         }
-        statusMessage(QStringLiteral("FPS: %1 Dropped: %2")
-                          .arg(m_miniscope->currentFps())
-                          .arg(m_miniscope->droppedFramesCount()));
+        statusMessage(
+            QStringLiteral("FPS: %1 Dropped: %2").arg(m_miniscope->currentFps()).arg(m_miniscope->droppedFrameCount()));
         m_settingsDialog->setCurrentPixRangeValues(m_miniscope->minFluor(), m_miniscope->maxFluor());
     }
 

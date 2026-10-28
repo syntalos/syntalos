@@ -21,11 +21,10 @@
 
 #include <QDialog>
 #include <QList>
+#include <miniscope/miniscope.h>
 
-namespace Miniscope
-{
-class Miniscope;
-}
+#include "logging.h"
+
 class MSControlWidget;
 class QVBoxLayout;
 namespace Ui
@@ -38,11 +37,17 @@ class MiniscopeSettingsDialog : public QDialog
     Q_OBJECT
 
 public:
-    explicit MiniscopeSettingsDialog(Miniscope::Miniscope *mscope, QWidget *parent = nullptr);
+    explicit MiniscopeSettingsDialog(
+        Miniscope::Miniscope *mscope,
+        Syntalos::QuillLogger *logger,
+        QWidget *parent = nullptr);
     ~MiniscopeSettingsDialog();
+
+    void setLogger(Syntalos::QuillLogger *logger);
 
     void readCurrentValues();
     void applyValues();
+    Miniscope::Result submitValues();
     void setRunning(bool running);
 
     void setDeviceType(const QString &devType);
@@ -69,6 +74,7 @@ private:
     bool m_initDone;
     QString m_recName;
     Miniscope::Miniscope *m_mscope;
+    Syntalos::QuillLogger *m_log;
 
     QList<MSControlWidget *> m_controls;
     QVBoxLayout *m_controlsLayout;
