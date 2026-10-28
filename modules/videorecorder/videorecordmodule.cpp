@@ -635,6 +635,8 @@ public:
         settings.insert("bitrate_kbps", codecProps.bitrateKbps());
         settings.insert("quality", codecProps.quality());
         settings.insert("mode", CodecProperties::modeToString(codecProps.mode()));
+        if (codecProps.hasPreset())
+            settings.insert("preset", codecProps.preset());
         if (codecProps.useVaapi())
             settings.insert("render_node", codecProps.renderNode());
 
@@ -664,6 +666,8 @@ public:
         codecProps.setUseVaapi(settings.value("vaapi_enabled").toBool());
         codecProps.setBitrateKbps(settings.value("bitrate_kbps", codecProps.bitrateKbps()).toInt());
         codecProps.setQuality(settings.value("quality", codecProps.quality()).toInt());
+        if (codecProps.hasPreset() && settings.contains("preset"))
+            codecProps.setPreset(settings.value("preset").toInt());
         if (codecProps.useVaapi())
             codecProps.setRenderNode(settings.value("render_node").toString());
 
