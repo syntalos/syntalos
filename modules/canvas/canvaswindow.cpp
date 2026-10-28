@@ -185,8 +185,8 @@ CanvasWindow::CanvasWindow(QuillLogger *logger, QWidget *parent)
     // sensible default size
     resize(800, 600);
 
-    auto splitter = new QSplitter(this);
-    splitter->setOrientation(Qt::Vertical);
+    m_splitter = new QSplitter(this);
+    m_splitter->setOrientation(Qt::Vertical);
 
     m_histogramWidget = new HistogramWidget(this);
     m_histogramWidget->setMinimumHeight(50);
@@ -204,15 +204,15 @@ CanvasWindow::CanvasWindow(QuillLogger *logger, QWidget *parent)
     clayout->addStretch();
     container->setLayout(clayout);
 
-    splitter->addWidget(m_imgView);
-    splitter->addWidget(m_histogramWidget);
-    splitter->setStretchFactor(0, 4);
-    splitter->setStretchFactor(1, 8);
+    m_splitter->addWidget(m_imgView);
+    m_splitter->addWidget(m_histogramWidget);
+    m_splitter->setStretchFactor(0, 4);
+    m_splitter->setStretchFactor(1, 8);
 
     auto layout = new QVBoxLayout;
     layout->setContentsMargins(0, 0, 0, 0);
     layout->setSpacing(0);
-    layout->addWidget(splitter);
+    layout->addWidget(m_splitter);
     layout->addWidget(container);
     setLayout(layout);
 
@@ -230,6 +230,9 @@ CanvasWindow::CanvasWindow(QuillLogger *logger, QWidget *parent)
     m_histTimer = new QTimer(this);
     m_histTimer->setInterval(50);
     connect(m_histTimer, &QTimer::timeout, this, &CanvasWindow::updateHistogram);
+    connect(m_histLogarithmicCb, &QCheckBox::toggled, this, [this]() {
+        m_histNeedsUpdate = true;
+    });
 
     // construct tools overlay
     m_toolsOverlay = new ToolsOverlayWidget(this);
@@ -242,6 +245,7 @@ CanvasWindow::CanvasWindow(QuillLogger *logger, QWidget *parent)
     connect(m_toolsOverlay, &ToolsOverlayWidget::showHistogramChanged, this, [this](bool enabled) {
         m_histogramWidget->setVisible(enabled);
         if (enabled) {
+            m_histNeedsUpdate = true;
             m_histTimer->start();
         } else {
             m_histTimer->stop();
@@ -257,8 +261,8 @@ void CanvasWindow::setLogger(QuillLogger *logger)
 
 void CanvasWindow::showImage(const cv::Mat &mat)
 {
-    if (isVisible())
-        m_imgView->showImage(mat);
+    if (isVisible() && m_imgView->showImage(mat))
+        m_histNeedsUpdate = true;
 }
 
 void CanvasWindow::setStatusText(const QString &text)
@@ -313,6 +317,16 @@ void CanvasWindow::setHistogramLogarithmic(bool logarithmic)
     m_histLogarithmicCb->setChecked(logarithmic);
 }
 
+QByteArray CanvasWindow::histogramSplitterState() const
+{
+    return m_splitter->saveState();
+}
+
+void CanvasWindow::restoreHistogramSplitterState(const QByteArray &state)
+{
+    m_splitter->restoreState(state);
+}
+
 template<bool depth8, bool swapRedBlue>
 static void computeHistogram(const cv::Mat &image, Histograms *hists, bool grayscale, bool logarithmic = false)
 {
@@ -321,11 +335,9 @@ static void computeHistogram(const cv::Mat &image, Histograms *hists, bool grays
     if (!hists)
         return;
 
-    auto histRed = hists->red;
-    auto histGreen = hists->green;
-    auto histBlue = hists->blue;
-    for (int i = 0; i < 256; i++)
-        histRed[i] = histGreen[i] = histBlue[i] = 0;
+    // Count in integers and convert to float once: incrementing floats is slow when neighboring pixels
+    // share a value (as they do in flat image areas), and floats stop counting beyond 2^24 per bin
+    uint32_t counts[3][256] = {};
 
     const int h = image.rows;
     const int w = image.cols;
@@ -335,64 +347,50 @@ static void computeHistogram(const cv::Mat &image, Histograms *hists, bool grays
             auto imageLine = image.ptr<ImageType>(i);
             for (int j = 0; j < w; j++) {
                 uint8_t gray = depth8 ? imageLine[j] : imageLine[j] >> 8;
-                histRed[gray]++;
+                counts[0][gray]++;
             }
-        }
-        if (logarithmic) {
-            for (int i = 0; i < 256; i++)
-                histRed[i] = std::log2f(histRed[i] + 1.0f);
         }
     } else {
-        float *histograms[3];
-        if constexpr (swapRedBlue) {
-            // BGR input -> map to RGB 'histograms' array
-            histograms[0] = histBlue;
-            histograms[1] = histGreen;
-            histograms[2] = histRed;
-        } else {
-            // RGB input -> no channel swap needed
-            histograms[0] = histRed;
-            histograms[1] = histGreen;
-            histograms[2] = histBlue;
-        }
-
+        // pixels are `channels` elements apart, and we only read the first three (B, G, R),
+        // which skips the alpha value of 4-channel images.
+        // The channels are written out, because GCC does not unroll a loop over them at -O2 and is twice as slow then.
+        const int channels = image.channels();
         for (int i = 0; i < h; i++) {
-            auto imageLine = image.ptr<cv::Vec<ImageType, 3>>(i);
+            auto imageLine = image.ptr<ImageType>(i);
             for (int j = 0; j < w; j++) {
-                auto &pixel = imageLine[j];
-                for (int ch = 0; ch < 3; ch++) {
-                    uint8_t value = depth8 ? pixel[ch] : pixel[ch] >> 8;
-                    histograms[ch][value]++;
-                }
+                const auto pixel = imageLine + (j * channels);
+                counts[0][depth8 ? pixel[0] : pixel[0] >> 8]++;
+                counts[1][depth8 ? pixel[1] : pixel[1] >> 8]++;
+                counts[2][depth8 ? pixel[2] : pixel[2] >> 8]++;
             }
         }
-        if (logarithmic) {
-            for (auto *histogram : histograms) {
-                for (int i = 0; i < 256; i++)
-                    histogram[i] = std::log2f(histogram[i] + 1.0f);
-            }
-        }
+    }
+
+    // grayscale counts go to the red histogram, BGR input needs to be swapped to RGB
+    float *histograms[3] = {hists->red, hists->green, hists->blue};
+    if (swapRedBlue && !grayscale)
+        std::swap(histograms[0], histograms[2]);
+    for (int ch = 0; ch < 3; ch++) {
+        for (int i = 0; i < 256; i++)
+            histograms[ch][i] = logarithmic ? std::log2f(counts[ch][i] + 1.0f) : static_cast<float>(counts[ch][i]);
     }
 }
 
 void CanvasWindow::updateHistogram()
 {
-    auto hists = m_histogramWidget->unusedHistograms();
-    const auto image = m_imgView->currentImage();
+    // only count again if there is a new image, or the histogram was just enabled or switched to logarithmic
+    if (!m_histNeedsUpdate)
+        return;
 
+    const auto image = m_imgView->currentImage();
     if (image.empty())
         return;
+    m_histNeedsUpdate = false;
 
-    bool grayscale;
-    if (image.channels() == 1)
-        grayscale = true;
-    else if (image.channels() >= 3)
-        grayscale = false;
-    else
-        return;
-
+    // the image is in the format that was uploaded to the GPU: 8-bit or 16-bit unsigned, with 1 or 4 channels
+    const bool grayscale = image.channels() == 1;
     const bool logarithmic = m_histLogarithmicCb->isChecked();
-    const auto imageDepth = image.depth();
+    auto hists = m_histogramWidget->unusedHistograms();
 
     // Determine if we need to swap red and blue channels for correct histogram display.
     // The histogram widget expects RGB order, but we may have BGR data on desktop OpenGL.
@@ -403,14 +401,10 @@ void CanvasWindow::updateHistogram()
     constexpr bool swapRedBlue = true; // Desktop GL images are BGR, need to swap for display
 #endif
 
-    if (imageDepth == CV_8U || imageDepth == CV_8S) {
+    if (image.depth() == CV_8U)
         computeHistogram<true, swapRedBlue>(image, hists, grayscale, logarithmic);
-    } else if (imageDepth == CV_16U || imageDepth == CV_16S) {
+    else
         computeHistogram<false, swapRedBlue>(image, hists, grayscale, logarithmic);
-    } else {
-        m_histTimer->stop();
-        LOG_WARNING(m_log, "Unsupported image format for histogram computation, disabling rendering.");
-    }
 
     m_histogramWidget->swapHistograms(grayscale);
 }

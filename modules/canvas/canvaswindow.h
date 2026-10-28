@@ -28,6 +28,7 @@ class ImageViewWidget;
 class ToolsOverlayWidget;
 class HistogramWidget;
 class QLabel;
+class QSplitter;
 class QTimer;
 class QCheckBox;
 
@@ -61,6 +62,12 @@ public:
     bool histogramLogarithmic() const;
     void setHistogramLogarithmic(bool logarithmic);
 
+    /**
+     * @brief State of the splitter between image and histogram, from QSplitter::saveState().
+     */
+    QByteArray histogramSplitterState() const;
+    void restoreHistogramSplitterState(const QByteArray &state);
+
 protected:
     void enterEvent(QEnterEvent *event) override;
     void leaveEvent(QEvent *event) override;
@@ -74,7 +81,9 @@ private:
     ToolsOverlayWidget *m_toolsOverlay;
     QuillLogger *m_log;
 
+    QSplitter *m_splitter;
     QTimer *m_histTimer;
     QCheckBox *m_histLogarithmicCb;
     HistogramWidget *m_histogramWidget;
+    bool m_histNeedsUpdate = false;
 };

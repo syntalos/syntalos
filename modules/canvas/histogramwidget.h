@@ -39,12 +39,9 @@ public:
     Histograms *unusedHistograms();
     void swapHistograms(bool grayscale);
 
-public slots:
-    void setLogarithmic(bool logarithmic);
-
 private:
     QIcon idleImageIcon;
-    bool indexed, logarithmic, idle;
+    bool indexed, idle;
     Histograms histograms1, histograms2;
     Histograms *unusedHists;
     float *histRed, *histGreen, *histBlue;

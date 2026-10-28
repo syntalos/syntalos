@@ -259,12 +259,20 @@ public:
     {
         settings.insert("highlight_saturation", m_cvView->highlightSaturation());
         settings.insert("histogram_visible", m_cvView->histogramVisible());
+        settings.insert("histogram_logarithmic", m_cvView->histogramLogarithmic());
+        if (m_cvView->histogramVisible())
+            settings.insert(
+                "histogram_splitter_state",
+                QString::fromUtf8(m_cvView->histogramSplitterState().toBase64()));
     }
 
     bool loadSettings(const QString &, const QVariantHash &settings, const QByteArray &) override
     {
         m_cvView->setHighlightSaturation(settings.value("highlight_saturation", false).toBool());
         m_cvView->setHistogramVisible(settings.value("histogram_visible", false).toBool());
+        m_cvView->setHistogramLogarithmic(settings.value("histogram_logarithmic", false).toBool());
+        m_cvView->restoreHistogramSplitterState(
+            QByteArray::fromBase64(settings.value("histogram_splitter_state").toString().toUtf8()));
 
         return true;
     }

@@ -31,7 +31,6 @@ HistogramWidget::HistogramWidget(QWidget *parent)
       histBlue(histograms1.blue)
 {
     indexed = true;
-    logarithmic = false;
 
     QStyleOption opt;
     opt.initFrom(this);
@@ -40,11 +39,6 @@ HistogramWidget::HistogramWidget(QWidget *parent)
 
     idleImageIcon = QIcon::fromTheme("histogram-symbolic");
     setIdle();
-}
-
-void HistogramWidget::setLogarithmic(bool logarithmic_)
-{
-    logarithmic = logarithmic_;
 }
 
 void HistogramWidget::setIdle()
@@ -84,10 +78,13 @@ void HistogramWidget::paintGL()
     }
 
     float wUnit = rect().width() / 256.;
-    QPointF origin = rect().bottomLeft();
+    // QRect::bottom() is the last pixel row, but the bars need to extend to the widget's bottom edge
+    QPointF origin = QRectF(rect()).bottomLeft();
+
+    // no outline, so the bars cover exactly their bins and translucent bars don't overlap at their edges
+    painter.setPen(Qt::NoPen);
 
     if (indexed) {
-        painter.setPen(foregroundBrush.color());
         painter.setBrush(foregroundBrush);
 
         float max = 0;
@@ -114,7 +111,6 @@ void HistogramWidget::paintGL()
                     max = histograms[c][i];
         }
         for (int c = 0; c < 3; c++) {
-            painter.setPen(colors[c]);
             painter.setBrush(colors[c]);
 
             float hUnit = rect().height() / max;
