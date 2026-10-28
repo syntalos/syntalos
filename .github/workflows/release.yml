@@ -205,3 +205,6 @@ jobs:
                       asset
                   ], check=True, cwd=os.path.join(workspace))
           EOF
+
+      - name: Prune old package versions
+        run: python3 tests/ci/cloudsmith-prune.py --delete syntalos/syntalos
