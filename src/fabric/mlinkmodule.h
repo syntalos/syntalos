@@ -144,6 +144,7 @@ protected:
 
 private:
     void resetConnection();
+    bool sendModuleName(bool timeoutIsError = true);
     bool sendSettings();
 
     bool registerOutPortForwarders();

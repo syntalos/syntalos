@@ -298,6 +298,8 @@ private:
     ShowSettingsFn m_showSettingsFn;
     ShowDisplayFn m_showDisplayFn;
 
+    ModuleNameChangedFn m_moduleNameChangedFn;
+
 public:
     /**
      * Standalone mode: creates and owns a new SyntalosLink.
@@ -374,6 +376,8 @@ public:
 
         m_slink->setShowSettingsCallback(nullptr);
         m_slink->setShowDisplayCallback(nullptr);
+
+        m_slink->setModuleNameChangedCallback(nullptr);
 
         // In standalone mode, destroy the SyntalosLink now (while interpreter is valid).
         // In pyworker mode m_ownedSLink is empty, so this is a no-op.
@@ -515,6 +519,34 @@ public:
     auto onShowDisplay()
     {
         return m_showDisplayFn;
+    }
+
+    void setOnModuleNameChanged(ModuleNameChangedFn fn)
+    {
+        m_moduleNameChangedFn = std::move(fn);
+        if (!m_moduleNameChangedFn) {
+            m_slink->setModuleNameChangedCallback(nullptr);
+            return;
+        }
+
+        m_slink->setModuleNameChangedCallback([this](const std::string &name) {
+            try {
+                m_moduleNameChangedFn(name);
+            } catch (py::error_already_set &e) {
+                if (!handlePyError(m_slink, e))
+                    throw;
+            }
+        });
+    }
+
+    auto onModuleNameChanged()
+    {
+        return m_moduleNameChangedFn;
+    }
+
+    std::string moduleName()
+    {
+        return m_slink->moduleName();
     }
 
     void setOnSaveSettings(PySaveSettingsFn fn)
@@ -1754,7 +1786,10 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "is_ephemeral",
             &LinkRunInfo::isEphemeral,
             "True if this run is temporary and all of its data will be discarded afterwards.")
-        .def_readonly("module_name", &LinkRunInfo::moduleName, "The user-visible name of this module.");
+        .def_readonly(
+            "module_name",
+            &LinkRunInfo::moduleName,
+            "The user-visible name of this module.");
 
     py::class_<PySyLinkManager>(m, "SyntalosLink", "Manages the connection to Syntalos.")
         .def_property(
@@ -1796,6 +1831,17 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "Register a callback invoked when the user opens the module display window.\n"
             "\n"
             "Type: ``Callable[[], None] | None``.")
+        .def_property(
+            "on_module_name_changed",
+            &PySyLinkManager::onModuleNameChanged,
+            &PySyLinkManager::setOnModuleNameChanged,
+            "Register a callback invoked when the user-defined name of this module changes.\n"
+            "\n"
+            "Syntalos sends the name right after the module finished initializing, and again whenever\n"
+            "the user renames the module. The callback receives the new name.\n"
+            "It is not invoked on registration, read :attr:`module_name` for the current name.\n"
+            "\n"
+            "Type: ``Callable[[str], None] | None``.")
         .def_property(
             "on_save_settings",
             &PySyLinkManager::onSaveSettings,
@@ -1853,6 +1899,15 @@ PYBIND11_MODULE(syntalos_mlink, m)
             ":return: An :class:`OutputPort` handle.\n"
             ":rtype: OutputPort")
 
+        .def_property_readonly(
+            "module_name",
+            &PySyLinkManager::moduleName,
+            "The user-defined name of this module, as shown in Syntalos.\n"
+            "\n"
+            "Empty until Syntalos has sent it, which happens right after the module finished initializing\n"
+            "(once it entered :meth:`await_data_forever` or called :meth:`signal_idle`).\n"
+            "\n"
+            ":rtype: str")
         .def_property_readonly(
             "is_running",
             &PySyLinkManager::isRunning,

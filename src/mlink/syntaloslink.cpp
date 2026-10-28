@@ -389,6 +389,7 @@ public:
         srvSaveSettings.emplace(makeSliceServer<IoxByteSlice>(*node, svcName(SAVE_SETTINGS_CALL_ID)));
         srvLoadSettings.emplace(makeSliceServer(*node, svcName(LOAD_SETTINGS_CALL_ID)));
         srvPrepareRun.emplace(makeSliceServer(*node, svcName(PREPARE_RUN_CALL_ID)));
+        srvSetModuleName.emplace(makeSliceServer(*node, svcName(SET_MODULE_NAME_CALL_ID)));
 
         // control event notifications
         masterCtlEventListener.emplace(makeEventListener(*node, svcName(MASTER_CTL_EVENT_ID)));
@@ -427,6 +428,7 @@ public:
     std::optional<IoxUntypedReqResServer> srvSaveSettings;
     std::optional<IoxUntypedReqServer> srvLoadSettings;
     std::optional<IoxUntypedReqServer> srvPrepareRun;
+    std::optional<IoxUntypedReqServer> srvSetModuleName;
 
     std::optional<IoxServer<ShowDisplayRequest, DoneResponse>> srvShowDisplay;
     std::optional<IoxServer<ShowSettingsRequest, DoneResponse>> srvShowSettings;
@@ -452,6 +454,7 @@ public:
     std::vector<std::shared_ptr<OutputPortInfo>> outPortInfo;
     std::shared_ptr<SyncTimer> syTimer;
     LinkRunInfo runInfo;
+    std::string moduleName;
     bool allowAsyncStart = true;
 
     LoadScriptFn loadScriptCb;
@@ -463,6 +466,7 @@ public:
     ShutdownFn shutdownCb;
     ShowSettingsFn showSettingsCb;
     ShowDisplayFn showDisplayCb;
+    ModuleNameChangedFn moduleNameChangedCb;
 
     bool shutdownPending; /// Set to true if we received a shutdown request and are expected to handle no more events.
 
@@ -741,6 +745,11 @@ SyntalosLink::~SyntalosLink() = default;
 std::string SyntalosLink::instanceId() const
 {
     return d->modId;
+}
+
+std::string SyntalosLink::moduleName() const
+{
+    return d->moduleName;
 }
 
 void SyntalosLink::raiseError(const std::string &title, const std::string &message)
@@ -1051,7 +1060,7 @@ void SyntalosLink::processPendingControl()
         d->runInfo.subject.group = prepReq.subjectGroup;
         d->runInfo.experimentId = prepReq.experimentId;
         d->runInfo.isEphemeral = prepReq.isEphemeral;
-        d->runInfo.moduleName = prepReq.moduleName;
+        d->runInfo.moduleName = d->moduleName;
         if (!prepReq.edlRootPath.empty()) {
             const fs::path rootPath(prepReq.edlRootPath);
             auto rootGroup = std::make_shared<EDLGroup>(rootPath.filename().string());
@@ -1174,6 +1183,23 @@ void SyntalosLink::processPendingControl()
         Private::replyDone(*req, true);
         if (d->showSettingsCb)
             d->showSettingsCb();
+    }
+
+    // ---- SetModuleName ----
+    while (true) {
+        auto req = safeReceive(*d->srvSetModuleName);
+        if (!req.has_value())
+            break;
+        const auto pl = req->payload();
+        auto newName = SetModuleNameRequest::fromMemory(pl.data(), pl.number_of_bytes()).name;
+        Private::replyDoneSlice(*req, true);
+
+        // the name may be sent again unchanged, so only notify about actual changes
+        if (newName == d->moduleName)
+            continue;
+        d->moduleName = std::move(newName);
+        if (d->moduleNameChangedCb)
+            d->moduleNameChangedCb(d->moduleName);
     }
 }
 
@@ -1482,6 +1508,11 @@ void SyntalosLink::setShowSettingsCallback(ShowSettingsFn callback)
 void SyntalosLink::setShowDisplayCallback(ShowDisplayFn callback)
 {
     d->showDisplayCb = std::move(callback);
+}
+
+void SyntalosLink::setModuleNameChangedCallback(ModuleNameChangedFn callback)
+{
+    d->moduleNameChangedCb = std::move(callback);
 }
 
 std::vector<std::shared_ptr<InputPortInfo>> SyntalosLink::inputPorts() const

@@ -76,6 +76,7 @@ void PyWorker::resetPyCallbacks()
 {
     m_link->setShowDisplayCallback(nullptr);
     m_link->setShowSettingsCallback(nullptr);
+    m_link->setModuleNameChangedCallback(nullptr);
 
     for (const auto &iport : m_link->inputPorts())
         iport->setNewDataRawCallback(nullptr);

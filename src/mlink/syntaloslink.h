@@ -46,6 +46,7 @@ using NewDataFn = std::function<void(BaseDataType &data)>;
 
 using ShowSettingsFn = std::function<void(void)>;
 using ShowDisplayFn = std::function<void(void)>;
+using ModuleNameChangedFn = std::function<void(const std::string &name)>;
 
 /**
  * @brief Reference for an input port
@@ -185,7 +186,7 @@ struct LinkRunInfo {
     TestSubjectInfo subject;             /// The test subject this run is for
     std::string experimentId;            /// The (final, with placeholders expanded) experiment identifier
     bool isEphemeral = false;            /// True if this run is temporary and will store no persistent data
-    std::string moduleName;              /// User-provided module name
+    std::string moduleName;              /// User-provided module name, as it was when the run was prepared
     std::shared_ptr<EDLGroup> rootGroup; /// EDL tree root for data storage for the current run
 };
 
@@ -202,6 +203,13 @@ public:
 
     [[nodiscard]] std::string instanceId() const;
 
+    /**
+     * @brief The user-defined name of this module.
+     *
+     * Empty until Syntalos has sent it, which happens right after the module was initialized.
+     */
+    [[nodiscard]] std::string moduleName() const;
+
     void raiseError(const std::string &message);
     void raiseError(const std::string &title, const std::string &message);
 
@@ -215,6 +223,11 @@ public:
 
     void setShowSettingsCallback(ShowSettingsFn callback);
     void setShowDisplayCallback(ShowDisplayFn callback);
+
+    /**
+     * @brief Called when Syntalos sends the module name, initially and whenever the user renames the module.
+     */
+    void setModuleNameChangedCallback(ModuleNameChangedFn callback);
 
     [[nodiscard]] std::shared_ptr<SyncTimer> timer() const;
 

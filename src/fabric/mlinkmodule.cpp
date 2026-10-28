@@ -53,8 +53,8 @@ static auto safeReceive(Sub &sub) -> std::remove_cvref_t<decltype(sub.receive().
 
 enum class IpcCallFlag {
     None = 0x0,
-    TimeoutIsError = 0x1, /// Treat timeouts as an error
-    SkipWaitOnError = 0x2 /// Do not wait for a response if the module is in an error state
+    TimeoutIsError = 0x1, ///< Treat timeouts as an error
+    SkipWaitOnError = 0x2 ///< Do not wait for a response if the module is in an error state
 };
 Q_DECLARE_FLAGS(IpcCallFlags, IpcCallFlag)
 Q_DECLARE_OPERATORS_FOR_FLAGS(IpcCallFlags)
@@ -619,6 +619,7 @@ public:
     QHash<std::string, MetaStringMap> sentMetadata;
 
     LoadSettingsRequest settingsReq;
+    bool moduleNameApplied = false; // True if the worker acknowledged the current module name
 
     bool portChangesAllowed = true;
     QHash<std::string, std::shared_ptr<VarStreamInputPort>> inPortIdMap;
@@ -1079,6 +1080,13 @@ MLinkModule::MLinkModule(QObject *parent)
             }
         });
 
+    // the worker may show the module name, e.g. in its window titles. A busy worker must not
+    // fail the module on rename, prepare() sends the name again if it did not arrive.
+    connect(this, &AbstractModule::nameChanged, this, [this]() {
+        if (isProcessRunning() && !sendModuleName(false))
+            LOG_ERROR(m_log, "Worker did not acknowledge the new module name, will resend it on prepare");
+    });
+
     d->ctlEventTimer = new QTimer(this);
     d->ctlEventTimer->setInterval(100);
     connect(d->ctlEventTimer, &QTimer::timeout, this, [this]() {
@@ -1326,6 +1334,20 @@ bool MLinkModule::setScriptFromFile(const QString &fname, const QString &wdir)
     return true;
 }
 
+bool MLinkModule::sendModuleName(bool timeoutIsError)
+{
+    d->moduleNameApplied = false;
+    if (!isProcessRunning())
+        return false;
+    d->moduleNameApplied = d->callSliceClientSimple(
+        this,
+        SET_MODULE_NAME_CALL_ID,
+        SetModuleNameRequest{.name = name().toStdString()},
+        5,
+        timeoutIsError ? IpcCallFlag::TimeoutIsError : IpcCallFlag::None);
+    return d->moduleNameApplied;
+}
+
 bool MLinkModule::sendSettings()
 {
     if (d->settingsReq.data.empty())
@@ -1554,8 +1576,9 @@ bool MLinkModule::runProcess()
     if (state() != ModuleState::ERROR)
         setState(prevState);
 
-    // send settings to the worker, if we have any (might be the case if we are trying
-    // to resurrect a crashed worker)
+    // tell the worker who it is, and send settings if we have any
+    // (which might be the case if we are trying to resurrect a crashed worker)
+    sendModuleName();
     sendSettings();
 
     // Keep control events flowing while the worker is alive and no module run thread is active.
@@ -1824,6 +1847,10 @@ bool MLinkModule::prepare(const RunInfo &info)
     if (!sendPortInformation())
         return false;
 
+    // a rename may not have reached a busy worker, so ensure the run uses the current name
+    if (!d->moduleNameApplied && !sendModuleName())
+        return false;
+
     // set the script to be run, if any exists and we are using a transient worker
     // (for persistent workers, the script has already been loaded in initialize())
     // resetPorts is NOT requested here: the worker keeps the ports that sendPortInformation()
@@ -1845,7 +1872,6 @@ bool MLinkModule::prepare(const RunInfo &info)
         .experimentId = info.experimentId.toStdString(),
         .isEphemeral = info.isEphemeral,
         .edlRootPath = sg ? sg->path().string() : std::string{},
-        .moduleName = name().toStdString(),
     };
     if (!d->callSliceClientSimple(
             this,

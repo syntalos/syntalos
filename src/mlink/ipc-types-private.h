@@ -514,6 +514,32 @@ struct LoadSettingsRequest {
 static const std::string LOAD_SETTINGS_CALL_ID = "LoadSettings";
 
 /**
+ * Tell the module its user-defined name.
+ * Sent once the worker is up, and again whenever the module is renamed
+ * (or before a run, if the previous attempt did not reach the worker).
+ */
+struct SetModuleNameRequest {
+    std::string name;
+
+    [[nodiscard]] ByteVector toBytes() const
+    {
+        ByteVector bytes;
+        BinaryStreamWriter stream(bytes);
+        stream.write(name);
+        return bytes;
+    }
+
+    static SetModuleNameRequest fromMemory(const void *memory, size_t size)
+    {
+        SetModuleNameRequest req;
+        BinaryStreamReader stream(memory, size);
+        stream.read(req.name);
+        return req;
+    }
+};
+static const std::string SET_MODULE_NAME_CALL_ID = "SetModuleName";
+
+/**
  * Request to prepare the module for the upcoming run.
  * This makes the module enter the PREPARING stage.
  */
@@ -524,7 +550,6 @@ struct PrepareRunRequest {
     std::string experimentId;
     bool isEphemeral = false;
     std::string edlRootPath;
-    std::string moduleName;
 
     [[nodiscard]] ByteVector toBytes() const
     {
@@ -536,7 +561,6 @@ struct PrepareRunRequest {
         stream.write(experimentId);
         stream.write(isEphemeral);
         stream.write(edlRootPath);
-        stream.write(moduleName);
         return bytes;
     }
 
@@ -550,7 +574,6 @@ struct PrepareRunRequest {
         stream.read(req.experimentId);
         stream.read(req.isEphemeral);
         stream.read(req.edlRootPath);
-        stream.read(req.moduleName);
         return req;
     }
 };
