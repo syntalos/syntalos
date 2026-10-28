@@ -31,6 +31,7 @@ class QLabel;
 class QSplitter;
 class QTimer;
 class QCheckBox;
+class QCloseEvent;
 
 using namespace Syntalos;
 
@@ -76,6 +77,7 @@ public:
     void restoreHistogramSplitterState(const QByteArray &state);
 
 protected:
+    void closeEvent(QCloseEvent *event) override;
     void enterEvent(QEnterEvent *event) override;
     void leaveEvent(QEvent *event) override;
 

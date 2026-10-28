@@ -19,6 +19,7 @@
 
 #include "latencycanvas.h"
 
+#include <QCloseEvent>
 #include <QTimer>
 #include <algorithm>
 #include <cmath>
@@ -80,6 +81,13 @@ LatencyCanvas::~LatencyCanvas()
 
     if (haveGlCtx)
         doneCurrent();
+}
+
+void LatencyCanvas::closeEvent(QCloseEvent *event)
+{
+    // Do not leave this context bound to the GLX drawable that close destroys.
+    doneCurrent();
+    QOpenGLWidget::closeEvent(event);
 }
 
 void LatencyCanvas::setRunning(bool running)

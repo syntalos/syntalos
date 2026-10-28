@@ -22,6 +22,8 @@
 #include <QOpenGLWidget>
 #include <QOpenGLExtraFunctions>
 
+class QCloseEvent;
+
 /**
  * @brief Live-updating latency histogram
  *
@@ -48,6 +50,7 @@ public:
     void setBinCount(int bins);
 
 protected:
+    void closeEvent(QCloseEvent *event) override;
     void initializeGL() override;
     void paintGL() override;
 
