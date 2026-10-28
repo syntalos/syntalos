@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -261,8 +261,24 @@ void CanvasWindow::setLogger(QuillLogger *logger)
 
 void CanvasWindow::showImage(const cv::Mat &mat)
 {
-    if (isVisible() && m_imgView->showImage(mat))
+    if (!isVisible())
+        return;
+
+    if (m_imgView->showImage(mat)) {
         m_histNeedsUpdate = true;
+    } else if (!mat.empty() && !m_unsupportedImageWarned) {
+        // non-empty images are only rejected if we have no texture format for their channel count
+        LOG_WARNING(
+            m_log,
+            "Can not display images with {} channels, only grayscale, BGR and BGRA images are supported.",
+            mat.channels());
+        m_unsupportedImageWarned = true;
+    }
+}
+
+void CanvasWindow::resetWarnings()
+{
+    m_unsupportedImageWarned = false;
 }
 
 void CanvasWindow::setStatusText(const QString &text)

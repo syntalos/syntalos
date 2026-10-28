@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2024 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -46,6 +46,13 @@ public:
     void setStatusText(const QString &text);
 
     /**
+     * @brief Warn again about the next image that can not be displayed.
+     *
+     * We only warn once about unsupported images, to not flood the log.
+     */
+    void resetWarnings();
+
+    /**
      * @brief Refresh rate (in Hz) of the screen this window currently lives on.
      *
      * Falls back to 60 Hz if the value can not be determined, and is clamped to
@@ -86,4 +93,5 @@ private:
     QCheckBox *m_histLogarithmicCb;
     HistogramWidget *m_histogramWidget;
     bool m_histNeedsUpdate = false;
+    bool m_unsupportedImageWarned = false;
 };

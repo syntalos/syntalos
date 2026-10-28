@@ -448,6 +448,11 @@ bool ImageViewWidget::showImage(const cv::Mat &mat)
     if (mat.empty())
         return false;
 
+    // we only have texture formats for grayscale, BGR and BGRA images
+    const auto channels = mat.channels();
+    if (channels != 1 && channels != 3 && channels != 4)
+        return false;
+
 #ifdef USE_GLES
     // On GLES, we need to convert BGR/BGRA to RGBA on the CPU since GLES doesn't
     // support GL_BGR/GL_BGRA formats (and GPUs have no 3-byte pixel format anyway)

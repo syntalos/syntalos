@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2019-2025 Matthias Klumpp <matthias@tenstral.net>
+ * Copyright (C) 2019-2026 Matthias Klumpp <matthias@tenstral.net>
  *
  * Licensed under the GNU Lesser General Public License Version 3
  *
@@ -103,6 +103,7 @@ public:
         m_lastStatusUpdateTime = currentTimePoint();
         m_currentDisplayFps = 60.0;
         m_paused = false;
+        m_cvView->resetWarnings();
 
         return true;
     }
