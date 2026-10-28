@@ -1786,10 +1786,7 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "is_ephemeral",
             &LinkRunInfo::isEphemeral,
             "True if this run is temporary and all of its data will be discarded afterwards.")
-        .def_readonly(
-            "module_name",
-            &LinkRunInfo::moduleName,
-            "The user-visible name of this module.");
+        .def_readonly("module_name", &LinkRunInfo::moduleName, "The user-visible name of this module.");
 
     py::class_<PySyLinkManager>(m, "SyntalosLink", "Manages the connection to Syntalos.")
         .def_property(
