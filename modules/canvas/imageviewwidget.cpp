@@ -165,17 +165,7 @@ public:
             textureInternalFormat = is16bit ? GL_R16 : GL_RED;
 #endif
             break;
-        case 3:
-#ifdef USE_GLES
-            // GLES doesn't support GL_BGR, data is pre-converted to RGB in showImage
-            textureInternalFormat = GL_RGB;
-            textureFormat = GL_RGB;
-#else
-            textureInternalFormat = is16bit ? GL_RGB16 : GL_RGB;
-            textureFormat = GL_BGR;
-#endif
-            break;
-        default: // 4 channels
+        default: // 4 channels, showImage() converts 3-channel images to 4 channels
 #ifdef USE_GLES
             // GLES doesn't support GL_BGRA
             textureInternalFormat = GL_RGBA;
@@ -502,9 +492,11 @@ bool ImageViewWidget::showImage(const cv::Mat &mat)
     }
 #endif
 
-    // Deferred upload means ROI/submatrix views can alias parent buffers that get reused.
-    // Clone when layout is unsuitable or the Mat is just a window into larger storage.
-    if (!d->glImage.isContinuous() || d->glImage.isSubmatrix())
+    // We only upload on the next paint, but producers never modify an image they have published
+    // (they recycle buffers only via matEnsureExclusive()), so even a view into a larger image stays
+    // valid until then. OpenGL can skip padding between rows, but only if the row stride is a whole
+    // number of pixels, which is not guaranteed for images that wrap external memory.
+    if (d->glImage.step[0] % d->glImage.elemSize() != 0)
         d->glImage = d->glImage.clone();
 
     d->imageChanged = true;

@@ -37,7 +37,8 @@ public slots:
      * @brief The currently displayed image, as it is uploaded to the GPU.
      *
      * Its depth is 8-bit or 16-bit unsigned, and color images have 4 channels
-     * (BGRA on desktop OpenGL, RGBA on GLES).
+     * (BGRA on desktop OpenGL, RGBA on GLES). It may be a view into a larger
+     * image, so its rows are not necessarily continuous.
      * The returned matrix may share memory with an internal buffer that the next
      * showImage() call overwrites, so clone it if you need to keep it.
      */
