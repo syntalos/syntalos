@@ -1,3 +1,80 @@
+Version 3.2.2
+-------------
+Released: 2026-10-28
+
+### Features:
+ * ui: Make Ctrl+Space the start/stop run action
+ * Make all keyboard shortcuts configurable
+ * log: Increase log latency slightly for lower CPU overhead
+ * fabric: Add "workers" API for tasks a module runs outside the main thread
+ * modules: Run all modules using the new thread-worker architecture
+ * mlink: Add method for module processes to receive name changes
+
+### Bugfixes:
+ * audiosource: Let the latest timed command decide when playback resets
+ * canvas: Only upload new images to the texture
+ * canvas: Speed up histogram computation and save/restore its settings
+ * canvas: Reject images with unsupported channel counts
+ * camera-arv: Serialize all write access to the Aravis camera
+ * camera-arv: Refuse a camera change for as long as the worker exists
+ * camera-arv: Read the flip and invert settings right where they are used
+ * camera-arv: Keep the preview state apart from external camera use
+ * camera-tis: Show the camera name as status right after preparing
+ * camera-generic: Let the camera apply control changes itself
+ * camera-tis: Fail in prepare() if the camera pipeline is not open
+ * camera-tis: Release the pipeline elements the control dialog looks up
+ * camera-tis: Forget that the device was lost once its pipeline is closed
+ * intan-rhx: Fix build by temporarily allowing deprecated APIs
+ * jsonwriter: Write the selected columns in the order of the header
+ * jsonwriter: Write float samples with their full precision
+ * jsonwriter: Leave a valid file behind if no data arrived
+ * miniscope: Fix build with new libminiscope API
+ * onix-commutator: Leave the thread loop when the input has ended
+ * open-ephys-acq: Treat a prepared run like a running one for channel toggles
+ * open-ephys-acq: Keep the board reference to the worker for as long as it exists
+ * open-ephys-acq: Fail to initialize if no backend could be set up
+ * open-ephys-acq: Disable a channel for real that was muted during a run
+ * plot-timeseries: Guard the whole channel and graph layout
+ * plot-timeseries: Apply stream metadata straight from the input ports
+ * prism: Read the alpha input when combining channels
+ * runcmd: Say so if the program could not be started
+ * spikeglx: Stop the SpikeGLX run in stop() whenever it is still active
+ * videorecorder: Do not keep a D-Bus interface object for every run
+ * videorecorder: Don't read past the end of image views
+ * firmata-io: Do not crash at the end of a run without control input
+ * upy-workbench: Collect the connected input ports anew for every run
+ * zarrwriter: Accept signal data from sources that name no channels
+ * zarrwriter: Check the time unit when storing the sample rate
+ * zarrwriter: Free the compression context of an array that is dropped
+ * zarrwriter: Check the channel count of sources that name no channels
+ * zarrwriter: Complete the arrays even if the worker stopped with an error
+ * devel.clock: Notice a stop request during a long interval
+ * devel.clock: Handle an interrupted sleep
+ * streams: Allow a blocked subscription reader to be interrupted
+ * moduleapi: Return the error from initialize() instead of storing it
+ * moduleapi: Make raising errors and requesting states safe from any thread
+ * audiosource: Apply control commands in a worker
+ * runcmd: Watch the process from the main thread
+ * Give all delayed single-shot calls a context object
+ * eventthread: Do not lose a stop request that arrives early
+ * eventthread: Read data that was sent before we listened for it
+ * engine: Do not let a slow module thread hold up the stop of other modules
+ * rt: Prevent getting killed if a thread overruns its RT budget
+ * ui: Properly display runtimes longer than 24h
+ * Request an OpenGL 4.1 core profile context by default
+
+### Miscellaneous:
+ * meson: Warn about missing field initializers in C++ code again
+ * docs: Describe module workers in the contribution guide
+ * firmata-io, galdur-stim: Let the notifier disable the notifications
+ * spikeglx: Use one connection to SpikeGLX for the dialog and the runs
+ * vendor: Bump SpikeGLX-CPP-SDK
+ * vendor: Bump ImGui dependency to 1.92.9b
+ * ci: Prune old packages from Cloudsmith at release time
+
+### Contributors:
+ Matthias Klumpp
+
 Version 3.2.1
 -------------
 Released: 2026-09-28
