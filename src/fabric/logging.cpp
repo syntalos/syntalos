@@ -354,7 +354,7 @@ void initializeSyLogSystem(quill::LogLevel consoleLogLevel, const QString &logDi
     backendOptn.check_printable_char = {};
 
     // the 100µs default wakes the idle backend ~6k times/s; a few ms of log latency is fine for us
-    backendOptn.sleep_duration = std::chrono::milliseconds{5};
+    backendOptn.sleep_duration = std::chrono::milliseconds{2};
 
     // start Quill's async logging backend
     quill::Backend::start(backendOptn);
