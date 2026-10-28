@@ -1577,7 +1577,10 @@ inline bool VideoWriter::prepareFrame(const cv::Mat &inImage)
     const size_t CV_STEP_ALIGNMENT = 32;
     const size_t CV_SIMD_SIZE = 32;
     const size_t CV_PAGE_MASK = ~(size_t)(4096 - 1);
-    const unsigned char *dataend = data + ((size_t)height * step);
+    // If the image is a view into a larger one, the step spans the larger image's rows,
+    // so its rows are followed by pixels that aren't ours, and its last row ends early.
+    const size_t rowBytes = (size_t)width * image.elemSize();
+    const unsigned char *dataend = height > 0 ? data + ((size_t)(height - 1) * step) + rowBytes : data;
     if (step % CV_STEP_ALIGNMENT != 0
         || (((size_t)dataend - CV_SIMD_SIZE) & CV_PAGE_MASK) != (((size_t)dataend + CV_SIMD_SIZE) & CV_PAGE_MASK)) {
         auto alignedStep = (step + CV_STEP_ALIGNMENT - 1) & ~(CV_STEP_ALIGNMENT - 1);
@@ -1592,7 +1595,7 @@ inline bool VideoWriter::prepareFrame(const cv::Mat &inImage)
         }
 
         for (size_t y = 0; y < static_cast<size_t>(height); y++)
-            memcpy(d->alignedInput + y * alignedStep, data + y * step, step);
+            memcpy(d->alignedInput + y * alignedStep, data + y * step, rowBytes);
 
         data = d->alignedInput;
         step = alignedStep;

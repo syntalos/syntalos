@@ -313,9 +313,10 @@ void CropTransform::process(cv::Mat &image)
 
     // handle the simple case: no online modifications
     if (!m_onlineModified) {
-        // Create a proper copy of the ROI to avoid sharing data with the original image
-        // This is necessary because image(m_activeRoi) creates a view, not an independent copy,
-        // and for some reason this causes downstream pixel corruption for some cropping regions.
+        // Copy the region instead of passing on a view into the source frame (image(m_activeRoi) alone):
+        // transforms after us modify the image in place, relying on needsIndependentCopy() telling them
+        // that we made a copy, and a view would keep the whole source frame alive while it is queued
+        // downstream. The copy is cheap, as it only covers the cropped region.
         image = image(m_activeRoi).clone();
         return;
     }
