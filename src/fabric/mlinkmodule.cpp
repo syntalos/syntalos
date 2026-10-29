@@ -1948,9 +1948,9 @@ void MLinkModule::start()
 {
     d->portChangesAllowed = false;
 
-    // timestamp when this module was started
+    // Send the shared experiment origin to the worker
     auto startTimestampUs = std::chrono::duration_cast<std::chrono::microseconds>(
-                                m_syTimer->currentTimePoint().time_since_epoch())
+                                m_syTimer->startTime().time_since_epoch())
                                 .count();
 
     // update input port metadata if the metadata has changed - this may happen in case of circular module connections
