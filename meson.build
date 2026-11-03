@@ -465,3 +465,11 @@ subdir('modules')
 subdir('tests')
 subdir('tools')
 subdir('data')
+
+# Old library versions can share our SONAME and be reselected by ldconfig.
+# Clean up only after the replacement libraries and their symlinks are installed.
+meson.add_install_script(
+    python, files('contrib/cleanup-installed-libs.py'),
+    get_option('libdir'), sy_version, sy_mlink_abi_level.to_string(),
+    install_tag: 'runtime',
+)

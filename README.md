@@ -109,6 +109,10 @@ ninja
 sudo ninja install
 ```
 
+Installing over an existing prefix removes other versions of the Syntalos MLink and
+data-control shared libraries to prevent mixed-version loading. Use separate install
+prefixes to keep multiple Syntalos versions installed in parallel.
+
 Modules can be enabled and disabled via the `-Dmodules` flag - refer to `meson_options.txt` for a list of possible,
 comma-separated values.
 

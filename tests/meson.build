@@ -1,6 +1,12 @@
 
 subdir('rwqueue')
 
+test('sy-test-install-cleanup',
+     python,
+     args: files('test-install-cleanup.py'),
+     suite: 'install',
+)
+
 test_env = environment()
 test_env.set('MIMALLOC_SHOW_ERRORS', '1')
 test_env.set('QT_QPA_PLATFORM', 'offscreen')
