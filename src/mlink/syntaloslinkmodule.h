@@ -56,6 +56,14 @@ public:
 
     void setStatusMessage(const std::string &message);
 
+    /**
+     * @brief Run a function in the thread that services the link.
+     *
+     * Use this to submit output or change state from a thread of your own.
+     * Safe to call from any thread, see SyntalosLink::postToLinkThread() for details.
+     */
+    void postToLinkThread(std::function<void()> fn);
+
     virtual bool prepare();
     virtual void start();
     virtual void stop();

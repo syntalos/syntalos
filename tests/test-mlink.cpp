@@ -18,6 +18,8 @@
  */
 
 #include <QtTest>
+#include <atomic>
+#include <thread>
 #include <syntalos-mlink>
 
 using namespace Syntalos;
@@ -129,6 +131,61 @@ private slots:
         QVERIFY(!moduleDataDir().has_value());
 
         qunsetenv("SYNTALOS_MODULE_DIR");
+    }
+
+    void postToLinkThread()
+    {
+        // a link does not need a running Syntalos to wait for data, only a module instance ID
+        const auto instanceId = QStringLiteral("test-post-%1").arg(QCoreApplication::applicationPid());
+        qputenv("SYNTALOS_MODULE_ID", instanceId.toUtf8());
+        auto slink = initSyntalosModuleLink();
+        qunsetenv("SYNTALOS_MODULE_ID");
+
+        // only touched in the link thread
+        std::vector<int> order;
+        bool allInLinkThread = true;
+        const auto linkThreadId = std::this_thread::get_id();
+        auto record = [&](int value) {
+            order.push_back(value);
+            allInLinkThread = allInLinkThread && (std::this_thread::get_id() == linkThreadId);
+        };
+
+        // Wait timeouts are long, so a missing wakeup shows up as a slow test.
+        constexpr int waitTimeoutUsec = 2 * 1000 * 1000;
+        QElapsedTimer timer;
+
+        // posted before anyone waits, picked up by the first wait
+        slink->postToLinkThread([&] {
+            record(0);
+        });
+        timer.start();
+        slink->awaitData(waitTimeoutUsec);
+        QCOMPARE(order.size(), 1U);
+        QVERIFY2(timer.elapsed() < 1000, "Function posted before waiting did not wake up the link thread.");
+
+        // posted from another thread while the link thread is blocked waiting
+        std::atomic_bool posted = false;
+        std::thread poster([&] {
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+            for (int i = 1; i <= 3; i++)
+                slink->postToLinkThread([&record, i] {
+                    record(i);
+                });
+            posted = true;
+        });
+        timer.restart();
+        while (order.size() < 4 && timer.elapsed() < 10 * 1000)
+            slink->awaitData(waitTimeoutUsec);
+        const auto elapsedMsec = timer.elapsed();
+        poster.join();
+        QVERIFY(posted);
+
+        QVERIFY(order == (std::vector<int>{0, 1, 2, 3}));
+        QVERIFY2(allInLinkThread, "A posted function ran outside of the link thread.");
+        QVERIFY2(
+            elapsedMsec < 1000,
+            qPrintable(QStringLiteral("Posted functions took %1 ms to run, the link thread was not woken up.")
+                           .arg(elapsedMsec)));
     }
 
 private:

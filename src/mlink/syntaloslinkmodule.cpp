@@ -123,6 +123,11 @@ void SyntalosLinkModule::setStatusMessage(const std::string &message)
     m_slink->setStatusMessage(message);
 }
 
+void SyntalosLinkModule::postToLinkThread(std::function<void()> fn)
+{
+    m_slink->postToLinkThread(std::move(fn));
+}
+
 bool SyntalosLinkModule::prepare()
 {
     setState(ModuleState::PREPARING);

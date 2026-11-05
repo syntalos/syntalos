@@ -23,7 +23,10 @@
 #include <glib.h>
 #include <csignal>
 #include <cstring>
+#include <mutex>
+#include <sys/eventfd.h>
 #include <sys/prctl.h>
+#include <unistd.h>
 #include <iox2/iceoryx2.hpp>
 
 #include "mlink/ipc-types-private.h"
@@ -394,6 +397,18 @@ public:
         // control event notifications
         masterCtlEventListener.emplace(makeEventListener(*node, svcName(MASTER_CTL_EVENT_ID)));
         ctlEventNotifier.emplace(makeEventNotifier(*node, svcName(WORKER_CTL_EVENT_ID)));
+
+        // wakes up the link thread when another thread posts a function for it
+        const int efd = eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC);
+        if (efd < 0)
+            throw std::runtime_error(std::format("Failed to create eventfd for the link thread: {}", strerror(errno)));
+        auto maybeFd = iox2::FileDescriptor::create_owning(efd);
+        if (!maybeFd.has_value()) {
+            ::close(efd);
+            throw std::runtime_error("Failed to wrap eventfd for the link thread.");
+        }
+        postEventFdNum = efd;
+        postEventFd.emplace(std::move(maybeFd).value());
     }
 
     ~Private() = default;
@@ -439,9 +454,17 @@ public:
     // Used by us to ping master if we have a message
     std::optional<IoxNotifier> ctlEventNotifier;
 
+    // Functions posted by other threads to run in the link thread, and the eventfd that
+    // wakes the link thread up for them. Must outlive the WaitSet and its guards.
+    std::mutex postedFnsMutex;
+    std::vector<std::function<void()>> postedFns;
+    std::optional<iox2::FileDescriptor> postEventFd;
+    int postEventFdNum = -1;
+
     // WaitSet to efficiently wait for messages from master
     std::optional<IoxWaitSet> waitSet;
     std::optional<IoxWaitSetGuard> waitSetCtrlGuard;
+    std::optional<IoxWaitSetGuard> waitSetPostGuard;
     bool waitSetDirty = true;
     // Set to true when a Stop command has been processed but input-port subscribers have
     // not yet been dropped. The actual drop is deferred until the current WaitSet iteration
@@ -609,6 +632,7 @@ public:
         // the Rust side and causes EBADF errors and corrupted event state on the
         // next run.
         waitSetCtrlGuard.reset();
+        waitSetPostGuard.reset();
         for (auto &iport : inPortInfo)
             iport->d->ioxGuard.reset();
         for (auto &oport : outPortInfo)
@@ -627,6 +651,11 @@ public:
         // Control attachment: wakes for requests from the master
         if (masterCtlEventListener.has_value())
             waitSetCtrlGuard.emplace(waitSet->attach_notification(*masterCtlEventListener).value());
+
+        // Posted-functions attachment: wakes when another thread hands us work.
+        // An eventfd stays readable until it is read, so posts made while no WaitSet
+        // existed are picked up by the next wait.
+        waitSetPostGuard.emplace(waitSet->attach_notification(postEventFd->as_view()).value());
 
         // Per-input-port attachments
         for (auto &iport : inPortInfo) {
@@ -693,6 +722,27 @@ public:
                 return std::unexpected("Timeout waiting for EdlReserve response from master.");
             std::this_thread::sleep_for(std::chrono::microseconds(25));
         }
+    }
+
+    /**
+     * Run all functions other threads have posted for the link thread.
+     */
+    void runPostedFunctions()
+    {
+        // The eventfd has to be reset *before* the queue is taken. The other way around,
+        // a function posted in between would have its wakeup consumed here while it
+        // stays in the queue, and it would only run once something else wakes us up.
+        uint64_t count;
+        while (::read(postEventFdNum, &count, sizeof(count)) < 0 && errno == EINTR) {
+        }
+
+        std::vector<std::function<void()>> fns;
+        {
+            std::lock_guard lock(postedFnsMutex);
+            fns.swap(postedFns);
+        }
+        for (auto &fn : fns)
+            fn();
     }
 
     /**
@@ -1223,6 +1273,11 @@ void SyntalosLink::awaitData(int timeoutUsec, const std::function<void()> &event
             processPendingControl();
             if (d->waitSetDirty)
                 return iox2::CallbackProgression::Stop;
+        } else if (attachmentId.has_event_from(*d->waitSetPostGuard)) {
+            // run work handed over by other threads
+            d->runPostedFunctions();
+            if (d->waitSetDirty)
+                return iox2::CallbackProgression::Stop;
         } else {
             // handle incoming data
             d->processPendingData(attachmentId);
@@ -1279,6 +1334,10 @@ void SyntalosLink::awaitDataForever(const std::function<void()> &eventFn, int in
             processPendingControl();
             if (d->waitSetDirty)
                 return iox2::CallbackProgression::Stop;
+        } else if (attachmentId.has_event_from(*d->waitSetPostGuard)) {
+            d->runPostedFunctions();
+            if (d->waitSetDirty)
+                return iox2::CallbackProgression::Stop;
         } else {
             d->processPendingData(attachmentId);
         }
@@ -1319,6 +1378,22 @@ void SyntalosLink::awaitDataForever(const std::function<void()> &eventFn, int in
         // exit if we are about to shutdown
         if (d->shutdownPending)
             break;
+    }
+}
+
+void SyntalosLink::postToLinkThread(std::function<void()> fn)
+{
+    if (!fn)
+        return;
+    {
+        std::lock_guard lock(d->postedFnsMutex);
+        d->postedFns.push_back(std::move(fn));
+    }
+
+    // wake up the link thread; this can only fail if the counter would overflow,
+    // which it won't, since the link thread resets it every time it wakes up
+    const uint64_t one = 1;
+    while (::write(d->postEventFdNum, &one, sizeof(one)) < 0 && errno == EINTR) {
     }
 }
 

@@ -308,6 +308,27 @@ public:
      */
     void awaitDataForever(const std::function<void()> &eventFn = nullptr, int intervalUsec = 125 * 1000);
 
+    /**
+     * @brief Run a function in the thread that services this link.
+     *
+     * The link is not thread-safe: submitOutput(), setStatusMessage(), raiseError() and
+     * every other call must happen in the thread that calls awaitData() or awaitDataForever().
+     * Threads of a module (e.g. a worker that does heavy processing) use this function
+     * to hand such calls over to the link thread.
+     *
+     * This function may be called from any thread. If the link thread is waiting for data,
+     * it is woken up immediately and runs @p fn before it waits again. Functions run in the
+     * order they were posted, and only while the link thread is in one of the awaitData functions.
+     * There is no limit on the number of pending functions, so callers that produce work
+     * faster than the link thread can complete it need to throttle themselves.
+     *
+     * Must not be called while the link is being destroyed. Pending functions that never ran
+     * are dropped when the link is destroyed.
+     *
+     * @param fn The function to run in the link thread.
+     */
+    void postToLinkThread(std::function<void()> fn);
+
     [[nodiscard]] ModuleState state() const;
     void setState(ModuleState state);
 
