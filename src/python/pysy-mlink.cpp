@@ -140,6 +140,11 @@ struct InputPort {
         getActiveLink()->updateInputPort(_iport);
     }
 
+    [[nodiscard]] bool is_dormant() const
+    {
+        return _iport->isDormant();
+    }
+
     std::string _id;
     int _dataTypeId;
     const std::shared_ptr<InputPortInfo> _iport;
@@ -188,14 +193,26 @@ struct OutputPort {
     template<typename T>
     void _submit_typed_or_throw(const T &obj)
     {
-        if (!getActiveLink()->submitOutput(_oport, obj))
+        // data sent to a dormant port is dropped (and logged by the link), that is not an error
+        if (!getActiveLink()->submitOutput(_oport, obj) && !_oport->isDormant())
             _throw_submit_failed();
     }
 
     void submit(const py::object &pyObj)
     {
-        if (!_submit_output_private(pyObj))
+        if (!_submit_output_private(pyObj) && !_oport->isDormant())
             _throw_submit_failed();
+    }
+
+    void set_dormant(bool dormant)
+    {
+        _oport->setDormant(dormant);
+        getActiveLink()->updateOutputPort(_oport);
+    }
+
+    [[nodiscard]] bool is_dormant() const
+    {
+        return _oport->isDormant();
     }
 
     void _set_metadata_value_private(const std::string &key, const MetaValue &value)
@@ -1230,6 +1247,13 @@ PYBIND11_MODULE(syntalos_mlink, m)
             ":param items_per_sec: Maximum items per second; ``0`` disables throttling.\n"
             ":type items_per_sec: int",
             py::arg("items_per_sec"))
+        .def_property_readonly(
+            "is_dormant",
+            &InputPort::is_dormant,
+            "``True`` if this port will not receive any data in the current run.\n"
+            "\n"
+            "That is the case if the port is not connected, or if the module it is connected to\n"
+            "marked its output dormant. Valid from ``prepare()`` on.")
         .def_readonly("name", &InputPort::_id, "The unique port ID string.");
 
     py::class_<OutputPort>(m, "OutputPort", "A module output port.\n\nObtain an instance via :func:`get_output_port`.")
@@ -1240,7 +1264,22 @@ PYBIND11_MODULE(syntalos_mlink, m)
             "Send a data item to all modules connected to this port.\n"
             "\n"
             ":param data: Data item matching this port's type (e.g. :class:`Frame`, :class:`TableRow`).\n"
+            "    Items sent to a dormant port are dropped.\n"
             ":raises SyntalosPyError: If the item type does not match the port's declared data type.")
+        .def(
+            "set_dormant",
+            &OutputPort::set_dormant,
+            py::arg("dormant"),
+            "Mark this port as dormant for the current run.\n"
+            "\n"
+            "A dormant port emits no data, and modules connected to it see their input as dormant.\n"
+            "Must be called in ``prepare()``; every port is active again when the next run is prepared.\n"
+            "\n"
+            ":param dormant: ``True`` to mark the port dormant.")
+        .def_property_readonly(
+            "is_dormant",
+            &OutputPort::is_dormant,
+            "``True`` if this port was marked dormant for the current run.")
         .def_readonly("name", &OutputPort::_id, "The unique port ID string.")
         .def(
             "set_metadata_value",

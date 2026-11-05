@@ -161,6 +161,7 @@ struct OutputPortChangeRequest {
     int dataTypeId{-1};
     MetaStringMap metadata;
     IpcServiceTopology topology;
+    bool dormant{false}; /// Port will not emit data in the current run (only applied while preparing)
 
     OutputPortChangeRequest() = default;
     explicit OutputPortChangeRequest(PortAction pa)
@@ -179,6 +180,7 @@ struct OutputPortChangeRequest {
         out.write(topology.maxSenders);
         out.write(topology.maxReceivers);
         out.write(topology.maxNodes);
+        out.write(dormant);
     }
 
     static OutputPortChangeRequest readFrom(BinaryStreamReader &in)
@@ -192,6 +194,7 @@ struct OutputPortChangeRequest {
         in.read(info.topology.maxSenders);
         in.read(info.topology.maxReceivers);
         in.read(info.topology.maxNodes);
+        in.read(info.dormant);
         return info;
     }
 
@@ -550,6 +553,7 @@ struct PrepareRunRequest {
     std::string experimentId;
     bool isEphemeral = false;
     std::string edlRootPath;
+    std::vector<std::string> dormantInputPorts; /// IDs of input ports that will not receive data in this run
 
     [[nodiscard]] ByteVector toBytes() const
     {
@@ -561,6 +565,7 @@ struct PrepareRunRequest {
         stream.write(experimentId);
         stream.write(isEphemeral);
         stream.write(edlRootPath);
+        stream.write(dormantInputPorts);
         return bytes;
     }
 
@@ -574,6 +579,7 @@ struct PrepareRunRequest {
         stream.read(req.experimentId);
         stream.read(req.isEphemeral);
         stream.read(req.edlRootPath);
+        stream.read(req.dormantInputPorts);
         return req;
     }
 };

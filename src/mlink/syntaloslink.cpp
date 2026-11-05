@@ -21,6 +21,7 @@
 
 #include "modconfig.h"
 #include <glib.h>
+#include <algorithm>
 #include <csignal>
 #include <cstring>
 #include <mutex>
@@ -158,6 +159,7 @@ public:
     NewDataRawFn newDataRawCb;
     NewDataFn newDataCb;
     uint throttleItemsPerSec;
+    bool dormant{false};
 };
 
 InputPortInfo::InputPortInfo(const InputPortChangeRequest &pc)
@@ -269,6 +271,11 @@ void InputPortInfo::setThrottleItemsPerSec(uint itemsPerSec)
     d->throttleItemsPerSec = itemsPerSec;
 }
 
+bool InputPortInfo::isDormant() const
+{
+    return d->dormant;
+}
+
 std::optional<MetaValue> InputPortInfo::metadataValue(const std::string &key) const
 {
     return d->metadata.value(key);
@@ -313,6 +320,10 @@ public:
     int dataTypeId;
     MetaStringMap metadata;
 
+    bool dormant{false};          // the port emits no data in the current run
+    bool dormantAnnounced{false}; // the dormant state Syntalos was last told about
+    bool dormantDropWarned{false};
+
     // utilized to reuse allocated memory when sending data, to prevent fragmentation
     ByteVector outBuffer;
 
@@ -345,6 +356,16 @@ void OutputPortInfo::setMetadataValue(const std::string &key, const MetaValue &v
 void OutputPortInfo::setMetadata(const MetaStringMap &metadata)
 {
     d->metadata = metadata;
+}
+
+void OutputPortInfo::setDormant(bool dormant)
+{
+    d->dormant = dormant;
+}
+
+bool OutputPortInfo::isDormant() const
+{
+    return d->dormant;
 }
 
 class SyntalosLink::Private
@@ -1119,11 +1140,27 @@ void SyntalosLink::processPendingControl()
             d->runInfo.rootGroup = std::move(rootGroup);
         }
 
+        // Dormancy is decided anew for every run: Syntalos has reset our output ports before
+        // sending this request, and tells us which of our inputs will not receive data.
+        for (auto &oport : d->outPortInfo) {
+            oport->d->dormant = false;
+            oport->d->dormantAnnounced = false;
+            oport->d->dormantDropWarned = false;
+        }
+        for (auto &iport : d->inPortInfo)
+            iport->d->dormant = std::ranges::contains(prepReq.dormantInputPorts, iport->id());
+
         // prepare the run
         setState(ModuleState::PREPARING);
         auto success = true;
         if (d->prepareRunCb)
             success = d->prepareRunCb();
+
+        // ensure Syntalos knows about all ports the module marked dormant, before we reply
+        for (auto &oport : d->outPortInfo) {
+            if (oport->d->dormant != oport->d->dormantAnnounced)
+                updateOutputPort(oport);
+        }
 
         Private::replyDoneSlice(*req, success);
         if (success)
@@ -1717,9 +1754,11 @@ void SyntalosLink::updateOutputPort(const std::shared_ptr<OutputPortInfo> &oport
     opc.title = oport->d->title;
     opc.dataTypeId = oport->dataTypeId();
     opc.metadata = oport->d->metadata;
+    opc.dormant = oport->d->dormant;
 
     const auto oportData = opc.toBytes();
     d->sendPortChangeData(*d->cltOutPortChange, oportData);
+    oport->d->dormantAnnounced = opc.dormant;
 }
 
 void SyntalosLink::removeInputPort(const std::shared_ptr<InputPortInfo> &iport)
@@ -1781,6 +1820,18 @@ void SyntalosLink::resetPorts()
 
 bool SyntalosLink::submitOutput(const std::shared_ptr<OutputPortInfo> &oport, const BaseDataType &data)
 {
+    if (oport->d->dormant) {
+        // a dormant stream does not publish data, same as for in-process modules
+        if (!oport->d->dormantDropWarned) {
+            SY_LOG_WARNING(
+                logSyLink,
+                "Dropping data submitted to output port '{}', which was marked dormant for this run.",
+                oport->id());
+            oport->d->dormantDropWarned = true;
+        }
+        return false;
+    }
+
     if (!oport->d->ioxPub.has_value()) {
         raiseError(std::format("Failed to send data on output port '{}': Publisher was not initialized!", oport->id()));
         return false;

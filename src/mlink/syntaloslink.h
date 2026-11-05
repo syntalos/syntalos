@@ -110,6 +110,15 @@ public:
     void setThrottleItemsPerSec(uint itemsPerSec);
 
     /**
+     * @brief Check whether this port will receive any data in the current run.
+     *
+     * A port is dormant if it is not connected, or if the module it is connected
+     * to will not emit any data on that connection in this run.
+     * Valid from the prepare callback on, until the next run is prepared.
+     */
+    [[nodiscard]] bool isDormant() const;
+
+    /**
      * @brief Retrieves the metadata value associated with a given key.
      *
      * @param key The key to look up in the metadata.
@@ -147,6 +156,20 @@ public:
     int dataTypeId() const;
     void setMetadataValue(const std::string &key, const MetaValue &value);
     void setMetadata(const MetaStringMap &metadata);
+
+    /**
+     * @brief Mark this port as dormant for the current run.
+     *
+     * A dormant port does not emit any data, and modules connected to it see their
+     * input as dormant too. This must be done in the prepare callback, every port
+     * is active again at the start of the next prepare step.
+     * Like metadata, the change is sent to Syntalos with SyntalosLink::updateOutputPort(),
+     * or at the latest when the prepare callback returns.
+     *
+     * Data submitted to a dormant port is dropped.
+     */
+    void setDormant(bool dormant);
+    [[nodiscard]] bool isDormant() const;
 
 private:
     friend SyntalosLink;
@@ -402,6 +425,11 @@ public:
      */
     void resetPorts();
 
+    /**
+     * @brief Send data on an output port.
+     *
+     * @return False if the data could not be sent, or was dropped because the port is dormant.
+     */
     bool submitOutput(const std::shared_ptr<OutputPortInfo> &oport, const BaseDataType &data);
 
     /**

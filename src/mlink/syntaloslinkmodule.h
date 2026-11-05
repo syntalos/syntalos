@@ -292,6 +292,22 @@ public:
         m_mod->m_slink->updateOutputPort(m_info);
     }
 
+    /**
+     * @brief Mark this port as dormant for the current run.
+     *
+     * Must be called in prepare(), see OutputPortInfo::setDormant() for details.
+     */
+    void setDormant(bool dormant)
+    {
+        m_info->setDormant(dormant);
+        m_mod->m_slink->updateOutputPort(m_info);
+    }
+
+    [[nodiscard]] bool isDormant() const
+    {
+        return m_info->isDormant();
+    }
+
     bool submit(const T &data)
     {
         return m_mod->m_slink->submitOutput(m_info, data);

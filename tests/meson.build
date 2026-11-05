@@ -236,6 +236,7 @@ test_manifests = [
     'scenarios/disabled-inputs-test.toml',
     'scenarios/netctl-control-test.toml',
     'scenarios/netctl-listen-test.toml',
+    'scenarios/mlink-dormant-ports-test.toml',
 ]
 
 if 'signalfilter' in modules_enabled

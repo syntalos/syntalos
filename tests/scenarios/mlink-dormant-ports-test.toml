@@ -1,0 +1,17 @@
+# "Dormant Source" marks one of its two outputs dormant in prepare() and still submits frames
+# to it. "Dormant Sink" raises an error if its inputs do not report the expected dormancy, if any
+# data arrives from the dormant port, or if nothing arrives from the active one.
+[test]
+name = "MLink Dormant Ports Test"
+project_file = "projects/mlink-dormant-ports.syct"
+run_duration_sec = 3
+expected_exit_code = 0
+expected_datasets = []
+expected_stdout_contains = [
+    "engine: Module start order: Devel: DataSource ⇢ Dormant Source ⇢ Dormant Sink ⇢ Video Recorder",
+    "mod.pyscript-0: Output port dormant-out is dormant, skipping forwarder registration.",
+    "engine: Module 'Video Recorder' is marked dormant, it will not be started.",
+]
+expected_stdout_not_contains = [
+    "Attempted to start a stream that is set to dormant",
+]

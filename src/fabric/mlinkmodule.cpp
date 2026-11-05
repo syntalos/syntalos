@@ -26,6 +26,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QCoreApplication>
+#include <QScopeGuard>
 #include <iox2/iceoryx2.hpp>
 #include <unistd.h>
 
@@ -622,6 +623,7 @@ public:
     bool moduleNameApplied = false; // True if the worker acknowledged the current module name
 
     bool portChangesAllowed = true;
+    bool dormantChangesAllowed = false; // true only while the worker prepares a run
     QHash<std::string, std::shared_ptr<VarStreamInputPort>> inPortIdMap;
     QHash<std::string, std::shared_ptr<VariantDataStream>> outPortIdMap;
 
@@ -764,6 +766,11 @@ public:
             if (ostream) {
                 ostream->setMetadata(opc.metadata);
                 q->updateCommonStreamMetadata();
+
+                // Dormancy is decided per run in the PREPARE step. At any other time, the flag is just the
+                // worker's leftover state and must not override what the engine decided for this port.
+                if (dormantChangesAllowed)
+                    ostream->setDormant(opc.dormant);
             }
         }
     }
@@ -1738,6 +1745,12 @@ bool MLinkModule::registerOutPortForwarders()
         if (!oport->streamVar()->hasSubscribers())
             continue;
 
+        // the worker marked this port dormant for the run, it will not send anything
+        if (oport->isDormant()) {
+            LOG_INFO(m_log, "Output port {} is dormant, skipping forwarder registration.", oport->id());
+            continue;
+        }
+
         // If every connected input port belongs to another MLink module, those workers
         // subscribe directly via ConnectInputRequest and the master-side forwarder is
         // not needed - skip creating it to avoid receiving and immediately discarding data.
@@ -1872,7 +1885,21 @@ bool MLinkModule::prepare(const RunInfo &info)
         .experimentId = info.experimentId.toStdString(),
         .isEphemeral = info.isEphemeral,
         .edlRootPath = sg ? sg->path().string() : std::string{},
+        .dormantInputPorts = {},
     };
+
+    // Upstream modules have been prepared before us, so we know which inputs won't receive data
+    for (const auto &iport : inPorts()) {
+        if (iport->isDormant())
+            prepReq.dormantInputPorts.push_back(iport->id().toStdString());
+    }
+
+    // the worker may mark its output ports dormant while it prepares, see outputPortChangeRequested()
+    d->dormantChangesAllowed = true;
+    auto dormantChangesGuard = qScopeGuard([this] {
+        d->dormantChangesAllowed = false;
+    });
+
     if (!d->callSliceClientSimple(
             this,
             PREPARE_RUN_CALL_ID,
