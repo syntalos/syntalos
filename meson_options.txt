@@ -11,6 +11,7 @@ option('modules',
            'camera-ueye',    # uEye camera module
            'intan-rhx',      # Intan RHX DAQ module
            'miniscope',      # UCLA Miniscope module
+           'onnx-inference', # Run ONNX models on live data with ONNX Runtime
            'open-ephys-acq', # Open Ephys Acquisition Board module
            'signalfilter',   # Filter signal blocks
            'spikeglx',       # SpikeGLX remote-control module
@@ -20,6 +21,7 @@ option('modules',
            'camera-lc',
            'intan-rhx',
            'miniscope',
+           'onnx-inference',
            'open-ephys-acq',
            'signalfilter',
            'spikeglx',

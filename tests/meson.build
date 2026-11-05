@@ -249,12 +249,31 @@ if 'spikeglx' in modules_enabled
     test_manifests += 'scenarios/spikeglx-remote-test.toml'
 endif
 
+# scenarios that need generated files next to their project, as [manifest, file]
+test_manifests_with_asset = []
+if 'onnx-inference' in modules_enabled and onnxinfer_have_test_models
+    test_manifests_with_asset += [['scenarios/onnx-inference-image-test.toml', onnxinfer_scenario_model]]
+endif
+
 if get_option('gui-tests')
     foreach manifest : test_manifests
         test_name = 'sy-test-project-@0@'.format(manifest.split('/')[-1].split('.')[0])
         test(test_name,
             gui_project_test_runner,
             args: ['--syntalos-bin', syntalos_exe, '--manifest', files(manifest)],
+            env: test_gui_env,
+            timeout: 600,
+            is_parallel: false,
+            suite: 'gui',
+        )
+    endforeach
+
+    foreach entry : test_manifests_with_asset
+        manifest = entry[0]
+        test_name = 'sy-test-project-@0@'.format(manifest.split('/')[-1].split('.')[0])
+        test(test_name,
+            gui_project_test_runner,
+            args: ['--syntalos-bin', syntalos_exe, '--manifest', files(manifest), '--project-asset', entry[1]],
             env: test_gui_env,
             timeout: 600,
             is_parallel: false,

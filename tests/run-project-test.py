@@ -13,8 +13,10 @@ This script runs tests based on TOML manifests.
 import sys
 import os
 import socket
+import shutil
 import subprocess
 import argparse
+import contextlib
 import tempfile
 import time
 import json
@@ -389,7 +391,32 @@ def print_stdout_stderr(stdout_data=None, stderr_data=None):
         print(stderr_data, file=sys.stderr)
 
 
-def run_test(syntalos_bin, manifest_path):
+def stage_project(project_path, assets, stage_dir):
+    """
+    Copy the project into stage_dir and place the assets next to it, so the
+    project can refer to them by relative paths. Assets are symlinked if possible
+    and only copied if the filesystem refuses symlinks.
+    Returns the path of the staged project file.
+    """
+    staged_project = os.path.join(stage_dir, os.path.basename(project_path))
+    shutil.copy2(project_path, staged_project)
+
+    for asset in assets:
+        asset = os.path.abspath(asset)
+        if not os.path.exists(asset):
+            raise FileNotFoundError(f"Project asset {asset} not found.")
+        dest = os.path.join(stage_dir, os.path.basename(asset))
+        if os.path.lexists(dest):
+            raise FileExistsError(f"Project asset name {os.path.basename(asset)} is used twice.")
+        try:
+            os.symlink(asset, dest)
+        except OSError:
+            shutil.copy2(asset, dest)
+
+    return staged_project
+
+
+def run_test(syntalos_bin, manifest_path, project_assets=()):
     print(f"Running test manifest: {manifest_path}")
 
     with open(manifest_path, "rb") as f:
@@ -445,7 +472,25 @@ def run_test(syntalos_bin, manifest_path):
         print(f"  Dynamic net ports: control={net_control_port}, feedback={net_feedback_port}")
 
     sytmp_prefix = "sytest_{}_".format(str(name).replace(" ", "").replace("/", "."))
-    with tempfile.TemporaryDirectory(dir="/var/tmp", prefix=sytmp_prefix) as export_dir:
+
+    # with assets, the project runs from a temporary copy that has the assets next to it
+    stage_ctx = (
+        tempfile.TemporaryDirectory(dir="/var/tmp", prefix=f"{sytmp_prefix}project_")
+        if project_assets
+        else contextlib.nullcontext()
+    )
+    with (
+        tempfile.TemporaryDirectory(dir="/var/tmp", prefix=sytmp_prefix) as export_dir,
+        stage_ctx as stage_dir,
+    ):
+        if stage_dir:
+            try:
+                project_path = stage_project(project_path, project_assets, stage_dir)
+            except OSError as e:
+                print(f"Error: Unable to stage project with its assets: {e}", file=sys.stderr)
+                return False
+            print(f"  Project assets: {[os.path.basename(a) for a in project_assets]}")
+
         cmd = [syntalos_bin, "--verbose", "--non-interactive", "--export-dir", export_dir]
         if not companion_triggers_run:
             # Normal mode: Syntalos controls its own run duration
@@ -702,6 +747,14 @@ def main():
     parser.add_argument(
         "--manifest", action="append", required=True, help="Path to the test manifest TOML file(s)"
     )
+    parser.add_argument(
+        "--project-asset",
+        action="append",
+        default=[],
+        metavar="FILE",
+        help="File the project needs next to it, e.g. a generated model. The project then "
+        "runs from a temporary copy, with the file symlinked (or copied) beside it.",
+    )
     args = parser.parse_args()
 
     if not os.path.exists(args.syntalos_bin):
@@ -714,7 +767,7 @@ def main():
     failed = 0
     passed = 0
     for manifest_path in args.manifest:
-        if run_test(args.syntalos_bin, manifest_path):
+        if run_test(args.syntalos_bin, manifest_path, args.project_asset):
             passed += 1
         else:
             failed += 1

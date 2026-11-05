@@ -1,0 +1,18 @@
+[test]
+name = "ONNX Inference Image Test"
+project_file = "projects/onnx-inference-image.syct"
+run_duration_sec = 4
+expected_exit_code = 0
+# the model is generated at build time and passed in with --project-asset
+validator_script = "onnx_inference_validator.py"
+expected_datasets = [
+    "onnx-rows",
+    "onnx-table",
+    { name = "videos/source-frames", tsync = { min_entries = 60, monotonic_column = "master-time" } },
+]
+expected_stdout_contains = [
+    "Module start order: Devel: DataSource ⇢ ONNX Inference ⇢ Video Recorder ⇢ JSON Writer ⇢ Table",
+]
+expected_stdout_not_contains = [
+    "Warm-up run failed",
+]

@@ -77,6 +77,11 @@ if 'spikeglx' in modules_enabled
     subdir('spikeglx')
 endif
 
+# Machine learning
+if 'onnx-inference' in modules_enabled
+    subdir('onnx-inference')
+endif
+
 # Misc
 subdir('jsonwriter')
 subdir('zarrwriter')

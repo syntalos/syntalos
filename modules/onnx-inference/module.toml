@@ -1,0 +1,11 @@
+[syntalos_module]
+type = "executable"
+
+name = "ONNX Inference"
+description = "Run ONNX models on live video frames, e.g. object detectors and classifiers."
+icon = "onnx-inference.svg"
+
+binary = "onnx-inference"
+
+categories = ['processing']
+features = ['show-settings']

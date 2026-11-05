@@ -40,6 +40,7 @@ eatmydata apt-get install -yq --no-install-recommends \
     libkf6archive-dev \
     libkf6texteditor-dev \
     libkf6xmlgui-dev \
+    libonnxruntime-dev \
     libopencv-dev \
     libpipewire-0.3-dev \
     libqt6opengl6-dev \
@@ -78,6 +79,7 @@ eatmydata apt-get install -yq --no-install-recommends \
     dbus-daemon \
     python3-zstandard \
     python3-edlio \
+    python3-onnx \
     python3-opencv \
     python3-pyqt6 \
     python3-scipy \
