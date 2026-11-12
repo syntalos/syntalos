@@ -101,7 +101,7 @@ protected:
 
 public slots:
 
-    void slider_changed(int);
+    void slider_changed(double);
     void spinbox_changed(qlonglong new_value);
 
 signals:

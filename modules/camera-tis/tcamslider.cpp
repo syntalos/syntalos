@@ -74,7 +74,7 @@ double TcamSlider::value()
     }
 }
 
-void TcamSlider::onSliderChanged(double value)
+void TcamSlider::onSliderChanged(int value)
 {
     if (m_scale_type == TcamSliderScale::Linear) {
         emit valueChanged(value / m_linear_scale);

@@ -18,6 +18,7 @@
 
 #include <QTimer>
 #include <cassert>
+#include <cmath>
 #include <gst/gst.h>
 
 using namespace tcam::tools::capture;
@@ -279,11 +280,11 @@ void IntWidget::update()
     }
 }
 
-void IntWidget::slider_changed(int new_value)
+void IntWidget::slider_changed(double new_value)
 {
     const QSignalBlocker blocker(p_box);
 
-    p_box->setValue(new_value);
+    p_box->setValue(std::llround(new_value));
 
     if (!is_readonly_) {
         emit value_changed(this);

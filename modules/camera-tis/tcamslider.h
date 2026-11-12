@@ -31,7 +31,7 @@ signals:
 private slots:
 
     void mouseDoubleClickEvent(QMouseEvent *event) override;
-    void onSliderChanged(double);
+    void onSliderChanged(int);
 
 private:
     int calculate_slider_value(double user_value);
