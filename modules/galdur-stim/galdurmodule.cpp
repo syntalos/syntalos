@@ -158,7 +158,7 @@ public:
             lsClient->setSpikeStimCooldownTime(spikeStimCooldownTime);
             lsClient->setSpikeThresholdValue(spikeThresholdValue);
 
-            QObject::connect(lsClient.get(), &LabrstimClient::newRawData, [this, &loop](const QString &data) {
+            QObject::connect(lsClient.get(), &LabrstimClient::newRawData, &loop, [this, &loop](const QString &data) {
                 // have the main thread display the message
                 showRawData(data);
 
@@ -167,7 +167,7 @@ public:
                     loop.quit();
             });
 
-            QObject::connect(lsClient.get(), &LabrstimClient::error, [this, &loop](const QString &message) {
+            QObject::connect(lsClient.get(), &LabrstimClient::error, &loop, [this, &loop](const QString &message) {
                 mod.raiseError(message);
                 loop.quit();
             });
@@ -186,32 +186,36 @@ public:
             std::unique_ptr<SubscriptionNotifier> notifier;
             if (ctlSub) {
                 notifier = std::make_unique<SubscriptionNotifier>(ctlSub);
-                QObject::connect(notifier.get(), &SubscriptionNotifier::dataReceived, [this, &loop, &lsClient]() {
-                    while (true) {
-                        const auto maybeCtlCmd = ctlSub->peekNext();
-                        if (!maybeCtlCmd.has_value())
-                            break;
-                        const auto &ctlCmd = maybeCtlCmd.value();
+                QObject::connect(
+                    notifier.get(),
+                    &SubscriptionNotifier::dataReceived,
+                    &loop,
+                    [this, &loop, &lsClient]() {
+                        while (true) {
+                            const auto maybeCtlCmd = ctlSub->peekNext();
+                            if (!maybeCtlCmd.has_value())
+                                break;
+                            const auto &ctlCmd = maybeCtlCmd.value();
 
-                        if (ctlCmd.kind == ControlCommandKind::START) {
-                            mod.setStatusMessage("Stimulating...");
-                            if (!lsClient->runStimulation()) {
-                                mod.raiseError(lsClient->lastError());
-                                break;
-                            }
-                        } else if (ctlCmd.kind == ControlCommandKind::STOP) {
-                            mod.setStatusMessage("Waiting.");
-                            if (!lsClient->stopStimulation()) {
-                                mod.raiseError(lsClient->lastError());
-                                break;
+                            if (ctlCmd.kind == ControlCommandKind::START) {
+                                mod.setStatusMessage("Stimulating...");
+                                if (!lsClient->runStimulation()) {
+                                    mod.raiseError(lsClient->lastError());
+                                    break;
+                                }
+                            } else if (ctlCmd.kind == ControlCommandKind::STOP) {
+                                mod.setStatusMessage("Waiting.");
+                                if (!lsClient->stopStimulation()) {
+                                    mod.raiseError(lsClient->lastError());
+                                    break;
+                                }
                             }
                         }
-                    }
 
-                    // quit the loop if we stopped running
-                    if (!mod.running())
-                        loop.quit();
-                });
+                        // quit the loop if we stopped running
+                        if (!mod.running())
+                            loop.quit();
+                    });
             }
 
             // periodically check if we have to quit
@@ -219,7 +223,7 @@ public:
             quitTimer.setInterval(200);
             quitTimer.setSingleShot(false);
             quitTimer.start();
-            QObject::connect(&quitTimer, &QTimer::timeout, [&loop, this]() {
+            QObject::connect(&quitTimer, &QTimer::timeout, &loop, [&loop, this]() {
                 if (!mod.running())
                     loop.quit();
             });

@@ -37,7 +37,7 @@ HWLineOutputWidget::HWLineOutputWidget(
     m_btnRemove->setFlat(true);
     m_btnRemove->setIcon(QIcon::fromTheme(QStringLiteral("edit-delete")));
     m_btnRemove->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
-    connect(m_btnRemove, &QPushButton::clicked, [&] {
+    connect(m_btnRemove, &QPushButton::clicked, this, [&] {
         deleteLater();
     });
 
@@ -91,7 +91,7 @@ HWLineOutputWidget::HWLineOutputWidget(
     setLayout(layout);
     setSizePolicy(QSizePolicy::MinimumExpanding, QSizePolicy::Minimum);
 
-    connect(m_btnSend, &QPushButton::clicked, [&] {
+    connect(m_btnSend, &QPushButton::clicked, this, [&] {
         LineCommand ctl;
         ctl.lineId = static_cast<uint16_t>(m_sbPinId->value());
 
@@ -107,7 +107,7 @@ HWLineOutputWidget::HWLineOutputWidget(
         m_fmCtlStream->push(ctl);
     });
 
-    connect(m_btnPulse, &QPushButton::clicked, [&] {
+    connect(m_btnPulse, &QPushButton::clicked, this, [&] {
         m_btnSend->setChecked(false);
         m_btnSend->setText(QStringLiteral("Off"));
         LineCommand ctl;
@@ -169,7 +169,7 @@ HWLineInputWidget::HWLineInputWidget(std::shared_ptr<DataStream<LineCommand>> fm
     m_btnRemove->setFlat(true);
     m_btnRemove->setIcon(QIcon::fromTheme(QStringLiteral("edit-delete")));
     m_btnRemove->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Preferred);
-    connect(m_btnRemove, &QPushButton::clicked, [&] {
+    connect(m_btnRemove, &QPushButton::clicked, this, [&] {
         deleteLater();
     });
 

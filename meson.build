@@ -113,6 +113,10 @@ add_project_arguments(
   ]),
   language: 'cpp'
 )
+add_project_arguments(
+    '-DQT_ENABLE_STRICT_MODE_UP_TO=0x061200',
+    language: 'cpp'
+)
 
 sanitize_opt = get_option('sanitize')
 if sanitize_opt != 'none'

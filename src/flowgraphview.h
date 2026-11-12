@@ -150,9 +150,9 @@ private:
 /**
  * @brief Flow graph item hash function
  */
-inline uint qHash(const FlowGraphItem::ItemKey &key)
+inline size_t qHash(const FlowGraphItem::ItemKey &key, size_t seed = 0) noexcept
 {
-    return qHash(key.name()) ^ qHash(uint(key.mode())) ^ qHash(key.type());
+    return qHashMulti(seed, key.name(), uint(key.mode()), key.type());
 }
 
 /**

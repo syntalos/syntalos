@@ -57,6 +57,7 @@ ArvConfigWindow::ArvConfigWindow(Syntalos::QuillLogger *logger, QWidget *parent)
     m_debugConnection = connect(
         &QArvDebug::messageSender,
         &MessageSender::newDebugMessage,
+        this,
         [this](const QString &scope, const QString &msg) {
             if (scope == m_log->get_logger_name() || scope.isEmpty())
                 messageList->appendPlainText(msg);
@@ -243,11 +244,11 @@ void ArvConfigWindow::configureEthernetCamera()
     if (!ifaceIP.isNull()) {
         auto ifaces = QNetworkInterface::allInterfaces();
         bool process_loop = true;
-        foreach (QNetworkInterface iface, ifaces) {
+        for (QNetworkInterface iface : std::as_const(ifaces)) {
             if (!process_loop)
                 break;
             auto addresses = iface.addressEntries();
-            foreach (QNetworkAddressEntry addr, addresses) {
+            for (QNetworkAddressEntry addr : std::as_const(addresses)) {
                 if (addr.ip() == ifaceIP) {
                     cameraIface = iface;
                     process_loop = false;

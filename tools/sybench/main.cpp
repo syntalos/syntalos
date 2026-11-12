@@ -44,10 +44,10 @@ int runHeadless(const SessionConfig &config)
     BenchSession session(config);
     QList<LadderRecord> ladders;
     QString error;
-    QObject::connect(&session, &BenchSession::ladderFinished, [&ladders](const LadderRecord &lr) {
+    QObject::connect(&session, &BenchSession::ladderFinished, &session, [&ladders](const LadderRecord &lr) {
         ladders.append(lr);
     });
-    QObject::connect(&session, &BenchSession::finished, [&error](bool, const QString &err) {
+    QObject::connect(&session, &BenchSession::finished, &session, [&error](bool, const QString &err) {
         error = err;
     });
     session.run();

@@ -144,11 +144,8 @@ toml::table qVariantHashToTomlTable(const QVariantHash &varHash)
 {
     toml::table tab;
 
-    QHashIterator<QString, QVariant> i(varHash);
-    while (i.hasNext()) {
-        i.next();
-        auto var = i.value();
-        const auto key = i.key().toStdString();
+    for (const auto &[qkey, var] : varHash.asKeyValueRange()) {
+        const auto key = qkey.toStdString();
 
         if (var.canConvert<QVariantHash>()) {
             auto subTab = qVariantHashToTomlTable(var.toHash());

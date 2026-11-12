@@ -108,7 +108,7 @@ void QArvCamera::QArvFeatureTree::recursiveSerialization(
     if (tree->children().count() != 0) {
         if (QString("Root") != tree->feature())
             out << "Category: " << tree->feature() << Qt::endl;
-        foreach (auto child, tree->children()) {
+        for (auto child : tree->children()) {
             recursiveSerialization(out, camera, child);
         }
         return;

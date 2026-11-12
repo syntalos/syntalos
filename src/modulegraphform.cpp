@@ -86,7 +86,7 @@ ModuleGraphForm::ModuleGraphForm(QWidget *parent)
     // add rename action to the menu
     auto renameAction = new QAction("Rename module", this);
     m_modifiersMenu->addAction(renameAction);
-    connect(renameAction, &QAction::triggered, [this]() {
+    connect(renameAction, &QAction::triggered, this, [this]() {
         auto node = selectedSingleNode();
         if (node == nullptr)
             return;
@@ -98,7 +98,7 @@ ModuleGraphForm::ModuleGraphForm(QWidget *parent)
     m_modifierActions[ModuleModifier::ENABLED] = enAction;
     enAction->setCheckable(true);
     m_modifiersMenu->addAction(enAction);
-    connect(enAction, &QAction::triggered, [this](bool checked) {
+    connect(enAction, &QAction::triggered, this, [this](bool checked) {
         auto node = selectedSingleNode();
         if (node == nullptr)
             return;
@@ -115,7 +115,7 @@ ModuleGraphForm::ModuleGraphForm(QWidget *parent)
     m_modifierActions[ModuleModifier::STOP_ON_FAILURE] = errorAction;
     errorAction->setCheckable(true);
     m_modifiersMenu->addAction(errorAction);
-    connect(errorAction, &QAction::triggered, [this](bool checked) {
+    connect(errorAction, &QAction::triggered, this, [this](bool checked) {
         auto node = selectedSingleNode();
         if (node == nullptr)
             return;
@@ -239,7 +239,7 @@ void ModuleGraphForm::moduleAdded(ModuleInfo *info, AbstractModule *mod)
     ui->graphView->addItem(node);
     m_modNodeMap.insert(mod, node);
 
-    connect(mod, &AbstractModule::nameChanged, [=](const QString &name) {
+    connect(mod, &AbstractModule::nameChanged, this, [=](const QString &name) {
         node->setNodeTitle(name);
     });
 

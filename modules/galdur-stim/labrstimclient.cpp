@@ -250,7 +250,7 @@ void LabrstimClient::readData()
     if (m_lastResultBuf.endsWith("\n")) {
         // we might read multiple lines, process them individually
         auto replies = m_lastResultBuf.split("\n", Qt::SkipEmptyParts);
-        foreach (auto reply, replies) {
+        for (auto reply : std::as_const(replies)) {
             m_lastResult = reply;
 
             if (m_lastResult.startsWith("ERROR")) {

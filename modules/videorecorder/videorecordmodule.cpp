@@ -229,7 +229,7 @@ public:
             EQUEUE_DBUS_SERVICE,
             QDBusConnection::sessionBus(),
             QDBusServiceWatcher::WatchForRegistration);
-        connect(&watcher, &QDBusServiceWatcher::serviceRegistered, [&](const QString &busName) {
+        connect(&watcher, &QDBusServiceWatcher::serviceRegistered, &watcher, [&](const QString &busName) {
             if (busName != EQUEUE_DBUS_SERVICE)
                 return;
             loop.quit();

@@ -406,20 +406,20 @@ public:
         QTimer timer;
         timer.setInterval(90 * 1000);
         timer.setSingleShot(true);
-        connect(&timer, &QTimer::timeout, [&]() {
+        connect(&timer, &QTimer::timeout, &timer, [&]() {
             timeoutReached = true;
             loop.quit();
         });
 
         // connect watcher
-        connect(&watcher, &QFileSystemWatcher::fileChanged, [&](const QString &path) {
+        connect(&watcher, &QFileSystemWatcher::fileChanged, &watcher, [&](const QString &path) {
             if (path != statusFname)
                 return;
 
             timer.stop();
             loop.quit();
         });
-        connect(&watcher, &QFileSystemWatcher::directoryChanged, [&](const QString &path) {
+        connect(&watcher, &QFileSystemWatcher::directoryChanged, &watcher, [&](const QString &path) {
             if (QFile::exists(statusFname)) {
                 // the status file was added, we can exit
                 timer.stop();

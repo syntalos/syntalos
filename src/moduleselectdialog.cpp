@@ -155,6 +155,7 @@ ModuleSelectDialog::ModuleSelectDialog(const QList<QSharedPointer<ModuleInfo>> &
     connect(
         ui->categoryListView->selectionModel(),
         &QItemSelectionModel::currentChanged,
+        this,
         [this](const QModelIndex &index, const QModelIndex &) {
             setCategoryFromIndex(index);
         });
@@ -177,6 +178,7 @@ void ModuleSelectDialog::setModuleViewModel(QStandardItemModel *model)
     connect(
         ui->modListView->selectionModel(),
         &QItemSelectionModel::currentChanged,
+        this,
         [this](const QModelIndex &index, const QModelIndex &) {
             setModuleIdFromIndex(index);
         });

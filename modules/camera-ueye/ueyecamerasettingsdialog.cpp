@@ -55,7 +55,7 @@ UEyeCameraSettingsDialog::UEyeCameraSettingsDialog(UEyeCamera *camera, QWidget *
     ueyeConfFileBtn->setIcon(QIcon::fromTheme("folder-open"));
     m_ueyeConfFileLbl->setText("No file selected.");
 
-    connect(ueyeConfFileBtn, &QToolButton::clicked, [=]() {
+    connect(ueyeConfFileBtn, &QToolButton::clicked, this, [=]() {
         auto fileName = QFileDialog::getOpenFileName(
             this,
             tr("Select uEye Settings"),
@@ -72,11 +72,11 @@ UEyeCameraSettingsDialog::UEyeCameraSettingsDialog(UEyeCamera *camera, QWidget *
     m_camFlashMode->setChecked(true);
     ui->uEyeLayout->addRow(new QLabel("Enable GPIO flash", this), m_camFlashMode);
 
-    connect(m_gainCB, &QCheckBox::toggled, [=](bool state) {
+    connect(m_gainCB, &QCheckBox::toggled, this, [=](bool state) {
         m_camera->setAutoGain(state);
     });
 
-    connect(m_camFlashMode, &QCheckBox::toggled, [=](bool state) {
+    connect(m_camFlashMode, &QCheckBox::toggled, this, [=](bool state) {
         m_camera->setGPIOFlash(state);
     });
 }

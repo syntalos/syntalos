@@ -170,7 +170,7 @@ void MiniscopeSettingsDialog::on_deviceTypeCB_currentIndexChanged(int index)
     for (const auto &ctl : m_mscope->controls()) {
         const auto w = new MSControlWidget(ctl, ui->gbDeviceCtls);
         m_controlsLayout->insertWidget(0, w);
-        connect(w, &MSControlWidget::valueChanged, [&](const QString &id, double value) {
+        connect(w, &MSControlWidget::valueChanged, this, [&](const QString &id, double value) {
             if (const auto res = m_mscope->setControlValue(id.toStdString(), value); !res)
                 LOG_WARNING(m_log, "Unable to change Miniscope control value: {}", res.error());
         });

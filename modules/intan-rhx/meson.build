@@ -116,6 +116,9 @@ module_cpp_args = [
     # Pristine Intan code has switch-on-enum patterns where GCC cannot prove
     # all cases initialize a local; treat as warning instead of error.
     '-Wno-error=maybe-uninitialized',
+
+    # Don't apply Qt's strict mode to the pristine Intan code
+    '-UQT_ENABLE_STRICT_MODE_UP_TO',
 ]
 if get_option('sanitize') != 'none' or get_option('tracing')
     module_cpp_args += ['-Wno-maybe-uninitialized']

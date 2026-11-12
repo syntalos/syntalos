@@ -64,17 +64,17 @@ EncodeWindow::EncodeWindow(QWidget *parent)
     ui->parallelTasksCountSpinBox->setMaximum(QThread::idealThreadCount() + 2);
     ui->parallelTasksCountSpinBox->setMinimum(1);
     ui->parallelTasksCountSpinBox->setValue(m_taskManager->parallelCount());
-    connect(m_taskManager, &TaskManager::parallelCountChanged, [&](int count) {
+    connect(m_taskManager, &TaskManager::parallelCountChanged, this, [&](int count) {
         ui->parallelTasksCountSpinBox->setValue(count);
     });
 
     // enable the run button if new tasks are available
-    connect(m_taskManager, &TaskManager::newTasksAvailable, [&]() {
+    connect(m_taskManager, &TaskManager::newTasksAvailable, this, [&]() {
         ui->runButton->setEnabled(true);
         ui->detailsWidget->setVisible(false);
         ui->tasksTable->scrollToBottom();
     });
-    connect(m_taskManager, &TaskManager::encodingStarted, [&]() {
+    connect(m_taskManager, &TaskManager::encodingStarted, this, [&]() {
         ui->runButton->setEnabled(false);
     });
     connect(
@@ -91,10 +91,10 @@ EncodeWindow::EncodeWindow(QWidget *parent)
     m_busyIndicator->setMinimumSize(QSize(40, 40));
     m_busyIndicator->hide();
 
-    connect(m_taskManager, &TaskManager::encodingStarted, [&]() {
+    connect(m_taskManager, &TaskManager::encodingStarted, this, [&]() {
         m_busyIndicator->show();
     });
-    connect(m_taskManager, &TaskManager::encodingFinished, [&]() {
+    connect(m_taskManager, &TaskManager::encodingFinished, this, [&]() {
         m_busyIndicator->hide();
     });
 
@@ -193,27 +193,23 @@ void EncodeWindow::on_tasksTable_activated(const QModelIndex &index)
     const auto errorMsg = item->errorMessage();
 
     QString info = "<b>General</b>";
-    QHashIterator<QString, QVariant> i(item->mdata());
-    while (i.hasNext()) {
-        i.next();
-        auto key = i.key();
+    const auto mdata = item->mdata();
+    for (const auto &[key, var] : mdata.asKeyValueRange()) {
         QString value;
         if (key == "video-container")
-            value = QString::fromStdString(videoContainerToString(static_cast<VideoContainer>(i.value().toInt())));
+            value = QString::fromStdString(videoContainerToString(static_cast<VideoContainer>(var.toInt())));
         else
-            value = i.value().toString();
+            value = var.toString();
         info += QStringLiteral("<br/>%1 = %2").arg(key, value);
     }
     info += "<br/><br/><b>Encoder</b>";
-    QHashIterator<QString, QVariant> ei(item->codecProps().toVariant());
-    while (ei.hasNext()) {
-        ei.next();
-        auto key = ei.key();
+    const auto codecVars = item->codecProps().toVariant();
+    for (const auto &[key, var] : codecVars.asKeyValueRange()) {
         QString value;
         if (key == "codec")
-            value = QString::fromStdString(videoCodecToString(static_cast<VideoCodec>(ei.value().toInt())));
+            value = QString::fromStdString(videoCodecToString(static_cast<VideoCodec>(var.toInt())));
         else
-            value = ei.value().toString();
+            value = var.toString();
         info += QStringLiteral("<br/>%1 = %2").arg(key, value);
     }
 

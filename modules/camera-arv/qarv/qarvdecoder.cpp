@@ -178,7 +178,7 @@ QImage QArvDecoder::CV2QImage(const cv::Mat& image) {
 static QList<QArvPixelFormat*> initPluginFormats() {
     QList<QArvPixelFormat*> list;
     auto plugins = QPluginLoader::staticInstances();
-    foreach (auto plugin, plugins) {
+    for (auto plugin : std::as_const(plugins)) {
         auto fmt = qobject_cast<QArvPixelFormat*>(plugin);
         if (fmt != NULL) list << fmt;
     }
@@ -197,7 +197,7 @@ QMap<ArvPixelFormat, enum AVPixelFormat> swScaleFormats = initSwScaleFormats();
 
 QList<ArvPixelFormat> QArvPixelFormat::supportedFormats() {
     QList<ArvPixelFormat> list;
-    foreach (auto fmt, *pluginFormats) {
+    for (auto fmt : std::as_const(*pluginFormats)) {
         list << fmt->pixelFormat();
     }
     list << swScaleFormats.keys();
@@ -242,7 +242,7 @@ QArvDecoder* QArvDecoder::makeDecoder(QByteArray specification) {
 QArvDecoder* QArvDecoder::makeDecoder(ArvPixelFormat format,
                                       QSize size,
                                       bool fast) {
-    foreach (auto fmt, *pluginFormats) {
+    for (auto fmt : std::as_const(*pluginFormats)) {
         if (fmt->pixelFormat() == format) return fmt->makeDecoder(size);
     }
     for (auto fmtI = swScaleFormats.keyBegin(), end = swScaleFormats.keyEnd();

@@ -37,6 +37,7 @@ VTransformCtlDialog::VTransformCtlDialog(QWidget *parent)
     connect(
         ui->activeTFListView->selectionModel(),
         &QItemSelectionModel::currentChanged,
+        this,
         [&](const QModelIndex &index, const QModelIndex &) {
             transformListViewSelectionChanged(index);
         });

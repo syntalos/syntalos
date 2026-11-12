@@ -148,7 +148,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->panelRunInfo->setEnabled(false);
 
     connect(ui->tbOpenDir, &QToolButton::clicked, this, &MainWindow::openDataExportDirectory);
-    connect(ui->subjectIdEdit, &QLineEdit::textChanged, [=, this](const QString &subjectId) {
+    connect(ui->subjectIdEdit, &QLineEdit::textChanged, this, [=, this](const QString &subjectId) {
         if (subjectId.isEmpty()) {
             ui->subjectSelectComboBox->setEnabled(true);
             ui->subjectSelectComboBox->setCurrentIndex(0);
@@ -168,6 +168,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(
         ui->subjectSelectComboBox,
         static_cast<void (QComboBox::*)(int)>(&QComboBox::currentIndexChanged),
+        this,
         [&](int index) {
             // empty manual edit to not interfere with the subject selector
             ui->subjectIdEdit->setText(QString());
@@ -180,12 +181,12 @@ MainWindow::MainWindow(QWidget *parent)
     m_subjectList = new TestSubjectListModel(this);
     ui->subjectListView->setModel(m_subjectList);
 
-    connect(ui->btnSubjectRemove, &QToolButton::clicked, [&]() {
+    connect(ui->btnSubjectRemove, &QToolButton::clicked, this, [&]() {
         if (ui->subjectListView->currentIndex().isValid())
             m_subjectList->removeRow(ui->subjectListView->currentIndex().row());
     });
 
-    connect(ui->btnSubjectAdd, &QToolButton::clicked, [&]() {
+    connect(ui->btnSubjectAdd, &QToolButton::clicked, this, [&]() {
         TestSubject sub;
         sub.id = ui->idLineEdit->text().trimmed();
         if (sub.id.isEmpty()) {
@@ -202,6 +203,7 @@ MainWindow::MainWindow(QWidget *parent)
     connect(
         ui->subjectListView->selectionModel(),
         &QItemSelectionModel::currentChanged,
+        this,
         [&](const QModelIndex &index, const QModelIndex &) {
             auto sub = m_subjectList->subject(index.row());
 
@@ -214,7 +216,7 @@ MainWindow::MainWindow(QWidget *parent)
             ui->btnSubjectApplyEdit->setEnabled(true);
         });
 
-    connect(ui->btnSubjectApplyEdit, &QToolButton::clicked, [&]() {
+    connect(ui->btnSubjectApplyEdit, &QToolButton::clicked, this, [&]() {
         auto index = ui->subjectListView->currentIndex();
         if (!index.isValid()) {
             QMessageBox::warning(this, "Could not change test subject", "No subject selected to apply changes to.");
@@ -248,14 +250,14 @@ MainWindow::MainWindow(QWidget *parent)
     m_experimenterList = new ExperimenterListModel(this);
     ui->experimenterListView->setModel(m_experimenterList);
 
-    connect(ui->btnExperimenterRemove, &QToolButton::clicked, [&]() {
+    connect(ui->btnExperimenterRemove, &QToolButton::clicked, this, [&]() {
         if (ui->experimenterListView->currentIndex().isValid())
             m_experimenterList->removeRow(ui->experimenterListView->currentIndex().row());
         setExperimenterSelectVisible(!m_experimenterList->isEmpty());
         changeExperimenter(EDLAuthor());
     });
 
-    connect(ui->btnExperimenterAdd, &QToolButton::clicked, [&]() {
+    connect(ui->btnExperimenterAdd, &QToolButton::clicked, this, [&]() {
         if (m_experimenterList->isEmpty())
             changeExperimenter(EDLAuthor());
         EDLAuthor newPerson;
@@ -298,7 +300,7 @@ MainWindow::MainWindow(QWidget *parent)
         setExperimenterSelectVisible(!m_experimenterList->isEmpty());
     });
 
-    connect(ui->tbChooseExperimenter, &QToolButton::clicked, [&]() {
+    connect(ui->tbChooseExperimenter, &QToolButton::clicked, this, [&]() {
         showExperimenterSelector(QStringLiteral("Person conducting the current experiment:"));
     });
 
@@ -382,7 +384,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // keep the export directory preview in sync with the optional hour/minute suffix setting
     m_engine->setClockTimeInExportDir(ui->cbClockTimeInExportDir->isChecked());
-    connect(ui->cbClockTimeInExportDir, &QCheckBox::toggled, [this](bool checked) {
+    connect(ui->cbClockTimeInExportDir, &QCheckBox::toggled, this, [this](bool checked) {
         m_engine->setClockTimeInExportDir(checked);
         updateExportDirDisplay();
     });
@@ -396,7 +398,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     // also update if we change the export hierarchy to flat
     m_engine->setFlatExportDir(ui->cbFlatExportDirName->isChecked());
-    connect(ui->cbFlatExportDirName, &QCheckBox::toggled, [this](bool checked) {
+    connect(ui->cbFlatExportDirName, &QCheckBox::toggled, this, [this](bool checked) {
         m_engine->setFlatExportDir(checked);
         updateExportDirDisplay();
     });
@@ -1333,7 +1335,7 @@ void MainWindow::globalConfigActionTriggered()
     GlobalConfigDialog gcDlg(m_actionCollection, this);
 
     // react to user color scheme changes instantly
-    connect(&gcDlg, &GlobalConfigDialog::defaultColorSchemeChanged, [&]() {
+    connect(&gcDlg, &GlobalConfigDialog::defaultColorSchemeChanged, this, [&]() {
         applySelectedAppStyle();
     });
 
@@ -1963,7 +1965,7 @@ void MainWindow::on_actionUsbDevices_triggered()
 
     QPushButton btnRefresh("Refresh", &dlg);
     btnLayout.addWidget(&btnRefresh);
-    connect(&btnRefresh, &QPushButton::clicked, [&]() {
+    connect(&btnRefresh, &QPushButton::clicked, &btnRefresh, [&]() {
         lsusbBox.setText(fetchLsUsbOutputHtml());
     });
 
@@ -1972,7 +1974,7 @@ void MainWindow::on_actionUsbDevices_triggered()
     bool usbViewFound = !findHostExecutable("usbview").isEmpty();
     btnOpenUsbView.setText(usbViewFound ? "Open USBView" : "Install USBView");
 
-    connect(&btnOpenUsbView, &QPushButton::clicked, [&]() {
+    connect(&btnOpenUsbView, &QPushButton::clicked, &btnOpenUsbView, [&]() {
         if (usbViewFound)
             runHostExecutable("usbview", QStringList(), false);
         else

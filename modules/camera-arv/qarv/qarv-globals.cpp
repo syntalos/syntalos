@@ -32,7 +32,7 @@ void MessageSender::sendMessage(const QString &scope, const QString& message) {
 QArvDebug::~QArvDebug() {
     if (m_modLog == nullptr) {
         auto now = QTime::currentTime().toString("[hh:mm:ss] ");
-        foreach (auto line, m_message.split('\n')) {
+        for (auto line : m_message.split('\n')) {
             if (line.startsWith('"')) {
                 auto lineref = QStringView{line}.mid(1, line.length() - 3);
                 qDebug("%s%s",
@@ -48,7 +48,7 @@ QArvDebug::~QArvDebug() {
         }
     } else {
         const auto scope = QString::fromStdString(m_modLog->get_logger_name());
-        foreach (auto line, m_message.split('\n')) {
+        for (auto line : m_message.split('\n')) {
             if (line.startsWith('"')) {
                 auto lineref = QStringView{line}.mid(1, line.length() - 3);
                 LOG_INFO(m_modLog, "{}", lineref.toLocal8Bit().constData());

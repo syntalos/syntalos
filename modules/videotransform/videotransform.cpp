@@ -96,7 +96,7 @@ void CropTransform::createSettingsUi(QWidget *parent)
         return;
     }
     m_sizeInfoLabel = new QLabel(parent);
-    connect(m_sizeInfoLabel, &QWidget::destroyed, [this]() {
+    connect(m_sizeInfoLabel, &QWidget::destroyed, this, [this]() {
         m_sizeInfoLabel = nullptr;
         m_btnSelectRegion = nullptr;
         m_btnReset = nullptr;
@@ -126,40 +126,40 @@ void CropTransform::createSettingsUi(QWidget *parent)
     m_sbHeight->setValue(m_roi.height);
     m_sbHeight->setMinimumWidth(100);
 
-    connect(m_sbX, qOverload<int>(&QSpinBox::valueChanged), [this](int) {
+    connect(m_sbX, qOverload<int>(&QSpinBox::valueChanged), this, [this](int) {
         QTimer::singleShot(300, m_sbX, &QSpinBox::editingFinished);
     });
-    connect(m_sbX, &QSpinBox::editingFinished, [this]() {
+    connect(m_sbX, &QSpinBox::editingFinished, this, [this]() {
         const std::lock_guard<std::mutex> lock(m_mutex);
         m_roi.x = m_sbX->value();
         m_onlineModified = true;
         checkAndUpdateRoi();
     });
 
-    connect(m_sbWidth, qOverload<int>(&QSpinBox::valueChanged), [this](int) {
+    connect(m_sbWidth, qOverload<int>(&QSpinBox::valueChanged), this, [this](int) {
         QTimer::singleShot(300, m_sbWidth, &QSpinBox::editingFinished);
     });
-    connect(m_sbWidth, &QSpinBox::editingFinished, [this]() {
+    connect(m_sbWidth, &QSpinBox::editingFinished, this, [this]() {
         const std::lock_guard<std::mutex> lock(m_mutex);
         m_roi.width = m_sbWidth->value();
         m_onlineModified = true;
         checkAndUpdateRoi();
     });
 
-    connect(m_sbY, qOverload<int>(&QSpinBox::valueChanged), [this](int) {
+    connect(m_sbY, qOverload<int>(&QSpinBox::valueChanged), this, [this](int) {
         QTimer::singleShot(300, m_sbY, &QSpinBox::editingFinished);
     });
-    connect(m_sbY, &QSpinBox::editingFinished, [this]() {
+    connect(m_sbY, &QSpinBox::editingFinished, this, [this]() {
         const std::lock_guard<std::mutex> lock(m_mutex);
         m_roi.y = m_sbY->value();
         m_onlineModified = true;
         checkAndUpdateRoi();
     });
 
-    connect(m_sbHeight, qOverload<int>(&QSpinBox::valueChanged), [this](int) {
+    connect(m_sbHeight, qOverload<int>(&QSpinBox::valueChanged), this, [this](int) {
         QTimer::singleShot(300, m_sbHeight, &QSpinBox::editingFinished);
     });
-    connect(m_sbHeight, &QSpinBox::editingFinished, [this]() {
+    connect(m_sbHeight, &QSpinBox::editingFinished, this, [this]() {
         const std::lock_guard<std::mutex> lock(m_mutex);
         m_roi.height = m_sbHeight->value();
         m_onlineModified = true;
@@ -183,7 +183,7 @@ void CropTransform::createSettingsUi(QWidget *parent)
     formLayout->addRow(btnRow);
     formLayout->addWidget(m_sizeInfoLabel);
 
-    connect(m_btnReset, &QPushButton::clicked, [this]() {
+    connect(m_btnReset, &QPushButton::clicked, this, [this]() {
         const std::lock_guard<std::mutex> lock(m_mutex);
         m_roi.x = 0;
         m_roi.y = 0;
@@ -193,7 +193,7 @@ void CropTransform::createSettingsUi(QWidget *parent)
         checkAndUpdateRoi();
     });
 
-    connect(m_btnSelectRegion, &QPushButton::clicked, [this, parent]() {
+    connect(m_btnSelectRegion, &QPushButton::clicked, this, [this, parent]() {
         std::optional<QPixmap> pixmap;
         {
             const std::lock_guard<std::mutex> lock(m_mutex);
@@ -231,7 +231,7 @@ void CropTransform::createSettingsUi(QWidget *parent)
         }
 
         const auto baselineRoi = qRectToCvRect(selector->unzoomedSelectedRegion());
-        connect(dlg, &QDialog::accepted, [this, dlg, baselineRoi]() {
+        connect(dlg, &QDialog::accepted, this, [this, dlg, baselineRoi]() {
             const QRect selected = dlg->pixmapRegionSelectorWidget()->unzoomedSelectedRegion();
             if (!selected.isValid())
                 return;
@@ -477,7 +477,7 @@ void ScaleTransform::createSettingsUi(QWidget *parent)
     auto *sbSymScale = new QDoubleSpinBox(parent);
     sbSymScale->setRange(0.01, 10);
     sbSymScale->setValue(m_scaleFactor);
-    connect(sbSymScale, qOverload<double>(&QDoubleSpinBox::valueChanged), [this](double value) {
+    connect(sbSymScale, qOverload<double>(&QDoubleSpinBox::valueChanged), this, [this](double value) {
         m_scaleFactor = value;
     });
 
@@ -564,9 +564,13 @@ void RotateTransform::createSettingsUi(QWidget *parent)
     rotationSelector->addItem(QStringLiteral("180 degrees"), 180);
     rotationSelector->addItem(QStringLiteral("270 degrees"), 270);
     rotationSelector->setCurrentIndex(rotationSelector->findData(m_degrees));
-    connect(rotationSelector, qOverload<int>(&QComboBox::currentIndexChanged), [this, rotationSelector](int index) {
-        m_degrees = normalizeRotationDegrees(rotationSelector->itemData(index).toInt());
-    });
+    connect(
+        rotationSelector,
+        qOverload<int>(&QComboBox::currentIndexChanged),
+        this,
+        [this, rotationSelector](int index) {
+            m_degrees = normalizeRotationDegrees(rotationSelector->itemData(index).toInt());
+        });
 
     auto formLayout = new QFormLayout(parent);
     formLayout->addRow(QStringLiteral("Rotation:"), rotationSelector);
@@ -635,7 +639,7 @@ void MirrorTransform::createSettingsUi(QWidget *parent)
     axisSelector->addItem(QStringLiteral("X"), QStringLiteral("x"));
     axisSelector->addItem(QStringLiteral("Y"), QStringLiteral("y"));
     axisSelector->setCurrentIndex(m_axis == Axis::X ? 0 : 1);
-    connect(axisSelector, qOverload<int>(&QComboBox::currentIndexChanged), [this, axisSelector](int index) {
+    connect(axisSelector, qOverload<int>(&QComboBox::currentIndexChanged), this, [this, axisSelector](int index) {
         const auto axisStr = axisSelector->itemData(index).toString();
         m_axis = axisStr == QStringLiteral("y") ? Axis::Y : Axis::X;
     });

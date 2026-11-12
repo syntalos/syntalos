@@ -519,7 +519,7 @@ Engine::Engine(QWidget *parentWidget)
         LOG_WARNING(d->log, "Unable to register USB hotplug callback: Can not notify modules of USB hotplug events.");
         d->usbHotplugCBHandle = -1;
     } else {
-        connect(d->usbEventsTimer, &QTimer::timeout, [this]() {
+        connect(d->usbEventsTimer, &QTimer::timeout, this, [this]() {
             struct timeval tv{0, 0};
             libusb_handle_events_timeout_completed(d->usbCtx, &tv, nullptr);
         });
@@ -921,7 +921,9 @@ void Engine::removeAllModules()
         }
     }
 
-    foreach (auto mod, d->presentModules)
+    // removeModule() modifies the list, so we iterate over a copy
+    const auto modules = d->presentModules;
+    for (auto mod : modules)
         removeModule(mod);
 }
 

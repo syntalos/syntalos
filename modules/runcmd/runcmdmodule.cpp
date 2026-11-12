@@ -98,7 +98,7 @@ public:
             Arg,
             QuotedArg
         } state = Idle;
-        foreach (QChar const c, cmdLine) {
+        for (QChar const c : std::as_const(cmdLine)) {
             if (!escape && c == '\\') {
                 escape = true;
                 continue;

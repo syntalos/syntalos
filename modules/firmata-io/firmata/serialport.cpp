@@ -62,7 +62,7 @@ bool SerialFirmata::setDevice(const QString &device)
         } else {
             d->port.reset(new QSerialPort(device));
             d->port->setBaudRate(d->baudRate);
-            connect(d->port.data(), &QSerialPort::errorOccurred, [this](QSerialPort::SerialPortError e) {
+            connect(d->port.data(), &QSerialPort::errorOccurred, this, [this](QSerialPort::SerialPortError e) {
                 QString msg;
                 switch (e) {
                 case QSerialPort::NoError:

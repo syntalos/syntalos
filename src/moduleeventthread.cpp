@@ -377,11 +377,9 @@ void ModuleEventThread::moduleEventThreadFunc(
 
     // check if any module signals that it will actually not be doing anything
     // (if so, we don't need to call it and can maybe even terminate this thread)
-    QMutableListIterator<AbstractModule *> i(mods);
-    while (i.hasNext()) {
-        if (i.next()->state() == ModuleState::IDLE)
-            i.remove();
-    }
+    mods.removeIf([](AbstractModule *mod) {
+        return mod->state() == ModuleState::IDLE;
+    });
 
     // used later to measure wait time on shutdown
     symaster_timepoint tpWaitStart;

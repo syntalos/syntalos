@@ -52,6 +52,7 @@ SubscriptionNotifier::SubscriptionNotifier(
     connect(
         d->notifier.get(),
         &QSocketNotifier::activated,
+        this,
         [this](QSocketDescriptor socket, QSocketNotifier::Type type) {
             // drains the eventfd and clears the coalesced-wakeup flag
             d->sub->acknowledgeNotify();

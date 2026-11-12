@@ -414,9 +414,7 @@ bool FLIRCamera::acquireFrame(Frame &frame, SecondaryClockSynchronizer *clockSyn
         // we have a camera value change!
         const std::lock_guard<std::mutex> lock(d->valChangeMutex);
 
-        QSetIterator<FLIRCamValueChange> i(d->valChangeNotify);
-        while (i.hasNext()) {
-            const auto change = i.next();
+        for (const auto change : std::as_const(d->valChangeNotify)) {
 
             try {
                 switch (change) {

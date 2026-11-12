@@ -182,7 +182,7 @@ public:
             std::unique_ptr<SubscriptionNotifier> notifier;
             if (lineCtlSub) {
                 notifier = std::make_unique<SubscriptionNotifier>(lineCtlSub);
-                QObject::connect(notifier.get(), &SubscriptionNotifier::dataReceived, [&loop, &firmata, this]() {
+                QObject::connect(notifier.get(), &SubscriptionNotifier::dataReceived, &loop, [&loop, &firmata, this]() {
                     for (uint i = 0; i < 4; i++) {
                         if (!checkLineCommandReceived(firmata.get()))
                             break;
@@ -199,7 +199,7 @@ public:
             quitTimer.setInterval(200);
             quitTimer.setSingleShot(false);
             quitTimer.start();
-            QObject::connect(&quitTimer, &QTimer::timeout, [&loop, this]() {
+            QObject::connect(&quitTimer, &QTimer::timeout, &loop, [&loop, this]() {
                 if (!mod.running())
                     loop.quit();
             });

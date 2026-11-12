@@ -122,7 +122,6 @@ void TimingsDialog::onSynchronizerOffsetChanged(const std::string &id, const mic
 
 void TimingsDialog::clear()
 {
-    foreach (auto w, m_tdispMap.values())
-        delete w;
+    qDeleteAll(m_tdispMap);
     m_tdispMap.clear();
 }

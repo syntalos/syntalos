@@ -161,11 +161,11 @@ int runInTerminal(const QString &cmd, const QStringList &args, const QString &wd
     QEventLoop loop;
     bool finished = false;
 
-    QObject::connect(termWin.get(), &SimpleTerminal::finished, [&finished, &loop]() {
+    QObject::connect(termWin.get(), &SimpleTerminal::finished, &loop, [&finished, &loop]() {
         finished = true;
         loop.quit();
     });
-    QObject::connect(termWin.get(), &SimpleTerminal::windowClosed, [&loop]() {
+    QObject::connect(termWin.get(), &SimpleTerminal::windowClosed, &loop, [&loop]() {
         loop.quit();
     });
 
