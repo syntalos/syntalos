@@ -20,10 +20,12 @@
 #include "recordersettingsdialog.h"
 #include "ui_recordersettingsdialog.h"
 
+#include <QFontMetrics>
 #include <QMessageBox>
 #include <QSignalBlocker>
 #include <QThread>
 #include <QVariant>
+#include <algorithm>
 
 #include "utils/misc.h"
 
@@ -188,6 +190,24 @@ void RecorderSettingsDialog::setCodecProps(CodecProperties props)
         ui->qualitySlider->setValue(m_codecProps.quality());
     }
     ui->bitrateSpinBox->setValue(m_codecProps.bitrateKbps());
+    {
+        const QSignalBlocker blocker(ui->presetSlider);
+        ui->presetSlider->setRange(m_codecProps.presetMin(), m_codecProps.presetMax());
+        ui->presetSlider->setValue(m_codecProps.preset());
+    }
+    int presetValueWidth = ui->presetValLabel->fontMetrics().horizontalAdvance(QStringLiteral("N/A"));
+    if (m_codecProps.hasPreset()) {
+        auto props = m_codecProps;
+        for (int preset = props.presetMin(); preset <= props.presetMax(); ++preset) {
+            props.setPreset(preset);
+            presetValueWidth = std::max(
+                presetValueWidth,
+                ui->presetValLabel->fontMetrics().horizontalAdvance(props.presetDisplayName()));
+        }
+    }
+    ui->presetValLabel->setFixedWidth(presetValueWidth);
+    ui->presetValLabel->setText(m_codecProps.presetDisplayName());
+    updatePresetUiState();
 
     // other properties
     {
@@ -342,7 +362,13 @@ void RecorderSettingsDialog::updateLosslessUiState()
 
 void RecorderSettingsDialog::on_losslessCheckBox_toggled(bool checked)
 {
+    const auto previousPreset = m_codecProps.preset();
     m_codecProps.setLossless(checked);
+    if (m_codecProps.preset() != previousPreset) {
+        const QSignalBlocker blocker(ui->presetSlider);
+        ui->presetSlider->setValue(m_codecProps.preset());
+        ui->presetValLabel->setText(m_codecProps.presetDisplayName());
+    }
     ui->brqWidget->setDisabled(checked);
 
     // Exact colors are only worth their size and speed penalty when the rest of the
@@ -449,6 +475,17 @@ void RecorderSettingsDialog::on_vaapiCheckBox_toggled(bool checked)
 
     updateLosslessUiState();
     updateExactColorsUiState();
+    updatePresetUiState();
+}
+
+void RecorderSettingsDialog::updatePresetUiState()
+{
+    const bool supported = m_codecProps.hasPreset();
+    const bool enabled = supported && !m_codecProps.useVaapi();
+    ui->presetLabel->setEnabled(enabled);
+    ui->presetSlider->setEnabled(enabled);
+    ui->presetValLabel->setEnabled(enabled);
+    ui->presetValLabel->setText(supported ? m_codecProps.presetDisplayName() : QStringLiteral("N/A"));
 }
 
 void RecorderSettingsDialog::on_renderNodeComboBox_currentIndexChanged(int index)
@@ -524,6 +561,37 @@ void RecorderSettingsDialog::on_qualitySlider_valueChanged(int value)
         realVal = value * -1;
     m_codecProps.setQuality(realVal);
     ui->qualityValLabel->setText(QString::number(realVal));
+}
+
+void RecorderSettingsDialog::on_presetSlider_valueChanged(int value)
+{
+    m_codecProps.setPreset(value);
+    ui->presetValLabel->setText(m_codecProps.presetDisplayName());
+}
+
+void RecorderSettingsDialog::on_presetInfoButton_clicked()
+{
+    QMessageBox::information(
+        this,
+        QStringLiteral("Information on encoding presets"),
+        QStringLiteral(
+            "<html>"
+            "This slider controls how much CPU time the encoder spends compressing each frame. It does not "
+            "directly set the recording quality. Moving it to the left selects a slower, more efficient mode; "
+            "moving it to the right selects a faster mode that may produce larger files at the same quality, "
+            "or lower quality at the same bitrate."
+            "<br/><br/>"
+            "The slider maps to different encoder controls:"
+            "<ul>"
+            "<li><b>AV1 (SVT-AV1):</b> the encoder's numeric <i>preset</i> value.</li>"
+            "<li><b>VP9 (libvpx):</b> the <i>cpu-used</i> value. libvpx does not call this a preset, but it "
+            "provides the same speed-versus-efficiency trade-off.</li>"
+            "<li><b>H.264 (x264) and H.265/HEVC (x265):</b> the named presets from <i>placebo</i> through "
+            "<i>medium</i> to <i>ultrafast</i>.</li>"
+            "</ul>"
+            "Start with the default. Move the slider to the right if recording cannot keep up with incoming "
+            "frames, or to the left when CPU headroom is available and smaller files or better bitrate-limited "
+            "quality are more important."));
 }
 
 void RecorderSettingsDialog::on_bitrateSpinBox_valueChanged(int b)
