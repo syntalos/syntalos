@@ -21,6 +21,7 @@
 #include "ui_plotwindow.h"
 
 #include <QCheckBox>
+#include <QCloseEvent>
 #include <QHeaderView>
 #include <QInputDialog>
 #include <QTableWidgetItem>
@@ -53,6 +54,13 @@ PlotWindow::PlotWindow(AbstractModule *mod, QWidget *parent)
 PlotWindow::~PlotWindow()
 {
     delete ui;
+}
+
+void PlotWindow::closeEvent(QCloseEvent *event)
+{
+    // Do not leave a context bound to a GLX drawable that closing this window destroys.
+    m_canvas->doneCurrent();
+    QWidget::closeEvent(event);
 }
 
 PlotCanvas *PlotWindow::canvas() const

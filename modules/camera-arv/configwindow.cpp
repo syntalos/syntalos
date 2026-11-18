@@ -1130,6 +1130,8 @@ void ArvConfigWindow::closeEvent(QCloseEvent *event)
         playButton->setChecked(false);
         toggleVideoPreview(false);
     }
+    // Do not leave a context bound to a GLX drawable that closing this window destroys.
+    videoWidget->doneCurrent();
     event->accept();
 }
 
